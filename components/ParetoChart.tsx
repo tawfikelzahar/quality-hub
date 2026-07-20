@@ -184,10 +184,11 @@ export default function ParetoChart() {
     ],
   }
 
-  const chartOptions = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chartOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: { mode: 'index' as const, intersect: false },
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
         labels: {
@@ -204,12 +205,12 @@ export default function ParetoChart() {
         bodyColor: c.muted,
         padding: 10,
         callbacks: {
-          label: (ctx: { dataset: { label?: string }; parsed: { y: number }; dataIndex: number }) => {
+          label: (ctx: any) => {
             if (ctx.dataset.label === 'Cumulative %')
               return ` Cumulative: ${ctx.parsed.y}%`
             return ` Count: ${ctx.parsed.y} (${total > 0 ? Math.round((ctx.parsed.y / total) * 100) : 0}%)`
           },
-          afterBody: (items: { dataIndex: number }[]) => {
+          afterBody: (items: any[]) => {
             const i = items[0]?.dataIndex
             if (i !== undefined && i < vitalFew)
               return ['', '⭐ Vital Few — Top 80%']
@@ -225,20 +226,20 @@ export default function ParetoChart() {
         border: { color: c.border },
       },
       y: {
-        position: 'left' as const,
+        position: 'left',
         ticks: { color: c.muted, font: { size: 11 } },
         grid: { color: c.grid },
         border: { color: c.border },
         title: { display: true, text: 'Frequency', color: c.muted, font: { size: 11 } },
       },
       y2: {
-        position: 'right' as const,
+        position: 'right',
         min: 0,
         max: 100,
         ticks: {
           color: c.amber,
           font: { size: 11 },
-          callback: (v: number | string) => `${v}%`,
+          callback: (v: any) => `${v}%`,
         },
         grid: { drawOnChartArea: false },
         border: { color: c.amber },
@@ -246,7 +247,6 @@ export default function ParetoChart() {
       },
     },
   }
-
   const s: Record<string, React.CSSProperties> = {
     page: {
       display: 'flex', flexDirection: 'column', minHeight: '100vh',
