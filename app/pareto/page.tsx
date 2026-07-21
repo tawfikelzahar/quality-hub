@@ -1,10 +1,4 @@
-'use client'
-
-import dynamic from 'next/dynamic'
-
-const ParetoChart = dynamic(() => import('@/components/ParetoChart'), {
-  ssr: false,
-})
+import ParetoChart from '@/components/ParetoChart'
 
 export default function ParetoPage() {
   return <ParetoChart />
