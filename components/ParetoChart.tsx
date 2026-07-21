@@ -3,19 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import 'chart.js/auto'
-import { Chart } from 'react-chartjs-2' from 'chart.js'
 import { Chart } from 'react-chartjs-2'
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend
-)
 
 interface DataRow {
   id: string
