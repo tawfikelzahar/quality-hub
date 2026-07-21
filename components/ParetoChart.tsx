@@ -1,21 +1,12 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import 'chart.js/auto'
-import { Chart } from 'react-chartjs-2' from 'chart.js'
 import { Chart } from 'react-chartjs-2'
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend
-)
+import type { Chart as ChartJSInstance } from 'chart.js'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
 
 interface DataRow {
   id: string
@@ -60,20 +51,53 @@ function generateId() {
   return Math.random().toString(36).slice(2, 9)
 }
 
-function parseCSV(text: string): DataRow[] {
+// Parses CSV or pasted TSV (tab-separated, from Excel/Sheets copy)
+function parseDelimited(text: string): DataRow[] {
   const lines = text.trim().split('\n').filter(Boolean)
   const rows: DataRow[] = []
   for (const line of lines) {
-    const parts = line.split(',')
+    // Try tab first (Excel paste), then comma (CSV)
+    const delimiter = line.includes('\t') ? '\t' : ','
+    const parts = line.split(delimiter)
     if (parts.length >= 2) {
       const label = parts[0].trim().replace(/^"|"$/g, '')
       const value = parseFloat(parts[1].trim())
-      if (label && !isNaN(value) && value > 0) {
+      if (label && !isNaN(value) && value > 0 && !isNaN(Number(label)) === false) {
         rows.push({ id: generateId(), label, value })
       }
     }
   }
   return rows
+}
+
+function parseExcelFile(file: File): Promise<DataRow[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      try {
+        const data = e.target?.result
+        const workbook = XLSX.read(data, { type: 'binary' })
+        const sheetName = workbook.SheetNames[0]
+        const sheet = workbook.Sheets[sheetName]
+        const json: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+        const rows: DataRow[] = []
+        for (const row of json) {
+          if (Array.isArray(row) && row.length >= 2) {
+            const label = String(row[0] ?? '').trim()
+            const value = parseFloat(String(row[1] ?? ''))
+            if (label && !isNaN(value) && value > 0) {
+              rows.push({ id: generateId(), label, value })
+            }
+          }
+        }
+        resolve(rows)
+      } catch {
+        reject(new Error('Could not read Excel file'))
+      }
+    }
+    reader.onerror = () => reject(new Error('Could not read file'))
+    reader.readAsBinaryString(file)
+  })
 }
 
 export default function ParetoChart() {
@@ -86,8 +110,10 @@ export default function ParetoChart() {
     { id: generateId(), label: 'Packaging Damage', value: 6 },
   ])
   const [dragOver, setDragOver] = useState(false)
-  const [csvError, setCsvError] = useState('')
+  const [fileError, setFileError] = useState('')
+  const [pasteToast, setPasteToast] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const chartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null)
   const c = COLORS[theme]
 
   const sorted = [...rows]
@@ -124,24 +150,133 @@ export default function ParetoChart() {
     setRows(prev => prev.filter(r => r.id !== id))
   }
 
+  // ── Global Ctrl+V paste handler ──
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement
+      // Don't hijack paste while typing inside a text input/textarea
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
+
+      const text = e.clipboardData?.getData('text')
+      if (!text) return
+      const parsed = parseDelimited(text)
+      if (parsed.length > 0) {
+        e.preventDefault()
+        setRows(parsed)
+        setFileError('')
+        setPasteToast(true)
+        setTimeout(() => setPasteToast(false), 2000)
+      }
+    }
+    window.addEventListener('paste', handlePaste)
+    return () => window.removeEventListener('paste', handlePaste)
+  }, [])
+
+  // ── File upload (CSV or Excel) ──
   const handleFile = useCallback((file: File) => {
-    setCsvError('')
-    if (!file.name.endsWith('.csv')) {
-      setCsvError('Please upload a .csv file')
+    setFileError('')
+    const isCSV = file.name.endsWith('.csv')
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+
+    if (!isCSV && !isExcel) {
+      setFileError('Please upload a .csv or .xlsx file')
       return
     }
-    const reader = new FileReader()
-    reader.onload = e => {
-      const text = e.target?.result as string
-      const parsed = parseCSV(text)
-      if (parsed.length === 0) {
-        setCsvError('No valid data found. Format: Label, Value')
-        return
+
+    if (isCSV) {
+      const reader = new FileReader()
+      reader.onload = e => {
+        const text = e.target?.result as string
+        const parsed = parseDelimited(text)
+        if (parsed.length === 0) {
+          setFileError('No valid data found. Format: Label, Value')
+          return
+        }
+        setRows(parsed)
       }
-      setRows(parsed)
+      reader.readAsText(file)
+    } else {
+      parseExcelFile(file)
+        .then(parsed => {
+          if (parsed.length === 0) {
+            setFileError('No valid data found in Excel file')
+            return
+          }
+          setRows(parsed)
+        })
+        .catch(() => setFileError('Could not read Excel file'))
     }
-    reader.readAsText(file)
   }, [])
+
+  // ── Export: Data as CSV ──
+  const exportCSV = () => {
+    const header = 'Category,Count,Percent of Total,Cumulative Percent,Status\n'
+    const body = sorted
+      .map((r, i) => {
+        const pct = total > 0 ? Math.round((r.value / total) * 100) : 0
+        const status = i < vitalFew ? 'Vital Few' : 'Useful Many'
+        return `"${r.label}",${r.value},${pct}%,${cumulative[i]}%,${status}`
+      })
+      .join('\n')
+    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'pareto-data.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // ── Export: Data as Excel ──
+  const exportExcel = () => {
+    const data = sorted.map((r, i) => ({
+      Category: r.label,
+      Count: r.value,
+      'Percent of Total': `${total > 0 ? Math.round((r.value / total) * 100) : 0}%`,
+      'Cumulative Percent': `${cumulative[i]}%`,
+      Status: i < vitalFew ? 'Vital Few' : 'Useful Many',
+    }))
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Pareto Data')
+    XLSX.writeFile(wb, 'pareto-data.xlsx')
+  }
+
+  // ── Export: Chart as PNG ──
+  const exportPNG = () => {
+    const chart = chartRef.current
+    if (!chart) return
+    const url = chart.toBase64Image('image/png', 1)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'pareto-chart.png'
+    a.click()
+  }
+
+  // ── Export: Chart as PDF ──
+  const exportPDF = () => {
+    const chart = chartRef.current
+    if (!chart) return
+    const imgData = chart.toBase64Image('image/png', 1)
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 40
+    const imgWidth = pageWidth - margin * 2
+    const imgHeight = (chart.height / chart.width) * imgWidth
+
+    pdf.setFontSize(16)
+    pdf.text('Pareto Analysis', margin, margin)
+    pdf.addImage(
+      imgData,
+      'PNG',
+      margin,
+      margin + 20,
+      imgWidth,
+      Math.min(imgHeight, pageHeight - margin * 2 - 20)
+    )
+    pdf.save('pareto-chart.pdf')
+  }
 
   const chartData = {
     labels: sorted.map(r => r.label),
@@ -238,6 +373,7 @@ export default function ParetoChart() {
       },
     },
   }
+
   const s: Record<string, React.CSSProperties> = {
     page: {
       display: 'flex', flexDirection: 'column', minHeight: '100vh',
@@ -287,11 +423,6 @@ export default function ParetoChart() {
       background: c.surface, border: `1px solid ${c.border}`,
       borderRadius: 12, padding: 20,
     },
-    cardDark: {
-      background: theme === 'dark' ? c.surface2 : c.surface2,
-      border: `1px solid ${c.border}`,
-      borderRadius: 12, padding: 20,
-    },
     inputRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
     input: {
       background: theme === 'dark' ? '#0d1520' : '#f8fafc',
@@ -314,6 +445,12 @@ export default function ParetoChart() {
       textAlign: 'center' as const,
       background: dragOver ? `${c.accent}08` : 'transparent',
       transition: 'all 0.2s', cursor: 'pointer',
+    },
+    exportBtn: {
+      background: c.surface2, border: `1px solid ${c.border}`,
+      borderRadius: 8, color: c.text, padding: '9px 10px',
+      cursor: 'pointer', fontSize: 12, fontWeight: 600,
+      display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center',
     },
     statsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 },
     statCard: {
@@ -341,6 +478,14 @@ export default function ParetoChart() {
       textTransform: 'uppercase' as const, letterSpacing: 0.5,
     },
     td: { padding: '10px 12px', borderBottom: `1px solid ${c.border}40` },
+    toast: {
+      position: 'fixed' as const, bottom: 24, left: '50%',
+      transform: 'translateX(-50%)',
+      background: c.accent, color: '#060d1a',
+      padding: '10px 20px', borderRadius: 8,
+      fontSize: 13, fontWeight: 700, zIndex: 100,
+      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+    },
   }
 
   return (
@@ -400,9 +545,9 @@ export default function ParetoChart() {
             <button style={s.addBtn} onClick={addRow}>+ Add Row</button>
           </div>
 
-          {/* CSV Upload */}
+          {/* File Upload + Paste */}
           <div>
-            <div style={s.sectionTitle}>📁 CSV Upload</div>
+            <div style={s.sectionTitle}>📁 Upload or Paste</div>
             <div
               style={s.dropzone}
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -416,26 +561,37 @@ export default function ParetoChart() {
             >
               <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
               <div style={{ color: c.text, fontWeight: 600, fontSize: 13 }}>
-                Drop CSV here or click to browse
+                Drop CSV / Excel here or click to browse
               </div>
               <div style={{ color: c.muted, fontSize: 11, marginTop: 6 }}>
-                Format: Category, Count
+                or press Ctrl+V to paste from Excel/Sheets
               </div>
-              {csvError && (
-                <div style={{ color: '#ef4444', fontSize: 11, marginTop: 8 }}>{csvError}</div>
+              {fileError && (
+                <div style={{ color: '#ef4444', fontSize: 11, marginTop: 8 }}>{fileError}</div>
               )}
             </div>
             <input
-              ref={fileRef} type="file" accept=".csv"
+              ref={fileRef} type="file" accept=".csv,.xlsx,.xls"
               style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
             />
             <div style={{ fontSize: 11, color: c.muted, marginTop: 10, lineHeight: 1.6 }}>
-              Example CSV:<br />
+              Format: Category, Count<br />
               <code style={{ color: c.accent }}>
                 Dimensional Error, 42<br />
                 Surface Defect, 28
               </code>
+            </div>
+          </div>
+
+          {/* Export */}
+          <div>
+            <div style={s.sectionTitle}>📤 Export</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
+              <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
+              <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
+              <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
             </div>
           </div>
 
@@ -476,7 +632,7 @@ export default function ParetoChart() {
 
             {sorted.length > 0 ? (
               <div style={s.chartInner}>
-                <Chart type="bar" data={chartData} options={chartOptions} />
+                <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
               </div>
             ) : (
               <div style={{ height: 380, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.muted }}>
@@ -528,6 +684,10 @@ export default function ParetoChart() {
 
         </div>
       </div>
+
+      {pasteToast && (
+        <div style={s.toast}>✅ Data pasted successfully</div>
+      )}
     </div>
   )
 }
