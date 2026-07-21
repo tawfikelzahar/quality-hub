@@ -132,10 +132,17 @@ export default function ParetoChart() {
   const vitalFewCount = cumulative.findIndex(v => v >= 80) + 1
   const vitalFew = vitalFewCount > 0 ? vitalFewCount : sorted.length
 
-  const addRow = () => {
+ const addRow = () => {
     setRows(prev => [...prev, { id: generateId(), label: '', value: 0 }])
   }
 
+  const clearAll = () => {
+    if (rows.length === 0) return
+    const confirmed = window.confirm('Clear all data? This cannot be undone.')
+    if (confirmed) {
+      setRows([])
+    }
+  }
   const updateRow = (id: string, field: 'label' | 'value', val: string) => {
     setRows(prev =>
       prev.map(r =>
@@ -253,29 +260,91 @@ export default function ParetoChart() {
     a.click()
   }
 
-  // ── Export: Chart as PDF ──
+ // ── Export: Chart + Table as PDF ──
   const exportPDF = () => {
     const chart = chartRef.current
     if (!chart) return
     const imgData = chart.toBase64Image('image/png', 1)
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
     const margin = 40
+    let y = margin
+
+    // Title
+    pdf.setFontSize(18)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('Pareto Analysis', margin, y)
+    y += 10
+
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(100)
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12)
+    y += 30
+
+    // Summary line
+    pdf.setFontSize(11)
+    pdf.setTextColor(0)
+    pdf.text(
+      `Total: ${total}  |  Categories: ${sorted.length}  |  Vital Few: ${vitalFew} categories = 80% of problems`,
+      margin,
+      y
+    )
+    y += 20
+
+    // Chart image
     const imgWidth = pageWidth - margin * 2
     const imgHeight = (chart.height / chart.width) * imgWidth
+    pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
+    y += imgHeight + 30
 
-    pdf.setFontSize(16)
-    pdf.text('Pareto Analysis', margin, margin)
-    pdf.addImage(
-      imgData,
-      'PNG',
-      margin,
-      margin + 20,
-      imgWidth,
-      Math.min(imgHeight, pageHeight - margin * 2 - 20)
-    )
-    pdf.save('pareto-chart.pdf')
+    // Table header
+    const colX = [margin, margin + 180, margin + 260, margin + 340, margin + 430]
+    const rowHeight = 20
+
+    const drawTableHeader = () => {
+      pdf.setFillColor(230, 230, 230)
+      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(10)
+      pdf.setTextColor(0)
+      pdf.text('Category', colX[0] + 4, y + 14)
+      pdf.text('Count', colX[1] + 4, y + 14)
+      pdf.text('% Total', colX[2] + 4, y + 14)
+      pdf.text('Cumulative', colX[3] + 4, y + 14)
+      pdf.text('Status', colX[4] + 4, y + 14)
+      y += rowHeight
+    }
+
+    drawTableHeader()
+
+    pdf.setFont('helvetica', 'normal')
+    sorted.forEach((r, i) => {
+      // New page if needed
+      if (y + rowHeight > pageHeight - margin) {
+        pdf.addPage()
+        y = margin
+        drawTableHeader()
+      }
+
+      if (i < vitalFew) {
+        pdf.setFillColor(255, 245, 225)
+        pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
+      }
+
+      pdf.setTextColor(0)
+      pdf.text(r.label.slice(0, 28), colX[0] + 4, y + 14)
+      pdf.text(String(r.value), colX[1] + 4, y + 14)
+      pdf.text(`${total > 0 ? Math.round((r.value / total) * 100) : 0}%`, colX[2] + 4, y + 14)
+      pdf.text(`${cumulative[i]}%`, colX[3] + 4, y + 14)
+      pdf.setTextColor(i < vitalFew ? 200 : 120, i < vitalFew ? 120 : 120, 0)
+      pdf.text(i < vitalFew ? 'Vital Few' : 'Useful Many', colX[4] + 4, y + 14)
+
+      y += rowHeight
+    })
+
+    pdf.save('pareto-report.pdf')
   }
 
   const chartData = {
@@ -542,7 +611,21 @@ export default function ParetoChart() {
                 <button style={s.removeBtn} onClick={() => removeRow(row.id)}>×</button>
               </div>
             ))}
-            <button style={s.addBtn} onClick={addRow}>+ Add Row</button>
+           <button style={s.addBtn} onClick={addRow}>+ Add Row</button>
+            {rows.length > 0 && (
+              <button
+                style={{
+                  ...s.addBtn,
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1px dashed #ef4444',
+                  color: '#ef4444',
+                  marginTop: 8,
+                }}
+                onClick={clearAll}
+              >
+                🗑️ Clear All Data
+              </button>
+            )}
           </div>
 
           {/* File Upload + Paste */}
