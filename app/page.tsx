@@ -55,18 +55,18 @@ export default function Home() {
           <h1 className="fu fu2" style={{fontSize:'clamp(42px,6.5vw,90px)',fontWeight:900,lineHeight:1.02,letterSpacing:-3,marginBottom:24,maxWidth:960}}>
             The quality engineer's<br/>
             <span style={{background:'linear-gradient(90deg,#0fd4c8 0%,#00d4b0 45%,#e8a020 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
-              secret weapon
+              complete toolkit
             </span>
           </h1>
 
-          <p className="fu fu3" style={{fontSize:19,color:'#6b89b4',maxWidth:520,lineHeight:1.75,margin:'0 auto 52px',fontWeight:300}}>
-            Professional SPC, MSA & capability analysis — directly in your browser. No Minitab license. No learning curve.
+          <p className="fu fu3" style={{fontSize:19,color:'#6b89b4',maxWidth:560,lineHeight:1.75,margin:'0 auto 52px',fontWeight:300}}>
+            SPC, Pareto analysis, Six Sigma calculations & capability studies — directly in your browser. No Minitab license. No learning curve.
           </p>
 
           <div className="fu fu4" style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',marginBottom:72}}>
-            <Link href="/spc" className="btn" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:15,padding:'15px 38px',borderRadius:12,textDecoration:'none'}}>
-              Open SPC Engine →
-            </Link>
+            <a href="#tools" className="btn" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:15,padding:'15px 38px',borderRadius:12,textDecoration:'none'}}>
+              Explore the Toolkit →
+            </a>
             <a href="#pricing" style={{border:'1px solid rgba(15,212,200,.2)',color:'#0fd4c8',fontSize:14,fontWeight:500,padding:'15px 28px',borderRadius:12,textDecoration:'none',background:'rgba(15,212,200,.04)'}}>
               See Pricing ↓
             </a>
@@ -74,7 +74,7 @@ export default function Home() {
 
           {/* Feature pills */}
           <div style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'center'}}>
-            {['X̄-R & I-MR Charts','All 8 Nelson Rules','Cp · Cpk · Pp · Ppk','Anderson-Darling Test','Sigma Level & PPM','Attribute Charts'].map(f=>(
+            {['X̄-R & I-MR Charts','Pareto Analysis','DPMO & Sigma Level','All 8 Nelson Rules','Cp · Cpk · Pp · Ppk','Anderson-Darling Test'].map(f=>(
               <span key={f} style={{fontSize:12,color:'#6b89b4',background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.07)',borderRadius:20,padding:'6px 14px'}}>{f}</span>
             ))}
           </div>
@@ -105,6 +105,46 @@ export default function Home() {
               </div>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {['Cp·Cpk·Pp·Ppk','Nelson Rules','Sigma Level','PPM'].map(t=>(
+                  <span key={t} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{t}</span>
+                ))}
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>Open Tool →</div>
+            </Link>
+
+            {/* Pareto — Live */}
+            <Link href="/pareto" className="card" style={{background:'rgba(11,22,40,.9)',border:'1px solid rgba(15,212,200,.2)',borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📈</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>Live
+                </span>
+              </div>
+              <div>
+                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>Pareto Chart</div>
+                <div style={{fontSize:13,color:'#6b89b4',lineHeight:1.75,fontWeight:300}}>Vital Few / Useful Many analysis · CSV & Excel import · Live cumulative % tracking</div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {['80/20 Rule','Excel Import','PDF Export'].map(t=>(
+                  <span key={t} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{t}</span>
+                ))}
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>Open Tool →</div>
+            </Link>
+
+            {/* DPMO — Live */}
+            <Link href="/dpmo" className="card" style={{background:'rgba(11,22,40,.9)',border:'1px solid rgba(15,212,200,.2)',borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(59,130,246,.1)',border:'1px solid rgba(59,130,246,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🎯</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>Live
+                </span>
+              </div>
+              <div>
+                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>DPMO & Sigma Calculator</div>
+                <div style={{fontSize:13,color:'#6b89b4',lineHeight:1.75,fontWeight:300}}>Defects Per Million Opportunities · Process Sigma Level · Multi-process comparison</div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {['Six Sigma','DPMO','Yield %'].map(t=>(
                   <span key={t} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{t}</span>
                 ))}
               </div>
@@ -152,7 +192,7 @@ export default function Home() {
               <div style={{fontSize:48,fontWeight:900,letterSpacing:-2,marginBottom:4}}>$0</div>
               <div style={{fontSize:13,color:'#6b89b4',marginBottom:32}}>Forever free</div>
               <div style={{display:'flex',flexDirection:'column',gap:11,marginBottom:32}}>
-                {['SPC Engine (basic)','Up to 50 data points','X̄-R and I-MR charts','Cp · Cpk calculation'].map(f=>(
+                {['SPC Engine (basic)','Pareto Chart','DPMO & Sigma Calculator','Up to 50 data points'].map(f=>(
                   <div key={f} style={{display:'flex',alignItems:'center',gap:10,fontSize:14,color:'#8fafd4'}}>
                     <span style={{color:'#0fd4c8',fontWeight:700}}>✓</span> {f}
                   </div>
@@ -163,7 +203,7 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <a href="/spc" style={{display:'block',textAlign:'center',border:'1px solid rgba(255,255,255,.1)',color:'#6b89b4',fontSize:14,fontWeight:600,padding:'13px',borderRadius:10,textDecoration:'none'}}>
+              <a href="#tools" style={{display:'block',textAlign:'center',border:'1px solid rgba(255,255,255,.1)',color:'#6b89b4',fontSize:14,fontWeight:600,padding:'13px',borderRadius:10,textDecoration:'none'}}>
                 Start Free
               </a>
             </div>
