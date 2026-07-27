@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 import {
   AQL_VALUES,
   DEFAULT_DEFECT_CLASSES,
@@ -12,6 +14,7 @@ import {
   computeRow,
   type DefectClassInput,
   type InspectionRowInput,
+  type InspectionRowResult,
 } from '@/lib/aql/calculator';
 import { messages } from '@/lib/aql/messages';
 import { COLORS, getSharedStyles, type ThemeMode } from '@/lib/theme';
@@ -39,6 +42,51 @@ function makeDefaultRow(stageName: string): InspectionRowInput {
     inspectionType: 'Normal',
     defects: makeDefaultDefects(),
   };
+}
+
+/** One flattened line per defect class, used by every export format. */
+function flattenResults(results: InspectionRowResult[]) {
+  const out: {
+    stage: string;
+    lotSize: number;
+    level: string;
+    inspectionType: string;
+    codeLetter: string;
+    defectClass: string;
+    aql: number;
+    sampleSize: number | string;
+    ac: number | string;
+    re: number | string;
+    note: string;
+  }[] = [];
+
+  results.forEach((r) => {
+    r.defects.forEach((d) => {
+      const plan = d.plan;
+      const notes: string[] = [];
+      if (plan?.switchNote) notes.push(plan.switchNote);
+      if (plan?.fullLotInspection && !plan.noVerifiedData) {
+        notes.push(messages.fullLotInspectionNote(plan.requiredSampleSize, r.lotSize));
+      }
+      if (plan?.noVerifiedData) notes.push(messages.noVerifiedDataWarning(d.name));
+
+      out.push({
+        stage: r.stageName,
+        lotSize: r.lotSize,
+        level: r.level,
+        inspectionType: r.inspectionType,
+        codeLetter: r.codeLetter ?? '',
+        defectClass: d.name,
+        aql: d.aql,
+        sampleSize: plan ? plan.actualSampleSize : '',
+        ac: plan && !plan.noVerifiedData ? plan.ac : '',
+        re: plan && !plan.noVerifiedData ? plan.re : '',
+        note: notes.join(' '),
+      });
+    });
+  });
+
+  return out;
 }
 
 export default function AQLPage() {
@@ -95,43 +143,151 @@ export default function AQLPage() {
 
   const results = rows.map(computeRow);
 
+  // ── Export: CSV ──────────────────────────────────────────────────────
   function exportCSV() {
-    const lines: string[] = [
-      'Stage,Lot Size,Level,Inspection Type,Code Letter,Sample Size,Defect Class,AQL%,Used Letter,Required Sample,Actual Sample,Ac,Re,Full Lot Inspection,Note',
-    ];
-    results.forEach((r) => {
-      r.defects.forEach((d) => {
-        const plan = d.plan;
-        lines.push(
-          [
-            r.stageName,
-            r.lotSize,
-            r.level,
-            r.inspectionType,
-            r.codeLetter ?? '',
-            r.sampleSize ?? '',
-            d.name,
-            d.aql,
-            plan?.usedLetter ?? '',
-            plan?.requiredSampleSize ?? '',
-            plan?.actualSampleSize ?? '',
-            plan && !plan.noVerifiedData ? plan.ac : '',
-            plan && !plan.noVerifiedData ? plan.re : '',
-            plan?.fullLotInspection ? 'Yes' : 'No',
-            plan?.switchNote ?? '',
-          ]
-            .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-            .join(','),
-        );
-      });
-    });
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const flat = flattenResults(results);
+    const header = 'Stage,Lot Size,Level,Inspection Type,Code Letter,Defect Class,AQL%,Sample (n),Ac,Re,Note\n';
+    const body = flat
+      .map((r) =>
+        [r.stage, r.lotSize, r.level, r.inspectionType, r.codeLetter, r.defectClass, r.aql, r.sampleSize, r.ac, r.re, r.note]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(','),
+      )
+      .join('\n');
+    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = 'aql-sampling-plan.csv';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  // ── Export: Excel ────────────────────────────────────────────────────
+  function exportExcel() {
+    const flat = flattenResults(results);
+    const data = flat.map((r) => ({
+      Stage: r.stage,
+      'Lot Size': r.lotSize,
+      Level: r.level,
+      'Inspection Type': r.inspectionType,
+      'Code Letter': r.codeLetter,
+      'Defect Class': r.defectClass,
+      'AQL %': r.aql,
+      'Sample (n)': r.sampleSize,
+      Ac: r.ac,
+      Re: r.re,
+      Note: r.note,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'AQL Sampling Plan');
+    XLSX.writeFile(wb, 'aql-sampling-plan.xlsx');
+  }
+
+  // ── Export: PNG ──────────────────────────────────────────────────────
+  // Drawn directly on a canvas (same "draw the report, don't screenshot
+  // the page" approach used for the PDF), so no extra dependency is needed.
+  function exportPNG() {
+    const flat = flattenResults(results);
+    const rowH = 24;
+    const colX = [16, 190, 260, 340, 440, 590, 650, 710];
+    const headers = ['Stage', 'Lot Size', 'Level', 'Code Letter', 'Defect Class', 'AQL%', 'Ac', 'Re'];
+    const width = 900;
+    const height = 90 + rowH * (flat.length + 1) + 20;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.fillStyle = '#0a0f1e';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 20px system-ui, sans-serif';
+    ctx.fillText(messages.pdfReportTitle, 16, 34);
+    ctx.fillStyle = '#6b89b4';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.fillText(`Generated: ${new Date().toLocaleDateString()}`, 16, 54);
+
+    let y = 80;
+    ctx.fillStyle = '#1e2d40';
+    ctx.fillRect(16, y, width - 32, rowH);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = 'bold 12px system-ui, sans-serif';
+    headers.forEach((h, i) => ctx.fillText(h, colX[i] + 4, y + 16));
+    y += rowH;
+
+    ctx.font = '12px system-ui, sans-serif';
+    flat.forEach((r, i) => {
+      if (i % 2 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        ctx.fillRect(16, y, width - 32, rowH);
+      }
+      ctx.fillStyle = '#e2e8f0';
+      const cells = [r.stage, String(r.lotSize), r.level, r.codeLetter, r.defectClass, String(r.aql), String(r.ac), String(r.re)];
+      cells.forEach((v, ci) => ctx.fillText(v.slice(0, 22), colX[ci] + 4, y + 16));
+      y += rowH;
+    });
+
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'aql-sampling-plan.png';
+    a.click();
+  }
+
+  // ── Export: PDF ──────────────────────────────────────────────────────
+  // Same manual-table approach used in the DPMO tool's PDF export.
+  function exportPDF() {
+    const flat = flattenResults(results);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 40;
+    let y = margin;
+
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(messages.pdfReportTitle, margin, y);
+    y += 10;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100);
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12);
+    y += 34;
+
+    const colX = [margin, margin + 90, margin + 160, margin + 210, margin + 270, margin + 360, margin + 400, margin + 440];
+    const rowHeight = 20;
+
+    const drawHeader = () => {
+      pdf.setFillColor(230, 230, 230);
+      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      pdf.setTextColor(0);
+      const headers = ['Stage', 'Lot Size', 'Level', 'Code Letter', 'Defect Class', 'AQL%', 'Ac', 'Re'];
+      headers.forEach((h, i) => pdf.text(h, colX[i] + 4, y + 14));
+      y += rowHeight;
+    };
+
+    drawHeader();
+    pdf.setFont('helvetica', 'normal');
+    flat.forEach((r) => {
+      if (y + rowHeight > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+        drawHeader();
+      }
+      pdf.setTextColor(0);
+      const cells = [r.stage, String(r.lotSize), r.level, r.codeLetter, r.defectClass, String(r.aql), String(r.ac), String(r.re)];
+      cells.forEach((v, i) => pdf.text(v.slice(0, 18), colX[i] + 4, y + 14));
+      y += rowHeight;
+    });
+
+    pdf.save('aql-sampling-plan.pdf');
   }
 
   const warningText: React.CSSProperties = { fontSize: 12, color: c.amber, marginTop: 2 };
@@ -152,9 +308,6 @@ export default function AQLPage() {
           <button style={s.themeBtn} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? messages.darkModeToggleOff : messages.darkModeToggleOn}
           </button>
-          <button style={s.exportBtn} onClick={exportCSV}>
-            {messages.exportCsv}
-          </button>
           <Link href="/login" style={s.signInLink}>
             Sign In
           </Link>
@@ -169,6 +322,24 @@ export default function AQLPage() {
           <p style={{ fontSize: 13, color: c.muted }}>{messages.appSubtitle}</p>
         </div>
 
+        <div style={s.card}>
+          <div style={s.sectionTitle}>{messages.exportSectionTitle}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+            <button style={s.exportBtn} onClick={exportCSV}>
+              📄 {messages.exportCsvButton}
+            </button>
+            <button style={s.exportBtn} onClick={exportExcel}>
+              📊 {messages.exportExcelButton}
+            </button>
+            <button style={s.exportBtn} onClick={exportPNG}>
+              🖼️ {messages.exportPngButton}
+            </button>
+            <button style={s.exportBtn} onClick={exportPDF}>
+              📕 {messages.exportPdfButton}
+            </button>
+          </div>
+        </div>
+
         {rows.map((row, rowIdx) => {
           const result = results[rowIdx];
           return (
@@ -180,7 +351,6 @@ export default function AQLPage() {
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    borderBottom: `1px solid transparent`,
                     color: c.text,
                     fontSize: 17,
                     fontWeight: 600,
@@ -264,8 +434,7 @@ export default function AQLPage() {
                       <tr>
                         <th style={s.th}>{messages.defectClassLabel}</th>
                         <th style={s.th}>{messages.aqlPercentLabel}</th>
-                        <th style={s.th}>{messages.requiredSampleLabel}</th>
-                        <th style={s.th}>{messages.actualSampleLabel}</th>
+                        <th style={s.th}>{messages.sampleSizeLabel}</th>
                         <th style={s.th}>{messages.acceptNumberLabel}</th>
                         <th style={s.th}>{messages.rejectNumberLabel}</th>
                         <th style={s.th}></th>
@@ -305,9 +474,6 @@ export default function AQLPage() {
                               </select>
                             </td>
                             <td style={{ ...s.td, fontWeight: 600 }}>
-                              {plan ? plan.requiredSampleSize : messages.noDataPlaceholder}
-                            </td>
-                            <td style={{ ...s.td, fontWeight: 600 }}>
                               {plan ? plan.actualSampleSize : messages.noDataPlaceholder}
                             </td>
                             <td style={{ ...s.td, fontWeight: 700, color: c.accent }}>
@@ -339,6 +505,7 @@ export default function AQLPage() {
                         </p>
                       ))}
 
+                  {/* Shown only when the required sample size differs from what's actually inspected */}
                   {result.defects.some((d) => d.plan?.fullLotInspection && !d.plan?.noVerifiedData) &&
                     result.defects
                       .filter((d) => d.plan?.fullLotInspection && !d.plan?.noVerifiedData)

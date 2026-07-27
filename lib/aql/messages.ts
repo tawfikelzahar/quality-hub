@@ -31,12 +31,21 @@ export const messages = {
   aqlPercentLabel: 'AQL %',
   requiredSampleLabel: 'Required Sample (n)',
   actualSampleLabel: 'Actual Sample (n)',
+  sampleSizeLabel: 'Sample (n)',
   acceptNumberLabel: 'Ac',
   rejectNumberLabel: 'Re',
   noDataPlaceholder: '—',
   addDefectClass: '+ Add defect class',
   addInspectionStage: '+ Add inspection stage',
   removeStage: 'Remove stage',
+
+  // Export panel
+  exportSectionTitle: 'Export',
+  exportCsvButton: 'CSV',
+  exportExcelButton: 'Excel',
+  exportPngButton: 'PNG',
+  exportPdfButton: 'PDF',
+  pdfReportTitle: 'AQL Sampling Plan Report',
 
   // Inspection types (dropdown options)
   inspectionTypes: {
