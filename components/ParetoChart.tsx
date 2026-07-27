@@ -7,44 +7,12 @@ import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
+import { COLORS } from '@/lib/theme'
 
 interface DataRow {
   id: string
   label: string
   value: number
-}
-
-const COLORS = {
-  dark: {
-    bg: '#0a0f1e',
-    surface: '#111827',
-    surface2: '#1e2d40',
-    border: '#1e3a5f',
-    accent: '#0fd4c8',
-    amber: '#f59e0b',
-    text: '#e2e8f0',
-    muted: '#6b89b4',
-    bar: '#0fd4c8',
-    barHover: '#14b8b0',
-    line: '#f59e0b',
-    grid: 'rgba(255,255,255,0.06)',
-    vital: 'rgba(245,158,11,0.15)',
-  },
-  light: {
-    bg: '#f8fafc',
-    surface: '#ffffff',
-    surface2: '#f1f5f9',
-    border: '#e2e8f0',
-    accent: '#0e7474',
-    amber: '#d97706',
-    text: '#1e293b',
-    muted: '#64748b',
-    bar: '#0e7474',
-    barHover: '#0f8585',
-    line: '#d97706',
-    grid: 'rgba(0,0,0,0.06)',
-    vital: 'rgba(217,119,6,0.08)',
-  },
 }
 
 function generateId() {

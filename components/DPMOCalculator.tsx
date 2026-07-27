@@ -7,6 +7,7 @@ import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
+import { COLORS } from '@/lib/theme'
 
 interface ProcessRow {
   id: string
@@ -14,31 +15,6 @@ interface ProcessRow {
   units: number
   opportunities: number
   defects: number
-}
-
-const COLORS = {
-  dark: {
-    bg: '#0a0f1e',
-    surface: '#111827',
-    surface2: '#1e2d40',
-    border: '#1e3a5f',
-    accent: '#0fd4c8',
-    amber: '#f59e0b',
-    text: '#e2e8f0',
-    muted: '#6b89b4',
-    grid: 'rgba(255,255,255,0.06)',
-  },
-  light: {
-    bg: '#f8fafc',
-    surface: '#ffffff',
-    surface2: '#f1f5f9',
-    border: '#e2e8f0',
-    accent: '#0e7474',
-    amber: '#d97706',
-    text: '#1e293b',
-    muted: '#64748b',
-    grid: 'rgba(0,0,0,0.06)',
-  },
 }
 
 // Performance bands (industry-standard Six Sigma benchmarks)
