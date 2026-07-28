@@ -8,6 +8,7 @@ import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS } from '@/lib/theme'
+import AuthStatus from '@/components/AuthStatus'
 
 interface DataRow {
   id: string
@@ -541,9 +542,7 @@ export default function ParetoChart() {
           <button style={s.themeBtn} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
-          <Link href="/login" style={{ fontSize: 13, color: c.muted, textDecoration: 'none', fontWeight: 500 }}>
-            Sign In
-          </Link>
+          <AuthStatus />
           <Link href="/pricing" style={{
             background: 'linear-gradient(135deg,#0fd4c8,#00a896)',
             color: '#060d1a', fontWeight: 700, fontSize: 12,

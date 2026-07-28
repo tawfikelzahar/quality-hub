@@ -18,6 +18,7 @@ import {
 } from '@/lib/aql/calculator';
 import { messages } from '@/lib/aql/messages';
 import { COLORS, getSharedStyles, type ThemeMode } from '@/lib/theme';
+import AuthStatus from '@/components/AuthStatus';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
 const TYPES: InspectionType[] = ['Normal', 'Tightened', 'Reduced'];
@@ -308,9 +309,7 @@ export default function AQLPage() {
           <button style={s.themeBtn} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? messages.darkModeToggleOff : messages.darkModeToggleOn}
           </button>
-          <Link href="/login" style={s.signInLink}>
-            Sign In
-          </Link>
+          <AuthStatus />
           <Link href="/pricing" style={s.ctaBtn}>
             Get Pro →
           </Link>

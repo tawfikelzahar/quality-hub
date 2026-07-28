@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import AuthStatus from '@/components/AuthStatus'
 
 export default function SPCPage() {
   return (
@@ -20,7 +21,7 @@ export default function SPCPage() {
           <span style={{fontSize:10,fontWeight:700,padding:'3px 10px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
             <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block'}}/>Live
           </span>
-          <Link href="/login" style={{fontSize:13,color:'#6b89b4',textDecoration:'none',fontWeight:500}}>Sign In</Link>
+          <AuthStatus />
           <Link href="/pricing" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:12,padding:'7px 16px',borderRadius:7,textDecoration:'none'}}>Get Pro →</Link>
         </div>
       </nav>

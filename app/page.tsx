@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { COLORS, type ThemeMode } from '@/lib/theme'
+import AuthStatus from '@/components/AuthStatus'
 
 export default function Home() {
   const [theme, setTheme] = useState<ThemeMode>('dark')
@@ -60,7 +61,7 @@ export default function Home() {
           <div style={{display:'flex',alignItems:'center',gap:24}}>
             <a href="#tools" className="nl" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Tools</a>
             <a href="#pricing" className="nl" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Pricing</a>
-            <a href="/login" className="nl" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Sign In</a>
+           <AuthStatus />
             <button
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
               style={{background:dark?'rgba(255,255,255,0.08)':c.surface2,border:`1px solid ${c.border}`,borderRadius:20,padding:'5px 14px',color:text,cursor:'pointer',fontSize:12,fontWeight:600}}
