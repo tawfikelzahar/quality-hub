@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Quality Hub visual identity — single source of truth
@@ -283,4 +283,29 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
       boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
     },
   };
+}
+// ─────────────────────────────────────────────────────────────────────────
+// Persisted theme — remembers dark/light choice across page navigations
+// using the browser's localStorage. Use this instead of a plain useState
+// on any page that has a theme toggle, so the choice sticks site-wide.
+// ─────────────────────────────────────────────────────────────────────────
+const THEME_STORAGE_KEY = 'qh-theme';
+
+export function usePersistedTheme(): [ThemeMode, Dispatch<SetStateAction<ThemeMode>>] {
+  const [theme, setTheme] = useState<ThemeMode>('dark');
+
+  // On first load, read whatever was saved last time
+  useEffect(() => {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'dark' || stored === 'light') {
+      setTheme(stored);
+    }
+  }, []);
+
+  // Every time the theme changes, save it
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  return [theme, setTheme];
 }

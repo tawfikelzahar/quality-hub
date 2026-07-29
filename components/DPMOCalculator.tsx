@@ -7,7 +7,7 @@ import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import { COLORS } from '@/lib/theme'
+import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
 interface ProcessRow {
@@ -127,7 +127,7 @@ function parseExcelFile(file: File): Promise<ProcessRow[]> {
 }
 
 export default function DPMOCalculator() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+ const [theme, setTheme] = usePersistedTheme()
   const [rows, setRows] = useState<ProcessRow[]>([
     { id: generateId(), name: 'Assembly Line A', units: 500, opportunities: 12, defects: 18 },
   ])

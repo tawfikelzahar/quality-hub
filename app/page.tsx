@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { COLORS, type ThemeMode } from '@/lib/theme'
+import { COLORS, usePersistedTheme, type ThemeMode } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
 export default function Home() {
-  const [theme, setTheme] = useState<ThemeMode>('dark')
+  const [theme, setTheme] = usePersistedTheme()
   const dark = theme === 'dark'
   const c = COLORS[theme]
 

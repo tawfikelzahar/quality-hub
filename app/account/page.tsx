@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
-import { COLORS, getSharedStyles, type ThemeMode } from '@/lib/theme'
+import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
 interface AccountUser {
@@ -15,7 +15,7 @@ interface AccountUser {
 
 export default function AccountPage() {
   const router = useRouter()
-  const [theme, setTheme] = useState<ThemeMode>('dark')
+  const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
 

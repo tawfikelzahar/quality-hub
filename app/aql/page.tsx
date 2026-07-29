@@ -17,7 +17,7 @@ import {
   type InspectionRowResult,
 } from '@/lib/aql/calculator';
 import { messages } from '@/lib/aql/messages';
-import { COLORS, getSharedStyles, type ThemeMode } from '@/lib/theme';
+import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/lib/theme';
 import AuthStatus from '@/components/AuthStatus';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
@@ -91,7 +91,7 @@ function flattenResults(results: InspectionRowResult[]) {
 }
 
 export default function AQLPage() {
-  const [theme, setTheme] = useState<ThemeMode>('dark');
+  const [theme, setTheme] = usePersistedTheme();
   const [rows, setRows] = useState<InspectionRowInput[]>([
     makeDefaultRow('Incoming Inspection'),
   ]);

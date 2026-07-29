@@ -7,7 +7,7 @@ import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
-import { COLORS } from '@/lib/theme'
+import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
 interface DataRow {
@@ -70,7 +70,7 @@ function parseExcelFile(file: File): Promise<DataRow[]> {
 }
 
 export default function ParetoChart() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = usePersistedTheme()
   const [rows, setRows] = useState<DataRow[]>([
     { id: generateId(), label: 'Dimensional Error', value: 42 },
     { id: generateId(), label: 'Surface Defect', value: 28 },
