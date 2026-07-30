@@ -10,14 +10,31 @@ function getNextPath() {
   return new URLSearchParams(window.location.search).get('next') || '/'
 }
 
+// Keeps the avatar under 5MB and makes sure it's actually an image before
+// we bother uploading it.
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+
+  function handleAvatarChange(file: File | null) {
+    if (!file) { setAvatarFile(null); setAvatarPreview(null); return }
+    if (!file.type.startsWith('image/')) { setError('❌ Please choose an image file.'); return }
+    if (file.size > MAX_AVATAR_BYTES) { setError('❌ Image must be under 5MB.'); return }
+    setError('')
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
 
   async function handleSubmit() {
     setLoading(true)
@@ -25,8 +42,38 @@ export default function LoginPage() {
     const supabase = createClient()
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password })
+      if (!firstName.trim() || !lastName.trim()) {
+        setError('❌ Please enter your first and last name.')
+        setLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            full_name: `${firstName.trim()} ${lastName.trim()}`,
+          },
+        },
+      })
       if (error) { setError(error.message); setLoading(false); return }
+
+      // Avatar upload is optional and only works once the user has a
+      // session (i.e. if email confirmation is off, or on next login).
+      if (avatarFile && data.user) {
+        const path = `${data.user.id}/avatar-${Date.now()}.${avatarFile.name.split('.').pop()}`
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, avatarFile, { upsert: true })
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path)
+          await supabase.auth.updateUser({ data: { avatar_url: urlData.publicUrl } })
+        }
+      }
+
       setError('✅ Check your email to confirm your account.')
       setLoading(false)
       return
@@ -95,6 +142,53 @@ export default function LoginPage() {
 
         {/* Fields */}
         <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
+          {mode === 'signup' && (
+            <>
+              <div style={{display:'flex',gap:12}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,fontWeight:600,color:'#8fafd4',display:'block',marginBottom:6}}>First Name</label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    placeholder="Tawfik"
+                    style={{width:'100%',padding:'12px 14px',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:10,color:'#f0f6ff',fontSize:14,outline:'none',boxSizing:'border-box'}}
+                  />
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:12,fontWeight:600,color:'#8fafd4',display:'block',marginBottom:6}}>Last Name</label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    placeholder="Elzahar"
+                    style={{width:'100%',padding:'12px 14px',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.1)',borderRadius:10,color:'#f0f6ff',fontSize:14,outline:'none',boxSizing:'border-box'}}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{fontSize:12,fontWeight:600,color:'#8fafd4',display:'block',marginBottom:6}}>Profile Photo (optional)</label>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  {avatarPreview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarPreview} alt="Preview" width={44} height={44} style={{borderRadius:'50%',objectFit:'cover',flexShrink:0}} />
+                  ) : (
+                    <div style={{width:44,height:44,borderRadius:'50%',background:'rgba(255,255,255,.06)',border:'1px dashed rgba(255,255,255,.15)',flexShrink:0}} />
+                  )}
+                  <label style={{fontSize:12,fontWeight:600,color:'#0fd4c8',cursor:'pointer',padding:'8px 14px',border:'1px solid rgba(15,212,200,.3)',borderRadius:8}}>
+                    {avatarFile ? 'Change photo' : 'Upload photo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => handleAvatarChange(e.target.files?.[0] ?? null)}
+                      style={{display:'none'}}
+                    />
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
           <div>
             <label style={{fontSize:12,fontWeight:600,color:'#8fafd4',display:'block',marginBottom:6}}>Email</label>
             <input
