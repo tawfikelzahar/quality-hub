@@ -55,6 +55,10 @@ interface VariableResult {
   Cpm: number | null
   Z_bench_st: number | null
   Z_bench_lt: number | null
+  Z_USL_st: number | null
+  Z_LSL_st: number | null
+  Z_USL_lt: number | null
+  Z_LSL_lt: number | null
   sigLvl_st: number | null
   sigLvl_lt: number | null
   ppmD_st: PpmDetail | null
@@ -105,6 +109,40 @@ function resizeVals(vals: string[], n: number): string[] {
 function fmt(n: number | null | undefined, digits = 3): string {
   if (n === null || n === undefined || !isFinite(n)) return '—'
   return n.toFixed(digits)
+}
+
+// Capability verdict — mirrors capabilityClass/capabilityLabel from spc-tool.html
+function capabilityColor(val: number | null): string {
+  if (val === null || isNaN(val)) return '#8892a4'
+  if (val >= 1.33) return '#4ade80'
+  if (val >= 1.0) return '#f59e0b'
+  return '#ef4444'
+}
+function capabilityLabel(val: number | null): string {
+  if (val === null || isNaN(val)) return '—'
+  if (val >= 1.33) return '✓ Capable'
+  if (val >= 1.0) return '⚠ Marginal'
+  return '✗ Not Capable'
+}
+function sigmaColor(sVal: number): string {
+  if (sVal >= 6) return '#4ade80'
+  if (sVal >= 4) return '#1ea7a7'
+  if (sVal >= 3) return '#fbbf24'
+  return '#f87171'
+}
+
+// Analytical normal PDF/CDF — used client-side to draw the distribution and
+// ECDF charts (mirrors createDistChart/createECDFChart in spc-tool.html)
+function normalPDF(x: number, mu: number, sigma: number): number {
+  return Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI))
+}
+function normalCDF(z: number): number {
+  const a = [0.31938153, -0.356563782, 1.781477937, -1.821255978, 1.330274429]
+  const x = Math.abs(z)
+  const t = 1 / (1 + 0.2316419 * x)
+  const poly = t * (a[0] + t * (a[1] + t * (a[2] + t * (a[3] + t * a[4]))))
+  const result = 1 - (poly * Math.exp((-x * x) / 2)) / Math.sqrt(2 * Math.PI)
+  return z >= 0 ? result : 1 - result
 }
 
 // Rule 1 violations list individual subgroup indices; the other Nelson rules
@@ -188,6 +226,7 @@ export default function SPCEngine() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [result, setResult] = useState<ApiResult | null>(null)
+  const [submittedVals, setSubmittedVals] = useState<number[]>([])
   const [pasteToast, setPasteToast] = useState(false)
 
   // ── Variable-mode row handlers ──────────────────────────────────────────
@@ -264,6 +303,7 @@ export default function SPCEngine() {
           setLoading(false)
           return
         }
+        setSubmittedVals(data.flat())
         body = {
           data,
           N,
@@ -370,6 +410,112 @@ export default function SPCEngine() {
     }
   }
 
+  // Linear-x-axis options, shared by the distribution and ECDF charts
+  const linearChartOptions = useMemo(
+    () => (yPercent: boolean) => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      parsing: false,
+      plugins: {
+        legend: { display: true, labels: { color: c.muted, font: { size: 10 }, boxWidth: 12 } },
+        tooltip: {
+          backgroundColor: c.surface,
+          borderColor: c.border,
+          borderWidth: 1,
+          titleColor: c.text,
+          bodyColor: c.muted,
+          padding: 10,
+        },
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          ticks: { color: c.muted, font: { size: 10 } },
+          grid: { color: c.grid },
+          border: { color: c.border },
+        },
+        y: yPercent
+          ? {
+              min: 0,
+              max: 1,
+              ticks: { color: c.muted, font: { size: 10 }, callback: (v: number) => `${Math.round(Number(v) * 100)}%` },
+              grid: { color: c.grid },
+              border: { color: c.border },
+            }
+          : {
+              ticks: { color: c.muted, font: { size: 10 } },
+              grid: { color: c.grid },
+              border: { color: c.border },
+            },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any),
+    [c]
+  )
+
+  // Distribution vs. Specification Limits — mirrors createDistChart()
+  function buildDistChart(vals: number[], mu: number, sigma: number, lsl: number | null, usl: number | null) {
+    const dataMin = Math.min(...vals, lsl ?? Infinity, usl ?? Infinity) - 3 * sigma
+    const dataMax = Math.max(...vals, lsl ?? -Infinity, usl ?? -Infinity) + 3 * sigma
+    const steps = 120
+    const dx = (dataMax - dataMin) / steps
+    const xs = Array.from({ length: steps + 1 }, (_, i) => dataMin + i * dx)
+    const ys = xs.map(x => normalPDF(x, mu, sigma))
+    const yMax = Math.max(...ys)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const datasets: any[] = [
+      {
+        label: 'Distribution',
+        data: xs.map((x, i) => ({ x, y: ys[i] })),
+        borderColor: c.accent,
+        backgroundColor: `${c.accent}33`,
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: 'origin',
+        tension: 0.4,
+        showLine: true,
+      },
+      {
+        label: 'μ',
+        data: [{ x: mu, y: 0 }, { x: mu, y: yMax * 1.05 }],
+        borderColor: c.muted,
+        borderWidth: 1.5,
+        borderDash: [3, 2],
+        pointRadius: 0,
+        fill: false,
+        showLine: true,
+      },
+    ]
+    if (lsl !== null)
+      datasets.push({ label: 'LSL', data: [{ x: lsl, y: 0 }, { x: lsl, y: yMax * 1.1 }], borderColor: c.danger, borderWidth: 2, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
+    if (usl !== null)
+      datasets.push({ label: 'USL', data: [{ x: usl, y: 0 }, { x: usl, y: yMax * 1.1 }], borderColor: c.danger, borderWidth: 2, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
+    return { datasets }
+  }
+
+  // Empirical CDF vs. Normal CDF — mirrors createECDFChart()
+  function buildEcdfChart(vals: number[], mu: number, sigma: number, lsl: number | null, usl: number | null) {
+    const sorted = [...vals].sort((a, b) => a - b)
+    const n = sorted.length
+    const ecdf = sorted.map((x, i) => ({ x, y: (i + 1) / n }))
+    const xMin = sorted[0] - 2 * sigma
+    const xMax = sorted[n - 1] + 2 * sigma
+    const steps = 200
+    const dx = (xMax - xMin) / steps
+    const normPts = Array.from({ length: steps + 1 }, (_, i) => {
+      const x = xMin + i * dx
+      return { x, y: normalCDF((x - mu) / sigma) }
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const datasets: any[] = [
+      { label: 'Normal CDF', data: normPts, borderColor: c.muted, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true },
+      { label: 'Empirical CDF', data: ecdf, backgroundColor: c.accent, borderColor: c.accent, pointRadius: 4, pointHoverRadius: 6, showLine: true, stepped: true, borderWidth: 1.5, fill: false },
+    ]
+    if (lsl !== null) datasets.push({ label: 'LSL', data: [{ x: lsl, y: 0 }, { x: lsl, y: 1 }], borderColor: c.danger, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
+    if (usl !== null) datasets.push({ label: 'USL', data: [{ x: usl, y: 0 }, { x: usl, y: 1 }], borderColor: c.danger, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
+    return { datasets }
+  }
+
   // ── Derived data for rendering ──────────────────────────────────────────
   const isVariable = result !== null && !('mode' in result)
   const varResult = isVariable ? (result as VariableResult) : null
@@ -388,6 +534,20 @@ export default function SPCEngine() {
     ...(varResult?.violations_r.map(v => ({ ...v, chart: 'R / MR' })) ?? []),
     ...(attrResult?.violations.map(v => ({ ...v, chart: attrResult.chartLabel })) ?? []),
   ]
+
+  // Capability verdict prefers Cpk (short-term/within) and falls back to Ppk,
+  // matching the legacy tool's `const pkVal = Cpk !== null ? Cpk : Ppk`
+  const hasSpecLimits = !!(varResult && (varResult.LSL !== null || varResult.USL !== null))
+  const pkVal = varResult ? (varResult.Cpk !== null ? varResult.Cpk : varResult.Ppk) : null
+  const verdict = !hasSpecLimits || pkVal === null
+    ? null
+    : pkVal >= 1.33
+    ? { icon: '✅', color: '#4ade80', bg: 'rgba(74,222,128,0.1)', text: 'Process is CAPABLE', sub: 'Process is well within specification limits.' }
+    : pkVal < 1.0
+    ? { icon: '❌', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', text: `Process is NOT CAPABLE (Ppk = ${fmt(varResult!.Ppk, 3)})`, sub: 'Producing defects. Reduce variation or re-center urgently.' }
+    : { icon: '⚠️', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', text: 'Marginal Process', sub: 'Monitor closely and investigate variation sources.' }
+
+  const displaySigLvl = varResult ? varResult.sigLvl_st ?? varResult.sigLvl_lt : null
 
   return (
     <div style={s.page}>
@@ -711,6 +871,143 @@ export default function SPCEngine() {
                   />
                 </div>
               </div>
+
+              {/* ── CAPABILITY ANALYSIS (only when LSL/USL is set) ─────── */}
+              {hasSpecLimits ? (
+                <>
+                  {displaySigLvl !== null && (
+                    <div style={s.card}>
+                      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center', minWidth: 110 }}>
+                          <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, color: sigmaColor(displaySigLvl) }}>
+                            {isFinite(displaySigLvl) ? displaySigLvl.toFixed(2) : '∞'}
+                          </div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: sigmaColor(displaySigLvl) }}>σ</div>
+                          <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>Sigma Level</div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {varResult.sigLvl_st !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                              <span style={{ color: c.muted }}>Z-bench (Short-term, within σ)</span><span>{fmt(varResult.Z_bench_st)}</span>
+                            </div>
+                          )}
+                          {varResult.sigLvl_lt !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                              <span style={{ color: c.muted }}>Z-bench (Long-term, overall σ)</span><span>{fmt(varResult.Z_bench_lt)}</span>
+                            </div>
+                          )}
+                          {varResult.Z_USL_st !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                              <span style={{ color: c.muted }}>Z_USL (within)</span><span>{fmt(varResult.Z_USL_st)}</span>
+                            </div>
+                          )}
+                          {varResult.Z_LSL_st !== null && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                              <span style={{ color: c.muted }}>Z_LSL (within)</span><span>{fmt(varResult.Z_LSL_st)}</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
+                            <span style={{ color: c.muted }}>Convention</span><span>{sigmaConvention === 'sixsigma' ? 'Z + 1.5σ shift' : 'Direct Z'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(displayMode === 'capability' || displayMode === 'both') && (
+                    <div style={s.statsRow}>
+                      {[
+                        { label: 'Cp', val: varResult.Cp, sub: 'Within σ · Short-term — Spread potential' },
+                        { label: 'Cpk', val: varResult.Cpk, sub: 'Within σ · Short-term — Centering' },
+                        { label: 'Pp', val: varResult.Pp, sub: 'Overall σ · Long-term — Spread performance' },
+                        { label: 'Ppk', val: varResult.Ppk, sub: 'Overall σ · Long-term — Centering' },
+                      ].map(item => (
+                        <div key={item.label} style={{ ...s.statCard, border: `1px solid ${capabilityColor(item.val)}44` }}>
+                          <div style={{ ...s.statVal, color: capabilityColor(item.val) }}>{fmt(item.val)}</div>
+                          <div style={s.statLabel}>{item.label}</div>
+                          <div style={{ fontSize: 10, color: capabilityColor(item.val), marginTop: 4 }}>{capabilityLabel(item.val)}</div>
+                        </div>
+                      ))}
+                      {varResult.Cpm !== null && (
+                        <div style={{ ...s.statCard, border: `1px solid ${capabilityColor(varResult.Cpm)}44` }}>
+                          <div style={{ ...s.statVal, color: capabilityColor(varResult.Cpm) }}>{fmt(varResult.Cpm, 4)}</div>
+                          <div style={s.statLabel}>Cpm (Taguchi)</div>
+                          <div style={{ fontSize: 10, color: capabilityColor(varResult.Cpm), marginTop: 4 }}>{capabilityLabel(varResult.Cpm)}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(varResult.ppmD_st || varResult.ppmD_lt) && (
+                    <div style={s.card}>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>PPM / DPM Defective — Detailed Breakdown</div>
+                      <table style={s.table}>
+                        <thead>
+                          <tr><th style={s.th}>Region</th><th style={s.th}>Short-term (within σ)</th><th style={s.th}>Long-term (overall σ)</th></tr>
+                        </thead>
+                        <tbody>
+                          {varResult.USL !== null && (
+                            <tr><td style={s.td}>Above USL</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(2) : '—'}</td></tr>
+                          )}
+                          {varResult.LSL !== null && (
+                            <tr><td style={s.td}>Below LSL</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(2) : '—'}</td></tr>
+                          )}
+                          <tr style={{ fontWeight: 700 }}>
+                            <td style={s.td}>Total PPM</td>
+                            <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(2) : '—'}</td>
+                            <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(2) : '—'}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      {varResult.USL !== null && varResult.LSL !== null && (
+                        <div style={{ fontSize: 11, color: c.muted, marginTop: 10 }}>
+                          K × Σ Tolerance (K=6): (USL−LSL)/6Σ = {fmt(varResult.Cp)} · Overall = {fmt(varResult.Pp)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {verdict && (
+                    <div style={{ ...s.card, display: 'flex', gap: 14, alignItems: 'flex-start', background: verdict.bg, border: `1px solid ${verdict.color}55` }}>
+                      <div style={{ fontSize: 22 }}>{verdict.icon}</div>
+                      <div>
+                        <div style={{ fontWeight: 700, color: verdict.color, fontSize: 14 }}>{verdict.text}</div>
+                        <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{verdict.sub}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {submittedVals.length > 0 && (
+                    <div style={s.chartWrap}>
+                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Distribution vs. Specification Limits</div>
+                      <div style={s.chartInner}>
+                        <Chart
+                          type="scatter"
+                          data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
+                          options={linearChartOptions(false)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ ...s.card, fontSize: 11, color: c.muted }}>
+                  Enter LSL/USL on the left to unlock the full Capability Analysis (verdict, Cp/Cpk/Pp/Ppk, PPM breakdown, distribution chart).
+                </div>
+              )}
+
+              {submittedVals.length > 0 && (
+                <div style={s.chartWrap}>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Empirical CDF vs. Normal Distribution</div>
+                  <div style={s.chartInner}>
+                    <Chart
+                      type="scatter"
+                      data={buildEcdfChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
+                      options={linearChartOptions(true)}
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 
