@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { compressAvatar } from '@/lib/avatar'
 import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
@@ -64,13 +65,14 @@ export default function AccountPage() {
     })
   }, [router])
 
-  function handleAvatarChange(file: File | null) {
+  async function handleAvatarChange(file: File | null) {
     if (!file) { setAvatarFile(null); setAvatarPreview(null); return }
     if (!file.type.startsWith('image/')) { setProfileMessage('❌ Please choose an image file.'); return }
     if (file.size > MAX_AVATAR_BYTES) { setProfileMessage('❌ Image must be under 5MB.'); return }
     setProfileMessage('')
-    setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+    const compressed = await compressAvatar(file)
+    setAvatarFile(compressed)
+    setAvatarPreview(URL.createObjectURL(compressed))
   }
 
   async function handleSaveProfile() {

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { compressAvatar } from '@/lib/avatar'
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/'
@@ -27,13 +28,14 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'login' | 'signup'>('login')
 
-  function handleAvatarChange(file: File | null) {
+  async function handleAvatarChange(file: File | null) {
     if (!file) { setAvatarFile(null); setAvatarPreview(null); return }
     if (!file.type.startsWith('image/')) { setError('❌ Please choose an image file.'); return }
     if (file.size > MAX_AVATAR_BYTES) { setError('❌ Image must be under 5MB.'); return }
     setError('')
-    setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+    const compressed = await compressAvatar(file)
+    setAvatarFile(compressed)
+    setAvatarPreview(URL.createObjectURL(compressed))
   }
 
   async function handleSubmit() {
