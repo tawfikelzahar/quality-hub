@@ -134,6 +134,41 @@ export default function GageRR() {
     })
   }
 
+  // Parse a pasted block from Excel/Sheets: rows separated by newlines, cells by tab
+  // (falls back to comma if no tabs are present, e.g. CSV paste).
+  const parsePasteGrid = (text: string): (number | null)[][] => {
+    const rows = text.replace(/\r/g, '').split('\n').filter(r => r.trim() !== '')
+    return rows.map(row => {
+      const cells = row.includes('\t') ? row.split('\t') : row.split(',')
+      return cells.map(cell => {
+        const n = parseFloat(cell.trim())
+        return Number.isNaN(n) ? null : n
+      })
+    })
+  }
+
+  // Fill one appraiser's block starting at the pasted cell.
+  // Pasted rows map to trials, pasted columns map to parts — same layout as the Excel sheet.
+  const handlePaste = (a: number, startP: number, startT: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text')
+    if (!text || (!text.includes('\t') && !text.includes('\n') && !text.includes(','))) return // single value — let the default paste happen
+    e.preventDefault()
+    const grid = parsePasteGrid(text)
+    setMeasurements(prev => {
+      const next = prev.map(rowA => rowA.map(rowP => [...rowP]))
+      grid.forEach((row, i) => {
+        const t = startT + i
+        if (t >= numTrials) return
+        row.forEach((val, j) => {
+          const p = startP + j
+          if (p >= numParts) return
+          next[a][p][t] = val
+        })
+      })
+      return next
+    })
+  }
+
   const loadSample = () => {
     setNumAppraisers(3); setNumTrials(3); setNumParts(10)
     setAppraiserNames(['Appraiser A', 'Appraiser B', 'Appraiser C'])
@@ -460,6 +495,9 @@ export default function GageRR() {
 
           <div>
             <div style={s.sectionTitle}>Measurement Data</div>
+            <div style={{ fontSize: 11, color: c.muted, marginBottom: 8 }}>
+              💡 Tip: click a cell (e.g. Trial 1 / P1) then paste (Ctrl+V) a block copied from Excel for that appraiser — it fills forward automatically.
+            </div>
             <div style={{ overflowX: 'auto' }}>
               {Array.from({ length: numAppraisers }, (_, a) => (
                 <div key={a} style={{ marginBottom: 14 }}>
@@ -485,6 +523,8 @@ export default function GageRR() {
                                 step="any"
                                 value={measurements[a]?.[p]?.[t] ?? ''}
                                 onChange={e => setCell(a, p, t, e.target.value)}
+                                onPaste={e => handlePaste(a, p, t, e)}
+                                title="Click here, then paste an Excel block (rows = trials, columns = parts) starting from this cell"
                               />
                             </td>
                           ))}
