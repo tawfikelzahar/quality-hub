@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // الصفحات دي بس هي اللي محتاجة تسجيل دخول
-const PROTECTED_PATHS = ['/spc', '/spc-tool.html', '/pareto', '/dpmo', '/aql', '/account']
+const PROTECTED_PATHS = ['/spc', '/spc-tool.html', '/pareto', '/dpmo', '/aql', '/gage-rr', '/account']
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })
