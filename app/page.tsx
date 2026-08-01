@@ -199,25 +199,17 @@ export default function Home() {
               <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>Open Tool →</div>
             </Link>
 
-            {/* Gage R&R — Live */}
-            <Link href="/gage-rr" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+            {/* MSA */}
+            <div style={{background:comingSoonBg,border:`1px solid ${comingSoonBorder}`,borderRadius:20,padding:32,display:'flex',flexDirection:'column',gap:20,opacity:.6}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(232,160,32,.1)',border:'1px solid rgba(232,160,32,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🎯</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>Live
-                </span>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(232,160,32,.08)',border:'1px solid rgba(232,160,32,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🎯</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(148,163,184,.06)',color:'#64748b',border:'1px solid rgba(148,163,184,.1)'}}>Coming Soon</span>
               </div>
               <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>Gage R&R Study</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>AIAG Average & Range method · %Study Variation · NDC · Range & X̄ charts</div>
+                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>MSA / Gauge R&R</div>
+                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>ANOVA & XBAR methods · %R&R · ndc · Interaction charts</div>
               </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['AIAG MSA','EV/AV/GRR','NDC'].map(t=>(
-                  <span key={t} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{t}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>Open Tool →</div>
-            </Link>
+            </div>
 
             {/* FMEA */}
             <div style={{background:comingSoonBg,border:`1px solid ${comingSoonBorder}`,borderRadius:20,padding:32,display:'flex',flexDirection:'column',gap:20,opacity:.6}}>
