@@ -1,9 +1,12 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import 'chart.js/auto'
+import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
@@ -229,6 +232,18 @@ export default function SPCEngine() {
   const [submittedVals, setSubmittedVals] = useState<number[]>([])
   const [pasteToast, setPasteToast] = useState(false)
 
+  // UX: Advanced options are collapsed by default; Data Entry auto-collapses
+  // into a summary bar once a result exists so the charts aren't pushed down.
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [dataEntryOpen, setDataEntryOpen] = useState(true)
+
+  // Chart refs — needed to export each chart as an image
+  const iChartRef = useRef<ChartJSInstance<'line'>>(null)
+  const rChartRef = useRef<ChartJSInstance<'line'>>(null)
+  const distChartRef = useRef<ChartJSInstance<'scatter'>>(null)
+  const ecdfChartRef = useRef<ChartJSInstance<'scatter'>>(null)
+  const attrChartRef = useRef<ChartJSInstance<'line'>>(null)
+
   // ── Variable-mode row handlers ──────────────────────────────────────────
   const handleNChange = (newN: number) => {
     const safe = Math.max(1, Math.min(10, newN))
@@ -254,6 +269,7 @@ export default function SPCEngine() {
     if (!window.confirm('Clear all data? This cannot be undone.')) return
     setResult(null)
     setErrorMsg('')
+    setDataEntryOpen(true)
     if (dataType === 'variable') setVarRows([])
     else setAttrRows([])
   }
@@ -343,12 +359,271 @@ export default function SPCEngine() {
         setErrorMsg(json.error || 'Calculation failed.')
       } else {
         setResult(json)
+        setDataEntryOpen(false)
       }
     } catch {
       setErrorMsg('Could not reach the analysis engine. Please try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  // ── Export: Data + Stats as Excel workbook ──────────────────────────────
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new()
+
+    if (dataType === 'variable') {
+      const rows = varRows.map((r, i) => {
+        const row: Record<string, string | number> = { Subgroup: i + 1 }
+        r.vals.forEach((v, j) => { row[N === 1 ? 'Value' : `x${j + 1}`] = v === '' ? '' : parseFloat(v) })
+        return row
+      })
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Raw Data')
+    } else {
+      const needsN = attrType === 'p' || attrType === 'u'
+      const rows = attrRows.map((r, i) => {
+        const row: Record<string, string | number> = { Row: i + 1 }
+        if (needsN) row['Sample Size (n)'] = r.n === '' ? '' : parseFloat(r.n)
+        row['Defects'] = r.defects === '' ? '' : parseFloat(r.defects)
+        return row
+      })
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Raw Data')
+    }
+
+    if (varResult) {
+      const chartWord = varResult.N === 1 ? 'Individuals' : 'X̄'
+      const clWord = varResult.N === 1 ? 'MR̄' : 'R̄'
+      const summary = [
+        { Metric: 'Data Points', Value: varResult.n },
+        { Metric: 'Overall Mean', Value: varResult.mu },
+        { Metric: 'Within Std Dev (σ)', Value: varResult.sigma },
+        { Metric: 'Overall Std Dev', Value: varResult.sdOverall },
+        { Metric: 'Anderson-Darling A²', Value: varResult.ad?.A2 ?? '' },
+        { Metric: 'Anderson-Darling p-value', Value: varResult.ad?.p ?? '' },
+        { Metric: 'Normality', Value: varResult.isNormal ? 'Normal' : 'Non-Normal' },
+        { Metric: `${chartWord} CL`, Value: varResult.cl_x },
+        { Metric: `${chartWord} UCL`, Value: varResult.ucl_x },
+        { Metric: `${chartWord} LCL`, Value: varResult.lcl_x },
+        { Metric: clWord, Value: varResult.cl_r },
+        { Metric: 'Range/MR UCL', Value: varResult.ucl_r },
+        { Metric: 'Range/MR LCL', Value: Math.max(0, varResult.lcl_r) },
+      ]
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary')
+
+      if (hasSpecLimits) {
+        const cap = [
+          { Metric: 'LSL', Value: varResult.LSL ?? '' },
+          { Metric: 'USL', Value: varResult.USL ?? '' },
+          { Metric: 'Cp', Value: varResult.Cp ?? '' },
+          { Metric: 'Cpk', Value: varResult.Cpk ?? '' },
+          { Metric: 'Pp', Value: varResult.Pp ?? '' },
+          { Metric: 'Ppk', Value: varResult.Ppk ?? '' },
+          { Metric: 'Cpm', Value: varResult.Cpm ?? '' },
+          { Metric: 'Sigma Level (Short-term)', Value: varResult.sigLvl_st ?? '' },
+          { Metric: 'Sigma Level (Long-term)', Value: varResult.sigLvl_lt ?? '' },
+          { Metric: 'Z-bench (Short-term)', Value: varResult.Z_bench_st ?? '' },
+          { Metric: 'Z-bench (Long-term)', Value: varResult.Z_bench_lt ?? '' },
+          { Metric: 'PPM Above USL (Short-term)', Value: varResult.ppmD_st?.above ?? '' },
+          { Metric: 'PPM Below LSL (Short-term)', Value: varResult.ppmD_st?.below ?? '' },
+          { Metric: 'Total PPM (Short-term)', Value: varResult.ppmD_st?.total ?? '' },
+          { Metric: 'PPM Above USL (Long-term)', Value: varResult.ppmD_lt?.above ?? '' },
+          { Metric: 'PPM Below LSL (Long-term)', Value: varResult.ppmD_lt?.below ?? '' },
+          { Metric: 'Total PPM (Long-term)', Value: varResult.ppmD_lt?.total ?? '' },
+        ]
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cap), 'Capability')
+      }
+    } else if (attrResult) {
+      const summary = [
+        { Metric: 'Chart Type', Value: attrResult.chartLabel },
+        { Metric: 'Subgroups', Value: attrResult.pts.length },
+        { Metric: attrResult.metricLabel, Value: attrResult.metric },
+        { Metric: 'CL', Value: attrResult.clVal },
+        { Metric: 'UCL', Value: attrResult.ucl },
+        { Metric: 'LCL', Value: Math.max(0, attrResult.lcl) },
+        { Metric: 'DPM', Value: attrResult.dpm },
+        { Metric: 'Sigma Level', Value: attrResult.sigmaLvl },
+      ]
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary')
+    }
+
+    if (allViolations.length > 0) {
+      const viol = allViolations.map(v => ({
+        Chart: v.chart,
+        Rule: v.rule,
+        Test: v.label,
+        Description: v.desc,
+        Points: expandViolationPoints(v).join(', '),
+      }))
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(viol), 'Nelson Violations')
+    }
+
+    XLSX.writeFile(wb, 'spc-report.xlsx')
+  }
+
+  // ── Export: charts as PNG ────────────────────────────────────────────────
+  const downloadChartImage = (chart: ChartJSInstance<'line'> | ChartJSInstance<'scatter'> | null, filename: string): boolean => {
+    if (!chart) return false
+    const url = chart.toBase64Image('image/png', 1)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    return true
+  }
+
+  const exportPNG = () => {
+    const exportedAny = [
+      downloadChartImage(iChartRef.current, 'spc-control-chart.png'),
+      downloadChartImage(rChartRef.current, 'spc-range-chart.png'),
+      downloadChartImage(distChartRef.current, 'spc-distribution-chart.png'),
+      downloadChartImage(ecdfChartRef.current, 'spc-ecdf-chart.png'),
+      downloadChartImage(attrChartRef.current, 'spc-attribute-chart.png'),
+    ].some(Boolean)
+    if (!exportedAny) setErrorMsg('Run an analysis first to generate charts to export.')
+  }
+
+  // ── Export: full report as PDF ──────────────────────────────────────────
+  const exportPDF = () => {
+    if (!result) {
+      setErrorMsg('Run an analysis first to generate a report to export.')
+      return
+    }
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 40
+    let y = margin
+
+    const ensureSpace = (needed: number) => {
+      if (y + needed > pageHeight - margin) {
+        pdf.addPage()
+        y = margin
+      }
+    }
+
+    pdf.setFontSize(18)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(0)
+    pdf.text('SPC Analysis Report', margin, y)
+    y += 10
+    pdf.setFontSize(10)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(100)
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12)
+    y += 30
+
+    const addChartImage = (chart: ChartJSInstance<'line'> | ChartJSInstance<'scatter'> | null, title: string) => {
+      if (!chart) return
+      ensureSpace(60)
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(0)
+      pdf.text(title, margin, y)
+      y += 12
+      const imgData = chart.toBase64Image('image/png', 1)
+      const imgWidth = pageWidth - margin * 2
+      const imgHeight = (chart.height / chart.width) * imgWidth
+      ensureSpace(imgHeight)
+      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
+      y += imgHeight + 24
+    }
+
+    if (varResult) {
+      pdf.setFontSize(11)
+      pdf.setTextColor(0)
+      pdf.text(
+        `N=${varResult.n}  ·  Mean=${fmt(varResult.mu)}  ·  σ(within)=${fmt(varResult.sigma)}  ·  ${varResult.isNormal ? 'Normal' : 'Non-Normal'} (p=${fmt(varResult.ad?.p ?? null, 3)})`,
+        margin,
+        y
+      )
+      y += 24
+      addChartImage(iChartRef.current, varResult.N === 1 ? 'Individuals (I) Chart' : 'X̄ Chart')
+      addChartImage(rChartRef.current, varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart')
+
+      if (hasSpecLimits) {
+        ensureSpace(70)
+        pdf.setFontSize(12)
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(0)
+        pdf.text('Process Capability', margin, y)
+        y += 16
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(10)
+        const capLines = [
+          `Cp = ${fmt(varResult.Cp)}   Cpk = ${fmt(varResult.Cpk)}   Pp = ${fmt(varResult.Pp)}   Ppk = ${fmt(varResult.Ppk)}${varResult.Cpm !== null ? `   Cpm = ${fmt(varResult.Cpm, 4)}` : ''}`,
+          `Sigma Level: ${fmt(varResult.sigLvl_st)}σ (short-term) / ${fmt(varResult.sigLvl_lt)}σ (long-term)`,
+          `Total PPM: ${varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(2) : '—'} (short-term) / ${varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(2) : '—'} (long-term)`,
+        ]
+        capLines.forEach(line => {
+          pdf.text(line, margin, y)
+          y += 14
+        })
+        if (verdict) {
+          y += 4
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(verdict.text, margin, y)
+          y += 18
+        }
+        pdf.setFont('helvetica', 'normal')
+        addChartImage(distChartRef.current, 'Distribution vs. Specification Limits')
+      }
+      addChartImage(ecdfChartRef.current, 'Empirical CDF vs. Normal Distribution')
+    } else if (attrResult) {
+      pdf.setFontSize(11)
+      pdf.setTextColor(0)
+      pdf.text(
+        `${attrResult.chartLabel}  ·  Subgroups=${attrResult.pts.length}  ·  ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)}  ·  DPM=${Math.round(attrResult.dpm)}  ·  Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}`,
+        margin,
+        y
+      )
+      y += 24
+      addChartImage(attrChartRef.current, attrResult.chartLabel)
+    }
+
+    if (allViolations.length > 0) {
+      ensureSpace(50)
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(0)
+      pdf.text('Nelson Rule Violations', margin, y)
+      y += 16
+      const rowHeight = 18
+      const colX = [margin, margin + 60, margin + 180, margin + 320]
+      const drawHeader = () => {
+        pdf.setFillColor(230, 230, 230)
+        pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(9)
+        pdf.setTextColor(0)
+        pdf.text('Rule', colX[0] + 4, y + 13)
+        pdf.text('Test', colX[1] + 4, y + 13)
+        pdf.text('Chart', colX[2] + 4, y + 13)
+        pdf.text('Points', colX[3] + 4, y + 13)
+        y += rowHeight
+      }
+      drawHeader()
+      pdf.setFont('helvetica', 'normal')
+      allViolations.forEach(v => {
+        if (y + rowHeight > pageHeight - margin) {
+          pdf.addPage()
+          y = margin
+          drawHeader()
+        }
+        pdf.setTextColor(0)
+        pdf.text(String(v.rule), colX[0] + 4, y + 13)
+        pdf.text(v.label.slice(0, 26), colX[1] + 4, y + 13)
+        pdf.text(v.chart.slice(0, 22), colX[2] + 4, y + 13)
+        pdf.text(expandViolationPoints(v).join(',').slice(0, 26), colX[3] + 4, y + 13)
+        y += rowHeight
+      })
+    } else {
+      ensureSpace(20)
+      pdf.setFontSize(10)
+      pdf.setTextColor(0, 150, 0)
+      pdf.text('No Nelson Rule violations — process in statistical control.', margin, y)
+    }
+
+    pdf.save('spc-report.pdf')
   }
 
   // ── Chart builders ──────────────────────────────────────────────────────
@@ -359,7 +634,7 @@ export default function SPCEngine() {
       plugins: {
         legend: {
           display: true,
-          labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item: { text: string }) => item.text !== 'CL' },
+          labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item: { text: string }) => !['CL', 'MR̄', 'R̄'].includes(item.text) },
         },
         tooltip: {
           backgroundColor: c.surface,
@@ -388,7 +663,7 @@ export default function SPCEngine() {
     [c]
   )
 
-  function buildControlChart(labels: number[], values: number[], ucl: number, cl: number, lcl: number, violated: Set<number>, label: string) {
+  function buildControlChart(labels: number[], values: number[], ucl: number, cl: number, lcl: number, violated: Set<number>, label: string, clLabel = 'CL') {
     return {
       labels,
       datasets: [
@@ -404,7 +679,7 @@ export default function SPCEngine() {
           tension: 0.15,
         },
         { label: 'UCL', data: Array(labels.length).fill(ucl), borderColor: c.danger, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0 },
-        { label: 'CL', data: Array(labels.length).fill(cl), borderColor: c.muted, borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false, tension: 0 },
+        { label: clLabel, data: Array(labels.length).fill(cl), borderColor: c.muted, borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false, tension: 0 },
         { label: 'LCL', data: Array(labels.length).fill(lcl), borderColor: c.danger, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0 },
       ],
     }
@@ -636,28 +911,47 @@ export default function SPCEngine() {
               </div>
 
               <div>
-                <div style={s.sectionTitle}>🔍 Advanced</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div>
-                    <div style={s.label}>Last N Subgroups (0 = all)</div>
-                    <input style={s.input} type="number" min={0} value={lastN} onChange={e => setLastN(e.target.value)} />
+                <button
+                  onClick={() => setAdvancedOpen(o => !o)}
+                  style={{
+                    ...s.sectionTitle,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    font: 'inherit',
+                  }}
+                >
+                  <span>🔍 Advanced</span>
+                  <span style={{ fontSize: 11, color: c.muted }}>{advancedOpen ? '▲ Hide' : '▼ Show'}</span>
+                </button>
+                {advancedOpen && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                    <div>
+                      <div style={s.label}>Last N Subgroups (0 = all)</div>
+                      <input style={s.input} type="number" min={0} value={lastN} onChange={e => setLastN(e.target.value)} />
+                    </div>
+                    <div>
+                      <div style={s.label}>Sigma Convention</div>
+                      <select style={s.select} value={sigmaConvention} onChange={e => setSigmaConvention(e.target.value as SigmaConvention)}>
+                        <option value="direct">Direct (Z)</option>
+                        <option value="sixsigma">+1.5σ Shift (Six Sigma)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={s.label}>Show</div>
+                      <select style={s.select} value={displayMode} onChange={e => setDisplayMode(e.target.value as DisplayMode)}>
+                        <option value="both">Capability + Benchmark Z</option>
+                        <option value="capability">Capability Only (Cp/Cpk)</option>
+                        <option value="benchmark">Benchmark Z Only</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <div style={s.label}>Sigma Convention</div>
-                    <select style={s.select} value={sigmaConvention} onChange={e => setSigmaConvention(e.target.value as SigmaConvention)}>
-                      <option value="direct">Direct (Z)</option>
-                      <option value="sixsigma">+1.5σ Shift (Six Sigma)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div style={s.label}>Show</div>
-                    <select style={s.select} value={displayMode} onChange={e => setDisplayMode(e.target.value as DisplayMode)}>
-                      <option value="both">Capability + Benchmark Z</option>
-                      <option value="capability">Capability Only (Cp/Cpk)</option>
-                      <option value="benchmark">Benchmark Z Only</option>
-                    </select>
-                  </div>
-                </div>
+                )}
               </div>
             </>
           ) : (
@@ -706,21 +1000,41 @@ export default function SPCEngine() {
             </button>
           </div>
 
-          <div style={{ fontSize: 10, color: c.muted, lineHeight: 1.6 }}>
-            📤 Excel / PNG / PDF export is coming in the next update — same as the Pareto and DPMO tools.
+          <div>
+            <div style={s.sectionTitle}>📤 Export</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button style={s.exportBtn} onClick={exportExcel}>📊 Export Excel</button>
+              <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>🖼️ Export Charts (PNG)</button>
+              <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>📄 Export Full Report (PDF)</button>
+            </div>
           </div>
         </div>
 
         {/* ── RIGHT MAIN AREA ──────────────────────────────────────────── */}
         <div style={s.right}>
-          {/* Data entry table */}
+          {/* Data entry table — auto-collapses into a summary bar once you have a result */}
           <div style={s.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>Data Entry</div>
-              <div style={{ fontSize: 11, color: c.muted }}>Paste from Excel with Ctrl+V</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: dataEntryOpen ? 12 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>Data Entry</div>
+                {!dataEntryOpen && (
+                  <div style={{ fontSize: 12, color: c.muted }}>
+                    {dataType === 'variable' ? `${varRows.length} subgroup${varRows.length === 1 ? '' : 's'}` : `${attrRows.length} row${attrRows.length === 1 ? '' : 's'}`} entered
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                {dataEntryOpen && <div style={{ fontSize: 11, color: c.muted }}>Paste from Excel with Ctrl+V</div>}
+                <button
+                  onClick={() => setDataEntryOpen(o => !o)}
+                  style={{ ...s.exportBtn, padding: '4px 10px', fontSize: 11 }}
+                >
+                  {dataEntryOpen ? '▲ Collapse' : '✎ Edit Data'}
+                </button>
+              </div>
             </div>
 
-            {dataType === 'variable' ? (
+            {dataEntryOpen && (dataType === 'variable' ? (
               <>
                 <table style={s.table}>
                   <thead>
@@ -787,7 +1101,7 @@ export default function SPCEngine() {
                 </table>
                 <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addAttrRow}>+ Add Row</button>
               </>
-            )}
+            ))}
           </div>
 
           {errorMsg && (
@@ -849,6 +1163,7 @@ export default function SPCEngine() {
                 </div>
                 <div style={s.chartInner}>
                   <Chart
+                    ref={iChartRef}
                     type="line"
                     data={buildControlChart(varResult.labels, varResult.xbarVals, varResult.ucl_x, varResult.cl_x, varResult.lcl_x, violatedX, varResult.N === 1 ? 'Individual Value' : 'X̄')}
                     options={lineChartOptions}
@@ -861,12 +1176,13 @@ export default function SPCEngine() {
                   {varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart'}
                 </div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  CL = {fmt(varResult.cl_r)} · UCL = {fmt(varResult.ucl_r)} · LCL = {fmt(Math.max(0, varResult.lcl_r))}
+                  {varResult.N === 1 ? 'MR̄' : 'R̄'} = {fmt(varResult.cl_r)} · UCL = {fmt(varResult.ucl_r)} · LCL = {fmt(Math.max(0, varResult.lcl_r))}
                 </div>
                 <div style={s.chartInner}>
                   <Chart
+                    ref={rChartRef}
                     type="line"
-                    data={buildControlChart(rangeLabels, rangeValsTrimmed, varResult.ucl_r, varResult.cl_r, Math.max(0, varResult.lcl_r), violatedR, varResult.N === 1 ? 'Moving Range' : 'Range')}
+                    data={buildControlChart(rangeLabels, rangeValsTrimmed, varResult.ucl_r, varResult.cl_r, Math.max(0, varResult.lcl_r), violatedR, varResult.N === 1 ? 'Moving Range' : 'Range', varResult.N === 1 ? 'MR̄' : 'R̄')}
                     options={lineChartOptions}
                   />
                 </div>
@@ -982,6 +1298,7 @@ export default function SPCEngine() {
                       <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Distribution vs. Specification Limits</div>
                       <div style={s.chartInner}>
                         <Chart
+                          ref={distChartRef}
                           type="scatter"
                           data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
                           options={linearChartOptions(false)}
@@ -1001,6 +1318,7 @@ export default function SPCEngine() {
                   <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Empirical CDF vs. Normal Distribution</div>
                   <div style={s.chartInner}>
                     <Chart
+                      ref={ecdfChartRef}
                       type="scatter"
                       data={buildEcdfChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
                       options={linearChartOptions(true)}
@@ -1040,6 +1358,7 @@ export default function SPCEngine() {
                 </div>
                 <div style={s.chartInner}>
                   <Chart
+                    ref={attrChartRef}
                     type="line"
                     data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.ucl, attrResult.clVal, Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
                     options={lineChartOptions}
