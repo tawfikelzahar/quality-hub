@@ -70,6 +70,13 @@ function fPValue(f: number, df1: number, df2: number): number {
 // D4 — Range chart UCL constant, keyed by number of trials per part
 const D4: Record<number, number> = { 2: 3.267, 3: 2.575, 4: 2.282, 5: 2.114 }
 
+// 5.15σ = 99% Study Variation — the AIAG-recommended multiplier (Minitab default is 6 = 99.73%,
+// but 5.15 is what AIAG's MSA manual and most automotive-industry practice uses).
+// K1/K2/K3 above already give 1-sigma EV/AV/GRR/PV; this multiplier is applied ONLY when
+// comparing against an external Tolerance — %Contribution-of-TV and NDC are scale-invariant
+// and don't need it.
+const SIGMA_MULTIPLIER = 5.15
+
 // K1 — Repeatability (EV) constant, keyed by number of trials
 const K1: Record<number, number> = { 2: 0.8862, 3: 0.5908 }
 
@@ -177,8 +184,14 @@ function runGageRR(input: GageInput) {
   }
 
   const tolerance = USL != null && LSL != null ? USL - LSL : null
+  // AIAG MSA 3rd/4th ed. K1/K2/K3 (used above) yield 1-sigma EV/AV/GRR/PV.
+  // %Tolerance must compare against the 5.15-sigma "Study Variation", i.e.
+  // %Tolerance = (5.15 × component) / Tolerance — NOT component / Tolerance directly.
+  // (This distinction doesn't affect %Contribution-of-TV or NDC, since the same
+  // multiplier would cancel out in those ratios — it only matters for %Tolerance.)
+  const studyVar = { EV: EV * SIGMA_MULTIPLIER, AV: AV * SIGMA_MULTIPLIER, GRR: GRR * SIGMA_MULTIPLIER, PV: PV * SIGMA_MULTIPLIER, TV: TV * SIGMA_MULTIPLIER }
   const pctOfTolerance = tolerance
-    ? { EV: EV / tolerance, AV: AV / tolerance, GRR: GRR / tolerance, PV: PV / tolerance }
+    ? { EV: studyVar.EV / tolerance, AV: studyVar.AV / tolerance, GRR: studyVar.GRR / tolerance, PV: studyVar.PV / tolerance }
     : null
 
   const ndcRaw = GRR > 0 ? 1.41 * (PV / GRR) : Infinity
@@ -204,7 +217,7 @@ function runGageRR(input: GageInput) {
     avg, rng, rBarByAppraiser, rBar, uclR, outOfControlRanges,
     EV, xbarByAppraiser, xbarDiff, AV, GRR,
     partAvg, rP, PV, TV,
-    pctOfTV, pctOfTolerance, tolerance,
+    pctOfTV, pctOfTolerance, tolerance, studyVar,
     ndcRaw, ndc, conclusion, conclusionText,
     constants: { D4: d4, K1: k1, K2: k2, K3: k3 },
   }
@@ -357,7 +370,6 @@ function runAnovaGageRR(input: GageInput, poolingAlpha: number) {
     GRR: TV > 0 ? GRR / TV : 0,
     PV: TV > 0 ? PV / TV : 0,
   }
-  const SIGMA_MULTIPLIER = 5.15
   const studyVar = { EV: EV * SIGMA_MULTIPLIER, AV: AV * SIGMA_MULTIPLIER, GRR: GRR * SIGMA_MULTIPLIER, PV: PV * SIGMA_MULTIPLIER, TV: TV * SIGMA_MULTIPLIER }
 
   const tolerance = USL != null && LSL != null ? USL - LSL : null
