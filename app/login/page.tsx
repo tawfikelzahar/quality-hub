@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { compressAvatar } from '@/lib/avatar'
@@ -16,7 +15,6 @@ function getNextPath() {
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -83,8 +81,11 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
-    router.push(getNextPath())
-    router.refresh()
+    // A full navigation (not router.push) guarantees the browser sends the
+    // freshly-set session cookie on this request, so the proxy/middleware
+    // auth check on the destination route sees it immediately instead of
+    // racing with a soft client-side transition.
+    window.location.href = getNextPath()
   }
 
   async function handleGoogleSignIn() {
