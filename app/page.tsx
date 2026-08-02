@@ -219,6 +219,26 @@ export default function Home() {
               <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>Open Tool →</div>
             </Link>
 
+            {/* Stability Study — Live */}
+            <Link href="/stability" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(15,212,200,.1)',border:'1px solid rgba(15,212,200,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧪</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>Live
+                </span>
+              </div>
+              <div>
+                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>Stability Study</div>
+                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>ICH Q1E shelf-life estimation · Multi-batch regression · Poolability test</div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {['ICH Q1E','Shelf-Life','CSV/Excel/PDF Export'].map(t=>(
+                  <span key={t} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{t}</span>
+                ))}
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>Open Tool →</div>
+            </Link>
+
             {/* FMEA */}
             <div style={{background:comingSoonBg,border:`1px solid ${comingSoonBorder}`,borderRadius:20,padding:32,display:'flex',flexDirection:'column',gap:20,opacity:.6}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
