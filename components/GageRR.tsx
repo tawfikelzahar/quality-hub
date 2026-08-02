@@ -10,8 +10,9 @@ import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 
-// ── Types — mirror the shape returned by app/api/gage-rr/route.ts ──────────
-interface GageResult {
+// ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
+interface AvgRangeResult {
+  method: 'average-range'
   appraiserNames: string[]
   numAppraisers: number
   numTrials: number
@@ -40,6 +41,51 @@ interface GageResult {
   conclusionText: string
   constants: { D4: number; K1: number; K2: number; K3: number }
 }
+
+interface AnovaSource {
+  source: string
+  SS: number
+  df: number
+  MS: number
+  F: number | null
+  p: number | null
+  significant: boolean | null
+}
+
+interface AnovaResult {
+  method: 'anova'
+  appraiserNames: string[]
+  numAppraisers: number
+  numTrials: number
+  numParts: number
+  avg: number[][]
+  partAvg: number[]
+  xbarByAppraiser: number[]
+  grandMean: number
+  anovaTable: AnovaSource[]
+  unpooledInteraction?: AnovaSource
+  pooled: boolean
+  poolingAlpha: number
+  errorDf: number
+  EV: number
+  AV: number
+  GRR: number
+  PV: number
+  TV: number
+  varComponents: { EV: number; AV: number; GRR: number; PV: number; TV: number }
+  pctContribution: { EV: number; AV: number; GRR: number; PV: number }
+  pctStudyVar: { EV: number; AV: number; GRR: number; PV: number }
+  studyVar: { EV: number; AV: number; GRR: number; PV: number; TV: number }
+  pctOfTolerance: { EV: number; AV: number; GRR: number; PV: number } | null
+  tolerance: number | null
+  ndcRaw: number
+  ndc: number
+  conclusion: 'okay' | 'marginal' | 'unacceptable'
+  conclusionText: string
+  significanceNote: string
+}
+
+type GageResult = AvgRangeResult | AnovaResult
 
 // Sample dataset (cross-checked against a verified AIAG Gage R&R workbook)
 // so the tool is usable out of the box and its output is independently verifiable.
@@ -89,6 +135,11 @@ function pct(n: number | null | undefined, digits = 1) {
   if (n === null || n === undefined || Number.isNaN(n)) return '—'
   return (n * 100).toFixed(digits) + '%'
 }
+// Std-dev-based "% of Total Variation" — pctOfTV for Average & Range, pctStudyVar for ANOVA.
+// These are the equivalent quantity under each method, so callers can treat them uniformly.
+function pctTV(r: GageResult) {
+  return r.method === 'average-range' ? r.pctOfTV : r.pctStudyVar
+}
 
 export default function GageRR() {
   const [theme, setTheme] = usePersistedTheme()
@@ -102,6 +153,7 @@ export default function GageRR() {
   const [measurements, setMeasurements] = useState<(number | null)[][][]>(SAMPLE)
   const [USL, setUSL] = useState('72')
   const [LSL, setLSL] = useState('70')
+  const [method, setMethod] = useState<'average-range' | 'anova'>('average-range')
 
   const [result, setResult] = useState<GageResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -194,6 +246,8 @@ export default function GageRR() {
         measurements,
         USL: USL !== '' ? parseFloat(USL) : null,
         LSL: LSL !== '' ? parseFloat(LSL) : null,
+        method,
+        poolingAlpha: 0.25,
       }
       const res = await fetch('/api/gage-rr', {
         method: 'POST',
@@ -216,11 +270,12 @@ export default function GageRR() {
   // ── Chart data ─────────────────────────────────────────────────────────
   const contribChartData = useMemo(() => {
     if (!result) return null
+    const p = pctTV(result)
     return {
       labels: ['EV\n(Repeatability)', 'AV\n(Reproducibility)', 'GRR', 'PV\n(Part Variation)'],
       datasets: [{
         label: '% of Total Variation',
-        data: [result.pctOfTV.EV, result.pctOfTV.AV, result.pctOfTV.GRR, result.pctOfTV.PV].map(v => +(v * 100).toFixed(2)),
+        data: [p.EV, p.AV, p.GRR, p.PV].map(v => +(v * 100).toFixed(2)),
         backgroundColor: [c.bar, c.line, c.danger, c.accent2],
         borderRadius: 6,
       }],
@@ -228,7 +283,7 @@ export default function GageRR() {
   }, [result, c])
 
   const rangeChartData = useMemo(() => {
-    if (!result) return null
+    if (!result || result.method !== 'average-range') return null
     const labels: string[] = []
     const data: number[] = []
     for (let a = 0; a < result.numAppraisers; a++) {
@@ -292,23 +347,25 @@ export default function GageRR() {
   // ── Export: CSV ────────────────────────────────────────────────────────
   const exportCSV = () => {
     if (!result) return
+    const p = pctTV(result)
     const lines: string[] = []
     lines.push('Gage R&R Study — Raw Data')
+    lines.push(`Method,${result.method === 'anova' ? 'ANOVA' : 'Average & Range'}`)
     lines.push('Appraiser,Part,Trial,Value')
     for (let a = 0; a < numAppraisers; a++) {
-      for (let p = 0; p < numParts; p++) {
+      for (let p2 = 0; p2 < numParts; p2++) {
         for (let t = 0; t < numTrials; t++) {
-          lines.push(`"${appraiserNames[a]}",${p + 1},${t + 1},${measurements[a][p][t] ?? ''}`)
+          lines.push(`"${appraiserNames[a]}",${p2 + 1},${t + 1},${measurements[a][p2][t] ?? ''}`)
         }
       }
     }
     lines.push('')
     lines.push('Metric,Value,% of Total Variation' + (result.pctOfTolerance ? ',% of Tolerance' : ''))
     const rows: [string, number, number, number | null][] = [
-      ['EV (Repeatability)', result.EV, result.pctOfTV.EV, result.pctOfTolerance?.EV ?? null],
-      ['AV (Reproducibility)', result.AV, result.pctOfTV.AV, result.pctOfTolerance?.AV ?? null],
-      ['GRR', result.GRR, result.pctOfTV.GRR, result.pctOfTolerance?.GRR ?? null],
-      ['PV (Part Variation)', result.PV, result.pctOfTV.PV, result.pctOfTolerance?.PV ?? null],
+      ['EV (Repeatability)', result.EV, p.EV, result.pctOfTolerance?.EV ?? null],
+      ['AV (Reproducibility)', result.AV, p.AV, result.pctOfTolerance?.AV ?? null],
+      ['GRR', result.GRR, p.GRR, result.pctOfTolerance?.GRR ?? null],
+      ['PV (Part Variation)', result.PV, p.PV, result.pctOfTolerance?.PV ?? null],
       ['TV (Total Variation)', result.TV, 1, null],
     ]
     rows.forEach(([label, val, tv, tol]) => {
@@ -317,6 +374,20 @@ export default function GageRR() {
     lines.push('')
     lines.push(`NDC (Number of Distinct Categories),${result.ndc}`)
     lines.push(`Conclusion,"${result.conclusionText}"`)
+
+    if (result.method === 'anova') {
+      lines.push('')
+      lines.push(`Interaction pooled into error term,${result.pooled ? 'Yes' : 'No'} (alpha=${result.poolingAlpha})`)
+      lines.push('')
+      lines.push('ANOVA Table')
+      lines.push('Source,SS,df,MS,F,p-value,Significant (p<0.05)')
+      result.anovaTable.forEach(row => {
+        lines.push(`"${row.source}",${row.SS.toFixed(6)},${row.df},${row.MS.toFixed(6)},${row.F !== null ? row.F.toFixed(4) : ''},${row.p !== null ? row.p.toFixed(6) : ''},${row.significant === null ? '' : row.significant ? 'Yes' : 'No'}`)
+      })
+      lines.push('')
+      lines.push(`Statistical interpretation,"${result.significanceNote}"`)
+    }
+
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -324,32 +395,51 @@ export default function GageRR() {
     URL.revokeObjectURL(url)
   }
 
+
   // ── Export: Excel ──────────────────────────────────────────────────────
   const exportExcel = () => {
     if (!result) return
+    const p = pctTV(result)
     const wb = XLSX.utils.book_new()
     const rawRows: Record<string, string | number>[] = []
     for (let a = 0; a < numAppraisers; a++) {
-      for (let p = 0; p < numParts; p++) {
+      for (let p2 = 0; p2 < numParts; p2++) {
         for (let t = 0; t < numTrials; t++) {
-          rawRows.push({ Appraiser: appraiserNames[a], Part: p + 1, Trial: t + 1, Value: measurements[a][p][t] ?? '' })
+          rawRows.push({ Appraiser: appraiserNames[a], Part: p2 + 1, Trial: t + 1, Value: measurements[a][p2][t] ?? '' })
         }
       }
     }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawRows), 'Raw Data')
 
     const summaryRows = [
-      { Metric: 'EV (Repeatability)', Value: result.EV, '% of Total Variation': result.pctOfTV.EV, '% of Tolerance': result.pctOfTolerance?.EV ?? '' },
-      { Metric: 'AV (Reproducibility)', Value: result.AV, '% of Total Variation': result.pctOfTV.AV, '% of Tolerance': result.pctOfTolerance?.AV ?? '' },
-      { Metric: 'GRR', Value: result.GRR, '% of Total Variation': result.pctOfTV.GRR, '% of Tolerance': result.pctOfTolerance?.GRR ?? '' },
-      { Metric: 'PV (Part Variation)', Value: result.PV, '% of Total Variation': result.pctOfTV.PV, '% of Tolerance': result.pctOfTolerance?.PV ?? '' },
+      { Metric: 'Method', Value: result.method === 'anova' ? 'ANOVA' : 'Average & Range', '% of Total Variation': '', '% of Tolerance': '' },
+      { Metric: 'EV (Repeatability)', Value: result.EV, '% of Total Variation': p.EV, '% of Tolerance': result.pctOfTolerance?.EV ?? '' },
+      { Metric: 'AV (Reproducibility)', Value: result.AV, '% of Total Variation': p.AV, '% of Tolerance': result.pctOfTolerance?.AV ?? '' },
+      { Metric: 'GRR', Value: result.GRR, '% of Total Variation': p.GRR, '% of Tolerance': result.pctOfTolerance?.GRR ?? '' },
+      { Metric: 'PV (Part Variation)', Value: result.PV, '% of Total Variation': p.PV, '% of Tolerance': result.pctOfTolerance?.PV ?? '' },
       { Metric: 'TV (Total Variation)', Value: result.TV, '% of Total Variation': 1, '% of Tolerance': '' },
       { Metric: 'NDC', Value: result.ndc, '% of Total Variation': '', '% of Tolerance': '' },
       { Metric: 'Conclusion', Value: result.conclusionText, '% of Total Variation': '', '% of Tolerance': '' },
     ]
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary')
+
+    if (result.method === 'anova') {
+      const anovaRows = result.anovaTable.map(row => ({
+        Source: row.source,
+        SS: row.SS,
+        df: row.df,
+        MS: row.MS,
+        F: row.F ?? '',
+        'p-value': row.p ?? '',
+        'Significant (p<0.05)': row.significant === null ? '' : row.significant ? 'Yes' : 'No',
+      }))
+      anovaRows.push({ Source: 'Interaction pooled into error?', SS: NaN, df: NaN, MS: NaN, F: '', 'p-value': '', 'Significant (p<0.05)': result.pooled ? `Yes (alpha=${result.poolingAlpha})` : 'No' } as never)
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anovaRows), 'ANOVA Table')
+    }
+
     XLSX.writeFile(wb, 'gage-rr-results.xlsx')
   }
+
 
   // ── Export: PNG (contribution chart) ─────────────────────────────────
   const exportPNG = () => {
@@ -363,26 +453,28 @@ export default function GageRR() {
   // ── Export: PDF ─────────────────────────────────────────────────────
   const exportPDF = () => {
     if (!result) return
+    const p = pctTV(result)
     const chart = contribChartRef.current
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
     const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
     const margin = 40
     let y = margin
 
     pdf.setFontSize(18); pdf.setFont('helvetica', 'bold')
     pdf.text('Gage R&R Study Report', margin, y); y += 20
     pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y); y += 24
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}   Method: ${result.method === 'anova' ? 'ANOVA' : 'Average & Range'}`, margin, y); y += 24
 
     pdf.setFontSize(11); pdf.setTextColor(0); pdf.setFont('helvetica', 'bold')
     pdf.text(`Appraisers: ${result.numAppraisers}   Trials: ${result.numTrials}   Parts: ${result.numParts}`, margin, y)
     y += 20
 
     const rows: [string, string][] = [
-      ['EV (Repeatability)', `${fmt(result.EV)}  (${pct(result.pctOfTV.EV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.EV)} of Tol.` : ''})`],
-      ['AV (Reproducibility)', `${fmt(result.AV)}  (${pct(result.pctOfTV.AV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.AV)} of Tol.` : ''})`],
-      ['Gage R&R', `${fmt(result.GRR)}  (${pct(result.pctOfTV.GRR)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.GRR)} of Tol.` : ''})`],
-      ['Part Variation', `${fmt(result.PV)}  (${pct(result.pctOfTV.PV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.PV)} of Tol.` : ''})`],
+      ['EV (Repeatability)', `${fmt(result.EV)}  (${pct(p.EV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.EV)} of Tol.` : ''})`],
+      ['AV (Reproducibility)', `${fmt(result.AV)}  (${pct(p.AV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.AV)} of Tol.` : ''})`],
+      ['Gage R&R', `${fmt(result.GRR)}  (${pct(p.GRR)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.GRR)} of Tol.` : ''})`],
+      ['Part Variation', `${fmt(result.PV)}  (${pct(p.PV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.PV)} of Tol.` : ''})`],
       ['Total Variation', fmt(result.TV)],
       ['NDC', String(result.ndc)],
     ]
@@ -400,7 +492,39 @@ export default function GageRR() {
     pdf.text(wrapped, margin, y)
     y += wrapped.length * 14 + 14
 
+    if (result.method === 'anova') {
+      if (y > pageHeight - 180) { pdf.addPage(); y = margin }
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12)
+      pdf.text('ANOVA Table' + (result.pooled ? ` (interaction pooled into error, α=${result.poolingAlpha})` : ''), margin, y)
+      y += 18
+      pdf.setFontSize(9)
+      const colX = [margin, margin + 150, margin + 190, margin + 230, margin + 300, margin + 360, margin + 420]
+      const headers = ['Source', 'SS', 'df', 'MS', 'F', 'p-value', 'Sig.']
+      pdf.setFont('helvetica', 'bold')
+      headers.forEach((h, i) => pdf.text(h, colX[i], y))
+      y += 14
+      pdf.setFont('helvetica', 'normal')
+      result.anovaTable.forEach(row => {
+        pdf.text(row.source, colX[0], y)
+        pdf.text(row.SS.toFixed(4), colX[1], y)
+        pdf.text(String(row.df), colX[2], y)
+        pdf.text(row.MS.toFixed(4), colX[3], y)
+        pdf.text(row.F !== null ? row.F.toFixed(3) : '—', colX[4], y)
+        pdf.text(row.p !== null ? row.p.toFixed(4) : '—', colX[5], y)
+        pdf.text(row.significant === null ? '—' : row.significant ? 'Yes' : 'No', colX[6], y)
+        y += 14
+      })
+      y += 10
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10)
+      pdf.text('Statistical interpretation:', margin, y); y += 14
+      pdf.setFont('helvetica', 'normal')
+      const noteWrapped = pdf.splitTextToSize(result.significanceNote, pageWidth - margin * 2)
+      pdf.text(noteWrapped, margin, y)
+      y += noteWrapped.length * 14 + 14
+    }
+
     if (chart) {
+      if (y > pageHeight - 200) { pdf.addPage(); y = margin }
       const imgData = chart.toBase64Image('image/png', 1)
       const imgWidth = pageWidth - margin * 2
       const imgHeight = (chart.height / chart.width) * imgWidth
@@ -440,6 +564,30 @@ export default function GageRR() {
         <div style={{ ...s.left, width: 460 }}>
           <div>
             <div style={s.sectionTitle}>Study Setup</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <div style={s.label}>Analysis Method</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  style={{ ...s.exportBtn, flex: 1, ...(method === 'average-range' ? { background: c.accent, color: '#fff', borderColor: c.accent } : {}) }}
+                  onClick={() => setMethod('average-range')}
+                >
+                  Average &amp; Range
+                </button>
+                <button
+                  style={{ ...s.exportBtn, flex: 1, ...(method === 'anova' ? { background: c.accent, color: '#fff', borderColor: c.accent } : {}) }}
+                  onClick={() => setMethod('anova')}
+                >
+                  ANOVA
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: c.muted, marginTop: 6 }}>
+                {method === 'average-range'
+                  ? 'Fast, descriptive — EV/AV/GRR/PV point estimates. Matches the classic AIAG worksheet.'
+                  : 'Statistically rigorous — full ANOVA table with F-tests, p-values, and the Part × Appraiser interaction.'}
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
               <div>
                 <div style={s.label}>Appraisers</div>
@@ -598,10 +746,60 @@ export default function GageRR() {
                   <span style={{ fontSize: 22 }}>{conclusionStyle.icon}</span>
                   <div>
                     <div style={{ fontWeight: 700, color: conclusionStyle.color }}>
-                      %GRR {result.pctOfTolerance ? 'of Tolerance' : 'of Total Variation'}: {pct(result.pctOfTolerance ? result.pctOfTolerance.GRR : result.pctOfTV.GRR)}
+                      %GRR {result.pctOfTolerance ? 'of Tolerance' : 'of Total Variation'}: {pct(result.pctOfTolerance ? result.pctOfTolerance.GRR : pctTV(result).GRR)}
                     </div>
                     <div style={{ fontSize: 13, color: c.text, marginTop: 2 }}>{result.conclusionText}</div>
                   </div>
+                </div>
+              )}
+
+              {/* ANOVA — statistical significance */}
+              {result.method === 'anova' && (
+                <div style={s.card}>
+                  <div style={s.sectionTitle}>Statistical Significance (ANOVA)</div>
+                  <div style={{
+                    fontSize: 13, lineHeight: 1.6, padding: 12, borderRadius: 8, marginBottom: 14,
+                    background: 'rgba(15,212,200,.06)', border: '1px solid rgba(15,212,200,.15)', color: c.text,
+                  }}>
+                    {result.significanceNote}
+                  </div>
+                  {result.pooled && (
+                    <div style={{ fontSize: 12, color: c.muted, marginBottom: 10 }}>
+                      ℹ️ Part × Appraiser interaction (p = {result.unpooledInteraction?.p !== null && result.unpooledInteraction?.p !== undefined ? result.unpooledInteraction.p.toFixed(4) : '—'}) was pooled into the error term (α = {result.poolingAlpha}), per standard AIAG practice — the table below reflects the pooled model.
+                    </div>
+                  )}
+                  <table style={s.table}>
+                    <thead>
+                      <tr>
+                        <th style={s.th}>Source</th>
+                        <th style={s.th}>SS</th>
+                        <th style={s.th}>df</th>
+                        <th style={s.th}>MS</th>
+                        <th style={s.th}>F</th>
+                        <th style={s.th}>p-value</th>
+                        <th style={s.th}>Significant?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {result.anovaTable.map((row, i) => (
+                        <tr key={i}>
+                          <td style={s.td}>{row.source}</td>
+                          <td style={s.td}>{row.SS.toFixed(5)}</td>
+                          <td style={s.td}>{row.df}</td>
+                          <td style={s.td}>{row.MS.toFixed(5)}</td>
+                          <td style={s.td}>{row.F !== null ? row.F.toFixed(3) : '—'}</td>
+                          <td style={s.td}>{row.p !== null ? row.p.toFixed(4) : '—'}</td>
+                          <td style={s.td}>
+                            {row.significant === null ? '—' : (
+                              <span style={{ color: row.significant ? '#ef4444' : '#4ade80', fontWeight: 700 }}>
+                                {row.significant ? 'Yes (p < 0.05)' : 'No'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
@@ -619,10 +817,10 @@ export default function GageRR() {
                   </thead>
                   <tbody>
                     {[
-                      ['EV (Repeatability)', result.EV, result.pctOfTV.EV, result.pctOfTolerance?.EV],
-                      ['AV (Reproducibility)', result.AV, result.pctOfTV.AV, result.pctOfTolerance?.AV],
-                      ['Gage R&R', result.GRR, result.pctOfTV.GRR, result.pctOfTolerance?.GRR],
-                      ['PV (Part Variation)', result.PV, result.pctOfTV.PV, result.pctOfTolerance?.PV],
+                      ['EV (Repeatability)', result.EV, pctTV(result).EV, result.pctOfTolerance?.EV],
+                      ['AV (Reproducibility)', result.AV, pctTV(result).AV, result.pctOfTolerance?.AV],
+                      ['Gage R&R', result.GRR, pctTV(result).GRR, result.pctOfTolerance?.GRR],
+                      ['PV (Part Variation)', result.PV, pctTV(result).PV, result.pctOfTolerance?.PV],
                       ['TV (Total Variation)', result.TV, 1, null],
                     ].map((row, i) => (
                       <tr key={i}>
@@ -646,21 +844,23 @@ export default function GageRR() {
                 </div>
               </div>
 
-              {/* Range chart */}
-              <div style={s.chartWrap}>
-                <div style={s.sectionTitle}>Range Chart by Appraiser × Part (UCL = {fmt(result.uclR, 4)})</div>
-                <div style={s.chartInner}>
-                  {rangeChartData && (
-                    <Chart ref={rangeChartRef} type="line" data={rangeChartData as never} options={chartOpts('Range') as never} />
+              {/* Range chart — Average & Range method only (UCL/D4 concept doesn't apply to ANOVA) */}
+              {result.method === 'average-range' && (
+                <div style={s.chartWrap}>
+                  <div style={s.sectionTitle}>Range Chart by Appraiser × Part (UCL = {fmt(result.uclR, 4)})</div>
+                  <div style={s.chartInner}>
+                    {rangeChartData && (
+                      <Chart ref={rangeChartRef} type="line" data={rangeChartData as never} options={chartOpts('Range') as never} />
+                    )}
+                  </div>
+                  {result.outOfControlRanges.length > 0 && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: c.danger }}>
+                      ⚠ {result.outOfControlRanges.length} range(s) beyond UCL — investigate appraiser consistency:{' '}
+                      {result.outOfControlRanges.map(r => `${r.appraiser} / Part ${r.part}`).join(', ')}
+                    </div>
                   )}
                 </div>
-                {result.outOfControlRanges.length > 0 && (
-                  <div style={{ marginTop: 10, fontSize: 12, color: c.danger }}>
-                    ⚠ {result.outOfControlRanges.length} range(s) beyond UCL — investigate appraiser consistency:{' '}
-                    {result.outOfControlRanges.map(r => `${r.appraiser} / Part ${r.part}`).join(', ')}
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Xbar comparison chart */}
               <div style={s.chartWrap}>
