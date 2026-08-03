@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabase } from '@/lib/supabase-server'
 
 function mean(arr: number[]) { return arr.reduce((a, b) => a + b, 0) / arr.length }
 function stdev(arr: number[], usePop = false) {
@@ -206,6 +207,12 @@ function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention }: {
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     if (body.mode === 'attribute') {

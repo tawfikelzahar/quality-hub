@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabase } from '@/lib/supabase-server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Gage R&R — AIAG Average & Range (X̄ & R) Method
@@ -421,6 +422,12 @@ function runAnovaGageRR(input: GageInput, poolingAlpha: number) {
 
 
 export async function POST(request: NextRequest) {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
+  }
+
   try {
     const body = (await request.json()) as GageInput & { method?: 'average-range' | 'anova'; poolingAlpha?: number }
     if (!body || !Array.isArray(body.measurements) || !Array.isArray(body.appraiserNames)) {
