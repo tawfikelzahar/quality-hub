@@ -529,16 +529,16 @@ export default function ParetoChart() {
   return (
     <div style={s.page}>
       {/* Nav */}
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
+      <nav className="qh-nav" style={s.nav}>
+        <div className="qh-nav-left" style={s.navLeft}>
           <Link href="/" style={s.logo}>
             <div style={s.logoIcon}>σ</div>
             QualityTools
           </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>Pareto Chart</span>
+          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
+          <span className="qh-breadcrumb" style={s.breadcrumb}>Pareto Chart</span>
         </div>
-        <div style={s.navRight}>
+        <div className="qh-nav-right" style={s.navRight}>
           <button style={s.themeBtn} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
@@ -553,9 +553,9 @@ export default function ParetoChart() {
         </div>
       </nav>
 
-      <div style={s.body}>
+      <div className="qh-body" style={s.body}>
         {/* Left Panel */}
-        <div style={s.left}>
+        <div className="qh-left" style={s.left}>
 
           {/* Manual Input */}
           <div>
@@ -648,10 +648,10 @@ export default function ParetoChart() {
         </div>
 
         {/* Right Panel */}
-        <div style={s.right}>
+        <div className="qh-right" style={s.right}>
 
           {/* Stats */}
-          <div style={s.statsRow}>
+          <div className="qh-stats-row" style={s.statsRow}>
             <div style={s.statCard}>
               <div style={s.statVal}>{total}</div>
               <div style={s.statLabel}>Total Defects</div>
@@ -667,7 +667,7 @@ export default function ParetoChart() {
           </div>
 
           {/* Chart */}
-          <div style={s.chartWrap}>
+          <div className="qh-chart-wrap" style={s.chartWrap}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: c.text }}>Pareto Analysis</div>
@@ -681,7 +681,7 @@ export default function ParetoChart() {
             </div>
 
             {sorted.length > 0 ? (
-              <div style={s.chartInner}>
+              <div className="qh-chart-inner" style={s.chartInner}>
                 <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
               </div>
             ) : (
@@ -697,6 +697,7 @@ export default function ParetoChart() {
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, color: c.text }}>
                 Breakdown Table
               </div>
+              <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
                   <tr>
@@ -729,6 +730,7 @@ export default function ParetoChart() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 

@@ -826,16 +826,16 @@ export default function SPCEngine() {
 
   return (
     <div style={s.page}>
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
+      <nav className="qh-nav" style={s.nav}>
+        <div className="qh-nav-left" style={s.navLeft}>
           <Link href="/" style={s.logo}>
             <div style={s.logoIcon}>σ</div>
             QualityTools
           </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>SPC Engine</span>
+          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
+          <span className="qh-breadcrumb" style={s.breadcrumb}>SPC Engine</span>
         </div>
-        <div style={s.navRight}>
+        <div className="qh-nav-right" style={s.navRight}>
           <button style={s.themeBtn} onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
@@ -844,9 +844,9 @@ export default function SPCEngine() {
         </div>
       </nav>
 
-      <div style={s.body}>
+      <div className="qh-body" style={s.body}>
         {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
-        <div style={s.left}>
+        <div className="qh-left" style={s.left}>
           <div>
             <div style={s.sectionTitle}>📊 Data Type</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1011,7 +1011,7 @@ export default function SPCEngine() {
         </div>
 
         {/* ── RIGHT MAIN AREA ──────────────────────────────────────────── */}
-        <div style={s.right}>
+        <div className="qh-right" style={s.right}>
           {/* Data entry table — auto-collapses into a summary bar once you have a result */}
           <div style={s.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: dataEntryOpen ? 12 : 0 }}>
@@ -1036,6 +1036,7 @@ export default function SPCEngine() {
 
             {dataEntryOpen && (dataType === 'variable' ? (
               <>
+                <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                 <table style={s.table}>
                   <thead>
                     <tr>
@@ -1067,10 +1068,12 @@ export default function SPCEngine() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addVarRow}>+ Add Subgroup</button>
               </>
             ) : (
               <>
+                <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                 <table style={s.table}>
                   <thead>
                     <tr>
@@ -1099,6 +1102,7 @@ export default function SPCEngine() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addAttrRow}>+ Add Row</button>
               </>
             ))}
@@ -1111,7 +1115,7 @@ export default function SPCEngine() {
           {/* ── VARIABLE RESULTS ───────────────────────────────────────── */}
           {varResult && (
             <>
-              <div style={s.statsRow}>
+              <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{varResult.n}</div>
                   <div style={s.statLabel}>Data Points</div>
@@ -1154,14 +1158,14 @@ export default function SPCEngine() {
                 )}
               </div>
 
-              <div style={s.chartWrap}>
+              <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
                   {varResult.N === 1 ? 'Individuals (I) Chart' : 'X̄ Chart'}
                 </div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   CL = {fmt(varResult.cl_x)} · UCL = {fmt(varResult.ucl_x)} · LCL = {fmt(varResult.lcl_x)}
                 </div>
-                <div style={s.chartInner}>
+                <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart
                     ref={iChartRef}
                     type="line"
@@ -1171,14 +1175,14 @@ export default function SPCEngine() {
                 </div>
               </div>
 
-              <div style={s.chartWrap}>
+              <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
                   {varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart'}
                 </div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   {varResult.N === 1 ? 'MR̄' : 'R̄'} = {fmt(varResult.cl_r)} · UCL = {fmt(varResult.ucl_r)} · LCL = {fmt(Math.max(0, varResult.lcl_r))}
                 </div>
-                <div style={s.chartInner}>
+                <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart
                     ref={rChartRef}
                     type="line"
@@ -1231,7 +1235,7 @@ export default function SPCEngine() {
                   )}
 
                   {(displayMode === 'capability' || displayMode === 'both') && (
-                    <div style={s.statsRow}>
+                    <div className="qh-stats-row" style={s.statsRow}>
                       {[
                         { label: 'Cp', val: varResult.Cp, sub: 'Within σ · Short-term — Spread potential' },
                         { label: 'Cpk', val: varResult.Cpk, sub: 'Within σ · Short-term — Centering' },
@@ -1257,6 +1261,7 @@ export default function SPCEngine() {
                   {(varResult.ppmD_st || varResult.ppmD_lt) && (
                     <div style={s.card}>
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>PPM / DPM Defective — Detailed Breakdown</div>
+                      <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                       <table style={s.table}>
                         <thead>
                           <tr><th style={s.th}>Region</th><th style={s.th}>Short-term (within σ)</th><th style={s.th}>Long-term (overall σ)</th></tr>
@@ -1275,6 +1280,7 @@ export default function SPCEngine() {
                           </tr>
                         </tbody>
                       </table>
+                      </div>
                       {varResult.USL !== null && varResult.LSL !== null && (
                         <div style={{ fontSize: 11, color: c.muted, marginTop: 10 }}>
                           K × Σ Tolerance (K=6): (USL−LSL)/6Σ = {fmt(varResult.Cp)} · Overall = {fmt(varResult.Pp)}
@@ -1294,9 +1300,9 @@ export default function SPCEngine() {
                   )}
 
                   {submittedVals.length > 0 && (
-                    <div style={s.chartWrap}>
+                    <div className="qh-chart-wrap" style={s.chartWrap}>
                       <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Distribution vs. Specification Limits</div>
-                      <div style={s.chartInner}>
+                      <div className="qh-chart-inner" style={s.chartInner}>
                         <Chart
                           ref={distChartRef}
                           type="scatter"
@@ -1314,9 +1320,9 @@ export default function SPCEngine() {
               )}
 
               {submittedVals.length > 0 && (
-                <div style={s.chartWrap}>
+                <div className="qh-chart-wrap" style={s.chartWrap}>
                   <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Empirical CDF vs. Normal Distribution</div>
-                  <div style={s.chartInner}>
+                  <div className="qh-chart-inner" style={s.chartInner}>
                     <Chart
                       ref={ecdfChartRef}
                       type="scatter"
@@ -1332,7 +1338,7 @@ export default function SPCEngine() {
           {/* ── ATTRIBUTE RESULTS ──────────────────────────────────────── */}
           {attrResult && (
             <>
-              <div style={s.statsRow}>
+              <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{attrResult.pts.length}</div>
                   <div style={s.statLabel}>Subgroups</div>
@@ -1351,12 +1357,12 @@ export default function SPCEngine() {
                 </div>
               </div>
 
-              <div style={s.chartWrap}>
+              <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{attrResult.chartLabel}</div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   CL = {fmt(attrResult.clVal, 4)} · UCL = {fmt(attrResult.ucl, 4)} · LCL = {fmt(Math.max(0, attrResult.lcl), 4)}
                 </div>
-                <div style={s.chartInner}>
+                <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart
                     ref={attrChartRef}
                     type="line"

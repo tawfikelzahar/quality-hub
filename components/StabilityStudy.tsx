@@ -354,16 +354,16 @@ export default function StabilityStudy() {
 
   return (
     <div style={s.page}>
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
+      <nav className="qh-nav" style={s.nav}>
+        <div className="qh-nav-left" style={s.navLeft}>
           <Link href="/" style={s.logo}>
             <div style={s.logoIcon}>σ</div>
             QualityTools
           </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>Stability Study</span>
+          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
+          <span className="qh-breadcrumb" style={s.breadcrumb}>Stability Study</span>
         </div>
-        <div style={s.navRight}>
+        <div className="qh-nav-right" style={s.navRight}>
           <button style={s.themeBtn} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
@@ -372,12 +372,12 @@ export default function StabilityStudy() {
         </div>
       </nav>
 
-      <div style={s.body}>
+      <div className="qh-body" style={s.body}>
         {/* ── LEFT: Setup + Data Entry ─────────────────────────────────── */}
         <div style={{ ...s.left, width: 460 }}>
           <div>
             <div style={s.sectionTitle}>Study Setup</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 12 }}>
+            <div className="qh-input-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 12 }}>
               <div>
                 <div style={s.label}>Attribute</div>
                 <input style={s.input} value={attributeName} onChange={(e) => setAttributeName(e.target.value)} />
@@ -456,6 +456,7 @@ export default function StabilityStudy() {
           <div>
             <div style={s.sectionTitle}>Stability Data</div>
             <div style={{ overflowX: 'auto' }}>
+              <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
                   <tr>
@@ -494,14 +495,15 @@ export default function StabilityStudy() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
             <button style={{ ...s.addBtn, marginTop: 8 }} onClick={addTimePoint}>+ Add Time Point</button>
           </div>
         </div>
 
         {/* ── RIGHT: Results ────────────────────────────────────────────── */}
-        <div style={s.main}>
-          <div style={s.statsRow}>
+        <div className="qh-main" style={s.main}>
+          <div className="qh-stats-row" style={s.statsRow}>
             <div style={s.statCard}>
               <div style={{ ...s.statVal, color: analysis.recommended !== null ? c.accent : c.muted }}>
                 {analysis.recommended !== null ? `${fmt(analysis.recommended, 1)} mo` : '—'}
@@ -535,9 +537,9 @@ export default function StabilityStudy() {
             </div>
           )}
 
-          <div style={s.chartWrap}>
+          <div className="qh-chart-wrap" style={s.chartWrap}>
             <div style={s.sectionTitle}>Regression Plot</div>
-            <div style={s.chartInner}>
+            <div className="qh-chart-inner" style={s.chartInner}>
               <Chart
                 ref={chartRef}
                 type="line"
@@ -549,6 +551,7 @@ export default function StabilityStudy() {
 
           <div style={s.card}>
             <div style={s.sectionTitle}>Per-Batch Regression</div>
+            <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
             <table style={s.table}>
               <thead>
                 <tr>
@@ -586,6 +589,7 @@ export default function StabilityStudy() {
                 )}
               </tbody>
             </table>
+            </div>
             <div style={{ fontSize: 10, color: c.muted, marginTop: 6 }}>* extrapolated beyond last observed time point</div>
           </div>
 

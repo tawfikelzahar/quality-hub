@@ -497,16 +497,16 @@ export default function DPMOCalculator() {
 
   return (
     <div style={s.page}>
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
+      <nav className="qh-nav" style={s.nav}>
+        <div className="qh-nav-left" style={s.navLeft}>
           <Link href="/" style={s.logo}>
             <div style={s.logoIcon}>σ</div>
             QualityTools
           </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>DPMO & Sigma Calculator</span>
+          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
+          <span className="qh-breadcrumb" style={s.breadcrumb}>DPMO & Sigma Calculator</span>
         </div>
-        <div style={s.navRight}>
+        <div className="qh-nav-right" style={s.navRight}>
           <button style={s.themeBtn} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
@@ -521,8 +521,8 @@ export default function DPMOCalculator() {
         </div>
       </nav>
 
-      <div style={s.body}>
-        <div style={s.left}>
+      <div className="qh-body" style={s.body}>
+        <div className="qh-left" style={s.left}>
           <div>
             <div style={s.sectionTitle}>⚙️ Process Data</div>
             {rows.map(row => (
@@ -536,7 +536,7 @@ export default function DPMOCalculator() {
                   />
                   <button style={s.removeBtn} onClick={() => removeRow(row.id)}>✕</button>
                 </div>
-                <div style={s.inputGrid}>
+                <div className="qh-input-grid" style={s.inputGrid}>
                   <div>
                     <div style={s.label}>Units</div>
                     <input
@@ -639,10 +639,10 @@ export default function DPMOCalculator() {
           </div>
         </div>
 
-        <div style={s.right}>
+        <div className="qh-right" style={s.right}>
           {results.length > 0 ? (
             <>
-              <div style={s.statsRow}>
+              <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{results.length}</div>
                   <div style={s.statLabel}>Processes</div>
@@ -661,18 +661,19 @@ export default function DPMOCalculator() {
                 )}
               </div>
 
-              <div style={s.chartWrap}>
+              <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Sigma Level Comparison</div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   Color = performance band · Higher is better
                 </div>
-                <div style={s.chartInner}>
+                <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
                 </div>
               </div>
 
               <div style={s.card}>
                 <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Detailed Results</div>
+                <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                 <table style={s.table}>
                   <thead>
                     <tr>
@@ -710,6 +711,7 @@ export default function DPMOCalculator() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </>
           ) : (

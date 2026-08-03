@@ -53,27 +53,28 @@ export default function Home() {
         </div>
 
         {/* ── Nav ── */}
-        <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'rgba(15,212,200,.07)':c.border}`}}>
+        <nav className="qh-landing-nav" style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'rgba(15,212,200,.07)':c.border}`}}>
           <div style={{display:'flex',alignItems:'center',gap:11,fontWeight:800,fontSize:17}}>
             <div style={{width:36,height:36,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:16}}>σ</div>
             QualityTools
           </div>
-          <div style={{display:'flex',alignItems:'center',gap:24}}>
-            <a href="#tools" className="nl" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Tools</a>
-            <a href="#pricing" className="nl" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Pricing</a>
+          <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:24}}>
+            <a href="#tools" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Tools</a>
+            <a href="#pricing" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Pricing</a>
            <AuthStatus />
             <button
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+              className="qh-hide-small"
               style={{background:dark?'rgba(255,255,255,0.08)':c.surface2,border:`1px solid ${c.border}`,borderRadius:20,padding:'5px 14px',color:text,cursor:'pointer',fontSize:12,fontWeight:600}}
             >
               {dark ? '☀️ Light' : '🌙 Dark'}
             </button>
-            <a href="/pricing" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:13,padding:'8px 20px',borderRadius:8,textDecoration:'none'}}>Get Pro →</a>
+            <a href="/pricing" className="qh-hide-mobile" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:13,padding:'8px 20px',borderRadius:8,textDecoration:'none'}}>Get Pro →</a>
           </div>
         </nav>
 
         {/* ── Hero ── */}
-        <section style={{position:'relative',zIndex:1,minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'120px 24px 80px'}}>
+        <section className="qh-landing-hero" style={{position:'relative',zIndex:1,minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'120px 24px 80px'}}>
 
           <div className="fu fu1" style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(15,212,200,.07)',border:'1px solid rgba(15,212,200,.2)',borderRadius:100,padding:'7px 18px',fontSize:11,fontWeight:700,color:'#0fd4c8',letterSpacing:'2px',textTransform:'uppercase',marginBottom:40}}>
             <span style={{width:6,height:6,borderRadius:'50%',background:'#0fd4c8',display:'inline-block',animation:'pulse 2s infinite'}}/>
@@ -109,7 +110,7 @@ export default function Home() {
         </section>
 
         {/* ── Tools ── */}
-        <section id="tools" style={{position:'relative',zIndex:1,maxWidth:1100,margin:'0 auto',padding:'100px 32px'}}>
+        <section id="tools" className="qh-landing-section" style={{position:'relative',zIndex:1,maxWidth:1100,margin:'0 auto',padding:'100px 32px'}}>
           <p style={{fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:'#0fd4c8',marginBottom:14}}>The Toolkit</p>
           <h2 style={{fontSize:'clamp(30px,4vw,50px)',fontWeight:800,letterSpacing:-1.5,marginBottom:12,lineHeight:1.1}}>
             Everything a quality engineer<br/>needs — in one place
@@ -254,14 +255,14 @@ export default function Home() {
         </section>
 
         {/* ── Pricing ── */}
-        <section id="pricing" style={{position:'relative',zIndex:1,maxWidth:860,margin:'0 auto',padding:'100px 32px'}}>
+        <section id="pricing" className="qh-landing-section" style={{position:'relative',zIndex:1,maxWidth:860,margin:'0 auto',padding:'100px 32px'}}>
           <div style={{textAlign:'center',marginBottom:60}}>
             <p style={{fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:'#0fd4c8',marginBottom:14}}>Pricing</p>
             <h2 style={{fontSize:'clamp(28px,4vw,48px)',fontWeight:800,letterSpacing:-1.5,marginBottom:12,lineHeight:1.1}}>Start free.<br/>Go pro when you're ready.</h2>
             <p style={{fontSize:15,color:c.muted,fontWeight:300}}>No credit card required to start.</p>
           </div>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+          <div className="qh-pricing-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
             {/* Free */}
             <div style={{background:cardBg,border:`1px solid ${dark?'rgba(255,255,255,.07)':c.border}`,borderRadius:24,padding:40}}>
               <div style={{fontSize:12,fontWeight:700,color:c.muted,letterSpacing:1.5,textTransform:'uppercase',marginBottom:12}}>Free</div>
@@ -305,7 +306,7 @@ export default function Home() {
         </section>
 
         {/* ── Footer ── */}
-        <footer style={{position:'relative',zIndex:1,borderTop:`1px solid ${footerBorder}`,padding:'28px 48px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
+        <footer className="qh-landing-footer" style={{position:'relative',zIndex:1,borderTop:`1px solid ${footerBorder}`,padding:'28px 48px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
           <div style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:15}}>
             <div style={{width:28,height:28,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:13}}>σ</div>
             Quality<span style={{color:'#0fd4c8'}}>Tools</span>

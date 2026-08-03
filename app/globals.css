@@ -24,3 +24,175 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Quality Hub — mobile responsiveness
+ * ─────────────────────────────────────────────────────────────────────────
+ * Every tool page (SPC, Pareto, DPMO, AQL, Gage R&R, Stability, Account,
+ * the landing page, and the nav) is built with inline React `style={}`
+ * objects rather than Tailwind classes. Inline styles can't contain
+ * `@media` queries, so instead of rewriting every component, we tag the
+ * structural elements (nav, sidebar/main split, stat grids, tables,
+ * export button rows, card grids) with the `qh-*` class names below and
+ * override them here at two breakpoints. `!important` is required because
+ * an inline `style` attribute always wins over a plain CSS class.
+ *
+ * Breakpoints:
+ *   768px  -> tablet/phone: stack sidebar+main, shrink nav/padding
+ *   480px  -> small phone:  single-column grids, smaller type
+ * ───────────────────────────────────────────────────────────────────── */
+
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  /* Top nav (tool pages + landing page) */
+  .qh-nav {
+    padding: 0 14px !important;
+    height: auto !important;
+    min-height: 52px !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    row-gap: 6px !important;
+  }
+  .qh-nav-left {
+    gap: 8px !important;
+  }
+  .qh-nav-right {
+    gap: 8px !important;
+  }
+  .qh-breadcrumb-sep {
+    display: none !important;
+  }
+  .qh-breadcrumb {
+    font-size: 11px !important;
+  }
+  .qh-hide-mobile {
+    display: none !important;
+  }
+
+  /* Sidebar + main content: stack instead of side-by-side */
+  .qh-body {
+    flex-direction: column !important;
+    overflow: visible !important;
+  }
+  .qh-left {
+    width: 100% !important;
+    max-height: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--qh-border, rgba(255,255,255,0.1));
+    overflow-y: visible !important;
+    padding: 14px !important;
+  }
+  .qh-right,
+  .qh-main {
+    padding: 14px !important;
+  }
+
+  /* Stat / KPI cards */
+  .qh-stats-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* Tables: allow horizontal scroll instead of squeezing columns */
+  .qh-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .qh-table-wrap table {
+    min-width: 560px;
+  }
+
+  /* Export / action button rows */
+  .qh-export-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .qh-export-row > * {
+    flex: 1 1 calc(50% - 8px) !important;
+  }
+
+  /* Landing page tool/feature card grids */
+  .qh-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Landing page hero + section headings */
+  .qh-hero-title {
+    font-size: 32px !important;
+    line-height: 1.2 !important;
+  }
+  .qh-hero-sub {
+    font-size: 15px !important;
+  }
+  .qh-section-pad {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Charts: shorter on small screens so they don't dominate the page */
+  .qh-chart-inner {
+    height: 240px !important;
+  }
+
+  /* Landing page */
+  .qh-landing-nav {
+    padding: 0 16px !important;
+  }
+  .qh-landing-nav-right {
+    gap: 12px !important;
+  }
+  .qh-landing-section {
+    padding: 56px 20px !important;
+  }
+  .qh-landing-hero {
+    padding: 100px 18px 56px !important;
+  }
+  .qh-pricing-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .qh-landing-footer {
+    padding: 22px 20px !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .qh-stats-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .qh-export-row > * {
+    flex: 1 1 100% !important;
+  }
+  .qh-hero-title {
+    font-size: 26px !important;
+  }
+  .qh-nav {
+    padding: 0 10px !important;
+  }
+  .qh-hide-small {
+    display: none !important;
+  }
+  .qh-landing-nav {
+    padding: 0 12px !important;
+  }
+  .qh-landing-nav-right {
+    gap: 8px !important;
+  }
+  .qh-input-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

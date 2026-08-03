@@ -296,16 +296,16 @@ export default function AQLPage() {
 
   return (
     <div style={s.page}>
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
+      <nav className="qh-nav" style={s.nav}>
+        <div className="qh-nav-left" style={s.navLeft}>
           <Link href="/" style={s.logo}>
             <div style={s.logoIcon}>σ</div>
             QualityTools
           </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>{messages.appTitle}</span>
+          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
+          <span className="qh-breadcrumb" style={s.breadcrumb}>{messages.appTitle}</span>
         </div>
-        <div style={s.navRight}>
+        <div className="qh-nav-right" style={s.navRight}>
           <button style={s.themeBtn} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
             {theme === 'dark' ? messages.darkModeToggleOff : messages.darkModeToggleOn}
           </button>
@@ -316,7 +316,7 @@ export default function AQLPage() {
         </div>
       </nav>
 
-      <div style={s.main}>
+      <div className="qh-main" style={s.main}>
         <div>
           <p style={{ fontSize: 13, color: c.muted }}>{messages.appSubtitle}</p>
         </div>
@@ -428,6 +428,7 @@ export default function AQLPage() {
 
               {!result.error && (
                 <div style={{ overflowX: 'auto' }}>
+                  <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                   <table style={s.table}>
                     <thead>
                       <tr>
@@ -494,6 +495,7 @@ export default function AQLPage() {
                       })}
                     </tbody>
                   </table>
+                  </div>
 
                   {result.defects.some((d) => d.plan?.switchNote) &&
                     result.defects

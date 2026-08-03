@@ -158,16 +158,16 @@ export default function AccountPage() {
 
   return (
     <div style={s.page}>
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
+      <nav className="qh-nav" style={s.nav}>
+        <div className="qh-nav-left" style={s.navLeft}>
           <Link href="/" style={s.logo}>
             <div style={s.logoIcon}>σ</div>
             QualityTools
           </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>Account</span>
+          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
+          <span className="qh-breadcrumb" style={s.breadcrumb}>Account</span>
         </div>
-        <div style={s.navRight}>
+        <div className="qh-nav-right" style={s.navRight}>
           <button style={s.themeBtn} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
@@ -175,7 +175,7 @@ export default function AccountPage() {
         </div>
       </nav>
 
-      <main style={{ ...s.main, alignItems: 'center' }}>
+      <main className="qh-main" style={{ ...s.main, alignItems: 'center' }}>
         {loadingUser || !user ? (
           <div style={{ color: c.muted, padding: 40 }}>Loading...</div>
         ) : (
