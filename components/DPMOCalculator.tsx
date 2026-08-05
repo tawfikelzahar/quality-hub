@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 
 interface ProcessRow {
   id: string
@@ -347,6 +348,7 @@ export default function DPMOCalculator() {
         bodyColor: c.muted,
         padding: 10,
         callbacks: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           label: (ctx: any) => {
             const r = results[ctx.dataIndex]
             return [
@@ -615,6 +617,14 @@ export default function DPMOCalculator() {
               <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
               <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
               <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <SaveAnalysisButton
+                theme={theme}
+                tool="dpmo"
+                defaultName={`DPMO — ${new Date().toLocaleDateString('ar-EG')}`}
+                getPayload={() => (results.length === 0 ? null : { input_data: rows, results })}
+              />
             </div>
           </div>
 
