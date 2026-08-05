@@ -376,6 +376,13 @@ export default function AccountPage() {
                 Upgrade to Pro — Coming Soon
               </button>
             </div>
+
+            <Link
+              href="/dashboard"
+              style={{ fontSize: 13, color: c.accent, textDecoration: 'none', fontWeight: 600 }}
+            >
+              المشاريع المحفوظة (Pro) →
+            </Link>
           </>
         )}
       </main>
