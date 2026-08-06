@@ -10,6 +10,8 @@ import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { LockedPage } from '@/components/Locked'
+import { useSubscription } from '@/lib/useSubscription'
 import {
   type BatchData,
   type TrendDirection,
@@ -45,6 +47,7 @@ export default function StabilityStudy() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
+  const { isPro, loading: subLoading } = useSubscription()
 
   // ── Study setup ──────────────────────────────────────────────────────
   const [attributeName, setAttributeName] = useState('Assay')
@@ -373,6 +376,19 @@ export default function StabilityStudy() {
         </div>
       </nav>
 
+      {!subLoading && !isPro ? (
+        <LockedPage
+          theme={theme}
+          feature="Stability Study"
+          description="Shelf-life / stability trend analysis is part of the Pro toolkit."
+          bullets={[
+            'Regression-based trend analysis',
+            'Confidence intervals & shelf-life estimate',
+            'Spec-limit crossing detection',
+            'Excel / PDF export, no watermark',
+          ]}
+        />
+      ) : (
       <div className="qh-body" style={s.body}>
         {/* ── LEFT: Setup + Data Entry ─────────────────────────────────── */}
         <div style={{ ...s.left, width: 460 }}>
@@ -638,6 +654,7 @@ export default function StabilityStudy() {
           </div>
         </div>
       </div>
+      )}
     </div>
   )
 }

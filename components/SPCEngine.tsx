@@ -10,6 +10,8 @@ import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { LockedSection } from '@/components/Locked'
+import { useSubscription } from '@/lib/useSubscription'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -204,6 +206,7 @@ export default function SPCEngine() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
+  const { isPro } = useSubscription()
 
   const [dataType, setDataType] = useState<DataType>('variable')
   const [N, setN] = useState(1)
@@ -871,7 +874,7 @@ export default function SPCEngine() {
                 }}
                 onClick={() => { setDataType('attribute'); setResult(null); setErrorMsg('') }}
               >
-                Attribute
+                Attribute {!isPro && '🔒'}
               </button>
             </div>
           </div>
@@ -1154,14 +1157,16 @@ export default function SPCEngine() {
                   <div style={s.statVal}>{fmt(varResult.sigma)}</div>
                   <div style={s.statLabel}>Within Std Dev (σ)</div>
                 </div>
-                <div style={s.statCard}>
-                  <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
-                    {varResult.isNormal ? 'Normal' : 'Non-Normal'}
+                <LockedSection theme={theme} feature="Normality Test" minHeight={72}>
+                  <div style={s.statCard}>
+                    <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
+                      {varResult.isNormal ? 'Normal' : 'Non-Normal'}
+                    </div>
+                    <div style={s.statLabel}>
+                      Anderson-Darling {varResult.ad ? `(p=${fmt(varResult.ad.p, 3)})` : ''}
+                    </div>
                   </div>
-                  <div style={s.statLabel}>
-                    Anderson-Darling {varResult.ad ? `(p=${fmt(varResult.ad.p, 3)})` : ''}
-                  </div>
-                </div>
+                </LockedSection>
                 {(displayMode === 'capability' || displayMode === 'both') && (
                   <>
                     <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.Cp)}</div><div style={s.statLabel}>Cp</div></div>
@@ -1326,17 +1331,19 @@ export default function SPCEngine() {
                   )}
 
                   {submittedVals.length > 0 && (
-                    <div className="qh-chart-wrap" style={s.chartWrap}>
-                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Distribution vs. Specification Limits</div>
-                      <div className="qh-chart-inner" style={s.chartInner}>
-                        <Chart
-                          ref={distChartRef}
-                          type="scatter"
-                          data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
-                          options={linearChartOptions(false)}
-                        />
+                    <LockedSection theme={theme} feature="Distribution Chart" minHeight={340}>
+                      <div className="qh-chart-wrap" style={s.chartWrap}>
+                        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Distribution vs. Specification Limits</div>
+                        <div className="qh-chart-inner" style={s.chartInner}>
+                          <Chart
+                            ref={distChartRef}
+                            type="scatter"
+                            data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
+                            options={linearChartOptions(false)}
+                          />
+                        </div>
                       </div>
-                    </div>
+                    </LockedSection>
                   )}
                 </>
               ) : (
@@ -1346,78 +1353,84 @@ export default function SPCEngine() {
               )}
 
               {submittedVals.length > 0 && (
-                <div className="qh-chart-wrap" style={s.chartWrap}>
-                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Empirical CDF vs. Normal Distribution</div>
-                  <div className="qh-chart-inner" style={s.chartInner}>
-                    <Chart
-                      ref={ecdfChartRef}
-                      type="scatter"
-                      data={buildEcdfChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
-                      options={linearChartOptions(true)}
-                    />
+                <LockedSection theme={theme} feature="Empirical CDF Chart" minHeight={340}>
+                  <div className="qh-chart-wrap" style={s.chartWrap}>
+                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Empirical CDF vs. Normal Distribution</div>
+                    <div className="qh-chart-inner" style={s.chartInner}>
+                      <Chart
+                        ref={ecdfChartRef}
+                        type="scatter"
+                        data={buildEcdfChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
+                        options={linearChartOptions(true)}
+                      />
+                    </div>
                   </div>
-                </div>
+                </LockedSection>
               )}
             </>
           )}
 
           {/* ── ATTRIBUTE RESULTS ──────────────────────────────────────── */}
           {attrResult && (
-            <>
-              <div className="qh-stats-row" style={s.statsRow}>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{attrResult.pts.length}</div>
-                  <div style={s.statLabel}>Subgroups</div>
+            <LockedSection theme={theme} feature="Attribute Charts (p/np/c/u)" minHeight={420}>
+              <>
+                <div className="qh-stats-row" style={s.statsRow}>
+                  <div style={s.statCard}>
+                    <div style={s.statVal}>{attrResult.pts.length}</div>
+                    <div style={s.statLabel}>Subgroups</div>
+                  </div>
+                  <div style={s.statCard}>
+                    <div style={s.statVal}>{fmt(attrResult.metric, 4)}</div>
+                    <div style={s.statLabel}>{attrResult.metricLabel}</div>
+                  </div>
+                  <div style={s.statCard}>
+                    <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
+                    <div style={s.statLabel}>DPM</div>
+                  </div>
+                  <div style={s.statCard}>
+                    <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
+                    <div style={s.statLabel}>Sigma Level</div>
+                  </div>
                 </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fmt(attrResult.metric, 4)}</div>
-                  <div style={s.statLabel}>{attrResult.metricLabel}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
-                  <div style={s.statLabel}>DPM</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
-                  <div style={s.statLabel}>Sigma Level</div>
-                </div>
-              </div>
 
-              <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{attrResult.chartLabel}</div>
-                <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  CL = {fmt(attrResult.clVal, 4)} · UCL = {fmt(attrResult.ucl, 4)} · LCL = {fmt(Math.max(0, attrResult.lcl), 4)}
+                <div className="qh-chart-wrap" style={s.chartWrap}>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{attrResult.chartLabel}</div>
+                  <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
+                    CL = {fmt(attrResult.clVal, 4)} · UCL = {fmt(attrResult.ucl, 4)} · LCL = {fmt(Math.max(0, attrResult.lcl), 4)}
+                  </div>
+                  <div className="qh-chart-inner" style={s.chartInner}>
+                    <Chart
+                      ref={attrChartRef}
+                      type="line"
+                      data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.ucl, attrResult.clVal, Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
+                      options={lineChartOptions}
+                    />
+                  </div>
                 </div>
-                <div className="qh-chart-inner" style={s.chartInner}>
-                  <Chart
-                    ref={attrChartRef}
-                    type="line"
-                    data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.ucl, attrResult.clVal, Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
-                    options={lineChartOptions}
-                  />
-                </div>
-              </div>
-            </>
+              </>
+            </LockedSection>
           )}
 
           {/* ── NELSON RULE VIOLATIONS ─────────────────────────────────── */}
           {result && (
-            <div style={s.card}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Nelson Rule Violations</div>
-              {allViolations.length === 0 ? (
-                <div style={{ color: '#4ade80', fontSize: 13 }}>✅ No out-of-control signals detected.</div>
-              ) : (
-                allViolations.map((v, i) => (
-                  <div key={i} style={s.rowCard}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>Rule {v.rule}: {v.label}</span>
-                      <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
+            <LockedSection theme={theme} feature="Nelson Rule Violations" minHeight={140}>
+              <div style={s.card}>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Nelson Rule Violations</div>
+                {allViolations.length === 0 ? (
+                  <div style={{ color: '#4ade80', fontSize: 13 }}>✅ No out-of-control signals detected.</div>
+                ) : (
+                  allViolations.map((v, i) => (
+                    <div key={i} style={s.rowCard}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>Rule {v.rule}: {v.label}</span>
+                        <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>
                     </div>
-                    <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            </LockedSection>
           )}
 
           {!result && !errorMsg && (

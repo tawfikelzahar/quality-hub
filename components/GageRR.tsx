@@ -10,6 +10,8 @@ import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { LockedPage } from '@/components/Locked'
+import { useSubscription } from '@/lib/useSubscription'
 
 // ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
 interface AvgRangeResult {
@@ -146,6 +148,7 @@ export default function GageRR() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
+  const { isPro, loading: subLoading } = useSubscription()
 
   const [numAppraisers, setNumAppraisers] = useState<2 | 3>(3)
   const [numTrials, setNumTrials] = useState<2 | 3>(3)
@@ -560,6 +563,19 @@ export default function GageRR() {
         </div>
       </nav>
 
+      {!subLoading && !isPro ? (
+        <LockedPage
+          theme={theme}
+          feature="Gage R&R"
+          description="Gage R&R (AIAG Average & Range / ANOVA) is part of the Pro toolkit."
+          bullets={[
+            'Average & Range and full ANOVA methods',
+            '%Tolerance, %Study Variation, ndc',
+            'Out-of-control range detection',
+            'Excel / PDF export, no watermark',
+          ]}
+        />
+      ) : (
       <div className="qh-body" style={s.body}>
         {/* ── LEFT: Configuration + Data Entry ─────────────────────────── */}
         <div style={{ ...s.left, width: 460 }}>
@@ -889,6 +905,7 @@ export default function GageRR() {
           )}
         </div>
       </div>
+      )}
     </div>
   )
 }
