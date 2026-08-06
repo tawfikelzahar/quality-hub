@@ -45,12 +45,12 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
   async function handleSave() {
     const payload = getPayload()
     if (!payload) {
-      setMessage({ text: 'مفيش نتيجة صالحة للحفظ دلوقتي.', ok: false })
+      setMessage({ text: 'No valid result to save yet.', ok: false })
       setTimeout(() => setMessage(null), 3000)
       return
     }
 
-    const name = window.prompt('اسم المشروع:', defaultName ?? '')
+    const name = window.prompt('Project name:', defaultName ?? '')
     if (!name || !name.trim()) return
 
     setSaving(true)
@@ -63,10 +63,10 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
       })
       const json = await res.json()
       setMessage(
-        res.ok ? { text: '✅ اتحفظ بنجاح', ok: true } : { text: json.error ?? 'فشل الحفظ.', ok: false }
+        res.ok ? { text: '✅ Saved successfully', ok: true } : { text: json.error ?? 'Failed to save.', ok: false }
       )
     } catch {
-      setMessage({ text: 'حصل خطأ في الاتصال.', ok: false })
+      setMessage({ text: 'Connection error.', ok: false })
     } finally {
       setSaving(false)
       setTimeout(() => setMessage(null), 3000)
@@ -79,11 +79,11 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
     <div style={{ position: 'relative', display: 'inline-block' }}>
       {isPro ? (
         <button style={btnStyle} onClick={handleSave} disabled={saving}>
-          {saving ? '...جاري الحفظ' : '💾 حفظ المشروع'}
+          {saving ? 'Saving...' : '💾 Save Project'}
         </button>
       ) : (
         <Link href="/account" style={{ ...btnStyle, opacity: 0.75 }}>
-          🔒 حفظ (Pro)
+          🔒 Save (Pro)
         </Link>
       )}
       {message && (

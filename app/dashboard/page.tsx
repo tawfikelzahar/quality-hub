@@ -54,7 +54,7 @@ export default function DashboardPage() {
     const res = await fetch('/api/saved-analyses')
     const json = await res.json()
     if (!res.ok) {
-      setError(json.error ?? 'حصل خطأ أثناء تحميل المشاريع.')
+      setError(json.error ?? 'Failed to load saved projects.')
       return
     }
     setAnalyses(json.analyses)
@@ -76,7 +76,7 @@ export default function DashboardPage() {
       .then(async res => ({ ok: res.ok, json: await res.json() }))
       .then(({ ok, json }) => {
         if (!ok) {
-          setError(json.error ?? 'حصل خطأ أثناء تحميل المشاريع.')
+          setError(json.error ?? 'Failed to load saved projects.')
           return
         }
         setAnalyses(json.analyses)
@@ -85,13 +85,13 @@ export default function DashboardPage() {
   }, [isPro])
 
   async function handleDelete(id: string) {
-    if (!confirm('متأكد إنك عايز تحذف المشروع ده؟')) return
+    if (!confirm('Are you sure you want to delete this project?')) return
     const res = await fetch(`/api/saved-analyses/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setAnalyses(prev => prev?.filter(a => a.id !== id) ?? null)
     } else {
       const json = await res.json()
-      alert(json.error ?? 'فشل الحذف.')
+      alert(json.error ?? 'Failed to delete.')
     }
   }
 
@@ -107,21 +107,21 @@ export default function DashboardPage() {
       setAnalyses(prev => prev?.map(a => (a.id === id ? { ...a, name: json.analysis.name } : a)) ?? null)
     } else {
       const json = await res.json()
-      alert(json.error ?? 'فشلت إعادة التسمية.')
+      alert(json.error ?? 'Failed to rename.')
     }
     setRenamingId(null)
   }
 
-  // ── مؤقت: زرار اختبار بس، عشان نتأكد إن القائمة والحذف وإعادة التسمية
-  // شغالين قبل ما نربط زرار "Save" الحقيقي في كل أداة من السبعة.
-  // امسح الفانكشن دي والزرار بتاعها لما تتربط الأدوات فعليًا. ──
+  // ── TEMPORARY: test-only button, just to confirm list/delete/rename
+  // work before the real "Save" button is wired into each tool.
+  // Delete this function and its button once tools are wired up. ──
   async function handleAddTestProject() {
     const res = await fetch('/api/saved-analyses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tool: 'dpmo',
-        name: `مشروع تجريبي — ${new Date().toLocaleString('ar-EG')}`,
+        name: `Test project — ${new Date().toLocaleString('en-US')}`,
         input_data: { test: true },
         results: { test: true },
       }),
@@ -130,12 +130,12 @@ export default function DashboardPage() {
       loadAnalyses()
     } else {
       const json = await res.json()
-      alert(json.error ?? 'فشل الحفظ.')
+      alert(json.error ?? 'Failed to save.')
     }
   }
 
   if (subLoading) {
-    return <div style={{ ...s.page, alignItems: 'center', justifyContent: 'center' }}>...جاري التحميل</div>
+    return <div style={{ ...s.page, alignItems: 'center', justifyContent: 'center' }}>Loading...</div>
   }
 
   return (
@@ -161,10 +161,10 @@ export default function DashboardPage() {
         {!isPro ? (
           <div style={{ ...s.card, textAlign: 'center', padding: 48 }}>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-              حفظ المشاريع متاح لمشتركي Pro بس
+              Saved projects are a Pro feature
             </div>
             <div style={{ color: c.muted, fontSize: 14, marginBottom: 20 }}>
-              اشترك في Pro عشان تقدر تحفظ تحليلاتك وترجعلها في أي وقت.
+              Upgrade to Pro to save your analyses and come back to them anytime.
             </div>
             <Link
               href="/account"
@@ -178,31 +178,31 @@ export default function DashboardPage() {
                 textDecoration: 'none',
               }}
             >
-              الترقية لـ Pro
+              Upgrade to Pro
             </Link>
           </div>
         ) : (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>المشاريع المحفوظة</div>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>Saved Projects</div>
                 <div style={{ color: c.muted, fontSize: 13 }}>
-                  {analyses?.length ?? 0} / 50 مشروع محفوظ
+                  {analyses?.length ?? 0} / 50 saved projects
                 </div>
               </div>
-              {/* مؤقت — امسحه لما الحفظ الحقيقي يتربط في الأدوات */}
+              {/* TEMPORARY — remove once real Save is wired into the tools */}
               <button style={s.exportBtn} onClick={handleAddTestProject}>
-                + إضافة مشروع تجريبي (مؤقت)
+                + Add Test Project (temporary)
               </button>
             </div>
 
             {error && <div style={{ color: c.danger, fontSize: 13 }}>{error}</div>}
 
             {analyses === null ? (
-              <div style={{ color: c.muted }}>...جاري التحميل</div>
+              <div style={{ color: c.muted }}>Loading...</div>
             ) : analyses.length === 0 ? (
               <div style={{ ...s.card, textAlign: 'center', padding: 40, color: c.muted }}>
-                لسه معندكش أي مشروع محفوظ.
+                No saved projects yet.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -228,21 +228,21 @@ export default function DashboardPage() {
                           </div>
                         )}
                         <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
-                          {TOOL_LABELS[a.tool]} · آخر تعديل {new Date(a.updated_at).toLocaleDateString('ar-EG')}
+                          {TOOL_LABELS[a.tool]} · Last updated {new Date(a.updated_at).toLocaleDateString('en-US')}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                         <Link href={TOOL_ROUTES[a.tool]} style={{ ...s.exportBtn, textDecoration: 'none' }}>
-                          فتح
+                          Open
                         </Link>
                         <button
                           style={s.exportBtn}
                           onClick={() => { setRenamingId(a.id); setRenameValue(a.name) }}
                         >
-                          إعادة تسمية
+                          Rename
                         </button>
                         <button style={s.removeBtn} onClick={() => handleDelete(a.id)}>
-                          حذف
+                          Delete
                         </button>
                       </div>
                     </div>

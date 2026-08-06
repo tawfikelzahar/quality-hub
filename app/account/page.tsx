@@ -381,7 +381,7 @@ export default function AccountPage() {
               href="/dashboard"
               style={{ fontSize: 13, color: c.accent, textDecoration: 'none', fontWeight: 600 }}
             >
-              المشاريع المحفوظة (Pro) →
+              Saved Projects (Pro) →
             </Link>
           </>
         )}

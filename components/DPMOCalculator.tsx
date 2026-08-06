@@ -622,7 +622,7 @@ export default function DPMOCalculator() {
               <SaveAnalysisButton
                 theme={theme}
                 tool="dpmo"
-                defaultName={`DPMO — ${new Date().toLocaleDateString('ar-EG')}`}
+                defaultName={`DPMO — ${new Date().toLocaleDateString('en-US')}`}
                 getPayload={() => (results.length === 0 ? null : { input_data: rows, results })}
               />
             </div>
