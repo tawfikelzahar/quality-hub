@@ -19,6 +19,7 @@ import {
 import { messages } from '@/lib/aql/messages';
 import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/lib/theme';
 import AuthStatus from '@/components/AuthStatus';
+import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
 const TYPES: InspectionType[] = ['Normal', 'Tightened', 'Reduced'];
@@ -336,6 +337,14 @@ export default function AQLPage() {
             <button style={s.exportBtn} onClick={exportPDF}>
               📕 {messages.exportPdfButton}
             </button>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <SaveAnalysisButton
+              theme={theme}
+              tool="aql"
+              defaultName={`AQL — ${new Date().toLocaleDateString('en-US')}`}
+              getPayload={() => (rows.length === 0 ? null : { input_data: rows, results })}
+            />
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 
 interface DataRow {
   id: string
@@ -369,11 +370,13 @@ export default function ParetoChart() {
         bodyColor: c.muted,
         padding: 10,
         callbacks: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           label: (ctx: any) => {
             if (ctx.dataset.label === 'Cumulative %')
               return ` Cumulative: ${ctx.parsed.y}%`
             return ` Count: ${ctx.parsed.y} (${total > 0 ? Math.round((ctx.parsed.y / total) * 100) : 0}%)`
           },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           afterBody: (items: any[]) => {
             const i = items[0]?.dataIndex
             if (i !== undefined && i < vitalFew)
@@ -403,6 +406,7 @@ export default function ParetoChart() {
         ticks: {
           color: c.amber,
           font: { size: 11 },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           callback: (v: any) => `${v}%`,
         },
         grid: { drawOnChartArea: false },
@@ -642,6 +646,18 @@ export default function ParetoChart() {
               <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
               <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
               <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <SaveAnalysisButton
+                theme={theme}
+                tool="pareto"
+                defaultName={`Pareto — ${new Date().toLocaleDateString('en-US')}`}
+                getPayload={() =>
+                  sorted.length === 0
+                    ? null
+                    : { input_data: rows, results: { sorted, total, cumulative, vitalFewCount } }
+                }
+              />
             </div>
           </div>
 

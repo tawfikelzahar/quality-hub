@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 
 // ─────────────────────────────────────────────────────────────────────────
 // OEE = Availability × Performance × Quality  (Nakajima / JIPM TPM standard)
@@ -448,6 +449,14 @@ export default function OEECalculator() {
                 <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
                 <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
                 <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <SaveAnalysisButton
+                  theme={theme}
+                  tool="oee"
+                  defaultName={`OEE — ${new Date().toLocaleDateString('en-US')}`}
+                  getPayload={() => ({ input_data: inputs, results: result })}
+                />
               </div>
             </div>
           )}

@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import {
   type BatchData,
   type TrendDirection,
@@ -620,11 +621,20 @@ export default function StabilityStudy() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
             <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
             <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
             <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+            <SaveAnalysisButton
+              theme={theme}
+              tool="stability"
+              defaultName={`Stability — ${new Date().toLocaleDateString('en-US')}`}
+              getPayload={() => ({
+                input_data: { storageCondition, direction, confidence, timePoints, batchNames, values, specLower, specUpper },
+                results: analysis,
+              })}
+            />
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 
 // ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
 interface AvgRangeResult {
@@ -705,11 +706,20 @@ export default function GageRR() {
           {result && (
             <>
               {/* Export bar */}
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
                 <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
                 <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
                 <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+                <SaveAnalysisButton
+                  theme={theme}
+                  tool="gage_rr"
+                  defaultName={`Gage R&R — ${new Date().toLocaleDateString('en-US')}`}
+                  getPayload={() => ({
+                    input_data: { numAppraisers, numTrials, numParts, appraiserNames, measurements, USL, LSL, method },
+                    results: result,
+                  })}
+                />
               </div>
 
               {/* Summary stat cards */}

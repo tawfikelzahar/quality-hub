@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -1006,6 +1007,31 @@ export default function SPCEngine() {
               <button style={s.exportBtn} onClick={exportExcel}>📊 Export Excel</button>
               <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>🖼️ Export Charts (PNG)</button>
               <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>📄 Export Full Report (PDF)</button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <SaveAnalysisButton
+                theme={theme}
+                tool="spc"
+                defaultName={`SPC — ${new Date().toLocaleDateString('en-US')}`}
+                getPayload={() =>
+                  !result
+                    ? null
+                    : {
+                        input_data: {
+                          dataType,
+                          varRows,
+                          attrRows,
+                          attrType,
+                          fixedN,
+                          LSL,
+                          USL,
+                          target,
+                          sigmaConvention,
+                        },
+                        results: result,
+                      }
+                }
+              />
             </div>
           </div>
         </div>
