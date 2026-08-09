@@ -89,22 +89,31 @@ export const AQL_VALUES: number[] = [
 // Code Letter lookup table (ISO 2859-1 Table I)
 // [minLot, maxLot, S1, S2, S3, S4, I, II, III]
 // Cross-checked against Tawfik's official lot-size table — matches exactly.
+// Table 1 — Sample size code letters. Lot size -> code letter, per
+// inspection level (S-1..S-4 special, I/II/III general).
+//
+// FIXED — this table had a real error: S-3 and S-4 columns drifted by one
+// letter starting at lot size 91-150 and compounded further down (e.g. lot
+// 1201-3200 / S-3 showed 'F' when the standard says 'E' — caught by
+// Tawfik). Re-verified every row below against ISO 2859-1:2026 Table 1
+// directly, cell by cell. S-1, S-2, I, II, III were already correct
+// throughout; only S-3/S-4 needed fixing, from row 6 onward.
 export const CODE_LETTER_TABLE: [number, number, CodeLetter, CodeLetter, CodeLetter, CodeLetter, CodeLetter, CodeLetter, CodeLetter][] = [
   [2, 8, 'A', 'A', 'A', 'A', 'A', 'A', 'B'],
   [9, 15, 'A', 'A', 'A', 'A', 'A', 'B', 'C'],
   [16, 25, 'A', 'A', 'B', 'B', 'B', 'C', 'D'],
   [26, 50, 'A', 'B', 'B', 'C', 'C', 'D', 'E'],
   [51, 90, 'B', 'B', 'C', 'C', 'C', 'E', 'F'],
-  [91, 150, 'B', 'B', 'D', 'D', 'D', 'F', 'G'],
+  [91, 150, 'B', 'B', 'C', 'D', 'D', 'F', 'G'],
   [151, 280, 'B', 'C', 'D', 'E', 'E', 'G', 'H'],
-  [281, 500, 'B', 'C', 'E', 'E', 'F', 'H', 'J'],
+  [281, 500, 'B', 'C', 'D', 'E', 'F', 'H', 'J'],
   [501, 1200, 'C', 'C', 'E', 'F', 'G', 'J', 'K'],
-  [1201, 3200, 'C', 'D', 'F', 'G', 'H', 'K', 'L'],
-  [3201, 10000, 'C', 'D', 'G', 'H', 'J', 'L', 'M'],
-  [10001, 35000, 'C', 'D', 'H', 'J', 'K', 'M', 'N'],
-  [35001, 150000, 'D', 'E', 'J', 'K', 'L', 'N', 'P'],
-  [150001, 500000, 'D', 'E', 'K', 'L', 'M', 'P', 'Q'],
-  [500001, Infinity, 'D', 'E', 'L', 'M', 'N', 'Q', 'R'],
+  [1201, 3200, 'C', 'D', 'E', 'G', 'H', 'K', 'L'],
+  [3201, 10000, 'C', 'D', 'F', 'G', 'J', 'L', 'M'],
+  [10001, 35000, 'C', 'D', 'F', 'H', 'K', 'M', 'N'],
+  [35001, 150000, 'D', 'E', 'G', 'J', 'L', 'N', 'P'],
+  [150001, 500000, 'D', 'E', 'G', 'J', 'M', 'P', 'Q'],
+  [500001, Infinity, 'D', 'E', 'H', 'K', 'N', 'Q', 'R'],
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
