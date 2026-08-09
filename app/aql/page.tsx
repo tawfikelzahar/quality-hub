@@ -514,7 +514,7 @@ export default function AQLPage() {
                   >
                     {result.error
                       ? messages.codeLetterUnavailable
-                      : messages.codeLetterValue(result.codeLetter as string, result.sampleSize as number)}
+                      : messages.codeLetterValue(result.codeLetter as string)}
                   </div>
                 </div>
               </div>

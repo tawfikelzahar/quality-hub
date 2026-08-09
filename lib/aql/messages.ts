@@ -23,7 +23,7 @@ export const messages = {
   inspectionLevelLabel: 'Inspection Level',
   inspectionTypeLabel: 'Inspection Type',
   codeLetterLabel: 'Code Letter',
-  codeLetterValue: (letter: string, sampleSize: number) => `${letter} (n=${sampleSize})`,
+  codeLetterValue: (letter: string) => letter,
   codeLetterUnavailable: '—',
 
   // Defect table

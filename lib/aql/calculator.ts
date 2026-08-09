@@ -4,7 +4,7 @@ import {
   RESOLVED_NORMAL,
   RESOLVED_REDUCED,
   RESOLVED_TIGHTENED,
-  SAMPLE_SIZES,
+  sampleSizeFor,
   type CodeLetter,
   type InspectionLevel,
   type InspectionType,
@@ -51,10 +51,16 @@ export function getCodeLetter(lotSize: number, level: InspectionLevel): CodeLett
 }
 
 /**
- * Step 2: Code Letter -> Sample Size (n)
+ * Step 2: Code Letter + Inspection Type -> Sample Size (n).
+ *
+ * Normal and Tightened share the same n per code letter. Reduced does not
+ * — it deliberately calls for a smaller sample for the same letter (see
+ * SAMPLE_SIZES_REDUCED in tables.ts). This must always be looked up with
+ * the inspection type in mind; a single flat "code letter -> n" mapping
+ * is only correct for Normal/Tightened.
  */
-export function getSampleSize(letter: CodeLetter): number {
-  return SAMPLE_SIZES[letter];
+export function getSampleSize(letter: CodeLetter, inspectionType: InspectionType): number {
+  return sampleSizeFor(letter, inspectionType);
 }
 
 /**
@@ -80,7 +86,7 @@ export function getPlan(
   const aqlIndex = AQL_VALUES.indexOf(aql);
   if (aqlIndex === -1) return null;
 
-  const baseSampleSize = SAMPLE_SIZES[letter];
+  const baseSampleSize = sampleSizeFor(letter, inspectionType);
 
   const build = (
     usedLetter: CodeLetter,
@@ -125,11 +131,12 @@ export function getPlan(
 
   const resolved = resolvedTable[letter][aqlIndex];
   if (!resolved) return noData();
+  const resolvedSampleSize = sampleSizeFor(resolved.letter, inspectionType);
   const note =
     resolved.letter === letter
       ? null
-      : messages.switchNote(letter, resolved.letter, SAMPLE_SIZES[resolved.letter]);
-  return build(resolved.letter, SAMPLE_SIZES[resolved.letter], resolved.ac, note);
+      : messages.switchNote(letter, resolved.letter, resolvedSampleSize);
+  return build(resolved.letter, resolvedSampleSize, resolved.ac, note);
 }
 
 export interface DefectClassInput {
@@ -187,7 +194,7 @@ export function computeRow(row: InspectionRowInput): InspectionRowResult {
     };
   }
 
-  const sampleSize = getSampleSize(codeLetter);
+  const sampleSize = getSampleSize(codeLetter, row.inspectionType);
   const defects = row.defects.map((d) => ({
     ...d,
     plan: getPlan(codeLetter, d.aql, row.inspectionType, row.lotSize),

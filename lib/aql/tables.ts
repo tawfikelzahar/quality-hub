@@ -57,10 +57,30 @@ export const CODE_LETTERS: CodeLetter[] = [
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R',
 ];
 
+// Sample size (n) per code letter — from ISO 2859-1 Table 2/3 "Sample size"
+// column. Normal and Tightened inspection share the same n per letter (this
+// is Table I's design: code letter comes from lot size + inspection level
+// alone, independent of Normal/Tightened/Reduced).
 export const SAMPLE_SIZES: Record<CodeLetter, number> = {
   A: 2, B: 3, C: 5, D: 8, E: 13, F: 20, G: 32, H: 50,
   J: 80, K: 125, L: 200, M: 315, N: 500, P: 800, Q: 1250, R: 2000,
 };
+
+// Reduced inspection is the one exception: for the SAME code letter, Table 4
+// calls for a smaller sample size than Normal/Tightened (that's the point of
+// "reduced" — less inspection effort once quality is consistently good).
+// e.g. code letter K is n=125 under Normal/Tightened, but only n=50 under
+// Reduced. Cross-checked cell-by-cell against ISO 2859-1:2026 Table 4's own
+// "Sample size" column — zero mismatches.
+export const SAMPLE_SIZES_REDUCED: Record<CodeLetter, number> = {
+  A: 2, B: 2, C: 2, D: 3, E: 5, F: 8, G: 13, H: 20,
+  J: 32, K: 50, L: 80, M: 125, N: 200, P: 315, Q: 500, R: 800,
+};
+
+/** Sample size (n) for a given code letter under a given inspection type. */
+export function sampleSizeFor(letter: CodeLetter, inspectionType: InspectionType): number {
+  return inspectionType === 'Reduced' ? SAMPLE_SIZES_REDUCED[letter] : SAMPLE_SIZES[letter];
+}
 
 export const AQL_VALUES: number[] = [
   0.010, 0.015, 0.025, 0.040, 0.065, 0.10, 0.15, 0.25, 0.40, 0.65, 1.0, 1.5, 2.5, 4.0, 6.5,
