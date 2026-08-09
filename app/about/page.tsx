@@ -125,17 +125,19 @@ export default function AboutPage() {
                 width: 56,
                 height: 56,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg,#0fd4c8,#00a896)',
-                color: '#060d1a',
-                fontWeight: 800,
-                fontSize: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                overflow: 'hidden',
                 margin: '0 auto 14px',
+                border: `2px solid ${c.accent}`,
               }}
             >
-              TE
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/tawfik-elzahar.jpg"
+                alt="Tawfik Elzahar"
+                width={56}
+                height={56}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              />
             </div>
             <h2 style={{ ...sectionHeading, textAlign: 'center' }}>Meet the Builder</h2>
             <p style={{ ...paragraph, maxWidth: 480, margin: '0 auto 20px' }}>
