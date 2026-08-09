@@ -61,6 +61,8 @@ export default function Home() {
           <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:24}}>
             <a href="#tools" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Tools</a>
             <a href="/pricing" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Pricing</a>
+            <a href="/about" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>About</a>
+            <a href="/contact" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Contact</a>
            <AuthStatus />
             <button
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
@@ -281,7 +283,11 @@ export default function Home() {
             Quality<span style={{color:'#0fd4c8'}}>Tools</span>
             <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· Tawfik Elzahar</span>
           </div>
-          <div style={{fontSize:12,color:footerMuted}}>© 2025 Tawfik Elzahar. All rights reserved.</div>
+          <div style={{display:'flex',alignItems:'center',gap:20}}>
+            <a href="/about" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>About</a>
+            <a href="/contact" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>Contact</a>
+            <div style={{fontSize:12,color:footerMuted}}>© 2025 Tawfik Elzahar. All rights reserved.</div>
+          </div>
         </footer>
 
       </main>
