@@ -1,9 +1,9 @@
 import {
-  AC_TABLES,
   AQL_VALUES,
   CODE_LETTER_TABLE,
-  CODE_LETTERS,
   RESOLVED_NORMAL,
+  RESOLVED_REDUCED,
+  RESOLVED_TIGHTENED,
   SAMPLE_SIZES,
   type CodeLetter,
   type InspectionLevel,
@@ -60,22 +60,16 @@ export function getSampleSize(letter: CodeLetter): number {
 /**
  * Step 3: Code Letter + AQL% + Inspection Type -> Ac/Re.
  *
- * Normal inspection uses RESOLVED_NORMAL — a fully precomputed lookup where
- * every cell's switching-rule arrow has already been followed to its real
- * value directly from the official ISO 2859-1 table (see tables.ts for how
- * this was verified). No direction-guessing happens here for Normal.
+ * All three inspection types (Normal, Tightened, Reduced) now use a fully
+ * precomputed RESOLVED_* lookup, where every cell's switching-rule arrow
+ * has already been followed to its real value directly from the official
+ * ISO 2859-1:2026 table (see tables.ts for how each was verified). No
+ * direction-guessing happens here for any of the three anymore.
  *
- * Tightened and Reduced don't have that verified resolution yet, so they
- * still fall back to scanning AC_TABLES for the nearest defined cell. That
- * scan direction is inferred (does this code letter's row already have a
- * value to the left of this AQL column?) rather than read directly from a
- * source — treat Tightened/Reduced results with the same caution noted in
- * tables.ts until they get the same direct-lookup treatment as Normal.
- *
- * Either way, once a candidate (letter, ac) is found, we check it against
- * the lot size: per ISO 2859-1, if the required sample size equals or
- * exceeds the lot size, the correct action is to inspect the full lot
- * (using the same Ac/Re the plan calls for), not to take that sample.
+ * Once a candidate (letter, ac) is found, we check it against the lot
+ * size: per ISO 2859-1, if the required sample size equals or exceeds the
+ * lot size, the correct action is to inspect the full lot (using the same
+ * Ac/Re the plan calls for), not to take that sample.
  */
 export function getPlan(
   letter: CodeLetter,
@@ -122,63 +116,20 @@ export function getPlan(
     noVerifiedData: true,
   });
 
-  if (inspectionType === 'Normal') {
-    const resolved = RESOLVED_NORMAL[letter][aqlIndex];
-    if (!resolved) return noData();
-    const note =
-      resolved.letter === letter
-        ? null
-        : messages.switchNote(letter, resolved.letter, SAMPLE_SIZES[resolved.letter]);
-    return build(resolved.letter, SAMPLE_SIZES[resolved.letter], resolved.ac, note);
-  }
+  const resolvedTable =
+    inspectionType === 'Normal'
+      ? RESOLVED_NORMAL
+      : inspectionType === 'Tightened'
+        ? RESOLVED_TIGHTENED
+        : RESOLVED_REDUCED;
 
-  // Tightened / Reduced: not yet verified with a direct resolution table.
-  // Fall back to scanning, inferring direction from whether this row
-  // already has a value to the left of the requested AQL column.
-  const table = AC_TABLES[inspectionType];
-  const letterIndex = CODE_LETTERS.indexOf(letter);
-  const row = table[letter];
-
-  const direct = row[aqlIndex];
-  if (direct !== -1) {
-    return build(letter, baseSampleSize, direct, null);
-  }
-
-  const hasEarlierDefinedValue = row.slice(0, aqlIndex).some((v) => v !== -1);
-  const searchOrder = hasEarlierDefinedValue
-    ? [...Array(letterIndex).keys()].reverse() // smaller letters first
-    : [...Array(CODE_LETTERS.length - letterIndex - 1).keys()].map((i) => letterIndex + 1 + i); // bigger letters first
-
-  for (const i of searchOrder) {
-    const candidate = CODE_LETTERS[i];
-    const val = table[candidate][aqlIndex];
-    if (val !== -1) {
-      return build(
-        candidate,
-        SAMPLE_SIZES[candidate],
-        val,
-        messages.switchNote(letter, candidate, SAMPLE_SIZES[candidate]),
-      );
-    }
-  }
-  // Try the opposite direction as a fallback (shouldn't normally be needed)
-  const oppositeOrder = hasEarlierDefinedValue
-    ? [...Array(CODE_LETTERS.length - letterIndex - 1).keys()].map((i) => letterIndex + 1 + i)
-    : [...Array(letterIndex).keys()].reverse();
-  for (const i of oppositeOrder) {
-    const candidate = CODE_LETTERS[i];
-    const val = table[candidate][aqlIndex];
-    if (val !== -1) {
-      return build(
-        candidate,
-        SAMPLE_SIZES[candidate],
-        val,
-        messages.switchNote(letter, candidate, SAMPLE_SIZES[candidate]),
-      );
-    }
-  }
-
-  return noData();
+  const resolved = resolvedTable[letter][aqlIndex];
+  if (!resolved) return noData();
+  const note =
+    resolved.letter === letter
+      ? null
+      : messages.switchNote(letter, resolved.letter, SAMPLE_SIZES[resolved.letter]);
+  return build(resolved.letter, SAMPLE_SIZES[resolved.letter], resolved.ac, note);
 }
 
 export interface DefectClassInput {
