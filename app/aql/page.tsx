@@ -21,6 +21,7 @@ import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/li
 import AuthStatus from '@/components/AuthStatus';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { LockedPage } from '@/components/Locked';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
@@ -337,6 +338,15 @@ export default function AQLPage() {
       <div className="qh-main" style={s.main}>
         <div>
           <p style={{ fontSize: 13, color: c.muted }}>{messages.appSubtitle}</p>
+          <VerifiedBadge
+            theme={theme}
+            standard="ISO 2859-1:2026"
+            detail="Every Ac/Re value in the Normal, Tightened and Reduced sampling
+              tables — plus the lot-size-to-code-letter table — was extracted
+              directly from the official ISO PDF and cross-checked cell by
+              cell, with every arrow cell resolved to its real target instead
+              of guessed. Zero mismatches across the full AQL 0.010–6.5 range."
+          />
         </div>
 
         <div style={s.card}>

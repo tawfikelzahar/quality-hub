@@ -60,7 +60,7 @@ export default function Home() {
           </div>
           <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:24}}>
             <a href="#tools" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Tools</a>
-            <a href="#pricing" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Pricing</a>
+            <a href="/pricing" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Pricing</a>
            <AuthStatus />
             <button
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
@@ -96,8 +96,8 @@ export default function Home() {
             <a href="#tools" className="btn" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:15,padding:'15px 38px',borderRadius:12,textDecoration:'none'}}>
               Explore the Toolkit →
             </a>
-            <a href="#pricing" style={{border:'1px solid rgba(15,212,200,.2)',color:'#0fd4c8',fontSize:14,fontWeight:500,padding:'15px 28px',borderRadius:12,textDecoration:'none',background:'rgba(15,212,200,.04)'}}>
-              See Pricing ↓
+            <a href="/pricing" style={{border:'1px solid rgba(15,212,200,.2)',color:'#0fd4c8',fontSize:14,fontWeight:500,padding:'15px 28px',borderRadius:12,textDecoration:'none',background:'rgba(15,212,200,.04)'}}>
+              See Pricing →
             </a>
           </div>
 
@@ -270,57 +270,6 @@ export default function Home() {
                 <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>FMEA Builder</div>
                 <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>Process & Design FMEA · RPN calculation · Risk matrix · Export to Excel</div>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Pricing ── */}
-        <section id="pricing" className="qh-landing-section" style={{position:'relative',zIndex:1,maxWidth:860,margin:'0 auto',padding:'100px 32px'}}>
-          <div style={{textAlign:'center',marginBottom:60}}>
-            <p style={{fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:'#0fd4c8',marginBottom:14}}>Pricing</p>
-            <h2 style={{fontSize:'clamp(28px,4vw,48px)',fontWeight:800,letterSpacing:-1.5,marginBottom:12,lineHeight:1.1}}>Start free.<br/>Go pro when you're ready.</h2>
-            <p style={{fontSize:15,color:c.muted,fontWeight:300}}>No credit card required to start.</p>
-          </div>
-
-          <div className="qh-pricing-grid" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
-            {/* Free */}
-            <div style={{background:cardBg,border:`1px solid ${dark?'rgba(255,255,255,.07)':c.border}`,borderRadius:24,padding:40}}>
-              <div style={{fontSize:12,fontWeight:700,color:c.muted,letterSpacing:1.5,textTransform:'uppercase',marginBottom:12}}>Free</div>
-              <div style={{fontSize:48,fontWeight:900,letterSpacing:-2,marginBottom:4}}>$0</div>
-              <div style={{fontSize:13,color:c.muted,marginBottom:32}}>Forever free</div>
-              <div style={{display:'flex',flexDirection:'column',gap:11,marginBottom:32}}>
-                {['SPC Engine (basic)','Pareto Chart','DPMO & Sigma Calculator','AQL Sampling Plan Calculator','Up to 50 data points'].map(f=>(
-                  <div key={f} style={{display:'flex',alignItems:'center',gap:10,fontSize:14,color:dark?'#8fafd4':c.text}}>
-                    <span style={{color:'#0fd4c8',fontWeight:700}}>✓</span> {f}
-                  </div>
-                ))}
-                {['Unlimited data points','PDF & Excel export','Save projects','MSA / Gauge R&R'].map(f=>(
-                  <div key={f} style={{display:'flex',alignItems:'center',gap:10,fontSize:14,color:footerMuted}}>
-                    <span>—</span> {f}
-                  </div>
-                ))}
-              </div>
-              <a href="#tools" style={{display:'block',textAlign:'center',border:`1px solid ${dark?'rgba(255,255,255,.1)':c.border}`,color:c.muted,fontSize:14,fontWeight:600,padding:'13px',borderRadius:10,textDecoration:'none'}}>
-                Start Free
-              </a>
-            </div>
-
-            {/* Pro */}
-            <div style={{background:dark?'linear-gradient(160deg,rgba(15,212,200,.09),rgba(0,168,150,.04))':'linear-gradient(160deg,rgba(14,116,116,.06),rgba(0,168,150,.03))',border:'1px solid rgba(15,212,200,.28)',borderRadius:24,padding:40,position:'relative',overflow:'hidden'}}>
-              <div style={{position:'absolute',top:18,right:18,fontSize:9,fontWeight:800,padding:'4px 12px',borderRadius:20,background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',letterSpacing:1.5}}>MOST POPULAR</div>
-              <div style={{fontSize:12,fontWeight:700,color:'#0fd4c8',letterSpacing:1.5,textTransform:'uppercase',marginBottom:12}}>Pro</div>
-              <div style={{fontSize:48,fontWeight:900,letterSpacing:-2,marginBottom:4}}>$9<span style={{fontSize:20,fontWeight:400,color:c.muted}}>/mo</span></div>
-              <div style={{fontSize:13,color:c.muted,marginBottom:32}}>Billed monthly · Cancel anytime</div>
-              <div style={{display:'flex',flexDirection:'column',gap:11,marginBottom:32}}>
-                {['Everything in Free','Unlimited data points','PDF & Excel export','Save & manage projects','MSA / Gauge R&R (soon)','FMEA Builder (soon)','Priority support'].map(f=>(
-                  <div key={f} style={{display:'flex',alignItems:'center',gap:10,fontSize:14,color:text}}>
-                    <span style={{color:'#0fd4c8',fontWeight:700}}>✓</span> {f}
-                  </div>
-                ))}
-              </div>
-              <a href="/pricing" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontSize:14,fontWeight:700,padding:'13px',borderRadius:10,textDecoration:'none'}}>
-                Get Pro →
-              </a>
             </div>
           </div>
         </section>
