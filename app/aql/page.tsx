@@ -95,6 +95,7 @@ function flattenResults(results: InspectionRowResult[]) {
 
 export default function AQLPage() {
   const [theme, setTheme] = usePersistedTheme();
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [rows, setRows] = useState<InspectionRowInput[]>([
     makeDefaultRow('Incoming Inspection'),
   ]);
@@ -336,6 +337,75 @@ export default function AQLPage() {
       <div className="qh-main" style={s.main}>
         <div>
           <p style={{ fontSize: 13, color: c.muted }}>{messages.appSubtitle}</p>
+        </div>
+
+        <div style={s.card}>
+          <button
+            onClick={() => setRulesOpen((v) => !v)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: c.accent,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0,
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            {rulesOpen ? messages.switchingRulesToggleHide : messages.switchingRulesToggleShow}
+          </button>
+
+          {rulesOpen && (
+            <div style={{ marginTop: 14 }}>
+              <p style={{ fontSize: 13, color: c.muted, marginBottom: 14 }}>
+                {messages.switchingRulesIntro}
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {messages.switchingRules.map((rule) => {
+                  const badgeColor =
+                    rule.to === 'Tightened' || rule.to === 'Discontinue'
+                      ? c.danger
+                      : rule.to === 'Reduced'
+                        ? c.accent
+                        : c.muted;
+                  return (
+                    <div
+                      key={rule.badge}
+                      style={{
+                        border: `1px solid ${c.border}`,
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        background: c.surface2,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'inline-block',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: badgeColor,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {rule.badge}
+                      </div>
+                      <div style={{ fontSize: 13, color: c.text, fontWeight: 600 }}>
+                        {rule.condition}
+                      </div>
+                      <div style={{ fontSize: 12, color: c.muted, marginTop: 3 }}>{rule.why}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p style={{ fontSize: 11, color: c.muted, opacity: 0.75, marginTop: 14 }}>
+                {messages.switchingRulesNote}
+              </p>
+            </div>
+          )}
         </div>
 
         <div style={s.card}>

@@ -84,6 +84,56 @@ export const messages = {
     `No direct plan exists for code letter ${fromLetter} at this AQL — using code letter ${toLetter} ` +
     `(n=${sampleSize}) per the ISO 2859-1 switching rule.`,
 
+  // Switching rules guide (ISO 2859-1 clause 9.3) — collapsible panel
+  switchingRulesToggleShow: 'When to switch Normal / Tightened / Reduced? ▾',
+  switchingRulesToggleHide: 'When to switch Normal / Tightened / Reduced? ▴',
+  switchingRulesIntro:
+    'AQL tables assume a continuing series of lots from one supplier, one product, one production ' +
+    'process — not a one-off calculation. The standard expects you to move between these three ' +
+    'states as lot results come in:',
+  switchingRules: [
+    {
+      from: 'Normal',
+      to: 'Tightened',
+      badge: 'Normal → Tightened',
+      condition: '2 of 5 (or fewer) consecutive lots not accepted',
+      why: 'Signals the process may be slipping below the AQL — tightened plans need fewer defects to accept a lot.',
+    },
+    {
+      from: 'Tightened',
+      to: 'Normal',
+      badge: 'Tightened → Normal',
+      condition: '5 consecutive lots accepted',
+      why: 'Quality has recovered; back to standard sampling.',
+    },
+    {
+      from: 'Tightened',
+      to: 'Discontinue',
+      badge: 'Tightened → Stop inspection',
+      condition: '5 consecutive lots not accepted while on tightened',
+      why: 'Per the standard, sampling inspection should stop until the supplier fixes the process — 100% inspection or corrective action, not more sampling.',
+    },
+    {
+      from: 'Normal',
+      to: 'Reduced',
+      badge: 'Normal → Reduced',
+      condition:
+        'Switching score ≥ 30 (roughly: several consecutive lots comfortably passing), production steady, and reduced inspection is desired',
+      why: 'Consistently good quality earns a smaller sample size — less inspection cost.',
+    },
+    {
+      from: 'Reduced',
+      to: 'Normal',
+      badge: 'Reduced → Normal',
+      condition: 'Any lot not accepted, or production becomes irregular',
+      why: 'Reduced inspection has looser criteria, so any single miss reverts immediately to full normal scrutiny.',
+    },
+  ],
+  switchingRulesNote:
+    'This is a simplified summary of ISO 2859-1 clause 9.3. Tracking the running switching score per ' +
+    'supplier/product across multiple lots is a separate feature — this calculator computes one plan ' +
+    'at a time.',
+
   footerNote:
     'Based on ISO 2859-1 / ANSI ASQ Z1.4. AQL range supported: 0.010% – 6.5%. Switching rules ' +
     'are applied automatically when no direct plan exists for a given code letter/AQL combination.',
