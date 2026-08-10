@@ -26,6 +26,12 @@ function fmt(v: number | null | undefined, digits = 4): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: digits })
 }
 
+/** Fixed 3-decimal formatter (0.000) — used for the Anderson-Darling A² and p-value. */
+function fmt3(v: number | null | undefined): string {
+  if (v === null || v === undefined || !Number.isFinite(v)) return '—'
+  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+}
+
 export default function DescriptiveStats() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
@@ -268,7 +274,7 @@ export default function DescriptiveStats() {
                       Anderson-Darling Normality Test
                     </div>
                     <div style={{ fontSize: 13, color: c.text }}>
-                      A² = {fmt(result.andersonDarling.statistic)} &nbsp; p-value = {fmt(result.andersonDarling.pValue)}
+                      A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {fmt3(result.andersonDarling.pValue)}
                     </div>
                     <div style={{ fontSize: 12, color: c.muted, marginTop: 6 }}>
                       {result.andersonDarling.normalAtAlpha05

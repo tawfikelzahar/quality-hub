@@ -7,35 +7,42 @@ function stdev(arr: number[], usePop = false) {
   const denom = usePop ? arr.length : arr.length - 1
   return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / denom)
 }
+// Standard normal CDF — Abramowitz & Stegun 7.1.26 approximation.
+// Kept byte-for-byte identical to lib/descriptive/stats.ts's normalCDF so
+// the SPC Engine and the Descriptive Statistics tool produce the exact
+// same Anderson-Darling result on the same data.
 function normCDF(z: number) {
-  const a = [0.319381530, -0.356563782, 1.781477937, -1.821255978, 1.330274429]
-  const x = Math.abs(z)
-  const t = 1.0 / (1.0 + 0.2316419 * x)
-  const poly = t * (a[0] + t * (a[1] + t * (a[2] + t * (a[3] + t * a[4]))))
-  const result = 1.0 - poly * Math.exp(-x * x / 2.0) / Math.sqrt(2.0 * Math.PI)
-  return z >= 0 ? result : 1.0 - result
+  const sign = z < 0 ? -1 : 1
+  const x = Math.abs(z) / Math.SQRT2
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741
+  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911
+  const t = 1 / (1 + p * x)
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x)
+  return 0.5 * (1 + sign * y)
 }
+// Anderson-Darling normality test — identical formulation (adjustment,
+// thresholds, clamping) to lib/descriptive/stats.ts's andersonDarlingTest.
 function andersonDarling(data: number[]) {
   const n = data.length
-  if (n < 4) return null
+  if (n < 8) return null // matches the Descriptive Statistics tool's minimum
   const mu = mean(data), sd = stdev(data)
-  if (sd === 0) return { A2: 0, p: 1, normal: true }
+  if (sd === 0) return { A2: 0, A2adj: 0, p: 1, normal: true }
   const sorted = [...data].sort((a, b) => a - b)
   let S = 0
   for (let i = 1; i <= n; i++) {
     const z1 = normCDF((sorted[i - 1] - mu) / sd)
     const z2 = normCDF((sorted[n - i] - mu) / sd)
-    S += (2 * i - 1) * (Math.log(Math.max(z1, 1e-15)) + Math.log(Math.max(1 - z2, 1e-15)))
+    S += (2 * i - 1) * (Math.log(Math.max(z1, 1e-300)) + Math.log(Math.max(1 - z2, 1e-300)))
   }
   const A2raw = -n - S / n
-  const A2 = A2raw * (1 + 4 / n - 25 / (n * n))
+  const A2 = A2raw * (1 + 0.75 / n + 2.25 / (n * n))
   let p: number
   if (A2 >= 0.6) p = Math.exp(1.2937 - 5.709 * A2 + 0.0186 * A2 * A2)
   else if (A2 >= 0.34) p = Math.exp(0.9177 - 4.279 * A2 - 1.38 * A2 * A2)
   else if (A2 >= 0.2) p = 1 - Math.exp(-8.318 + 42.796 * A2 - 59.938 * A2 * A2)
   else p = 1 - Math.exp(-13.436 + 101.14 * A2 - 223.73 * A2 * A2)
-  p = Math.min(0.9999, Math.max(0.0001, p))
-  return { A2: Math.max(0, A2raw), A2adj: Math.max(0, A2), p, normal: p >= 0.05 }
+  p = Math.min(1, Math.max(0, p))
+  return { A2: A2raw, A2adj: A2, p, normal: p >= 0.05 }
 }
 function nelsonRules(points: number[], cl: number, sigma: number) {
   const n = points.length
