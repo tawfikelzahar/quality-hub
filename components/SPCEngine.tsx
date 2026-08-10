@@ -1190,9 +1190,6 @@ export default function SPCEngine() {
                   <>
                     <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.sigLvl_st)}σ</div><div style={s.statLabel}>Sigma (Short-term)</div></div>
                     <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.sigLvl_lt)}σ</div><div style={s.statLabel}>Sigma (Long-term)</div></div>
-                    {varResult.ppmD_lt && (
-                      <div style={s.statCard}><div style={s.statVal}>{Math.round(varResult.ppmD_lt.total).toLocaleString()}</div><div style={s.statLabel}>PPM (Long-term)</div></div>
-                    )}
                   </>
                 )}
               </div>

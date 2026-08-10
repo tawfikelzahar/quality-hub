@@ -167,7 +167,7 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
   if (LSL !== null) { Z_LSL_st = (cl_x - LSL) / sigma; Z_LSL_lt = (mu - LSL) / sdOverall }
   const Z_bench_st = (Z_USL_st !== null && Z_LSL_st !== null) ? Math.min(Z_USL_st, Z_LSL_st) : (Z_USL_st ?? Z_LSL_st)
   const Z_bench_lt = (Z_USL_lt !== null && Z_LSL_lt !== null) ? Math.min(Z_USL_lt, Z_LSL_lt) : (Z_USL_lt ?? Z_LSL_lt)
-  const sigLvl_st = Z_bench_st !== null ? zToSigmaLevel(Z_bench_st, conv) : null
+  const sigLvl_st = Z_bench_st !== null ? Z_bench_st : null
   const sigLvl_lt = Z_bench_lt !== null ? zToSigmaLevel(Z_bench_lt, conv) : null
   const ppmD_st = (LSL !== null || USL !== null) ? ppmDetailed(cl_x, sigma, LSL, USL) : null
   const ppmD_lt = (LSL !== null || USL !== null) ? ppmDetailed(mu, sdOverall, LSL, USL) : null
