@@ -1158,14 +1158,22 @@ export default function SPCEngine() {
                   <div style={s.statLabel}>Within Std Dev (σ)</div>
                 </div>
                 <LockedSection theme={theme} feature="Normality Test" minHeight={72}>
-                  <div style={s.statCard}>
-                    <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
-                      {varResult.isNormal ? 'Normal' : 'Non-Normal'}
+                  {varResult.ad ? (
+                    <div style={s.statCard}>
+                      <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
+                        {varResult.isNormal ? 'Normal' : 'Non-Normal'}
+                      </div>
+                      <div style={s.statLabel}>
+                        Anderson-Darling (p={fmt(varResult.ad.p, 3)})
+                      </div>
                     </div>
-                    <div style={s.statLabel}>
-                      Anderson-Darling {varResult.ad ? `(p=${fmt(varResult.ad.p, 3)})` : ''}
+                  ) : (
+                    <div style={s.statCard}>
+                      <div style={{ ...s.statVal, fontSize: 13, color: c.muted }}>
+                        Need at least 8 data points to run the normality test.
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </LockedSection>
                 {(displayMode === 'capability' || displayMode === 'both') && (
                   <>
