@@ -56,7 +56,7 @@ export default function Home() {
         <nav className="qh-landing-nav" style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'rgba(15,212,200,.07)':c.border}`}}>
           <div style={{display:'flex',alignItems:'center',gap:11,fontWeight:800,fontSize:17}}>
             <div style={{width:36,height:36,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:16}}>σ</div>
-            QualityTools
+            Quality Tools
           </div>
           <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:24}}>
             <a href="#tools" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>Tools</a>
@@ -286,7 +286,7 @@ export default function Home() {
           <div style={{display:'flex',alignItems:'center',gap:20}}>
             <a href="/about" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>About</a>
             <a href="/contact" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>Contact</a>
-            <div style={{fontSize:12,color:footerMuted}}>© 2025 Tawfik Elzahar. All rights reserved.</div>
+            <div style={{fontSize:12,color:footerMuted}}>© 2026 Tawfik Elzahar. All rights reserved.</div>
           </div>
         </footer>
 

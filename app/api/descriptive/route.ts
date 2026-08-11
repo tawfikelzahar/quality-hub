@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabase } from '@/lib/supabase-server'
 import { computeDescriptiveStats } from '@/lib/descriptive/stats'
 
 export async function POST(request: NextRequest) {
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
-  }
-
+  // ملحوظة: نفس منطق /api/analyze — الحساب مفتوح لأي زائر، وتسجيل
+  // الدخول بيتطلب بس وقت الـ Pro export (Excel) جوه DescriptiveStats.tsx.
   try {
     const body = (await request.json()) as { values?: unknown }
     if (!body || !Array.isArray(body.values)) {
