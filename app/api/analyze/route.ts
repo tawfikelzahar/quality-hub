@@ -164,8 +164,15 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
   let Z_USL_st = null, Z_LSL_st = null, Z_USL_lt = null, Z_LSL_lt = null
   if (USL !== null) { Z_USL_st = (USL - cl_x) / sigma; Z_USL_lt = (USL - mu) / sdOverall }
   if (LSL !== null) { Z_LSL_st = (cl_x - LSL) / sigma; Z_LSL_lt = (mu - LSL) / sdOverall }
-  const Z_bench_st = (Z_USL_st !== null && Z_LSL_st !== null) ? Math.min(Z_USL_st, Z_LSL_st) : (Z_USL_st ?? Z_LSL_st)
-  const Z_bench_lt = (Z_USL_lt !== null && Z_LSL_lt !== null) ? Math.min(Z_USL_lt, Z_LSL_lt) : (Z_USL_lt ?? Z_LSL_lt)
+  // Z.Bench (industry-standard / Minitab convention): convert the COMBINED
+  // two-tail defect probability back into a single Z, rather than taking
+  // the worse of the two one-sided Z's. This keeps Z-bench consistent with
+  // the Total PPM already shown on the page (both are now derived from the
+  // exact same combined probability).
+  const totalP_st = (Z_USL_st !== null ? 1 - normCDF(Z_USL_st) : 0) + (Z_LSL_st !== null ? 1 - normCDF(Z_LSL_st) : 0)
+  const totalP_lt = (Z_USL_lt !== null ? 1 - normCDF(Z_USL_lt) : 0) + (Z_LSL_lt !== null ? 1 - normCDF(Z_LSL_lt) : 0)
+  const Z_bench_st = (Z_USL_st !== null || Z_LSL_st !== null) ? normInv(1 - totalP_st) : null
+  const Z_bench_lt = (Z_USL_lt !== null || Z_LSL_lt !== null) ? normInv(1 - totalP_lt) : null
   const sigLvl_st = Z_bench_st !== null ? Z_bench_st : null
   const sigLvl_lt = Z_bench_lt !== null ? zToSigmaLevel(Z_bench_lt, conv) : null
   const ppmD_st = (LSL !== null || USL !== null) ? ppmDetailed(cl_x, sigma, LSL, USL) : null
