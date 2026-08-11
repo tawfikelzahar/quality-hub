@@ -23,6 +23,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { LockedPage } from '@/components/Locked';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
+import { goToLogin, goToPricing } from '@/lib/exportGate';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
 const TYPES: InspectionType[] = ['Normal', 'Tightened', 'Reduced'];
@@ -103,7 +104,7 @@ export default function AQLPage() {
 
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
-  const { isPro, loading: subLoading } = useSubscription();
+  const { isPro, isLoggedIn, loading: subLoading } = useSubscription();
 
   function updateRow(id: string, patch: Partial<InspectionRowInput>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -152,6 +153,7 @@ export default function AQLPage() {
 
   // ── Export: CSV ──────────────────────────────────────────────────────
   function exportCSV() {
+    if (!isLoggedIn) { goToLogin(); return }
     const flat = flattenResults(results);
     const header = 'Stage,Lot Size,Level,Inspection Type,Code Letter,Defect Class,AQL%,Sample (n),Ac,Re,Note\n';
     const body = flat
@@ -172,6 +174,7 @@ export default function AQLPage() {
 
   // ── Export: Excel ────────────────────────────────────────────────────
   function exportExcel() {
+    if (!isPro) { goToPricing(); return }
     const flat = flattenResults(results);
     const data = flat.map((r) => ({
       Stage: r.stage,
@@ -196,6 +199,7 @@ export default function AQLPage() {
   // Drawn directly on a canvas (same "draw the report, don't screenshot
   // the page" approach used for the PDF), so no extra dependency is needed.
   function exportPNG() {
+    if (!isLoggedIn) { goToLogin(); return }
     const flat = flattenResults(results);
     const rowH = 24;
     const colX = [16, 190, 260, 340, 440, 590, 650, 710];
@@ -249,6 +253,7 @@ export default function AQLPage() {
   // ── Export: PDF ──────────────────────────────────────────────────────
   // Same manual-table approach used in the DPMO tool's PDF export.
   function exportPDF() {
+    if (!isPro) { goToPricing(); return }
     const flat = flattenResults(results);
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -422,16 +427,16 @@ export default function AQLPage() {
           <div style={s.sectionTitle}>{messages.exportSectionTitle}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
             <button style={s.exportBtn} onClick={exportCSV}>
-              📄 {messages.exportCsvButton}
+              {isLoggedIn ? '📄' : '🔒'} {messages.exportCsvButton}
             </button>
             <button style={s.exportBtn} onClick={exportExcel}>
-              📊 {messages.exportExcelButton}
+              {isPro ? '📊' : '🔒'} {messages.exportExcelButton}
             </button>
             <button style={s.exportBtn} onClick={exportPNG}>
-              🖼️ {messages.exportPngButton}
+              {isLoggedIn ? '🖼️' : '🔒'} {messages.exportPngButton}
             </button>
             <button style={s.exportBtn} onClick={exportPDF}>
-              📕 {messages.exportPdfButton}
+              {isPro ? '📕' : '🔒'} {messages.exportPdfButton}
             </button>
           </div>
           <div style={{ marginTop: 10 }}>

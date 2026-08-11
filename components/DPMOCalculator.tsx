@@ -10,6 +10,8 @@ import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { useSubscription } from '@/lib/useSubscription'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 
 interface ProcessRow {
   id: string
@@ -128,6 +130,7 @@ function parseExcelFile(file: File): Promise<ProcessRow[]> {
 }
 
 export default function DPMOCalculator() {
+  const { isPro, isLoggedIn } = useSubscription()
  const [theme, setTheme] = usePersistedTheme()
   const [rows, setRows] = useState<ProcessRow[]>([
     { id: generateId(), name: 'Assembly Line A', units: 500, opportunities: 12, defects: 18 },
@@ -217,6 +220,7 @@ export default function DPMOCalculator() {
   }, [])
 
   const exportCSV = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const header = 'Process,Units,Opportunities per Unit,Defects,DPO,DPMO,Yield %,Sigma Level,Rating\n'
     const body = results
       .map(r => {
@@ -234,6 +238,7 @@ export default function DPMOCalculator() {
   }
 
   const exportExcel = () => {
+    if (!isPro) { goToPricing(); return }
     const data = results.map(r => ({
       Process: r.name,
       Units: r.units,
@@ -252,6 +257,7 @@ export default function DPMOCalculator() {
   }
 
   const exportPNG = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -262,6 +268,7 @@ export default function DPMOCalculator() {
   }
 
   const exportPDF = () => {
+    if (!isPro) { goToPricing(); return }
     const chart = chartRef.current
     if (!chart) return
     const imgData = chart.toBase64Image('image/png', 1)
@@ -613,10 +620,10 @@ export default function DPMOCalculator() {
           <div>
             <div style={s.sectionTitle}>📤 Export</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
-              <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
-              <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
-              <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
+              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
+              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
+              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
             </div>
             <div style={{ marginTop: 8 }}>
               <SaveAnalysisButton

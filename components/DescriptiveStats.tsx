@@ -10,6 +10,8 @@ import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADI
 type PaletteColors = (typeof COLORS)[keyof typeof COLORS]
 import AuthStatus from '@/components/AuthStatus'
 import { LockedSection } from '@/components/Locked'
+import { useSubscription } from '@/lib/useSubscription'
+import { goToPricing } from '@/lib/exportGate'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
 
 function parseValues(text: string): number[] {
@@ -33,6 +35,7 @@ function fmt3(v: number | null | undefined): string {
 }
 
 export default function DescriptiveStats() {
+  const { isPro } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
@@ -95,6 +98,7 @@ export default function DescriptiveStats() {
   }, [])
 
   const handleExportExcel = useCallback(() => {
+    if (!isPro) { goToPricing(); return }
     if (!result) return
     const rows = [
       { Statistic: 'N', Value: result.n },
@@ -116,7 +120,7 @@ export default function DescriptiveStats() {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Descriptive Stats')
     XLSX.writeFile(wb, 'descriptive-statistics.xlsx')
-  }, [result])
+  }, [result, isPro])
 
   const clearAll = () => {
     setRawText('')
@@ -221,7 +225,7 @@ export default function DescriptiveStats() {
 
           {result && (
             <button style={s.exportBtn} onClick={handleExportExcel}>
-              📊 Export to Excel
+              {isPro ? '📊 Export to Excel' : '🔒 Export to Excel (Pro)'}
             </button>
           )}
         </div>

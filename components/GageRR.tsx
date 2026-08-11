@@ -12,6 +12,7 @@ import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 
 // ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
 interface AvgRangeResult {
@@ -148,7 +149,7 @@ export default function GageRR() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
-  const { isPro, loading: subLoading } = useSubscription()
+  const { isPro, isLoggedIn, loading: subLoading } = useSubscription()
 
   const [numAppraisers, setNumAppraisers] = useState<2 | 3>(3)
   const [numTrials, setNumTrials] = useState<2 | 3>(3)
@@ -350,6 +351,7 @@ export default function GageRR() {
 
   // ── Export: CSV ────────────────────────────────────────────────────────
   const exportCSV = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     if (!result) return
     const p = pctTV(result)
     const lines: string[] = []
@@ -402,6 +404,7 @@ export default function GageRR() {
 
   // ── Export: Excel ──────────────────────────────────────────────────────
   const exportExcel = () => {
+    if (!isPro) { goToPricing(); return }
     if (!result) return
     const p = pctTV(result)
     const wb = XLSX.utils.book_new()
@@ -447,6 +450,7 @@ export default function GageRR() {
 
   // ── Export: PNG (contribution chart) ─────────────────────────────────
   const exportPNG = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const chart = contribChartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -456,6 +460,7 @@ export default function GageRR() {
 
   // ── Export: PDF ─────────────────────────────────────────────────────
   const exportPDF = () => {
+    if (!isPro) { goToPricing(); return }
     if (!result) return
     const p = pctTV(result)
     const chart = contribChartRef.current
@@ -723,10 +728,10 @@ export default function GageRR() {
             <>
               {/* Export bar */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
-                <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
-                <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
-                <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
+                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
+                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
+                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
                 <SaveAnalysisButton
                   theme={theme}
                   tool="gage_rr"

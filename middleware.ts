@@ -1,8 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// الصفحات دي بس هي اللي محتاجة تسجيل دخول
-const PROTECTED_PATHS = ['/spc', '/spc-tool.html', '/pareto', '/dpmo', '/aql', '/gage-rr', '/stability', '/oee', '/descriptive', '/account', '/dashboard']
+// الأدوات بقت متاحة لأي زائر (حتى غير مسجل) عشان تتفهرس على جوجل وعشان
+// أي حد يقدر يجرب قبل ما يسجل. الحماية اتنقلت لمستوى الفيتشرز نفسها:
+//   - Save والـ Export (Excel/PDF) بيتطلبوا اشتراك Pro (useSubscription)
+//   - Export (CSV/PNG) بيتطلب تسجيل دخول بس (مش لازم Pro)
+// دي بيانات شخصية فعلاً محتاجة جلسة مسجلة، فضلت زي ما هي.
+const PROTECTED_PATHS = ['/account', '/dashboard']
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request })

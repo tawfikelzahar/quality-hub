@@ -8,6 +8,10 @@ export type SubscriptionStatus = 'free' | 'pro'
 interface UseSubscriptionResult {
   status: SubscriptionStatus
   isPro: boolean
+  // بيفرق بين "زائر مش مسجل خالص" و"مسجل بس على الخطة المجانية" — الأدوات
+  // بقت متاحة للزوار من غير تسجيل، بس CSV/PNG export بيحتاج تسجيل دخول
+  // (مش لازم Pro) عشان نجمع الإيميلات، والـ Excel/PDF/Save فضلوا Pro بس.
+  isLoggedIn: boolean
   loading: boolean
 }
 
@@ -16,6 +20,7 @@ interface UseSubscriptionResult {
 // كـ fallback آمن (منطق "افتراضيًا مقفول" أفضل من "افتراضيًا مفتوح").
 export function useSubscription(): UseSubscriptionResult {
   const [status, setStatus] = useState<SubscriptionStatus>('free')
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -28,6 +33,7 @@ export function useSubscription(): UseSubscriptionResult {
       if (!user) {
         if (active) {
           setStatus('free')
+          setIsLoggedIn(false)
           setLoading(false)
         }
         return
@@ -42,6 +48,7 @@ export function useSubscription(): UseSubscriptionResult {
       if (active) {
         const value = (data?.subscription_status as SubscriptionStatus | undefined) ?? 'free'
         setStatus(error ? 'free' : value)
+        setIsLoggedIn(true)
         setLoading(false)
       }
     }
@@ -55,5 +62,5 @@ export function useSubscription(): UseSubscriptionResult {
     }
   }, [])
 
-  return { status, isPro: status === 'pro', loading }
+  return { status, isPro: status === 'pro', isLoggedIn, loading }
 }

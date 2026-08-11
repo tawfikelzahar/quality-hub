@@ -10,6 +10,8 @@ import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { useSubscription } from '@/lib/useSubscription'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 
 // ─────────────────────────────────────────────────────────────────────────
 // OEE = Availability × Performance × Quality  (Nakajima / JIPM TPM standard)
@@ -88,6 +90,7 @@ const BENCH = [
 ] as const
 
 export default function OEECalculator() {
+  const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const chartRef = useRef<ChartJSInstance<'bar'>>(null)
@@ -172,6 +175,7 @@ export default function OEECalculator() {
   }
 
   const exportCSV = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     if (!result || !cls) return
     const lines = [
       'Metric,Value,Unit',
@@ -200,6 +204,7 @@ export default function OEECalculator() {
   }
 
   const exportExcel = () => {
+    if (!isPro) { goToPricing(); return }
     if (!result || !cls) return
     const indices = [
       { Metric: 'OEE (Overall)', 'Value (%)': result.oee.toFixed(2) },
@@ -225,6 +230,7 @@ export default function OEECalculator() {
   }
 
   const exportPNG = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -235,6 +241,7 @@ export default function OEECalculator() {
   }
 
   const exportPDF = () => {
+    if (!isPro) { goToPricing(); return }
     if (!result || !cls) return
     const chart = chartRef.current
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
@@ -445,10 +452,10 @@ export default function OEECalculator() {
             <div>
               <div style={s.sectionTitle}>📤 Export</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
-                <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
-                <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
-                <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
+                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
+                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
+                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
               </div>
               <div style={{ marginTop: 8 }}>
                 <SaveAnalysisButton

@@ -12,6 +12,7 @@ import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 import {
   type BatchData,
   type TrendDirection,
@@ -47,7 +48,7 @@ export default function StabilityStudy() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
-  const { isPro, loading: subLoading } = useSubscription()
+  const { isPro, isLoggedIn, loading: subLoading } = useSubscription()
 
   // ── Study setup ──────────────────────────────────────────────────────
   const [attributeName, setAttributeName] = useState('Assay')
@@ -233,6 +234,7 @@ export default function StabilityStudy() {
 
   // ── Export: CSV ──────────────────────────────────────────────────────
   const exportCSV = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const lines: string[] = []
     lines.push(`Stability Study — ${attributeName} (${unit})`)
     lines.push(`Storage condition,${STORAGE_CONDITIONS.find((sc) => sc.key === storageCondition)?.label ?? storageCondition}`)
@@ -268,6 +270,7 @@ export default function StabilityStudy() {
 
   // ── Export: Excel ────────────────────────────────────────────────────
   const exportExcel = () => {
+    if (!isPro) { goToPricing(); return }
     const wb = XLSX.utils.book_new()
     const rawRows: Record<string, string | number>[] = timePoints.map((t, tIdx) => {
       const row: Record<string, string | number> = { 'Time (months)': t }
@@ -294,6 +297,7 @@ export default function StabilityStudy() {
 
   // ── Export: PNG ──────────────────────────────────────────────────────
   const exportPNG = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -303,6 +307,7 @@ export default function StabilityStudy() {
 
   // ── Export: PDF ──────────────────────────────────────────────────────
   const exportPDF = () => {
+    if (!isPro) { goToPricing(); return }
     const chart = chartRef.current
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
     const pageWidth = pdf.internal.pageSize.getWidth()
@@ -638,10 +643,10 @@ export default function StabilityStudy() {
           )}
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
-            <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
-            <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
-            <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+            <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
+            <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
+            <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
+            <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
             <SaveAnalysisButton
               theme={theme}
               tool="stability"

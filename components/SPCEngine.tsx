@@ -12,6 +12,7 @@ import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedSection } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -206,7 +207,7 @@ export default function SPCEngine() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
-  const { isPro } = useSubscription()
+  const { isPro, isLoggedIn } = useSubscription()
 
   const [dataType, setDataType] = useState<DataType>('variable')
   const [N, setN] = useState(1)
@@ -372,8 +373,9 @@ export default function SPCEngine() {
     }
   }
 
-  // ── Export: Data + Stats as Excel workbook ──────────────────────────────
+  // ── Export: Data + Stats as Excel workbook ── (Pro only)
   const exportExcel = () => {
+    if (!isPro) { goToPricing(); return }
     const wb = XLSX.utils.book_new()
 
     if (dataType === 'variable') {
@@ -476,6 +478,7 @@ export default function SPCEngine() {
   }
 
   const exportPNG = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const exportedAny = [
       downloadChartImage(iChartRef.current, 'spc-control-chart.png'),
       downloadChartImage(rChartRef.current, 'spc-range-chart.png'),
@@ -486,8 +489,9 @@ export default function SPCEngine() {
     if (!exportedAny) setErrorMsg('Run an analysis first to generate charts to export.')
   }
 
-  // ── Export: full report as PDF ──────────────────────────────────────────
+  // ── Export: full report as PDF ── (Pro only)
   const exportPDF = () => {
+    if (!isPro) { goToPricing(); return }
     if (!result) {
       setErrorMsg('Run an analysis first to generate a report to export.')
       return
@@ -1007,9 +1011,9 @@ export default function SPCEngine() {
           <div>
             <div style={s.sectionTitle}>📤 Export</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportExcel}>📊 Export Excel</button>
-              <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>🖼️ Export Charts (PNG)</button>
-              <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>📄 Export Full Report (PDF)</button>
+              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Export Excel' : '🔒 Export Excel'}</button>
+              <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>{isLoggedIn ? '🖼️ Export Charts (PNG)' : '🔒 Export Charts (PNG)'}</button>
+              <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>{isPro ? '📄 Export Full Report (PDF)' : '🔒 Export Full Report (PDF)'}</button>
             </div>
             <div style={{ marginTop: 8 }}>
               <SaveAnalysisButton

@@ -10,6 +10,8 @@ import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { useSubscription } from '@/lib/useSubscription'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 
 interface DataRow {
   id: string
@@ -71,6 +73,7 @@ function parseExcelFile(file: File): Promise<DataRow[]> {
 }
 
 export default function ParetoChart() {
+  const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const [rows, setRows] = useState<DataRow[]>([
     { id: generateId(), label: 'Dimensional Error', value: 42 },
@@ -185,8 +188,9 @@ export default function ParetoChart() {
     }
   }, [])
 
-  // ── Export: Data as CSV ──
+  // ── Export: Data as CSV ── (free — requires a login so we capture an email)
   const exportCSV = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const header = 'Category,Count,Percent of Total,Cumulative Percent,Status\n'
     const body = sorted
       .map((r, i) => {
@@ -204,8 +208,9 @@ export default function ParetoChart() {
     URL.revokeObjectURL(url)
   }
 
-  // ── Export: Data as Excel ──
+  // ── Export: Data as Excel ── (Pro only)
   const exportExcel = () => {
+    if (!isPro) { goToPricing(); return }
     const data = sorted.map((r, i) => ({
       Category: r.label,
       Count: r.value,
@@ -219,8 +224,9 @@ export default function ParetoChart() {
     XLSX.writeFile(wb, 'pareto-data.xlsx')
   }
 
-  // ── Export: Chart as PNG ──
+  // ── Export: Chart as PNG ── (free — requires a login so we capture an email)
   const exportPNG = () => {
+    if (!isLoggedIn) { goToLogin(); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -230,8 +236,9 @@ export default function ParetoChart() {
     a.click()
   }
 
- // ── Export: Chart + Table as PDF ──
+ // ── Export: Chart + Table as PDF ── (Pro only)
   const exportPDF = () => {
+    if (!isPro) { goToPricing(); return }
     const chart = chartRef.current
     if (!chart) return
     const imgData = chart.toBase64Image('image/png', 1)
@@ -642,10 +649,10 @@ export default function ParetoChart() {
           <div>
             <div style={s.sectionTitle}>📤 Export</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV}>📄 CSV</button>
-              <button style={s.exportBtn} onClick={exportExcel}>📊 Excel</button>
-              <button style={s.exportBtn} onClick={exportPNG}>🖼️ PNG</button>
-              <button style={s.exportBtn} onClick={exportPDF}>📑 PDF</button>
+              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
+              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
+              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
+              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
             </div>
             <div style={{ marginTop: 8 }}>
               <SaveAnalysisButton
