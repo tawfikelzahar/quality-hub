@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://qualityhub.tools";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://qualityhub-zeta.vercel.app";
 const SITE_NAME = "Quality Hub";
 const DEFAULT_DESCRIPTION =
   "Statistical quality engineering tools online — SPC control charts, Pareto analysis, DPMO & Six Sigma calculations, AQL sampling plans (ISO 2859-1), Gage R&R (AIAG MSA), and capability studies. No Minitab license, no learning curve.";

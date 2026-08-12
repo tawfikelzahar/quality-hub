@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://qualityhub.tools'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://qualityhub-zeta.vercel.app'
 
 // ─────────────────────────────────────────────────────────────────────────
 // The tool routes no longer require login (see middleware.ts), so they're
