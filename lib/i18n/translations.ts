@@ -125,7 +125,7 @@ export const translations = {
     hero_title_1: 'الحقيبة الكاملة',
     hero_title_2: 'لمهندس الجودة',
     hero_sub:
-      'SPC، تحليل باريتو، حسابات Six Sigma، خطط عينات AQL ودراسات القدرة — كل ده من المتصفح مباشرة. بدون ترخيص Minitab. وبدون منحنى تعلّم.',
+      'SPC، تحليل باريتو، حسابات Six Sigma، خطط عينات AQL ودراسات القدرة — كل ذلك مباشرة من المتصفح. بدون ترخيص Minitab. وبدون تعقيد.',
     hero_cta_explore: 'استكشف الأدوات',
     hero_cta_pricing: 'شاهد الأسعار',
 
@@ -133,14 +133,14 @@ export const translations = {
     pill_2: 'تحليل Pareto',
     pill_3: 'DPMO & Sigma Level',
     pill_4: 'خطط عينات AQL',
-    pill_5: 'كل الـ 8 Nelson Rules',
+    pill_5: 'جميع قواعد Nelson الثمانية',
     pill_6: 'Cp · Cpk · Pp · Ppk',
 
     // ── Tools section ──
     tools_label: 'الأدوات',
     tools_h1: 'كل ما يحتاجه مهندس الجودة',
     tools_h2: 'في مكان واحد',
-    tools_sub: 'أدوات تنافس البرامج المدفوعة الضخمة، مبنية للمهندسين اللي بيقدّروا وقتهم.',
+    tools_sub: 'أدوات تنافس البرامج المدفوعة الضخمة، مبنية للمهندسين الذين يقدّرون وقتهم.',
 
     badge_live: 'متاح الآن',
     badge_soon: 'قريبًا',
@@ -153,7 +153,7 @@ export const translations = {
     pareto_desc: 'تحليل Vital Few / Useful Many · استيراد من CSV و Excel · نسبة تراكمية مباشرة',
 
     dpmo_title: 'حاسبة DPMO & Sigma',
-    dpmo_desc: 'Defects Per Million Opportunities · Process Sigma Level · مقارنة بين أكتر من عملية',
+    dpmo_desc: 'Defects Per Million Opportunities · Process Sigma Level · مقارنة بين أكثر من عملية',
 
     aql_title: 'حاسبة خطة عينات AQL',
     aql_desc: 'ISO 2859-1 / ANSI ASQ Z1.4 · استخراج Code Letter و Ac/Re · Normal / Tightened / Reduced',
@@ -162,7 +162,7 @@ export const translations = {
     gagerr_desc: 'AIAG Average & Range method · %Study Variation · NDC · Range & X̄ charts',
 
     stability_title: 'دراسة الاستقرار (Stability Study)',
-    stability_desc: 'حساب مدة الصلاحية بمعيار ICH Q1E · انحدار على أكتر من Batch · اختبار Poolability',
+    stability_desc: 'حساب مدة الصلاحية بمعيار ICH Q1E · انحدار على أكثر من Batch · اختبار Poolability',
 
     oee_title: 'حاسبة OEE',
     oee_desc: 'Availability × Performance × Quality · Six Big Losses · مقارنة بالمعايير العالمية',
