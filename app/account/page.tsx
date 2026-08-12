@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { compressAvatar } from '@/lib/avatar'
-import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/lib/theme'
-import AuthStatus from '@/components/AuthStatus'
+import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
+import Nav from '@/components/Nav'
 
 interface AccountUser {
   email: string
@@ -158,22 +158,7 @@ export default function AccountPage() {
 
   return (
     <div style={s.page}>
-      <nav className="qh-nav" style={s.nav}>
-        <div className="qh-nav-left" style={s.navLeft}>
-          <Link href="/" style={s.logo}>
-            <div style={s.logoIcon}>σ</div>
-            QualityTools
-          </Link>
-          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
-          <span className="qh-breadcrumb" style={s.breadcrumb}>Account</span>
-        </div>
-        <div className="qh-nav-right" style={s.navRight}>
-          <button style={s.themeBtn} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <AuthStatus />
-        </div>
-      </nav>
+      <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_account" showGetPro={false} />
 
       <main className="qh-main" style={{ ...s.main, alignItems: 'center' }}>
         {loadingUser || !user ? (

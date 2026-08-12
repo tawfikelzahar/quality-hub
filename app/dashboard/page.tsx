@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, getSharedStyles, usePersistedTheme, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
-import AuthStatus from '@/components/AuthStatus'
+import Nav from '@/components/Nav'
 
 type Tool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql'
 
@@ -140,22 +140,7 @@ export default function DashboardPage() {
 
   return (
     <div style={s.page}>
-      <nav style={s.nav}>
-        <div style={s.navLeft}>
-          <Link href="/" style={s.logo}>
-            <div style={s.logoIcon}>σ</div>
-            QualityTools
-          </Link>
-          <span style={s.separator}>/</span>
-          <span style={s.breadcrumb}>Dashboard</span>
-        </div>
-        <div style={s.navRight}>
-          <button style={s.themeBtn} onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <AuthStatus />
-        </div>
-      </nav>
+      <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_dashboard" showGetPro={false} />
 
       <div style={s.main}>
         {!isPro ? (

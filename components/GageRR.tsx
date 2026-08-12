@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useRef, useMemo } from 'react'
-import Link from 'next/link'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
-import AuthStatus from '@/components/AuthStatus'
+import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
@@ -550,23 +549,7 @@ export default function GageRR() {
 
   return (
     <div style={s.page}>
-      <nav className="qh-nav" style={s.nav}>
-        <div className="qh-nav-left" style={s.navLeft}>
-          <Link href="/" style={s.logo}>
-            <div style={s.logoIcon}>σ</div>
-            QualityTools
-          </Link>
-          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
-          <span className="qh-breadcrumb" style={s.breadcrumb}>Gage R&R</span>
-        </div>
-        <div className="qh-nav-right" style={s.navRight}>
-          <button style={s.themeBtn} onClick={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <AuthStatus />
-          <Link href="/pricing" style={s.ctaBtn}>Get Pro →</Link>
-        </div>
-      </nav>
+      <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_gagerr" />
 
       {!subLoading && !isPro ? (
         <LockedPage

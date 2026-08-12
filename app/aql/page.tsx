@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import {
@@ -17,8 +16,8 @@ import {
   type InspectionRowResult,
 } from '@/lib/aql/calculator';
 import { messages } from '@/lib/aql/messages';
-import { COLORS, getSharedStyles, usePersistedTheme, type ThemeMode } from '@/lib/theme';
-import AuthStatus from '@/components/AuthStatus';
+import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
+import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { LockedPage } from '@/components/Locked';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
@@ -307,25 +306,7 @@ export default function AQLPage() {
 
   return (
     <div style={s.page}>
-      <nav className="qh-nav" style={s.nav}>
-        <div className="qh-nav-left" style={s.navLeft}>
-          <Link href="/" style={s.logo}>
-            <div style={s.logoIcon}>σ</div>
-            QualityTools
-          </Link>
-          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
-          <span className="qh-breadcrumb" style={s.breadcrumb}>{messages.appTitle}</span>
-        </div>
-        <div className="qh-nav-right" style={s.navRight}>
-          <button style={s.themeBtn} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
-            {theme === 'dark' ? messages.darkModeToggleOff : messages.darkModeToggleOn}
-          </button>
-          <AuthStatus />
-          <Link href="/pricing" style={s.ctaBtn}>
-            Get Pro →
-          </Link>
-        </div>
-      </nav>
+      <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_aql" />
 
       {!subLoading && !isPro ? (
         <LockedPage

@@ -1,8 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
-import AuthStatus from '@/components/AuthStatus'
+import Nav from '@/components/Nav'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Static content page — no data fetching, no auth gating. Copy lives here
@@ -55,22 +54,7 @@ export default function AboutPage() {
 
   return (
     <div style={s.page}>
-      <nav className="qh-nav" style={s.nav}>
-        <div className="qh-nav-left" style={s.navLeft}>
-          <Link href="/" style={s.logo}>
-            <div style={s.logoIcon}>σ</div>
-            QualityTools
-          </Link>
-          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
-          <span className="qh-breadcrumb" style={s.breadcrumb}>About</span>
-        </div>
-        <div className="qh-nav-right" style={s.navRight}>
-          <button style={s.themeBtn} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <AuthStatus />
-        </div>
-      </nav>
+      <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_about" showGetPro={false} />
 
       <main className="qh-main" style={{ ...s.main, alignItems: 'center' }}>
         <div style={{ maxWidth: 720, width: '100%', marginTop: 20 }}>

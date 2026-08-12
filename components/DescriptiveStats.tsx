@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useCallback, type CSSProperties } from 'react'
-import Link from 'next/link'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import * as XLSX from 'xlsx'
 import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
 
 type PaletteColors = (typeof COLORS)[keyof typeof COLORS]
-import AuthStatus from '@/components/AuthStatus'
+import Nav from '@/components/Nav'
 import { LockedSection } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToPricing } from '@/lib/exportGate'
@@ -147,25 +146,7 @@ export default function DescriptiveStats() {
   return (
     <div style={s.page}>
       {/* Nav */}
-      <nav className="qh-nav" style={s.nav}>
-        <div className="qh-nav-left" style={s.navLeft}>
-          <Link href="/" style={s.logo}>
-            <div style={s.logoIcon}>σ</div>
-            QualityTools
-          </Link>
-          <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
-          <span className="qh-breadcrumb" style={s.breadcrumb}>Descriptive Statistics</span>
-        </div>
-        <div className="qh-nav-right" style={s.navRight}>
-          <button style={s.themeBtn} onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          <AuthStatus />
-          <Link href="/pricing" style={{ ...(s.ctaBtn as CSSProperties) }}>
-            Get Pro →
-          </Link>
-        </div>
-      </nav>
+      <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_descriptive" />
 
       <div className="qh-body" style={s.body}>
         {/* Left Panel — input */}
