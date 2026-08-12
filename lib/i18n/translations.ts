@@ -178,5 +178,5 @@ export const translations = {
 } as const;
 
 export type Lang = keyof typeof translations;
-export type Dict = typeof translations['en'];
+export type Dict = { readonly [K in keyof typeof translations['en']]: string };
 export type TKey = keyof Dict;
