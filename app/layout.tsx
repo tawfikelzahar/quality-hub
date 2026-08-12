@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/lib/i18n/context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,11 +67,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // lang/dir start as English/LTR on the server. LanguageProvider flips
+    // both attributes on the client, after mount, if the visitor previously
+    // chose Arabic (stored in localStorage) — see lib/i18n/context.tsx.
     <html
       lang="en"
+      dir="ltr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

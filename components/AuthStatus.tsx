@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
+import { useLanguage } from '@/lib/i18n/context'
 
 interface AuthDisplay {
   email: string
@@ -37,6 +38,7 @@ function buildDisplay(user: {
 export default function AuthStatus() {
   const [user, setUser] = useState<AuthDisplay | null>(null)
   const [loading, setLoading] = useState(true)
+  const { t } = useLanguage()
 
   useEffect(() => {
     const supabase = createClient()
@@ -66,7 +68,7 @@ export default function AuthStatus() {
   if (!user) {
     return (
       <Link href="/login" style={{ fontSize: 13, color: '#6b89b4', textDecoration: 'none', fontWeight: 500 }}>
-        Sign In
+        {t('nav_signin')}
       </Link>
     )
   }
@@ -111,7 +113,7 @@ export default function AuthStatus() {
         onClick={handleSignOut}
         style={{ fontSize: 12, color: '#6b89b4', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}
       >
-        Sign Out
+        {t('nav_signout')}
       </button>
     </div>
   )
