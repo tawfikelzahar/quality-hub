@@ -284,18 +284,22 @@ export default function Home() {
 
         {/* ── Footer ── */}
         <footer className="qh-landing-footer" style={{position:'relative',zIndex:1,borderTop:`1px solid ${footerBorder}`,padding:'28px 48px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:15}}>
-            <div style={{width:28,height:28,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:13}}>σ</div>
-            Quality<span style={{color:'#0fd4c8'}}>Tools</span>
-            <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· Tawfik Elzahar</span>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:20}}>
-            <a href="/about" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_about')}</a>
-            <a href="/contact" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_contact')}</a>
-            <div style={{fontSize:12,color:footerMuted}}>© 2026 Tawfik Elzahar. {t('footer_rights')}</div>
-          </div>
-        </footer>
+  <div style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:15}}>
+    <div style={{width:28,height:28,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:13}}>σ</div>
+    
+    {/* التعديل هنا: تجميع الكلمة وتحديد الاتجاه LTR */}
+    <span style={{ direction: 'ltr', display: 'inline-block' }}>
+      Quality<span style={{color:'#0fd4c8'}}>Tools</span>
+    </span>
 
+    <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· Tawfik Elzahar</span>
+  </div>
+  <div style={{display:'flex',alignItems:'center',gap:20}}>
+    <a href="/about" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_about')}</a>
+    <a href="/contact" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_contact')}</a>
+    <div style={{fontSize:12,color:footerMuted}}>© 2026 Tawfik Elzahar. {t('footer_rights')}</div>
+  </div>
+</footer>
       </main>
     </>
   )
