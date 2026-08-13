@@ -11,6 +11,7 @@ import Nav from '@/components/Nav'
 import { LockedSection } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
 
 function parseValues(text: string): number[] {
@@ -36,6 +37,7 @@ function fmt3(v: number | null | undefined): string {
 export default function DescriptiveStats() {
   const { isPro } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
 
@@ -49,7 +51,7 @@ export default function DescriptiveStats() {
   const handleCalculate = useCallback(async () => {
     setError(null)
     if (values.length < 2) {
-      setError('Need at least 2 valid numeric values.')
+      setError(t('ds_err_min2'))
       return
     }
     setLoading(true)
@@ -61,17 +63,17 @@ export default function DescriptiveStats() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setError(json.error || 'Calculation failed.')
+        setError(json.error || t('ds_err_calc_failed'))
         setResult(null)
       } else {
         setResult(json as DescriptiveResult)
       }
     } catch {
-      setError('Network error while calculating.')
+      setError(t('ds_err_network'))
     } finally {
       setLoading(false)
     }
-  }, [values])
+  }, [values, t])
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -89,12 +91,12 @@ export default function DescriptiveStats() {
           .filter((v) => Number.isFinite(v))
         setRawText(nums.join('\n'))
       } catch {
-        setError('Could not read the uploaded file.')
+        setError(t('ds_err_file_read'))
       }
     }
     reader.readAsBinaryString(file)
     e.target.value = ''
-  }, [])
+  }, [t])
 
   const handleExportExcel = useCallback(() => {
     if (!isPro) { goToPricing(); return }
@@ -132,7 +134,7 @@ export default function DescriptiveStats() {
         labels: result.histogram.map((b) => `${fmt(b.x0, 2)}–${fmt(b.x1, 2)}`),
         datasets: [
           {
-            label: 'Frequency',
+            label: t('ds_frequency'),
             data: result.histogram.map((b) => b.count),
             backgroundColor: c.bar,
             borderRadius: 3,
@@ -152,19 +154,19 @@ export default function DescriptiveStats() {
         {/* Left Panel — input */}
         <div className="qh-left" style={s.left}>
           <div>
-            <div style={s.sectionTitle}>📋 Data Input</div>
+            <div style={s.sectionTitle}>{t('ds_data_input')}</div>
             <textarea
               style={{ ...(s.input as CSSProperties), minHeight: 220, resize: 'vertical', fontFamily: 'monospace' }}
-              placeholder={'Paste one number per line (or comma/tab separated)\ne.g.\n24.3\n25.1\n25.6\n...'}
+              placeholder={t('ds_placeholder')}
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
             />
             <div style={{ fontSize: 11, color: c.muted, marginTop: 6 }}>
-              {values.length} valid value{values.length === 1 ? '' : 's'} detected
+              {values.length} {values.length === 1 ? t('ds_valid_value') : t('ds_valid_values')} {t('ds_detected')}
             </div>
 
             <label style={{ ...(s.addBtn as CSSProperties), display: 'block', textAlign: 'center', marginTop: 10, cursor: 'pointer' }}>
-              📁 Upload CSV / Excel
+              {t('ds_upload_csv')}
               <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileUpload} style={{ display: 'none' }} />
             </label>
 
@@ -179,7 +181,7 @@ export default function DescriptiveStats() {
               onClick={handleCalculate}
               disabled={loading || values.length < 2}
             >
-              {loading ? 'Calculating…' : '▶ Calculate'}
+              {loading ? t('ds_calculating') : t('ds_calculate')}
             </button>
 
             {(rawText || result) && (
@@ -193,7 +195,7 @@ export default function DescriptiveStats() {
                 }}
                 onClick={clearAll}
               >
-                🗑️ Clear All Data
+                {t('ds_clear_all')}
               </button>
             )}
 
@@ -206,7 +208,7 @@ export default function DescriptiveStats() {
 
           {result && (
             <button style={s.exportBtn} onClick={handleExportExcel}>
-              {isPro ? '📊 Export to Excel' : '🔒 Export to Excel (Pro)'}
+              {isPro ? t('ds_export_excel') : t('ds_export_excel_pro')}
             </button>
           )}
         </div>
@@ -215,8 +217,7 @@ export default function DescriptiveStats() {
         <div className="qh-right" style={s.right}>
           {!result && !loading && (
             <div style={{ ...(s.card as CSSProperties), textAlign: 'center', color: c.muted, padding: 60 }}>
-              Paste or upload your measurement data, then hit Calculate to see the full
-              statistical breakdown, histogram, and box plot.
+              {t('ds_empty_state')}
             </div>
           )}
 
@@ -224,7 +225,7 @@ export default function DescriptiveStats() {
             <>
               {/* Histogram + Box Plot */}
               <div style={s.chartWrap}>
-                <div style={s.sectionTitle}>📊 Histogram + Box Plot</div>
+                <div style={s.sectionTitle}>{t('ds_histogram_boxplot')}</div>
                 <div style={{ ...(s.chartInner as CSSProperties), height: 280 }}>
                   {histogramData && (
                     <Chart
@@ -246,7 +247,7 @@ export default function DescriptiveStats() {
               </div>
 
               {/* Anderson-Darling Normality Test — Pro */}
-              <LockedSection theme={theme} feature="Anderson-Darling Normality Test" minHeight={110}>
+              <LockedSection theme={theme} feature={t('ds_ad_test_name')} minHeight={110}>
                 {result.andersonDarling ? (
                   <div
                     style={{
@@ -256,64 +257,64 @@ export default function DescriptiveStats() {
                     }}
                   >
                     <div style={{ fontWeight: 700, color: c.amber, marginBottom: 4 }}>
-                      Anderson-Darling Normality Test
+                      {t('ds_ad_test_name')}
                     </div>
                     <div style={{ fontSize: 13, color: c.text }}>
                       A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {fmt3(result.andersonDarling.pValue)}
                     </div>
                     <div style={{ fontSize: 12, color: c.muted, marginTop: 6 }}>
                       {result.andersonDarling.normalAtAlpha05
-                        ? 'p ≥ 0.05 — no significant evidence against normality (α = 0.05).'
-                        : 'p < 0.05 — data significantly deviates from a normal distribution (α = 0.05).'}
+                        ? t('ds_ad_normal')
+                        : t('ds_ad_not_normal')}
                     </div>
                   </div>
                 ) : (
-                  <div style={s.card}>Need at least 8 data points to run the normality test.</div>
+                  <div style={s.card}>{t('ds_ad_need_8')}</div>
                 )}
               </LockedSection>
 
               {/* Stats table — free */}
               <div style={s.card}>
-                <div style={s.sectionTitle}>Detailed Statistics</div>
+                <div style={s.sectionTitle}>{t('ds_detailed_stats')}</div>
                 <table style={s.table}>
                   <tbody>
-                    <StatRow label="N" value={result.n.toString()} th={s.th} td={s.td} />
-                    <StatRow label="Mean" value={fmt(result.mean)} th={s.th} td={s.td} />
-                    <StatRow label="StDev" value={fmt(result.stdev)} th={s.th} td={s.td} />
-                    <StatRow label="Variance" value={fmt(result.variance)} th={s.th} td={s.td} />
-                    <StatRow label="CV (%)" value={fmt(result.cv, 2)} th={s.th} td={s.td} />
-                    <StatRow label="Skewness" value={fmt(result.skewness)} th={s.th} td={s.td} />
-                    <StatRow label="Kurtosis" value={fmt(result.kurtosis)} th={s.th} td={s.td} />
-                    <StatRow label="Minimum" value={fmt(result.min)} th={s.th} td={s.td} />
-                    <StatRow label="Q1" value={fmt(result.q1)} th={s.th} td={s.td} />
-                    <StatRow label="Median" value={fmt(result.median)} th={s.th} td={s.td} />
-                    <StatRow label="Q3" value={fmt(result.q3)} th={s.th} td={s.td} />
-                    <StatRow label="Maximum" value={fmt(result.max)} th={s.th} td={s.td} />
-                    <StatRow label="IQR" value={fmt(result.iqr)} th={s.th} td={s.td} />
-                    <StatRow label="Range" value={fmt(result.range)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_n')} value={result.n.toString()} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_mean')} value={fmt(result.mean)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_stdev')} value={fmt(result.stdev)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_variance')} value={fmt(result.variance)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_cv')} value={fmt(result.cv, 2)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_skewness')} value={fmt(result.skewness)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_kurtosis')} value={fmt(result.kurtosis)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_min')} value={fmt(result.min)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_q1')} value={fmt(result.q1)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_median')} value={fmt(result.median)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_q3')} value={fmt(result.q3)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_max')} value={fmt(result.max)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_iqr')} value={fmt(result.iqr)} th={s.th} td={s.td} />
+                    <StatRow label={t('ds_stat_range')} value={fmt(result.range)} th={s.th} td={s.td} />
                   </tbody>
                 </table>
               </div>
 
               {/* 95% Confidence Intervals — Pro */}
-              <LockedSection theme={theme} feature="95% Confidence Intervals" minHeight={150}>
+              <LockedSection theme={theme} feature={t('ds_ci_title')} minHeight={150}>
                 <div style={s.card}>
-                  <div style={s.sectionTitle}>95% Confidence Intervals</div>
+                  <div style={s.sectionTitle}>{t('ds_ci_title')}</div>
                   <table style={s.table}>
                     <tbody>
                       <StatRow
-                        label="Mean"
-                        value={result.ciMean ? `${fmt(result.ciMean.lower)} to ${fmt(result.ciMean.upper)}` : '—'}
+                        label={t('ds_stat_mean')}
+                        value={result.ciMean ? `${fmt(result.ciMean.lower)} ${t('ds_range_to')} ${fmt(result.ciMean.upper)}` : '—'}
                         th={s.th} td={s.td}
                       />
                       <StatRow
-                        label="Median"
-                        value={result.ciMedian ? `${fmt(result.ciMedian.lower)} to ${fmt(result.ciMedian.upper)}` : 'Need N ≥ 6'}
+                        label={t('ds_stat_median')}
+                        value={result.ciMedian ? `${fmt(result.ciMedian.lower)} ${t('ds_range_to')} ${fmt(result.ciMedian.upper)}` : t('ds_ci_need_n6')}
                         th={s.th} td={s.td}
                       />
                       <StatRow
-                        label="StDev"
-                        value={result.ciStdev ? `${fmt(result.ciStdev.lower)} to ${fmt(result.ciStdev.upper)}` : '—'}
+                        label={t('ds_stat_stdev')}
+                        value={result.ciStdev ? `${fmt(result.ciStdev.lower)} ${t('ds_range_to')} ${fmt(result.ciStdev.upper)}` : '—'}
                         th={s.th} td={s.td}
                       />
                     </tbody>
