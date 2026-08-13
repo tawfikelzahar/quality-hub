@@ -11,6 +11,8 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
+import type { TKey } from '@/lib/i18n/translations'
 
 // ─────────────────────────────────────────────────────────────────────────
 // OEE = Availability × Performance × Quality  (Nakajima / JIPM TPM standard)
@@ -41,11 +43,11 @@ interface OEEResult {
 
 type Classification = 'world-class' | 'good' | 'average' | 'poor'
 
-function classify(oee: number): { label: string; type: Classification } {
-  if (oee >= 85) return { label: 'World-class performance', type: 'world-class' }
-  if (oee >= 60) return { label: 'Typical performance — room to improve', type: 'good' }
-  if (oee >= 40) return { label: 'Below average — focus on the weakest factor', type: 'average' }
-  return { label: 'Significant losses — investigate root causes', type: 'poor' }
+function classify(oee: number): { labelKey: TKey; type: Classification } {
+  if (oee >= 85) return { labelKey: 'oee_class_worldclass', type: 'world-class' }
+  if (oee >= 60) return { labelKey: 'oee_class_good', type: 'good' }
+  if (oee >= 40) return { labelKey: 'oee_class_average', type: 'average' }
+  return { labelKey: 'oee_class_poor', type: 'poor' }
 }
 
 function calcOEE(i: OEEInputs): OEEResult | null {
@@ -72,25 +74,26 @@ function calcOEE(i: OEEInputs): OEEResult | null {
   }
 }
 
-function validate(i: OEEInputs): string | null {
-  if (i.plannedTime <= 0) return 'Planned production time must be greater than 0'
-  if (i.plannedTime - i.breaks <= 0) return 'Breaks cannot equal or exceed planned time'
-  if (i.downtime >= i.plannedTime - i.breaks) return 'Unplanned downtime cannot equal or exceed net planned time'
-  if (i.goodCount > i.totalCount) return 'Good parts cannot exceed total parts produced'
-  if (i.cycleTime <= 0) return 'Ideal cycle time must be greater than 0'
+function validate(i: OEEInputs): TKey | null {
+  if (i.plannedTime <= 0) return 'oee_err_planned'
+  if (i.plannedTime - i.breaks <= 0) return 'oee_err_breaks'
+  if (i.downtime >= i.plannedTime - i.breaks) return 'oee_err_downtime'
+  if (i.goodCount > i.totalCount) return 'oee_err_goodparts'
+  if (i.cycleTime <= 0) return 'oee_err_cycletime'
   return null
 }
 
 const BENCH = [
-  { key: 'availability', label: 'Availability', wc: 90, note: 'A ≥ 90%' },
-  { key: 'performanceCapped', label: 'Performance', wc: 95, note: 'P ≥ 95%' },
-  { key: 'quality', label: 'Quality', wc: 99.9, note: 'Q ≥ 99.9%' },
-  { key: 'oee', label: 'OEE', wc: 85, note: 'OEE ≥ 85%' },
+  { key: 'availability', labelKey: 'oee_bench_availability', wc: 90, note: 'A ≥ 90%' },
+  { key: 'performanceCapped', labelKey: 'oee_bench_performance', wc: 95, note: 'P ≥ 95%' },
+  { key: 'quality', labelKey: 'oee_bench_quality', wc: 99.9, note: 'Q ≥ 99.9%' },
+  { key: 'oee', labelKey: 'oee_bench_oee', wc: 85, note: 'OEE ≥ 85%' },
 ] as const
 
 export default function OEECalculator() {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const chartRef = useRef<ChartJSInstance<'bar'>>(null)
 
@@ -107,8 +110,8 @@ export default function OEECalculator() {
     setInputs(prev => ({ ...prev, [field]: parseFloat(val) || 0 }))
   }
 
-  const error = validate(inputs)
-  const result = error ? null : calcOEE(inputs)
+  const errorKey = validate(inputs)
+  const result = errorKey ? null : calcOEE(inputs)
   const cls = result ? classify(result.oee) : null
 
   const classColor: Record<Classification, string> = {
@@ -120,17 +123,17 @@ export default function OEECalculator() {
 
   const lossData = result
     ? [
-        { label: 'Downtime Loss', sub: 'Breakdown + Changeover', value: result.downtimeLoss, color: c.danger },
-        { label: 'Speed Loss', sub: 'Minor Stops + Reduced Speed', value: result.speedLoss, color: c.amber },
-        { label: 'Quality Loss', sub: 'Defects + Startup Rejects', value: result.qualityLoss, color: c.accent },
+        { labelKey: 'oee_loss_downtime' as TKey, subKey: 'oee_loss_downtime_sub' as TKey, value: result.downtimeLoss, color: c.danger },
+        { labelKey: 'oee_loss_speed' as TKey, subKey: 'oee_loss_speed_sub' as TKey, value: result.speedLoss, color: c.amber },
+        { labelKey: 'oee_loss_quality' as TKey, subKey: 'oee_loss_quality_sub' as TKey, value: result.qualityLoss, color: c.accent },
       ]
     : []
 
   const chartData = {
-    labels: lossData.map(l => l.label),
+    labels: lossData.map(l => t(l.labelKey)),
     datasets: [
       {
-        label: 'Loss %',
+        label: t('oee_loss_pct_label'),
         data: lossData.map(l => Number(l.value.toFixed(2))),
         backgroundColor: lossData.map(l => l.color),
         borderRadius: 4,
@@ -184,13 +187,13 @@ export default function OEECalculator() {
       `Quality (First Pass Yield),${result.quality.toFixed(2)},%`,
       '',
       'Six Big Losses,Value,Unit',
-      ...lossData.map(l => `${l.label},${l.value.toFixed(2)},%`),
+      ...lossData.map(l => `${t(l.labelKey)},${l.value.toFixed(2)},%`),
       '',
       'Benchmark,Your Value,World-Class,Gap',
       ...BENCH.map(b => {
         const yours = result[b.key]
         const gap = yours - b.wc
-        return `${b.label},${yours.toFixed(2)}%,${b.wc}%,${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`
+        return `${t(b.labelKey)},${yours.toFixed(2)}%,${b.wc}%,${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`
       }),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -211,11 +214,11 @@ export default function OEECalculator() {
       { Metric: 'Performance', 'Value (%)': result.performanceCapped.toFixed(2) },
       { Metric: 'Quality (First Pass Yield)', 'Value (%)': result.quality.toFixed(2) },
     ]
-    const losses = lossData.map(l => ({ 'Loss Category': l.label, Description: l.sub, 'Value (%)': l.value.toFixed(2) }))
+    const losses = lossData.map(l => ({ 'Loss Category': t(l.labelKey), Description: t(l.subKey), 'Value (%)': l.value.toFixed(2) }))
     const bench = BENCH.map(b => {
       const yours = result[b.key]
       return {
-        Metric: b.label,
+        Metric: t(b.labelKey),
         'Your Value (%)': yours.toFixed(2),
         'World-Class (%)': b.wc,
         'Gap (%)': (yours - b.wc).toFixed(2),
@@ -261,7 +264,7 @@ export default function OEECalculator() {
     pdf.setFontSize(13)
     pdf.setFont('helvetica', 'bold')
     pdf.setTextColor(0)
-    pdf.text(`OEE: ${result.oee.toFixed(2)}%  —  ${cls.label}`, margin, y)
+    pdf.text(`OEE: ${result.oee.toFixed(2)}%  —  ${t(cls.labelKey)}`, margin, y)
     y += 24
 
     pdf.setFontSize(10)
@@ -292,7 +295,7 @@ export default function OEECalculator() {
       const yours = result[b.key]
       const gap = yours - b.wc
       pdf.text(
-        `${b.label}: ${yours.toFixed(2)}%  (World-class ${b.wc}%, gap ${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%)`,
+        `${t(b.labelKey)}: ${yours.toFixed(2)}%  (World-class ${b.wc}%, gap ${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%)`,
         margin, y
       )
       y += 15
@@ -384,13 +387,13 @@ export default function OEECalculator() {
     },
   }
 
-  const fields: { key: keyof OEEInputs; label: string; step?: string }[] = [
-    { key: 'plannedTime', label: 'Planned Production Time (min)' },
-    { key: 'breaks', label: 'Planned Downtime / Breaks (min)' },
-    { key: 'downtime', label: 'Unplanned Downtime (min)' },
-    { key: 'cycleTime', label: 'Ideal Cycle Time (sec/part)', step: '0.1' },
-    { key: 'totalCount', label: 'Total Parts Produced' },
-    { key: 'goodCount', label: 'Good Parts (first pass)' },
+  const fields: { key: keyof OEEInputs; labelKey: TKey; step?: string }[] = [
+    { key: 'plannedTime', labelKey: 'oee_field_planned' },
+    { key: 'breaks', labelKey: 'oee_field_breaks' },
+    { key: 'downtime', labelKey: 'oee_field_downtime' },
+    { key: 'cycleTime', labelKey: 'oee_field_cycletime', step: '0.1' },
+    { key: 'totalCount', labelKey: 'oee_field_total' },
+    { key: 'goodCount', labelKey: 'oee_field_good' },
   ]
 
   return (
@@ -400,10 +403,10 @@ export default function OEECalculator() {
       <div className="qh-body" style={s.body}>
         <div className="qh-left" style={s.left}>
           <div>
-            <div style={s.sectionTitle}>⚙️ Production Data</div>
+            <div style={s.sectionTitle}>{t('oee_production_data')}</div>
             {fields.map(f => (
               <div key={f.key} style={s.field}>
-                <div style={s.label}>{f.label}</div>
+                <div style={s.label}>{t(f.labelKey)}</div>
                 <input
                   style={s.input}
                   type="number"
@@ -415,24 +418,23 @@ export default function OEECalculator() {
               </div>
             ))}
             <div style={{ fontSize: 10, color: c.muted, lineHeight: 1.6, marginTop: 4 }}>
-              Ideal cycle time is the design rate — fastest achievable without compromise.
-              Planned downtime (breaks, scheduled maintenance) is excluded from the OEE base.
+              {t('oee_hint')}
             </div>
-            {error && (
+            {errorKey && (
               <div style={{ color: c.danger, fontSize: 12, marginTop: 10, fontWeight: 600 }}>
-                {error}
+                {t(errorKey)}
               </div>
             )}
           </div>
 
           {result && (
             <div>
-              <div style={s.sectionTitle}>📤 Export</div>
+              <div style={s.sectionTitle}>{t('common_export_section')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
-                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
-                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
-                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
+                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
+                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
+                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
+                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
               </div>
               <div style={{ marginTop: 8 }}>
                 <SaveAnalysisButton
@@ -457,32 +459,32 @@ export default function OEECalculator() {
                   background: `${classColor[cls.type]}15`,
                 }}
               >
-                {cls.label} — OEE {result.oee.toFixed(2)}%
+                {t(cls.labelKey)} — OEE {result.oee.toFixed(2)}%
               </div>
 
               <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={{ ...s.statVal, color: classColor[cls.type] }}>{result.oee.toFixed(1)}%</div>
-                  <div style={s.statLabel}>OEE (Overall)</div>
+                  <div style={s.statLabel}>{t('oee_stat_overall')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{result.availability.toFixed(1)}%</div>
-                  <div style={s.statLabel}>Availability</div>
+                  <div style={s.statLabel}>{t('oee_stat_availability')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{result.performanceCapped.toFixed(1)}%</div>
-                  <div style={s.statLabel}>Performance</div>
+                  <div style={s.statLabel}>{t('oee_stat_performance')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{result.quality.toFixed(1)}%</div>
-                  <div style={s.statLabel}>Quality (FPY)</div>
+                  <div style={s.statLabel}>{t('oee_stat_quality_fpy')}</div>
                 </div>
               </div>
 
               <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Six Big Losses</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t('oee_sixlosses_title')}</div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  Downtime · Speed · Quality — as a % of net planned time
+                  {t('oee_sixlosses_sub')}
                 </div>
                 <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
@@ -490,15 +492,15 @@ export default function OEECalculator() {
               </div>
 
               <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>World-Class Benchmark</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('oee_bench_title')}</div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={s.table}>
                     <thead>
                       <tr>
-                        <th style={s.th}>Metric</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>Your Value</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>World-Class</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>Gap</th>
+                        <th style={s.th}>{t('oee_col_metric')}</th>
+                        <th style={{ ...s.th, textAlign: 'right' }}>{t('oee_col_yourvalue')}</th>
+                        <th style={{ ...s.th, textAlign: 'right' }}>{t('oee_col_worldclass')}</th>
+                        <th style={{ ...s.th, textAlign: 'right' }}>{t('oee_col_gap')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -508,7 +510,7 @@ export default function OEECalculator() {
                         return (
                           <tr key={b.key}>
                             <td style={s.td}>
-                              {b.label}
+                              {t(b.labelKey)}
                               <div style={{ fontSize: 10, color: c.muted }}>{b.note}</div>
                             </td>
                             <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: yours >= b.wc ? '#22c55e' : c.text }}>
@@ -527,16 +529,16 @@ export default function OEECalculator() {
               </div>
 
               <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Conditions at Analysis</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('oee_conditions_title')}</div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={s.table}>
                     <tbody>
-                      <tr><td style={{ ...s.td, color: c.muted }}>Planned Time</td><td style={s.td}>{inputs.plannedTime} min (net: {result.netPlanned} min)</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>Unplanned Downtime</td><td style={s.td}>{inputs.downtime} min</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>Ideal Cycle Time</td><td style={s.td}>{inputs.cycleTime} sec/part</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>Total Produced</td><td style={s.td}>{Math.round(inputs.totalCount).toLocaleString()} parts</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>Good Parts</td><td style={s.td}>{Math.round(inputs.goodCount).toLocaleString()} parts ({result.quality.toFixed(2)}%)</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted, borderBottom: 'none' }}>Formula</td><td style={{ ...s.td, borderBottom: 'none' }}>OEE = A × P × Q</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_plannedtime')}</td><td style={s.td}>{inputs.plannedTime} {t('oee_unit_min')} ({t('oee_unit_net')}: {result.netPlanned} {t('oee_unit_min')})</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_unplanned')}</td><td style={s.td}>{inputs.downtime} {t('oee_unit_min')}</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_idealcycle')}</td><td style={s.td}>{inputs.cycleTime} {t('oee_unit_secpart')}</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_totalproduced')}</td><td style={s.td}>{Math.round(inputs.totalCount).toLocaleString()} {t('oee_unit_parts')}</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_goodparts')}</td><td style={s.td}>{Math.round(inputs.goodCount).toLocaleString()} {t('oee_unit_parts')} ({result.quality.toFixed(2)}%)</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted, borderBottom: 'none' }}>{t('oee_row_formula')}</td><td style={{ ...s.td, borderBottom: 'none' }}>OEE = A × P × Q</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -544,7 +546,7 @@ export default function OEECalculator() {
             </>
           ) : (
             <div style={{ ...s.card, textAlign: 'center', padding: 60, color: c.muted }}>
-              {error || 'Enter production data on the left to calculate OEE'}
+              {errorKey ? t(errorKey) : t('oee_empty_state')}
             </div>
           )}
         </div>
