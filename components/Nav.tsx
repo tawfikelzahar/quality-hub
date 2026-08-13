@@ -3,6 +3,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import Link from 'next/link'
 import AuthStatus from '@/components/AuthStatus'
+import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
 import { getSharedStyles, type ThemeMode } from '@/lib/theme'
 import type { TKey } from '@/lib/i18n/translations'
@@ -53,6 +54,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
         >
           {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
         </button>
+        <LanguageToggle theme={theme} />
         <AuthStatus />
         {showGetPro && (
           <Link href="/pricing" style={s.ctaBtn}>

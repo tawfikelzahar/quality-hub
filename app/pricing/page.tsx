@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import { useLanguage } from '@/lib/i18n/context'
+import type { TKey } from '@/lib/i18n/translations'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Pricing is intentionally static for now (Phase 3 of the subscription
@@ -12,59 +14,58 @@ import Nav from '@/components/Nav'
 // The Pro CTA sends the person to /account, where the real
 // "Upgrade to Pro — Coming Soon" stub already lives.
 //
-// PRICE_LABEL is the one thing you'll want to edit once pricing is final —
-// it's a plain string so no other part of the page needs to change.
+// PRICE_LABEL is translated via the pricing_price_label i18n key now.
 // ─────────────────────────────────────────────────────────────────────────
-const PRICE_LABEL = 'Coming Soon'
 
 interface Feature {
-  label: string
-  free: boolean | string
-  pro: boolean | string
+  labelKey: TKey
+  free: boolean | TKey
+  pro: boolean | TKey
 }
 
-const FEATURES: { section: string; items: Feature[] }[] = [
+const FEATURES: { sectionKey: TKey; items: Feature[] }[] = [
   {
-    section: 'SPC Engine',
+    sectionKey: 'pricing_section_spc',
     items: [
-      { label: 'I-MR & X̄-R charts', free: true, pro: true },
-      { label: 'Capability indices (Cp/Cpk/Pp/Ppk)', free: true, pro: true },
-      { label: 'Attribute charts (p/np/c/u)', free: false, pro: true },
-      { label: 'Nelson Rule violations', free: false, pro: true },
-      { label: 'Anderson-Darling normality test', free: false, pro: true },
-      { label: 'Distribution / ECDF charts', free: false, pro: true },
+      { labelKey: 'pricing_feat_imr', free: true, pro: true },
+      { labelKey: 'pricing_feat_capability', free: true, pro: true },
+      { labelKey: 'pricing_feat_attribute', free: false, pro: true },
+      { labelKey: 'pricing_feat_nelson', free: false, pro: true },
+      { labelKey: 'pricing_feat_ad', free: false, pro: true },
+      { labelKey: 'pricing_feat_dist', free: false, pro: true },
     ],
   },
   {
-    section: 'Other Tools',
+    sectionKey: 'pricing_section_other',
     items: [
-      { label: 'Pareto Chart', free: true, pro: true },
-      { label: 'DPMO & Sigma Calculator', free: true, pro: true },
-      { label: 'OEE Calculator', free: true, pro: true },
-      { label: 'Gage R&R (AIAG Average & Range)', free: false, pro: true },
-      { label: 'Stability Study', free: false, pro: true },
-      { label: 'AQL Sampling Plan Calculator', free: false, pro: true },
+      { labelKey: 'pricing_feat_pareto', free: true, pro: true },
+      { labelKey: 'pricing_feat_dpmo', free: true, pro: true },
+      { labelKey: 'pricing_feat_oee', free: true, pro: true },
+      { labelKey: 'pricing_feat_gagerr', free: false, pro: true },
+      { labelKey: 'pricing_feat_stability', free: false, pro: true },
+      { labelKey: 'pricing_feat_aql', free: false, pro: true },
     ],
   },
   {
-    section: 'Export & Projects',
+    sectionKey: 'pricing_section_export',
     items: [
-      { label: 'Export to CSV / PNG', free: 'With watermark', pro: 'No watermark' },
-      { label: 'Export to Excel / PDF', free: false, pro: true },
-      { label: 'Save projects & Cloud Sync', free: false, pro: 'Up to 50 projects' },
-      { label: 'Projects Dashboard', free: false, pro: true },
+      { labelKey: 'pricing_feat_export_csv', free: 'pricing_val_watermark', pro: 'pricing_val_nowatermark' },
+      { labelKey: 'pricing_feat_export_excel', free: false, pro: true },
+      { labelKey: 'pricing_feat_save', free: false, pro: 'pricing_val_50projects' },
+      { labelKey: 'pricing_feat_dashboard', free: false, pro: true },
     ],
   },
 ]
 
-function Check({ ok }: { ok: boolean | string; accent: string; muted: string }) {
+function Check({ ok, t }: { ok: boolean | TKey; accent: string; muted: string; t: (k: TKey) => string }) {
   if (ok === false) return <span style={{ opacity: 0.35 }}>—</span>
-  if (typeof ok === 'string') return <span>{ok}</span>
+  if (typeof ok === 'string') return <span>{t(ok)}</span>
   return <span>✓</span>
 }
 
 export default function PricingPage() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
 
@@ -118,7 +119,7 @@ export default function PricingPage() {
             borderRadius: 20,
           }}
         >
-          RECOMMENDED
+          {t('pricing_recommended')}
         </span>
       )}
       <div style={{ fontSize: 15, fontWeight: 700, color: c.text, marginTop: opts.highlight ? 8 : 0 }}>
@@ -134,7 +135,7 @@ export default function PricingPage() {
         ))}
       </ul>
       {checkingAuth ? (
-        <div style={{ ...s.exportBtn, opacity: 0.4, width: '100%' }}>Loading...</div>
+        <div style={{ ...s.exportBtn, opacity: 0.4, width: '100%' }}>{t('pricing_loading')}</div>
       ) : (
         <Link
           href={opts.href}
@@ -159,41 +160,41 @@ export default function PricingPage() {
       <main className="qh-main" style={{ ...s.main, alignItems: 'center' }}>
         <div style={{ maxWidth: 880, width: '100%', textAlign: 'center', marginTop: 20, marginBottom: 8 }}>
           <h1 style={{ fontSize: 30, fontWeight: 800, color: c.text, margin: '0 0 10px' }}>
-            Simple, transparent pricing
+            {t('pricing_hero_title')}
           </h1>
           <p style={{ fontSize: 14, color: c.muted, margin: 0 }}>
-            Start free with the core tools. Upgrade when you need advanced analysis, more exports, and saved projects.
+            {t('pricing_hero_sub')}
           </p>
         </div>
 
         {/* Plan cards */}
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', maxWidth: 880, width: '100%', marginTop: 28 }}>
           {planCard({
-            name: 'Free',
-            price: '$0',
-            tagline: 'Forever free — no credit card needed',
+            name: t('pricing_free_name'),
+            price: t('pricing_free_price'),
+            tagline: t('pricing_free_tagline'),
             bullets: [
-              'SPC Engine (I-MR, X̄-R, capability)',
-              'Pareto Chart',
-              'DPMO & Sigma Calculator',
-              'OEE Calculator',
-              'CSV / PNG export (watermarked)',
+              t('pricing_free_bullet_1'),
+              t('pricing_free_bullet_2'),
+              t('pricing_free_bullet_3'),
+              t('pricing_free_bullet_4'),
+              t('pricing_free_bullet_5'),
             ],
-            cta: loggedIn ? 'Go to Dashboard' : 'Get Started Free',
+            cta: loggedIn ? t('pricing_free_cta_dashboard') : t('pricing_free_cta_start'),
             href: freeCtaHref,
           })}
           {planCard({
-            name: 'Pro',
-            price: PRICE_LABEL,
-            tagline: 'Everything in Free, plus the full toolkit',
+            name: t('pricing_pro_name'),
+            price: t('pricing_price_label'),
+            tagline: t('pricing_pro_tagline'),
             bullets: [
-              'Everything in Free',
-              'Attribute charts, Nelson Rules & normality tests',
-              'Gage R&R, Stability Study & AQL Calculator',
-              'Excel / PDF export — no watermark',
-              'Save projects, Cloud Sync & Dashboard (up to 50)',
+              t('pricing_pro_bullet_1'),
+              t('pricing_pro_bullet_2'),
+              t('pricing_pro_bullet_3'),
+              t('pricing_pro_bullet_4'),
+              t('pricing_pro_bullet_5'),
             ],
-            cta: 'Upgrade to Pro',
+            cta: t('pricing_pro_cta'),
             href: proCtaHref,
             highlight: true,
           })}
@@ -201,20 +202,20 @@ export default function PricingPage() {
 
         {/* Feature comparison table */}
         <div style={{ maxWidth: 880, width: '100%', marginTop: 40 }}>
-          <div style={s.sectionTitle}>Full Feature Comparison</div>
+          <div style={s.sectionTitle}>{t('pricing_table_title')}</div>
           <div style={s.chartWrap}>
             <table style={s.table}>
               <thead>
                 <tr>
-                  <th style={s.th}>Feature</th>
-                  <th style={{ ...s.th, textAlign: 'center' }}>Free</th>
-                  <th style={{ ...s.th, textAlign: 'center', color: c.accent }}>Pro</th>
+                  <th style={s.th}>{t('pricing_col_feature')}</th>
+                  <th style={{ ...s.th, textAlign: 'center' }}>{t('pricing_col_free')}</th>
+                  <th style={{ ...s.th, textAlign: 'center', color: c.accent }}>{t('pricing_col_pro')}</th>
                 </tr>
               </thead>
               <tbody>
                 {FEATURES.map((group) => (
                   <>
-                    <tr key={group.section}>
+                    <tr key={group.sectionKey}>
                       <td
                         colSpan={3}
                         style={{
@@ -228,17 +229,17 @@ export default function PricingPage() {
                           borderBottom: `1px solid ${c.border}`,
                         }}
                       >
-                        {group.section}
+                        {t(group.sectionKey)}
                       </td>
                     </tr>
                     {group.items.map((f) => (
-                      <tr key={f.label}>
-                        <td style={s.td}>{f.label}</td>
+                      <tr key={f.labelKey}>
+                        <td style={s.td}>{t(f.labelKey)}</td>
                         <td style={{ ...s.td, textAlign: 'center', color: c.muted }}>
-                          <Check ok={f.free} accent={c.accent} muted={c.muted} />
+                          <Check ok={f.free} accent={c.accent} muted={c.muted} t={t} />
                         </td>
                         <td style={{ ...s.td, textAlign: 'center', color: c.accent, fontWeight: 600 }}>
-                          <Check ok={f.pro} accent={c.accent} muted={c.muted} />
+                          <Check ok={f.pro} accent={c.accent} muted={c.muted} t={t} />
                         </td>
                       </tr>
                     ))}
@@ -250,11 +251,11 @@ export default function PricingPage() {
         </div>
 
         <div style={{ fontSize: 12, color: c.muted, marginTop: 32, marginBottom: 20 }}>
-          Questions about a plan?{' '}
+          {t('pricing_footer_prefix')}{' '}
           <Link href="/account" style={{ color: c.accent, textDecoration: 'none', fontWeight: 600 }}>
-            Visit your account page
+            {t('pricing_footer_link')}
           </Link>{' '}
-          for the current status of your plan.
+          {t('pricing_footer_suffix')}
         </div>
       </main>
     </div>

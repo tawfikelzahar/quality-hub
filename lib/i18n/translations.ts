@@ -89,6 +89,113 @@ export const translations = {
     fmea_title: 'FMEA Builder',
     fmea_desc: 'Process & Design FMEA · RPN calculation · Risk matrix · Export to Excel',
 
+    // ── About page ──
+    about_kicker: 'About Quality Hub',
+    about_hero_title_1: 'Built by a Quality Engineer,',
+    about_hero_title_2: 'for Quality Engineers.',
+    about_origin_p1:
+      "Quality Hub started with a simple frustration: quality engineers shouldn't need five different tools, a stack of spreadsheets, and an expensive software license just to run an SPC chart or calculate Cpk.",
+    about_origin_p2:
+      'After more than 10 years working in manufacturing, quality engineering, and continuous improvement, I built the platform I wished existed — one place for SPC, Process Capability, Pareto Analysis, AQL Sampling, Gage R&R (MSA), and Stability Studies, built to the standards engineers actually work against: ISO 2859-1, AIAG, and ICH Q1E.',
+    about_philosophy_heading: 'Our Philosophy',
+    about_philosophy_p:
+      'Good quality engineering starts with good evidence. Data should help you understand variation. Analysis should support real decisions. And better decisions should lead to better processes.',
+    about_step_analyze: 'Analyze',
+    about_step_understand: 'Understand',
+    about_step_decide: 'Decide',
+    about_step_improve: 'Improve',
+    about_direct_heading: 'Direct, hands-on, and accountable',
+    about_direct_p1:
+      "Every tool on Quality Hub is built, tested, and maintained by me — actively used and refined based on real quality engineering work, not handed off to a support team that doesn't understand the field.",
+    about_direct_p2:
+      "When you reach out, you're talking directly to the person building the platform. Feedback turns into features fast, because there's no layer between your request and the person who can act on it.",
+    about_builder_name: 'Tawfik Elzahar',
+    about_builder_role: 'Quality Engineer · Founder, Quality Hub',
+    about_builder_cta: "If you have questions, feedback, or a feature request, I'd genuinely like to hear from you.",
+
+    // ── Shared contact CTAs (About + Contact pages) ──
+    cta_email: 'Email',
+    cta_whatsapp: 'WhatsApp',
+    cta_linkedin: 'LinkedIn',
+
+    // ── Contact page ──
+    contact_hero_title: 'Get in touch',
+    contact_hero_sub:
+      "Questions, feedback, or a feature request — reach out directly. You'll be talking to the person building Quality Hub, not a support queue.",
+    contact_ch_email_title: 'Email',
+    contact_ch_email_sub: 'Best for detailed questions, billing, or account issues.',
+    contact_ch_email_cta: 'Send an email',
+    contact_ch_whatsapp_title: 'WhatsApp',
+    contact_ch_whatsapp_sub: 'Best for quick questions before you subscribe.',
+    contact_ch_whatsapp_cta: 'Open WhatsApp',
+    contact_ch_linkedin_title: 'LinkedIn',
+    contact_ch_linkedin_sub: 'Connect, follow updates, or send a message.',
+    contact_ch_linkedin_cta: 'View profile',
+    contact_footer_prefix: 'Want to know more about the project first?',
+    contact_footer_link: 'Read the About page',
+
+    // ── Pricing page ──
+    pricing_hero_title: 'Simple, transparent pricing',
+    pricing_hero_sub:
+      'Start free with the core tools. Upgrade when you need advanced analysis, more exports, and saved projects.',
+    pricing_price_label: 'Coming Soon',
+    pricing_recommended: 'RECOMMENDED',
+    pricing_loading: 'Loading...',
+
+    pricing_free_name: 'Free',
+    pricing_free_price: '$0',
+    pricing_free_tagline: 'Forever free — no credit card needed',
+    pricing_free_bullet_1: 'SPC Engine (I-MR, X̄-R, capability)',
+    pricing_free_bullet_2: 'Pareto Chart',
+    pricing_free_bullet_3: 'DPMO & Sigma Calculator',
+    pricing_free_bullet_4: 'OEE Calculator',
+    pricing_free_bullet_5: 'CSV / PNG export (watermarked)',
+    pricing_free_cta_dashboard: 'Go to Dashboard',
+    pricing_free_cta_start: 'Get Started Free',
+
+    pricing_pro_name: 'Pro',
+    pricing_pro_tagline: 'Everything in Free, plus the full toolkit',
+    pricing_pro_bullet_1: 'Everything in Free',
+    pricing_pro_bullet_2: 'Attribute charts, Nelson Rules & normality tests',
+    pricing_pro_bullet_3: 'Gage R&R, Stability Study & AQL Calculator',
+    pricing_pro_bullet_4: 'Excel / PDF export — no watermark',
+    pricing_pro_bullet_5: 'Save projects, Cloud Sync & Dashboard (up to 50)',
+    pricing_pro_cta: 'Upgrade to Pro',
+
+    pricing_table_title: 'Full Feature Comparison',
+    pricing_col_feature: 'Feature',
+    pricing_col_free: 'Free',
+    pricing_col_pro: 'Pro',
+
+    pricing_section_spc: 'SPC Engine',
+    pricing_section_other: 'Other Tools',
+    pricing_section_export: 'Export & Projects',
+
+    pricing_feat_imr: 'I-MR & X̄-R charts',
+    pricing_feat_capability: 'Capability indices (Cp/Cpk/Pp/Ppk)',
+    pricing_feat_attribute: 'Attribute charts (p/np/c/u)',
+    pricing_feat_nelson: 'Nelson Rule violations',
+    pricing_feat_ad: 'Anderson-Darling normality test',
+    pricing_feat_dist: 'Distribution / ECDF charts',
+    pricing_feat_pareto: 'Pareto Chart',
+    pricing_feat_dpmo: 'DPMO & Sigma Calculator',
+    pricing_feat_oee: 'OEE Calculator',
+    pricing_feat_gagerr: 'Gage R&R (AIAG Average & Range)',
+    pricing_feat_stability: 'Stability Study',
+    pricing_feat_aql: 'AQL Sampling Plan Calculator',
+    pricing_feat_export_csv: 'Export to CSV / PNG',
+    pricing_feat_export_excel: 'Export to Excel / PDF',
+    pricing_feat_save: 'Save projects & Cloud Sync',
+    pricing_feat_dashboard: 'Projects Dashboard',
+
+    pricing_val_watermark: 'With watermark',
+    pricing_val_nowatermark: 'No watermark',
+    pricing_val_50projects: 'Up to 50 projects',
+
+    pricing_footer_prefix: 'Questions about a plan?',
+    pricing_footer_link: 'Visit your account page',
+    pricing_footer_suffix: 'for the current status of your plan.',
+
     // ── Footer ──
     footer_about: 'About',
     footer_contact: 'Contact',
@@ -169,6 +276,113 @@ export const translations = {
 
     fmea_title: 'أداة FMEA',
     fmea_desc: 'Process & Design FMEA · حساب RPN · مصفوفة المخاطر · تصدير إلى Excel',
+
+    // ── About page ──
+    about_kicker: 'عن Quality Hub',
+    about_hero_title_1: 'بُنيت على يد مهندس جودة،',
+    about_hero_title_2: 'لمهندسي الجودة.',
+    about_origin_p1:
+      'بدأت فكرة Quality Hub من إحباط بسيط: لا ينبغي أن يحتاج مهندس الجودة إلى خمس أدوات مختلفة، وكومة من ملفات الإكسل، ورخصة برنامج باهظة الثمن، لمجرد رسم مخطط SPC أو حساب Cpk.',
+    about_origin_p2:
+      'بعد أكثر من 10 سنوات من العمل في التصنيع وهندسة الجودة والتحسين المستمر، بنيت المنصة التي كنت أتمنى وجودها — مكان واحد لـ SPC، وتحليل القدرة (Process Capability)، وتحليل باريتو، وعينات AQL، وGage R&R (MSA)، ودراسات الاستقرار، مبنية على المعايير التي يعمل بها المهندس فعليًا: ISO 2859-1، وAIAG، وICH Q1E.',
+    about_philosophy_heading: 'فلسفتنا',
+    about_philosophy_p:
+      'هندسة الجودة الجيدة تبدأ بدليل موثوق. البيانات يجب أن تساعدك على فهم التباين. التحليل يجب أن يدعم قرارات حقيقية. والقرارات الأفضل يجب أن تؤدي إلى عمليات أفضل.',
+    about_step_analyze: 'تحليل',
+    about_step_understand: 'فهم',
+    about_step_decide: 'قرار',
+    about_step_improve: 'تحسين',
+    about_direct_heading: 'مباشر، عملي، ومسؤول',
+    about_direct_p1:
+      'كل أداة في Quality Hub مبنية ومُختبرة ومُدارة بمعرفتي الشخصية — تُستخدم وتُطوَّر باستمرار بناءً على عمل حقيقي في هندسة الجودة، وليست موكلة إلى فريق دعم لا يفهم المجال.',
+    about_direct_p2:
+      'عندما تتواصل معنا، فأنت تتحدث مباشرة مع الشخص الذي يبني المنصة. الملاحظات تتحول إلى ميزات بسرعة، لأنه لا توجد طبقات وسيطة بين طلبك والشخص القادر على تنفيذه.',
+    about_builder_name: 'توفيق الزهار',
+    about_builder_role: 'مهندس جودة · مؤسس Quality Hub',
+    about_builder_cta: 'إذا كانت لديك أسئلة أو ملاحظات أو اقتراح لميزة جديدة، يسعدني أن أسمعها منك.',
+
+    // ── Shared contact CTAs (About + Contact pages) ──
+    cta_email: 'البريد الإلكتروني',
+    cta_whatsapp: 'WhatsApp',
+    cta_linkedin: 'LinkedIn',
+
+    // ── Contact page ──
+    contact_hero_title: 'تواصل معنا',
+    contact_hero_sub:
+      'أسئلة أو ملاحظات أو اقتراح لميزة جديدة — تواصل معنا مباشرة. ستكون تتحدث مع الشخص الذي يبني Quality Hub، وليس مع فريق دعم.',
+    contact_ch_email_title: 'البريد الإلكتروني',
+    contact_ch_email_sub: 'الأنسب للأسئلة التفصيلية، أو مشكلات الفوترة أو الحساب.',
+    contact_ch_email_cta: 'إرسال بريد إلكتروني',
+    contact_ch_whatsapp_title: 'WhatsApp',
+    contact_ch_whatsapp_sub: 'الأنسب للأسئلة السريعة قبل الاشتراك.',
+    contact_ch_whatsapp_cta: 'فتح WhatsApp',
+    contact_ch_linkedin_title: 'LinkedIn',
+    contact_ch_linkedin_sub: 'تواصل، تابع التحديثات، أو أرسل رسالة.',
+    contact_ch_linkedin_cta: 'عرض الملف الشخصي',
+    contact_footer_prefix: 'هل ترغب في معرفة المزيد عن المشروع أولًا؟',
+    contact_footer_link: 'اقرأ صفحة "عن الموقع"',
+
+    // ── Pricing page ──
+    pricing_hero_title: 'أسعار بسيطة وواضحة',
+    pricing_hero_sub:
+      'ابدأ مجانًا بالأدوات الأساسية. قم بالترقية عندما تحتاج إلى تحليل متقدم، ومزيد من خيارات التصدير، ومشاريع محفوظة.',
+    pricing_price_label: 'قريبًا',
+    pricing_recommended: 'الأكثر طلبًا',
+    pricing_loading: 'جارٍ التحميل...',
+
+    pricing_free_name: 'مجاني',
+    pricing_free_price: '0 $',
+    pricing_free_tagline: 'مجاني للأبد — بدون بطاقة ائتمان',
+    pricing_free_bullet_1: 'SPC Engine (I-MR, X̄-R, القدرة)',
+    pricing_free_bullet_2: 'مخطط Pareto',
+    pricing_free_bullet_3: 'حاسبة DPMO & Sigma',
+    pricing_free_bullet_4: 'حاسبة OEE',
+    pricing_free_bullet_5: 'تصدير CSV / PNG (بعلامة مائية)',
+    pricing_free_cta_dashboard: 'الذهاب إلى لوحة التحكم',
+    pricing_free_cta_start: 'ابدأ مجانًا',
+
+    pricing_pro_name: 'Pro',
+    pricing_pro_tagline: 'كل ما في الخطة المجانية، بالإضافة إلى الحقيبة الكاملة',
+    pricing_pro_bullet_1: 'كل ما في الخطة المجانية',
+    pricing_pro_bullet_2: 'مخططات Attribute، وقواعد Nelson، واختبارات التوزيع الطبيعي',
+    pricing_pro_bullet_3: 'Gage R&R، ودراسة الاستقرار، وحاسبة AQL',
+    pricing_pro_bullet_4: 'تصدير Excel / PDF — بدون علامة مائية',
+    pricing_pro_bullet_5: 'حفظ المشاريع، والمزامنة السحابية، ولوحة التحكم (حتى 50 مشروعًا)',
+    pricing_pro_cta: 'الترقية إلى Pro',
+
+    pricing_table_title: 'مقارنة كاملة بين المزايا',
+    pricing_col_feature: 'الميزة',
+    pricing_col_free: 'مجاني',
+    pricing_col_pro: 'Pro',
+
+    pricing_section_spc: 'SPC Engine',
+    pricing_section_other: 'أدوات أخرى',
+    pricing_section_export: 'التصدير والمشاريع',
+
+    pricing_feat_imr: 'مخططات I-MR وX̄-R',
+    pricing_feat_capability: 'مؤشرات القدرة (Cp/Cpk/Pp/Ppk)',
+    pricing_feat_attribute: 'مخططات Attribute (p/np/c/u)',
+    pricing_feat_nelson: 'مخالفات قواعد Nelson',
+    pricing_feat_ad: 'اختبار Anderson-Darling للتوزيع الطبيعي',
+    pricing_feat_dist: 'مخططات التوزيع / ECDF',
+    pricing_feat_pareto: 'مخطط Pareto',
+    pricing_feat_dpmo: 'حاسبة DPMO & Sigma',
+    pricing_feat_oee: 'حاسبة OEE',
+    pricing_feat_gagerr: 'Gage R&R (AIAG Average & Range)',
+    pricing_feat_stability: 'دراسة الاستقرار',
+    pricing_feat_aql: 'حاسبة خطة عينات AQL',
+    pricing_feat_export_csv: 'تصدير إلى CSV / PNG',
+    pricing_feat_export_excel: 'تصدير إلى Excel / PDF',
+    pricing_feat_save: 'حفظ المشاريع والمزامنة السحابية',
+    pricing_feat_dashboard: 'لوحة تحكم المشاريع',
+
+    pricing_val_watermark: 'بعلامة مائية',
+    pricing_val_nowatermark: 'بدون علامة مائية',
+    pricing_val_50projects: 'حتى 50 مشروعًا',
+
+    pricing_footer_prefix: 'هل لديك سؤال عن إحدى الخطط؟',
+    pricing_footer_link: 'قم بزيارة صفحة حسابك',
+    pricing_footer_suffix: 'لمعرفة الحالة الحالية لخطتك.',
 
     // ── Footer ──
     footer_about: 'عن الموقع',

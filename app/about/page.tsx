@@ -2,6 +2,7 @@
 
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import { useLanguage } from '@/lib/i18n/context'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Static content page — no data fetching, no auth gating. Copy lives here
@@ -18,6 +19,7 @@ const CONTACT = {
 
 export default function AboutPage() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const dark = theme === 'dark'
@@ -61,25 +63,20 @@ export default function AboutPage() {
           {/* ── Hero ── */}
           <div style={{ textAlign: 'center', marginBottom: 44 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: c.accent, textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12 }}>
-              About Quality Hub
+              {t('about_kicker')}
             </div>
             <h1 style={{ fontSize: 34, fontWeight: 800, color: c.text, margin: 0, lineHeight: 1.28, letterSpacing: -0.5 }}>
-              Built by a Quality Engineer,<br />for Quality Engineers.
+              {t('about_hero_title_1')}<br />{t('about_hero_title_2')}
             </h1>
           </div>
 
           {/* ── Origin story ── */}
           <section style={{ marginBottom: 40 }}>
             <p style={paragraph}>
-              Quality Hub started with a simple frustration: quality engineers shouldn&apos;t need five
-              different tools, a stack of spreadsheets, and an expensive software license just to run
-              an SPC chart or calculate Cpk.
+              {t('about_origin_p1')}
             </p>
             <p style={{ ...paragraph, marginBottom: 0 }}>
-              After more than 10 years working in manufacturing, quality engineering, and continuous
-              improvement, I built the platform I wished existed — one place for SPC, Process
-              Capability, Pareto Analysis, AQL Sampling, Gage R&amp;R (MSA), and Stability Studies,
-              built to the standards engineers actually work against: ISO 2859-1, AIAG, and ICH Q1E.
+              {t('about_origin_p2')}
             </p>
           </section>
 
@@ -87,12 +84,10 @@ export default function AboutPage() {
           <section style={{ ...s.card, marginBottom: 28, padding: 28 }}>
             <h2 style={sectionHeading}>
               <span style={headingBar} />
-              Our Philosophy
+              {t('about_philosophy_heading')}
             </h2>
             <p style={{ ...paragraph, marginBottom: 22 }}>
-              Good quality engineering starts with good evidence. Data should help you understand
-              variation. Analysis should support real decisions. And better decisions should lead to
-              better processes.
+              {t('about_philosophy_p')}
             </p>
             <div
               style={{
@@ -105,8 +100,8 @@ export default function AboutPage() {
                 borderTop: `1px solid ${c.border}`,
               }}
             >
-              {['Analyze', 'Understand', 'Decide', 'Improve'].map((step, i) => (
-                <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {(['about_step_analyze', 'about_step_understand', 'about_step_decide', 'about_step_improve'] as const).map((stepKey, i) => (
+                <div key={stepKey} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span
                     style={{
                       fontSize: 13,
@@ -118,7 +113,7 @@ export default function AboutPage() {
                       padding: '6px 14px',
                     }}
                   >
-                    {step}
+                    {t(stepKey)}
                   </span>
                   {i < 3 && <span style={{ color: c.muted, fontSize: 14 }}>→</span>}
                 </div>
@@ -130,17 +125,13 @@ export default function AboutPage() {
           <section style={{ marginBottom: 44 }}>
             <h2 style={sectionHeading}>
               <span style={headingBar} />
-              Direct, hands-on, and accountable
+              {t('about_direct_heading')}
             </h2>
             <p style={paragraph}>
-              Every tool on Quality Hub is built, tested, and maintained by me — actively used and
-              refined based on real quality engineering work, not handed off to a support team that
-              doesn&apos;t understand the field.
+              {t('about_direct_p1')}
             </p>
             <p style={{ ...paragraph, marginBottom: 0 }}>
-              When you reach out, you&apos;re talking directly to the person building the platform.
-              Feedback turns into features fast, because there&apos;s no layer between your request
-              and the person who can act on it.
+              {t('about_direct_p2')}
             </p>
           </section>
 
@@ -168,15 +159,14 @@ export default function AboutPage() {
             </div>
 
             <div style={{ fontSize: 19, fontWeight: 800, color: c.text, marginBottom: 2 }}>
-              Tawfik Elzahar
+              {t('about_builder_name')}
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: c.accent, marginBottom: 20 }}>
-              Quality Engineer · Founder, Quality Hub
+              {t('about_builder_role')}
             </div>
 
             <p style={{ ...paragraph, maxWidth: 460, margin: '0 auto 24px', fontSize: 14 }}>
-              If you have questions, feedback, or a feature request, I&apos;d genuinely like to hear
-              from you.
+              {t('about_builder_cta')}
             </p>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -188,7 +178,7 @@ export default function AboutPage() {
                   <path d="M4 4h16v16H4z" />
                   <path d="m4 6 8 7 8-7" />
                 </svg>
-                Email
+                {t('cta_email')}
               </a>
               <a
                 href={CONTACT.whatsapp}
@@ -199,7 +189,7 @@ export default function AboutPage() {
                 <svg style={iconStyle} viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12.04 2c-5.52 0-10 4.48-10 10 0 1.77.46 3.45 1.27 4.9L2 22l5.25-1.38A9.94 9.94 0 0 0 12.04 22c5.52 0 10-4.48 10-10s-4.48-10-10-10Zm5.72 14.24c-.24.68-1.4 1.3-1.94 1.35-.5.05-1.02.24-3.4-.71-2.9-1.16-4.76-4.1-4.9-4.3-.14-.2-1.17-1.55-1.17-2.96 0-1.4.74-2.09 1-2.38.26-.28.57-.35.76-.35h.5c.17 0 .38-.02.6.46.24.55.8 1.94.87 2.08.07.14.12.31.02.5-.1.2-.15.3-.29.47-.14.16-.3.36-.43.48-.14.14-.3.28-.13.55.17.28.75 1.24 1.62 2.01 1.11 1 2.05 1.3 2.32 1.45.28.14.44.12.6-.07.17-.2.7-.82.9-1.1.19-.28.38-.24.63-.14.26.1 1.64.77 1.92.91.28.14.47.2.53.32.07.12.07.68-.17 1.36Z" />
                 </svg>
-                WhatsApp
+                {t('cta_whatsapp')}
               </a>
               <a
                 href={CONTACT.linkedin}
@@ -210,7 +200,7 @@ export default function AboutPage() {
                 <svg style={iconStyle} viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45Z" />
                 </svg>
-                LinkedIn
+                {t('cta_linkedin')}
               </a>
             </div>
           </section>

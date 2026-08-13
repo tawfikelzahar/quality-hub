@@ -3,36 +3,41 @@
 import Link from 'next/link'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import { useLanguage } from '@/lib/i18n/context'
+import type { TKey } from '@/lib/i18n/translations'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Static contact page. Same three channels as the "Meet the Builder"
 // section on /about — kept in sync manually since this is a tiny,
 // low-churn list. Update both files if any of these change.
+//
+// title/sub/cta reference i18n keys (translated); detail is raw contact
+// data (email/phone/handle) and is never translated.
 // ─────────────────────────────────────────────────────────────────────────
 const CHANNELS = [
   {
     key: 'email',
-    title: 'Email',
+    titleKey: 'contact_ch_email_title' as TKey,
     detail: 'tawfik.elzahar1@gmail.com',
-    sub: 'Best for detailed questions, billing, or account issues.',
+    subKey: 'contact_ch_email_sub' as TKey,
     href: 'mailto:tawfik.elzahar1@gmail.com',
-    cta: 'Send an email',
+    ctaKey: 'contact_ch_email_cta' as TKey,
   },
   {
     key: 'whatsapp',
-    title: 'WhatsApp',
+    titleKey: 'contact_ch_whatsapp_title' as TKey,
     detail: '+20 122 449 1539',
-    sub: 'Best for quick questions before you subscribe.',
+    subKey: 'contact_ch_whatsapp_sub' as TKey,
     href: 'https://wa.me/201224491539',
-    cta: 'Open WhatsApp',
+    ctaKey: 'contact_ch_whatsapp_cta' as TKey,
   },
   {
     key: 'linkedin',
-    title: 'LinkedIn',
+    titleKey: 'contact_ch_linkedin_title' as TKey,
     detail: 'in/tawfikelzahar',
-    sub: 'Connect, follow updates, or send a message.',
+    subKey: 'contact_ch_linkedin_sub' as TKey,
     href: 'https://www.linkedin.com/in/tawfikelzahar',
-    cta: 'View profile',
+    ctaKey: 'contact_ch_linkedin_cta' as TKey,
   },
 ] as const
 
@@ -64,6 +69,7 @@ function ChannelIcon({ channelKey }: { channelKey: (typeof CHANNELS)[number]['ke
 
 export default function ContactPage() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const dark = theme === 'dark'
@@ -80,11 +86,10 @@ export default function ContactPage() {
       <main className="qh-main" style={{ ...s.main, alignItems: 'center' }}>
         <div style={{ maxWidth: 760, width: '100%', textAlign: 'center', marginTop: 20, marginBottom: 8 }}>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: c.text, margin: '0 0 12px', letterSpacing: -0.5 }}>
-            Get in touch
+            {t('contact_hero_title')}
           </h1>
           <p style={{ fontSize: 15, color: bodyColor, lineHeight: 1.7, margin: '0 auto', maxWidth: 480 }}>
-            Questions, feedback, or a feature request — reach out directly. You&apos;ll be talking
-            to the person building Quality Hub, not a support queue.
+            {t('contact_hero_sub')}
           </p>
         </div>
 
@@ -121,12 +126,12 @@ export default function ContactPage() {
               >
                 <ChannelIcon channelKey={ch.key} />
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: c.text }}>{ch.title}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: c.text }}>{t(ch.titleKey)}</div>
               <div style={{ fontSize: 13, color: c.accent, fontWeight: 600, wordBreak: 'break-word' }}>
                 {ch.detail}
               </div>
               <div style={{ fontSize: 12.5, color: subColor, lineHeight: 1.65, margin: '4px 0 14px' }}>
-                {ch.sub}
+                {t(ch.subKey)}
               </div>
               <a
                 href={ch.href}
@@ -134,16 +139,16 @@ export default function ContactPage() {
                 rel={ch.key === 'email' ? undefined : 'noopener noreferrer'}
                 style={{ ...s.exportBtn, textDecoration: 'none', width: '100%' }}
               >
-                {ch.cta}
+                {t(ch.ctaKey)}
               </a>
             </div>
           ))}
         </div>
 
         <div style={{ fontSize: 13, color: subColor, marginTop: 40, marginBottom: 24 }}>
-          Want to know more about the project first?{' '}
+          {t('contact_footer_prefix')}{' '}
           <Link href="/about" style={{ color: c.accent, textDecoration: 'none', fontWeight: 600 }}>
-            Read the About page
+            {t('contact_footer_link')}
           </Link>
         </div>
       </main>
