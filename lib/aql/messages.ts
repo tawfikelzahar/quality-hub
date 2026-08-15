@@ -138,3 +138,5 @@ export const messages = {
     'Based on ISO 2859-1 / ANSI ASQ Z1.4. AQL range supported: 0.010% – 6.5%. Switching rules ' +
     'are applied automatically when no direct plan exists for a given code letter/AQL combination.',
 };
+
+export type AqlMessages = typeof messages;

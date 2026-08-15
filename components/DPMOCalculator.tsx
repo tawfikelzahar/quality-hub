@@ -11,6 +11,8 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
+import type { TKey } from '@/lib/i18n/translations'
 
 interface ProcessRow {
   id: string
@@ -21,13 +23,15 @@ interface ProcessRow {
 }
 
 // Performance bands (industry-standard Six Sigma benchmarks)
+// `label` stays English — used verbatim in CSV/Excel/PDF exports.
+// `labelKey` is the translated version shown in the UI (badges, tooltips, stats).
 const SIGMA_BANDS = [
-  { min: 6, label: 'World Class', color: '#3b82f6' },
-  { min: 5, label: 'Excellent', color: '#22c55e' },
-  { min: 4, label: 'Good', color: '#84cc16' },
-  { min: 3, label: 'Industry Average', color: '#f59e0b' },
-  { min: 2, label: 'Needs Improvement', color: '#f97316' },
-  { min: 0, label: 'Non-Competitive', color: '#ef4444' },
+  { min: 6, label: 'World Class', labelKey: 'dpmo_band_worldclass' as TKey, color: '#3b82f6' },
+  { min: 5, label: 'Excellent', labelKey: 'dpmo_band_excellent' as TKey, color: '#22c55e' },
+  { min: 4, label: 'Good', labelKey: 'dpmo_band_good' as TKey, color: '#84cc16' },
+  { min: 3, label: 'Industry Average', labelKey: 'dpmo_band_avg' as TKey, color: '#f59e0b' },
+  { min: 2, label: 'Needs Improvement', labelKey: 'dpmo_band_needsimprovement' as TKey, color: '#f97316' },
+  { min: 0, label: 'Non-Competitive', labelKey: 'dpmo_band_noncompetitive' as TKey, color: '#ef4444' },
 ]
 
 function sigmaBand(sigma: number) {
@@ -131,6 +135,7 @@ function parseExcelFile(file: File): Promise<ProcessRow[]> {
 export default function DPMOCalculator() {
   const { isPro, isLoggedIn } = useSubscription()
  const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const [rows, setRows] = useState<ProcessRow[]>([
     { id: generateId(), name: 'Assembly Line A', units: 500, opportunities: 12, defects: 18 },
   ])
@@ -164,7 +169,7 @@ export default function DPMOCalculator() {
 
   const clearAll = () => {
     if (rows.length === 0) return
-    if (window.confirm('Clear all processes? This cannot be undone.')) setRows([])
+    if (window.confirm(t('dpmo_confirm_clear'))) setRows([])
   }
 
   useEffect(() => {
@@ -191,7 +196,7 @@ export default function DPMOCalculator() {
     const isCSV = file.name.endsWith('.csv')
     const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
     if (!isCSV && !isExcel) {
-      setFileError('Please upload a .csv or .xlsx file')
+      setFileError(t('dpmo_err_filetype'))
       return
     }
     if (isCSV) {
@@ -199,7 +204,7 @@ export default function DPMOCalculator() {
       reader.onload = e => {
         const parsed = parseDelimited(e.target?.result as string)
         if (parsed.length === 0) {
-          setFileError('No valid data found. Format: Process, Units, Opportunities/Unit, Defects')
+          setFileError(t('dpmo_err_novaliddata'))
           return
         }
         setRows(parsed)
@@ -209,14 +214,14 @@ export default function DPMOCalculator() {
       parseExcelFile(file)
         .then(parsed => {
           if (parsed.length === 0) {
-            setFileError('No valid data found in Excel file')
+            setFileError(t('dpmo_err_novaliddata_excel'))
             return
           }
           setRows(parsed)
         })
-        .catch(() => setFileError('Could not read Excel file'))
+        .catch(() => setFileError(t('dpmo_err_readexcel')))
     }
-  }, [])
+  }, [t])
 
   const exportCSV = () => {
     if (!isLoggedIn) { goToLogin(); return }
@@ -332,7 +337,7 @@ export default function DPMOCalculator() {
     labels: results.map(r => r.name),
     datasets: [
       {
-        label: 'Sigma Level',
+        label: t('dpmo_axis_sigma'),
         data: results.map(r => Number(r.sigma.toFixed(2))),
         backgroundColor: results.map(r => sigmaBand(r.sigma).color),
         borderRadius: 4,
@@ -358,10 +363,10 @@ export default function DPMOCalculator() {
           label: (ctx: any) => {
             const r = results[ctx.dataIndex]
             return [
-              ` Sigma Level: ${r.sigma.toFixed(2)}`,
-              ` DPMO: ${Math.round(r.dpmo).toLocaleString()}`,
-              ` Yield: ${r.yieldPct.toFixed(2)}%`,
-              ` Rating: ${sigmaBand(r.sigma).label}`,
+              ` ${t('dpmo_tooltip_sigma')}: ${r.sigma.toFixed(2)}`,
+              ` ${t('dpmo_tooltip_dpmo')}: ${Math.round(r.dpmo).toLocaleString()}`,
+              ` ${t('dpmo_tooltip_yield')}: ${r.yieldPct.toFixed(2)}%`,
+              ` ${t('dpmo_tooltip_rating')}: ${t(sigmaBand(r.sigma).labelKey)}`,
             ]
           },
         },
@@ -379,7 +384,7 @@ export default function DPMOCalculator() {
         ticks: { color: c.muted, font: { size: 11 }, stepSize: 1 },
         grid: { color: c.grid },
         border: { color: c.border },
-        title: { display: true, text: 'Sigma Level', color: c.muted, font: { size: 11 } },
+        title: { display: true, text: t('dpmo_axis_sigma'), color: c.muted, font: { size: 11 } },
       },
     },
   }
@@ -510,13 +515,13 @@ export default function DPMOCalculator() {
       <div className="qh-body" style={s.body}>
         <div className="qh-left" style={s.left}>
           <div>
-            <div style={s.sectionTitle}>⚙️ Process Data</div>
+            <div style={s.sectionTitle}>{t('dpmo_process_data')}</div>
             {rows.map(row => (
               <div key={row.id} style={s.rowCard}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input
                     style={{ ...s.input, flex: 1 }}
-                    placeholder="Process name"
+                    placeholder={t('dpmo_placeholder_process')}
                     value={row.name}
                     onChange={e => updateRow(row.id, 'name', e.target.value)}
                   />
@@ -524,7 +529,7 @@ export default function DPMOCalculator() {
                 </div>
                 <div className="qh-input-grid" style={s.inputGrid}>
                   <div>
-                    <div style={s.label}>Units</div>
+                    <div style={s.label}>{t('dpmo_field_units')}</div>
                     <input
                       style={s.input} type="number" placeholder="0"
                       value={row.units || ''}
@@ -532,7 +537,7 @@ export default function DPMOCalculator() {
                     />
                   </div>
                   <div>
-                    <div style={s.label}>Opp/Unit</div>
+                    <div style={s.label}>{t('dpmo_field_oppunit')}</div>
                     <input
                       style={s.input} type="number" placeholder="0"
                       value={row.opportunities || ''}
@@ -540,7 +545,7 @@ export default function DPMOCalculator() {
                     />
                   </div>
                   <div>
-                    <div style={s.label}>Defects</div>
+                    <div style={s.label}>{t('dpmo_field_defects')}</div>
                     <input
                       style={s.input} type="number" placeholder="0"
                       value={row.defects || ''}
@@ -550,7 +555,7 @@ export default function DPMOCalculator() {
                 </div>
               </div>
             ))}
-            <button style={s.addBtn} onClick={addRow}>+ Add Process</button>
+            <button style={s.addBtn} onClick={addRow}>{t('dpmo_add_process')}</button>
             {rows.length > 0 && (
               <button
                 style={{
@@ -560,13 +565,13 @@ export default function DPMOCalculator() {
                 }}
                 onClick={clearAll}
               >
-                🗑️ Clear All
+                {t('dpmo_clear_all')}
               </button>
             )}
           </div>
 
           <div>
-            <div style={s.sectionTitle}>📁 Upload or Paste</div>
+            <div style={s.sectionTitle}>{t('dpmo_upload_paste')}</div>
             <div
               style={s.dropzone}
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -580,7 +585,7 @@ export default function DPMOCalculator() {
             >
               <div style={{ fontSize: 24, marginBottom: 6 }}>📂</div>
               <div style={{ color: c.text, fontWeight: 600, fontSize: 12 }}>
-                Drop CSV / Excel or Ctrl+V
+                {t('dpmo_dropzone_text')}
               </div>
               {fileError && <div style={{ color: '#ef4444', fontSize: 11, marginTop: 6 }}>{fileError}</div>}
             </div>
@@ -590,17 +595,17 @@ export default function DPMOCalculator() {
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
             />
             <div style={{ fontSize: 10, color: c.muted, marginTop: 8, lineHeight: 1.6 }}>
-              Format: Process, Units, Opportunities/Unit, Defects
+              {t('dpmo_format_hint')}
             </div>
           </div>
 
           <div>
-            <div style={s.sectionTitle}>📤 Export</div>
+            <div style={s.sectionTitle}>{t('common_export_section')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
-              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
-              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
-              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
+              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
+              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
+              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
+              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
             </div>
             <div style={{ marginTop: 8 }}>
               <SaveAnalysisButton
@@ -617,7 +622,7 @@ export default function DPMOCalculator() {
               style={{ ...s.exportBtn, width: '100%' }}
               onClick={() => setShowReference(v => !v)}
             >
-              📖 {showReference ? 'Hide' : 'Show'} Sigma Reference Table
+              📖 {showReference ? t('dpmo_ref_hide') : t('dpmo_ref_show')} {t('dpmo_ref_table')}
             </button>
             {showReference && (
               <div style={{ ...s.card, marginTop: 10, padding: 12 }}>
@@ -625,7 +630,7 @@ export default function DPMOCalculator() {
                   <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 11 }}>
                     <span style={{ width: 10, height: 10, borderRadius: '50%', background: b.color, flexShrink: 0 }} />
                     <span style={{ color: c.text, fontWeight: 600 }}>{b.min}σ+</span>
-                    <span style={{ color: c.muted }}>{b.label}</span>
+                    <span style={{ color: c.muted }}>{t(b.labelKey)}</span>
                   </div>
                 ))}
               </div>
@@ -639,26 +644,26 @@ export default function DPMOCalculator() {
               <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{results.length}</div>
-                  <div style={s.statLabel}>Processes</div>
+                  <div style={s.statLabel}>{t('dpmo_stat_processes')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{avgSigma.toFixed(2)}σ</div>
-                  <div style={s.statLabel}>Average Sigma</div>
+                  <div style={s.statLabel}>{t('dpmo_stat_avgsigma')}</div>
                 </div>
                 {worstProcess && (
                   <div style={s.statCard}>
                     <div style={{ ...s.statVal, color: sigmaBand(worstProcess.sigma).color, fontSize: 16 }}>
                       {worstProcess.name}
                     </div>
-                    <div style={s.statLabel}>Lowest Performer ({worstProcess.sigma.toFixed(2)}σ)</div>
+                    <div style={s.statLabel}>{t('dpmo_stat_lowest')} ({worstProcess.sigma.toFixed(2)}σ)</div>
                   </div>
                 )}
               </div>
 
               <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Sigma Level Comparison</div>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{t('dpmo_chart_title')}</div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  Color = performance band · Higher is better
+                  {t('dpmo_chart_sub')}
                 </div>
                 <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
@@ -666,20 +671,20 @@ export default function DPMOCalculator() {
               </div>
 
               <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Detailed Results</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('dpmo_detailed_results')}</div>
                 <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                 <table style={s.table}>
                   <thead>
                     <tr>
-                      <th style={s.th}>Process</th>
-                      <th style={s.th}>Units</th>
-                      <th style={s.th}>Opp/Unit</th>
-                      <th style={s.th}>Defects</th>
-                      <th style={s.th}>DPO</th>
-                      <th style={s.th}>DPMO</th>
-                      <th style={s.th}>Yield %</th>
-                      <th style={s.th}>Sigma</th>
-                      <th style={s.th}>Rating</th>
+                      <th style={s.th}>{t('dpmo_col_process')}</th>
+                      <th style={s.th}>{t('dpmo_col_units')}</th>
+                      <th style={s.th}>{t('dpmo_col_oppunit')}</th>
+                      <th style={s.th}>{t('dpmo_col_defects')}</th>
+                      <th style={s.th}>{t('dpmo_col_dpo')}</th>
+                      <th style={s.th}>{t('dpmo_col_dpmo')}</th>
+                      <th style={s.th}>{t('dpmo_col_yield')}</th>
+                      <th style={s.th}>{t('dpmo_col_sigma')}</th>
+                      <th style={s.th}>{t('dpmo_col_rating')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -697,7 +702,7 @@ export default function DPMOCalculator() {
                           <td style={{ ...s.td, fontWeight: 700, color: band.color }}>{r.sigma.toFixed(2)}</td>
                           <td style={s.td}>
                             <span style={{ ...s.badge, background: `${band.color}22`, color: band.color }}>
-                              {band.label}
+                              {t(band.labelKey)}
                             </span>
                           </td>
                         </tr>
@@ -710,13 +715,13 @@ export default function DPMOCalculator() {
             </>
           ) : (
             <div style={{ ...s.card, textAlign: 'center', padding: 60, color: c.muted }}>
-              Add process data on the left to calculate DPMO & Sigma Level
+              {t('dpmo_empty_state')}
             </div>
           )}
         </div>
       </div>
 
-      {pasteToast && <div style={s.toast}>✅ Data pasted successfully</div>}
+      {pasteToast && <div style={s.toast}>{t('dpmo_toast')}</div>}
     </div>
   )
 }

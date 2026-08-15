@@ -15,7 +15,8 @@ import {
   type InspectionRowInput,
   type InspectionRowResult,
 } from '@/lib/aql/calculator';
-import { messages } from '@/lib/aql/messages';
+import { messages as messagesEn, type AqlMessages } from '@/lib/aql/messages';
+import { messagesAr } from '@/lib/aql/messages.ar';
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
@@ -23,6 +24,7 @@ import { LockedPage } from '@/components/Locked';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
+import { useLanguage } from '@/lib/i18n/context';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
 const TYPES: InspectionType[] = ['Normal', 'Tightened', 'Reduced'];
@@ -50,7 +52,7 @@ function makeDefaultRow(stageName: string): InspectionRowInput {
 }
 
 /** One flattened line per defect class, used by every export format. */
-function flattenResults(results: InspectionRowResult[]) {
+function flattenResults(results: InspectionRowResult[], messages: AqlMessages) {
   const out: {
     stage: string;
     lotSize: number;
@@ -96,6 +98,8 @@ function flattenResults(results: InspectionRowResult[]) {
 
 export default function AQLPage() {
   const [theme, setTheme] = usePersistedTheme();
+  const { lang } = useLanguage();
+  const messages = lang === 'ar' ? messagesAr : messagesEn;
   const [rulesOpen, setRulesOpen] = useState(false);
   const [rows, setRows] = useState<InspectionRowInput[]>([
     makeDefaultRow('Incoming Inspection'),
@@ -153,7 +157,7 @@ export default function AQLPage() {
   // ── Export: CSV ──────────────────────────────────────────────────────
   function exportCSV() {
     if (!isLoggedIn) { goToLogin(); return }
-    const flat = flattenResults(results);
+    const flat = flattenResults(results, messages);
     const header = 'Stage,Lot Size,Level,Inspection Type,Code Letter,Defect Class,AQL%,Sample (n),Ac,Re,Note\n';
     const body = flat
       .map((r) =>
@@ -174,7 +178,7 @@ export default function AQLPage() {
   // ── Export: Excel ────────────────────────────────────────────────────
   function exportExcel() {
     if (!isPro) { goToPricing(); return }
-    const flat = flattenResults(results);
+    const flat = flattenResults(results, messages);
     const data = flat.map((r) => ({
       Stage: r.stage,
       'Lot Size': r.lotSize,
@@ -199,7 +203,7 @@ export default function AQLPage() {
   // the page" approach used for the PDF), so no extra dependency is needed.
   function exportPNG() {
     if (!isLoggedIn) { goToLogin(); return }
-    const flat = flattenResults(results);
+    const flat = flattenResults(results, messages);
     const rowH = 24;
     const colX = [16, 190, 260, 340, 440, 590, 650, 710];
     const headers = ['Stage', 'Lot Size', 'Level', 'Code Letter', 'Defect Class', 'AQL%', 'Ac', 'Re'];
@@ -253,7 +257,7 @@ export default function AQLPage() {
   // Same manual-table approach used in the DPMO tool's PDF export.
   function exportPDF() {
     if (!isPro) { goToPricing(); return }
-    const flat = flattenResults(results);
+    const flat = flattenResults(results, messages);
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();

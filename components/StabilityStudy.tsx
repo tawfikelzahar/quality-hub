@@ -12,6 +12,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
 import {
   type BatchData,
   type TrendDirection,
@@ -45,6 +46,7 @@ function fmt(n: number | null | undefined, digits = 3): string {
 
 export default function StabilityStudy() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const { isPro, isLoggedIn, loading: subLoading } = useSubscription()
@@ -219,7 +221,7 @@ export default function StabilityStudy() {
     scales: {
       x: {
         type: 'linear' as const,
-        title: { display: true, text: 'Time (months)', color: c.muted },
+        title: { display: true, text: t('stab_axis_time'), color: c.muted },
         ticks: { color: c.muted },
         grid: { color: c.grid },
       },
@@ -367,13 +369,13 @@ export default function StabilityStudy() {
       {!subLoading && !isPro ? (
         <LockedPage
           theme={theme}
-          feature="Stability Study"
-          description="Shelf-life / stability trend analysis is part of the Pro toolkit."
+          feature={t('bc_stability')}
+          description={t('stab_locked_desc')}
           bullets={[
-            'Regression-based trend analysis',
-            'Confidence intervals & shelf-life estimate',
-            'Spec-limit crossing detection',
-            'Excel / PDF export, no watermark',
+            t('stab_locked_b1'),
+            t('stab_locked_b2'),
+            t('stab_locked_b3'),
+            t('stab_locked_b4'),
           ]}
         />
       ) : (
@@ -381,20 +383,20 @@ export default function StabilityStudy() {
         {/* ── LEFT: Setup + Data Entry ─────────────────────────────────── */}
         <div style={{ ...s.left, width: 460 }}>
           <div>
-            <div style={s.sectionTitle}>Study Setup</div>
+            <div style={s.sectionTitle}>{t('stab_study_setup')}</div>
             <div className="qh-input-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 12 }}>
               <div>
-                <div style={s.label}>Attribute</div>
+                <div style={s.label}>{t('stab_attribute')}</div>
                 <input style={s.input} value={attributeName} onChange={(e) => setAttributeName(e.target.value)} />
               </div>
               <div>
-                <div style={s.label}>Unit</div>
+                <div style={s.label}>{t('stab_unit')}</div>
                 <input style={s.input} value={unit} onChange={(e) => setUnit(e.target.value)} />
               </div>
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <div style={s.label}>Storage condition</div>
+              <div style={s.label}>{t('stab_storage_condition')}</div>
               <select style={s.select} value={storageCondition} onChange={(e) => setStorageCondition(e.target.value)}>
                 {STORAGE_CONDITIONS.map((sc) => (
                   <option key={sc.key} value={sc.key}>{sc.label}</option>
@@ -404,44 +406,44 @@ export default function StabilityStudy() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
               <div>
-                <div style={s.label}>Trend direction</div>
+                <div style={s.label}>{t('stab_trend_direction')}</div>
                 <select style={s.select} value={direction} onChange={(e) => setDirection(e.target.value as TrendDirection)}>
-                  <option value="decreasing">Decreasing (Assay, Potency)</option>
-                  <option value="increasing">Increasing (Impurity, Degradant)</option>
+                  <option value="decreasing">{t('stab_dir_decreasing')}</option>
+                  <option value="increasing">{t('stab_dir_increasing')}</option>
                 </select>
               </div>
               <div>
-                <div style={s.label}>Confidence</div>
+                <div style={s.label}>{t('stab_confidence')}</div>
                 <select style={s.select} value={confidence} onChange={(e) => setConfidence(Number(e.target.value) as 90 | 95 | 99)}>
-                  <option value={90}>90%</option>
-                  <option value={95}>95% (ICH default)</option>
-                  <option value={99}>99%</option>
+                  <option value={90}>{t('stab_conf_90')}</option>
+                  <option value={95}>{t('stab_conf_95')}</option>
+                  <option value={99}>{t('stab_conf_99')}</option>
                 </select>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
               <div>
-                <div style={s.label}>Lower spec limit</div>
-                <input style={s.input} type="number" value={specLower} onChange={(e) => setSpecLower(e.target.value)} placeholder="e.g. 95.0" />
+                <div style={s.label}>{t('stab_lower_spec')}</div>
+                <input style={s.input} type="number" value={specLower} onChange={(e) => setSpecLower(e.target.value)} placeholder={t('stab_placeholder_lower')} />
               </div>
               <div>
-                <div style={s.label}>Upper spec limit</div>
-                <input style={s.input} type="number" value={specUpper} onChange={(e) => setSpecUpper(e.target.value)} placeholder="optional" />
+                <div style={s.label}>{t('stab_upper_spec')}</div>
+                <input style={s.input} type="number" value={specUpper} onChange={(e) => setSpecUpper(e.target.value)} placeholder={t('stab_placeholder_upper')} />
               </div>
             </div>
             <div style={{ fontSize: 11, color: c.muted, marginBottom: 16 }}>
-              💡 The limit used for shelf-life estimation is the one matching the trend direction above (lower limit for a decreasing trend, upper limit for an increasing one).
+              {t('stab_hint')}
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button style={{ ...s.exportBtn, flex: 1 }} onClick={loadSample}>↺ Load Sample</button>
-              <button style={{ ...s.exportBtn, flex: 1, color: c.danger }} onClick={clearAll}>🗑 Clear</button>
+              <button style={{ ...s.exportBtn, flex: 1 }} onClick={loadSample}>{t('stab_load_sample')}</button>
+              <button style={{ ...s.exportBtn, flex: 1, color: c.danger }} onClick={clearAll}>{t('stab_clear')}</button>
             </div>
           </div>
 
           <div>
-            <div style={s.sectionTitle}>Batches</div>
+            <div style={s.sectionTitle}>{t('stab_batches')}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
               {batchNames.map((name, bIdx) => (
                 <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: 4, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '4px 6px' }}>
@@ -455,17 +457,17 @@ export default function StabilityStudy() {
                 </div>
               ))}
             </div>
-            <button style={s.addBtn} onClick={addBatch}>+ Add Batch</button>
+            <button style={s.addBtn} onClick={addBatch}>{t('stab_add_batch')}</button>
           </div>
 
           <div>
-            <div style={s.sectionTitle}>Stability Data</div>
+            <div style={s.sectionTitle}>{t('stab_data')}</div>
             <div style={{ overflowX: 'auto' }}>
               <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
                   <tr>
-                    <th style={s.th}>Month</th>
+                    <th style={s.th}>{t('stab_month')}</th>
                     {batchNames.map((name, bIdx) => (
                       <th key={bIdx} style={s.th}>{name}</th>
                     ))}
@@ -502,7 +504,7 @@ export default function StabilityStudy() {
               </table>
               </div>
             </div>
-            <button style={{ ...s.addBtn, marginTop: 8 }} onClick={addTimePoint}>+ Add Time Point</button>
+            <button style={{ ...s.addBtn, marginTop: 8 }} onClick={addTimePoint}>{t('stab_add_timepoint')}</button>
           </div>
         </div>
 
@@ -513,37 +515,37 @@ export default function StabilityStudy() {
               <div style={{ ...s.statVal, color: analysis.recommended !== null ? c.accent : c.muted }}>
                 {analysis.recommended !== null ? `${fmt(analysis.recommended, 1)} mo` : '—'}
               </div>
-              <div style={s.statLabel}>Recommended Shelf Life</div>
+              <div style={s.statLabel}>{t('stab_stat_shelf_life')}</div>
             </div>
             <div style={s.statCard}>
               <div style={s.statVal}>{analysis.batches.length}</div>
-              <div style={s.statLabel}>Batches Analyzed</div>
+              <div style={s.statLabel}>{t('stab_stat_batches_analyzed')}</div>
             </div>
             <div style={s.statCard}>
               <div style={s.statVal}>{confidence}%</div>
-              <div style={s.statLabel}>Confidence Level</div>
+              <div style={s.statLabel}>{t('stab_stat_confidence_level')}</div>
             </div>
             <div style={s.statCard}>
               <div style={{ ...s.statVal, fontSize: 15 }}>
-                {analysis.basis === 'pooled' ? '✅ Pooled' : analysis.basis === 'individual-min' ? '⚠️ Worst batch' : '—'}
+                {analysis.basis === 'pooled' ? t('stab_basis_pooled') : analysis.basis === 'individual-min' ? t('stab_basis_worst') : '—'}
               </div>
-              <div style={s.statLabel}>Basis</div>
+              <div style={s.statLabel}>{t('stab_stat_basis')}</div>
             </div>
           </div>
 
           {analysis.recommended !== null && analysis.individual.some((r) => r.extrapolated && r.shelfLife === analysis.recommended) && (
             <div style={{ ...s.card, borderColor: c.amber, color: c.amber, fontSize: 12 }}>
-              ⚠️ The recommended shelf life extrapolates beyond the last observed time point. Per ICH Q1E, extrapolation should generally not exceed the amount of long-term data available (typically up to 2× or +12 months).
+              {t('stab_warn_extrapolate')}
             </div>
           )}
           {!analysis.hasSpec && (
             <div style={{ ...s.card, borderColor: c.amber, color: c.amber, fontSize: 12 }}>
-              ⚠️ Enter a specification limit matching the trend direction to calculate a shelf life.
+              {t('stab_warn_no_spec')}
             </div>
           )}
 
           <div className="qh-chart-wrap" style={s.chartWrap}>
-            <div style={s.sectionTitle}>Regression Plot</div>
+            <div style={s.sectionTitle}>{t('stab_regression_plot')}</div>
             <div className="qh-chart-inner" style={s.chartInner}>
               <Chart
                 ref={chartRef}
@@ -555,16 +557,16 @@ export default function StabilityStudy() {
           </div>
 
           <div style={s.card}>
-            <div style={s.sectionTitle}>Per-Batch Regression</div>
+            <div style={s.sectionTitle}>{t('stab_per_batch')}</div>
             <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
             <table style={s.table}>
               <thead>
                 <tr>
-                  <th style={s.th}>Batch</th>
-                  <th style={s.th}>Slope</th>
-                  <th style={s.th}>Intercept</th>
-                  <th style={s.th}>R²</th>
-                  <th style={s.th}>Shelf Life</th>
+                  <th style={s.th}>{t('stab_col_batch')}</th>
+                  <th style={s.th}>{t('stab_col_slope')}</th>
+                  <th style={s.th}>{t('stab_col_intercept')}</th>
+                  <th style={s.th}>{t('stab_col_r2')}</th>
+                  <th style={s.th}>{t('stab_col_shelflife')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -575,61 +577,59 @@ export default function StabilityStudy() {
                     <td style={s.td}>{r.reg ? fmt(r.reg.intercept, 3) : '—'}</td>
                     <td style={s.td}>{r.reg ? fmt(r.reg.r2, 4) : '—'}</td>
                     <td style={s.td}>
-                      {r.shelfLife !== null ? `${fmt(r.shelfLife, 1)} mo${r.extrapolated ? ' *' : ''}` : 'not reached'}
+                      {r.shelfLife !== null ? `${fmt(r.shelfLife, 1)} mo${r.extrapolated ? ' *' : ''}` : t('stab_not_reached')}
                     </td>
                   </tr>
                 ))}
                 {analysis.pooledReg && (
                   <tr style={{ fontWeight: 700 }}>
-                    <td style={s.td}>Pooled (all batches)</td>
+                    <td style={s.td}>{t('stab_pooled_row')}</td>
                     <td style={s.td}>{fmt(analysis.pooledReg.slope, 4)}</td>
                     <td style={s.td}>{fmt(analysis.pooledReg.intercept, 3)}</td>
                     <td style={s.td}>{fmt(analysis.pooledReg.r2, 4)}</td>
                     <td style={s.td}>
                       {analysis.pooledShelfLifeRaw.shelfLifeMonths !== null
                         ? `${fmt(analysis.pooledShelfLifeRaw.shelfLifeMonths, 1)} mo${analysis.pooledShelfLifeRaw.extrapolated ? ' *' : ''}`
-                        : 'not reached'}
+                        : t('stab_not_reached')}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
             </div>
-            <div style={{ fontSize: 10, color: c.muted, marginTop: 6 }}>* extrapolated beyond last observed time point</div>
+            <div style={{ fontSize: 10, color: c.muted, marginTop: 6 }}>{t('stab_footnote_extrapolated')}</div>
           </div>
 
           {analysis.poolability && (
             <div style={s.card}>
-              <div style={s.sectionTitle}>Poolability Test (ANCOVA, α = 0.25)</div>
+              <div style={s.sectionTitle}>{t('stab_poolability_title')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div style={s.rowCard}>
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>Equal slopes</div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{t('stab_equal_slopes')}</div>
                   <div style={{ fontSize: 12, color: c.muted }}>F({analysis.poolability.slopesDf1}, {analysis.poolability.slopesDf2}) = {fmt(analysis.poolability.slopesF, 3)}, p = {fmt(analysis.poolability.slopesP, 4)}</div>
                   <span style={{ ...s.badge, background: analysis.poolability.slopesPoolable ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)', color: analysis.poolability.slopesPoolable ? '#4ade80' : c.danger, width: 'fit-content' }}>
-                    {analysis.poolability.slopesPoolable ? 'Poolable' : 'Not poolable'}
+                    {analysis.poolability.slopesPoolable ? t('stab_poolable') : t('stab_not_poolable')}
                   </span>
                 </div>
                 <div style={s.rowCard}>
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>Equal intercepts</div>
+                  <div style={{ fontSize: 12, fontWeight: 700 }}>{t('stab_equal_intercepts')}</div>
                   <div style={{ fontSize: 12, color: c.muted }}>F({analysis.poolability.interceptsDf1}, {analysis.poolability.interceptsDf2}) = {fmt(analysis.poolability.interceptsF, 3)}, p = {fmt(analysis.poolability.interceptsP, 4)}</div>
                   <span style={{ ...s.badge, background: analysis.poolability.interceptsPoolable ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)', color: analysis.poolability.interceptsPoolable ? '#4ade80' : c.danger, width: 'fit-content' }}>
-                    {analysis.poolability.interceptsPoolable ? 'Poolable' : 'Not poolable'}
+                    {analysis.poolability.interceptsPoolable ? t('stab_poolable') : t('stab_not_poolable')}
                   </span>
                 </div>
               </div>
               <div style={{ fontSize: 11, color: c.muted, marginTop: 10 }}>
-                {analysis.poolability.fullyPoolable
-                  ? 'Batches may be pooled into a single regression — the pooled shelf life above is used.'
-                  : 'Batches show a significant difference in slope and/or intercept — the shortest individual-batch shelf life is used (conservative, per ICH Q1E).'}
+                {analysis.poolability.fullyPoolable ? t('stab_pool_yes') : t('stab_pool_no')}
               </div>
             </div>
           )}
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
-            <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
-            <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
-            <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
+            <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
+            <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
+            <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
+            <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
             <SaveAnalysisButton
               theme={theme}
               tool="stability"

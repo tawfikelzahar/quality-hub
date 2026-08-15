@@ -11,6 +11,7 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
 
 interface DataRow {
   id: string
@@ -74,6 +75,7 @@ function parseExcelFile(file: File): Promise<DataRow[]> {
 export default function ParetoChart() {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const [rows, setRows] = useState<DataRow[]>([
     { id: generateId(), label: 'Dimensional Error', value: 42 },
     { id: generateId(), label: 'Surface Defect', value: 28 },
@@ -110,7 +112,7 @@ export default function ParetoChart() {
 
   const clearAll = () => {
     if (rows.length === 0) return
-    const confirmed = window.confirm('Clear all data? This cannot be undone.')
+    const confirmed = window.confirm(t('pareto_confirm_clear'))
     if (confirmed) {
       setRows([])
     }
@@ -158,7 +160,7 @@ export default function ParetoChart() {
     const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
 
     if (!isCSV && !isExcel) {
-      setFileError('Please upload a .csv or .xlsx file')
+      setFileError(t('pareto_err_filetype'))
       return
     }
 
@@ -168,7 +170,7 @@ export default function ParetoChart() {
         const text = e.target?.result as string
         const parsed = parseDelimited(text)
         if (parsed.length === 0) {
-          setFileError('No valid data found. Format: Label, Value')
+          setFileError(t('pareto_err_novaliddata'))
           return
         }
         setRows(parsed)
@@ -178,14 +180,14 @@ export default function ParetoChart() {
       parseExcelFile(file)
         .then(parsed => {
           if (parsed.length === 0) {
-            setFileError('No valid data found in Excel file')
+            setFileError(t('pareto_err_novaliddata_excel'))
             return
           }
           setRows(parsed)
         })
-        .catch(() => setFileError('Could not read Excel file'))
+        .catch(() => setFileError(t('pareto_err_readexcel')))
     }
-  }, [])
+  }, [t])
 
   // ── Export: Data as CSV ── (free — requires a login so we capture an email)
   const exportCSV = () => {
@@ -328,7 +330,7 @@ export default function ParetoChart() {
     datasets: [
       {
         type: 'bar' as const,
-        label: 'Frequency',
+        label: t('pareto_axis_frequency'),
         data: sorted.map(r => r.value),
         backgroundColor: sorted.map((_, i) =>
           i < vitalFew ? c.bar : `${c.bar}55`
@@ -339,7 +341,7 @@ export default function ParetoChart() {
       },
       {
         type: 'line' as const,
-        label: 'Cumulative %',
+        label: t('pareto_axis_cumulative'),
         data: cumulative,
         borderColor: c.line,
         backgroundColor: `${c.line}22`,
@@ -378,15 +380,15 @@ export default function ParetoChart() {
         callbacks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           label: (ctx: any) => {
-            if (ctx.dataset.label === 'Cumulative %')
-              return ` Cumulative: ${ctx.parsed.y}%`
-            return ` Count: ${ctx.parsed.y} (${total > 0 ? Math.round((ctx.parsed.y / total) * 100) : 0}%)`
+            if (ctx.dataset.type === 'line')
+              return ` ${t('pareto_tooltip_cumulative')}: ${ctx.parsed.y}%`
+            return ` ${t('pareto_tooltip_count')}: ${ctx.parsed.y} (${total > 0 ? Math.round((ctx.parsed.y / total) * 100) : 0}%)`
           },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           afterBody: (items: any[]) => {
             const i = items[0]?.dataIndex
             if (i !== undefined && i < vitalFew)
-              return ['', '⭐ Vital Few — Top 80%']
+              return ['', t('pareto_tooltip_vitalfew')]
             return []
           },
         },
@@ -403,7 +405,7 @@ export default function ParetoChart() {
         ticks: { color: c.muted, font: { size: 11 } },
         grid: { color: c.grid },
         border: { color: c.border },
-        title: { display: true, text: 'Frequency', color: c.muted, font: { size: 11 } },
+        title: { display: true, text: t('pareto_axis_frequency'), color: c.muted, font: { size: 11 } },
       },
       y2: {
         position: 'right',
@@ -417,7 +419,7 @@ export default function ParetoChart() {
         },
         grid: { drawOnChartArea: false },
         border: { color: c.amber },
-        title: { display: true, text: 'Cumulative %', color: c.amber, font: { size: 11 } },
+        title: { display: true, text: t('pareto_axis_cumulative'), color: c.amber, font: { size: 11 } },
       },
     },
   }
@@ -547,12 +549,12 @@ export default function ParetoChart() {
 
           {/* Manual Input */}
           <div>
-            <div style={s.sectionTitle}>📋 Manual Input</div>
+            <div style={s.sectionTitle}>{t('pareto_manual_input')}</div>
             {rows.map(row => (
               <div key={row.id} style={s.inputRow}>
                 <input
                   style={{ ...s.input, flex: 2 }}
-                  placeholder="Category name"
+                  placeholder={t('pareto_placeholder_category')}
                   value={row.label}
                   onChange={e => updateRow(row.id, 'label', e.target.value)}
                 />
@@ -566,7 +568,7 @@ export default function ParetoChart() {
                 <button style={s.removeBtn} onClick={() => removeRow(row.id)}>×</button>
               </div>
             ))}
-           <button style={s.addBtn} onClick={addRow}>+ Add Row</button>
+           <button style={s.addBtn} onClick={addRow}>{t('pareto_add_row')}</button>
             {rows.length > 0 && (
               <button
                 style={{
@@ -578,14 +580,14 @@ export default function ParetoChart() {
                 }}
                 onClick={clearAll}
               >
-                🗑️ Clear All Data
+                {t('pareto_clear_all')}
               </button>
             )}
           </div>
 
           {/* File Upload + Paste */}
           <div>
-            <div style={s.sectionTitle}>📁 Upload or Paste</div>
+            <div style={s.sectionTitle}>{t('pareto_upload_paste')}</div>
             <div
               style={s.dropzone}
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -599,10 +601,10 @@ export default function ParetoChart() {
             >
               <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
               <div style={{ color: c.text, fontWeight: 600, fontSize: 13 }}>
-                Drop CSV / Excel here or click to browse
+                {t('pareto_dropzone_title')}
               </div>
               <div style={{ color: c.muted, fontSize: 11, marginTop: 6 }}>
-                or press Ctrl+V to paste from Excel/Sheets
+                {t('pareto_dropzone_sub')}
               </div>
               {fileError && (
                 <div style={{ color: '#ef4444', fontSize: 11, marginTop: 8 }}>{fileError}</div>
@@ -614,7 +616,7 @@ export default function ParetoChart() {
               onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
             />
             <div style={{ fontSize: 11, color: c.muted, marginTop: 10, lineHeight: 1.6 }}>
-              Format: Category, Count<br />
+              {t('pareto_format_hint')}<br />
               <code style={{ color: c.accent }}>
                 Dimensional Error, 42<br />
                 Surface Defect, 28
@@ -624,12 +626,12 @@ export default function ParetoChart() {
 
           {/* Export */}
           <div>
-            <div style={s.sectionTitle}>📤 Export</div>
+            <div style={s.sectionTitle}>{t('common_export_section')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
-              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
-              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
-              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
+              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
+              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
+              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
+              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
             </div>
             <div style={{ marginTop: 8 }}>
               <SaveAnalysisButton
@@ -654,15 +656,15 @@ export default function ParetoChart() {
           <div className="qh-stats-row" style={s.statsRow}>
             <div style={s.statCard}>
               <div style={s.statVal}>{total}</div>
-              <div style={s.statLabel}>Total Defects</div>
+              <div style={s.statLabel}>{t('pareto_stat_total_defects')}</div>
             </div>
             <div style={{ ...s.statCard }}>
               <div style={{ ...s.statVal, color: c.amber }}>{vitalFew}</div>
-              <div style={s.statLabel}>Vital Few Categories</div>
+              <div style={s.statLabel}>{t('pareto_stat_vitalfew_cat')}</div>
             </div>
             <div style={s.statCard}>
               <div style={s.statVal}>{sorted.length}</div>
-              <div style={s.statLabel}>Total Categories</div>
+              <div style={s.statLabel}>{t('pareto_stat_total_cat')}</div>
             </div>
           </div>
 
@@ -670,13 +672,13 @@ export default function ParetoChart() {
           <div className="qh-chart-wrap" style={s.chartWrap}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: c.text }}>Pareto Analysis</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: c.text }}>{t('pareto_analysis_title')}</div>
                 <div style={{ color: c.muted, fontSize: 12, marginTop: 3 }}>
-                  Bars = frequency · Line = cumulative % · Bright bars = Vital Few
+                  {t('pareto_analysis_sub')}
                 </div>
               </div>
               <span style={s.vitalBadge}>
-                ⭐ {vitalFew} of {sorted.length} categories = 80% of problems
+                ⭐ {vitalFew} {t('pareto_vitalfew_of')} {sorted.length} {t('pareto_vitalfew_suffix')}
               </span>
             </div>
 
@@ -686,7 +688,7 @@ export default function ParetoChart() {
               </div>
             ) : (
               <div style={{ height: 380, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.muted }}>
-                Add data on the left to generate the chart
+                {t('pareto_empty_chart')}
               </div>
             )}
           </div>
@@ -695,18 +697,18 @@ export default function ParetoChart() {
           {sorted.length > 0 && (
             <div style={s.card}>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, color: c.text }}>
-                Breakdown Table
+                {t('pareto_breakdown_table')}
               </div>
               <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
                   <tr>
-                    <th style={s.th}>Rank</th>
-                    <th style={s.th}>Category</th>
-                    <th style={s.th}>Count</th>
-                    <th style={s.th}>% of Total</th>
-                    <th style={s.th}>Cumulative %</th>
-                    <th style={s.th}>Status</th>
+                    <th style={s.th}>{t('pareto_col_rank')}</th>
+                    <th style={s.th}>{t('pareto_col_category')}</th>
+                    <th style={s.th}>{t('pareto_col_count')}</th>
+                    <th style={s.th}>{t('pareto_col_pcttotal')}</th>
+                    <th style={s.th}>{t('pareto_col_cumulative')}</th>
+                    <th style={s.th}>{t('pareto_col_status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -720,10 +722,10 @@ export default function ParetoChart() {
                       <td style={s.td}>
                         {i < vitalFew ? (
                           <span style={{ ...s.vitalBadge, fontSize: 11, padding: '3px 8px' }}>
-                            ⭐ Vital Few
+                            ⭐ {t('pareto_vitalfew')}
                           </span>
                         ) : (
-                          <span style={{ color: c.muted, fontSize: 11 }}>Useful Many</span>
+                          <span style={{ color: c.muted, fontSize: 11 }}>{t('pareto_usefulmany')}</span>
                         )}
                       </td>
                     </tr>
@@ -738,7 +740,7 @@ export default function ParetoChart() {
       </div>
 
       {pasteToast && (
-        <div style={s.toast}>✅ Data pasted successfully</div>
+        <div style={s.toast}>{t('pareto_toast')}</div>
       )}
     </div>
   )

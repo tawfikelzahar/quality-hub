@@ -12,6 +12,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
 
 // ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
 interface AvgRangeResult {
@@ -146,6 +147,7 @@ function pctTV(r: GageResult) {
 
 export default function GageRR() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const { isPro, isLoggedIn, loading: subLoading } = useSubscription()
@@ -233,7 +235,7 @@ export default function GageRR() {
   }
 
   const clearAll = () => {
-    if (!window.confirm('Clear all measurement data? This cannot be undone.')) return
+    if (!window.confirm(t('grr_confirm_clear'))) return
     setMeasurements(resizeMeasurements([], numAppraisers, numParts, numTrials))
     setResult(null)
   }
@@ -260,12 +262,12 @@ export default function GageRR() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setErrorMsg(json.error || 'Calculation failed.')
+        setErrorMsg(json.error || t('grr_err_calc_failed'))
       } else {
         setResult(json)
       }
     } catch {
-      setErrorMsg('Could not reach the analysis engine. Please try again.')
+      setErrorMsg(t('grr_err_network'))
     } finally {
       setLoading(false)
     }
@@ -276,15 +278,15 @@ export default function GageRR() {
     if (!result) return null
     const p = pctTV(result)
     return {
-      labels: ['EV\n(Repeatability)', 'AV\n(Reproducibility)', 'GRR', 'PV\n(Part Variation)'],
+      labels: [t('grr_chart_ev'), t('grr_chart_av'), t('grr_chart_grr'), t('grr_chart_pv')],
       datasets: [{
-        label: '% of Total Variation',
+        label: t('grr_col_pcttotalvar'),
         data: [p.EV, p.AV, p.GRR, p.PV].map(v => +(v * 100).toFixed(2)),
         backgroundColor: [c.bar, c.line, c.danger, c.accent2],
         borderRadius: 6,
       }],
     }
-  }, [result, c])
+  }, [result, c, t])
 
   const rangeChartData = useMemo(() => {
     if (!result || result.method !== 'average-range') return null
@@ -301,7 +303,7 @@ export default function GageRR() {
       datasets: [
         {
           type: 'line' as const,
-          label: 'Range',
+          label: t('grr_axis_range'),
           data,
           borderColor: c.bar,
           backgroundColor: c.bar,
@@ -310,7 +312,7 @@ export default function GageRR() {
         },
         {
           type: 'line' as const,
-          label: 'UCL',
+          label: t('grr_chart_ucl'),
           data: labels.map(() => result.uclR),
           borderColor: c.danger,
           borderDash: [6, 4],
@@ -318,7 +320,7 @@ export default function GageRR() {
         },
       ],
     }
-  }, [result, c])
+  }, [result, c, t])
 
   const xbarChartData = useMemo(() => {
     if (!result) return null
@@ -554,13 +556,13 @@ export default function GageRR() {
       {!subLoading && !isPro ? (
         <LockedPage
           theme={theme}
-          feature="Gage R&R"
-          description="Gage R&R (AIAG Average & Range / ANOVA) is part of the Pro toolkit."
+          feature={t('bc_gagerr')}
+          description={t('grr_locked_desc')}
           bullets={[
-            'Average & Range and full ANOVA methods',
-            '%Tolerance, %Study Variation, ndc',
-            'Out-of-control range detection',
-            'Excel / PDF export, no watermark',
+            t('grr_locked_b1'),
+            t('grr_locked_b2'),
+            t('grr_locked_b3'),
+            t('grr_locked_b4'),
           ]}
         />
       ) : (
@@ -568,48 +570,46 @@ export default function GageRR() {
         {/* ── LEFT: Configuration + Data Entry ─────────────────────────── */}
         <div style={{ ...s.left, width: 460 }}>
           <div>
-            <div style={s.sectionTitle}>Study Setup</div>
+            <div style={s.sectionTitle}>{t('grr_study_setup')}</div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={s.label}>Analysis Method</div>
+              <div style={s.label}>{t('grr_analysis_method')}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   style={{ ...s.exportBtn, flex: 1, ...(method === 'average-range' ? { background: c.accent, color: '#fff', borderColor: c.accent } : {}) }}
                   onClick={() => setMethod('average-range')}
                 >
-                  Average &amp; Range
+                  {t('grr_method_avgrange')}
                 </button>
                 <button
                   style={{ ...s.exportBtn, flex: 1, ...(method === 'anova' ? { background: c.accent, color: '#fff', borderColor: c.accent } : {}) }}
                   onClick={() => setMethod('anova')}
                 >
-                  ANOVA
+                  {t('grr_method_anova')}
                 </button>
               </div>
               <div style={{ fontSize: 11, color: c.muted, marginTop: 6 }}>
-                {method === 'average-range'
-                  ? 'Fast, descriptive — EV/AV/GRR/PV point estimates. Matches the classic AIAG worksheet.'
-                  : 'Statistically rigorous — full ANOVA table with F-tests, p-values, and the Part × Appraiser interaction.'}
+                {method === 'average-range' ? t('grr_method_avgrange_desc') : t('grr_method_anova_desc')}
               </div>
             </div>
 
             <div className="qh-input-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
               <div>
-                <div style={s.label}>Appraisers</div>
+                <div style={s.label}>{t('grr_appraisers')}</div>
                 <select style={s.select} value={numAppraisers} onChange={e => setNumAppraisersAndResize(Number(e.target.value) as 2 | 3)}>
                   <option value={2}>2</option>
                   <option value={3}>3</option>
                 </select>
               </div>
               <div>
-                <div style={s.label}>Trials</div>
+                <div style={s.label}>{t('grr_trials')}</div>
                 <select style={s.select} value={numTrials} onChange={e => setNumTrialsAndResize(Number(e.target.value) as 2 | 3)}>
                   <option value={2}>2</option>
                   <option value={3}>3</option>
                 </select>
               </div>
               <div>
-                <div style={s.label}>Parts</div>
+                <div style={s.label}>{t('grr_parts')}</div>
                 <select style={s.select} value={numParts} onChange={e => setNumPartsAndResize(Number(e.target.value))}>
                   {Array.from({ length: 9 }, (_, i) => i + 2).map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
@@ -619,7 +619,7 @@ export default function GageRR() {
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${numAppraisers}, 1fr)`, gap: 8, marginBottom: 12 }}>
               {Array.from({ length: numAppraisers }, (_, a) => (
                 <div key={a}>
-                  <div style={s.label}>Appraiser {a + 1} Name</div>
+                  <div style={s.label}>{t('grr_appraiser_name').replace('{n}', String(a + 1))}</div>
                   <input
                     style={s.input}
                     value={appraiserNames[a] || ''}
@@ -631,25 +631,25 @@ export default function GageRR() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
               <div>
-                <div style={s.label}>LSL (optional)</div>
+                <div style={s.label}>{t('grr_lsl')}</div>
                 <input style={s.input} type="number" value={LSL} onChange={e => setLSL(e.target.value)} />
               </div>
               <div>
-                <div style={s.label}>USL (optional)</div>
+                <div style={s.label}>{t('grr_usl')}</div>
                 <input style={s.input} type="number" value={USL} onChange={e => setUSL(e.target.value)} />
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <button style={{ ...s.exportBtn, flex: 1 }} onClick={loadSample}>↺ Load Sample</button>
-              <button style={{ ...s.exportBtn, flex: 1, color: c.danger }} onClick={clearAll}>🗑 Clear</button>
+              <button style={{ ...s.exportBtn, flex: 1 }} onClick={loadSample}>{t('grr_load_sample')}</button>
+              <button style={{ ...s.exportBtn, flex: 1, color: c.danger }} onClick={clearAll}>{t('grr_clear')}</button>
             </div>
           </div>
 
           <div>
-            <div style={s.sectionTitle}>Measurement Data</div>
+            <div style={s.sectionTitle}>{t('grr_measurement_data')}</div>
             <div style={{ fontSize: 11, color: c.muted, marginBottom: 8 }}>
-              💡 Tip: click a cell (e.g. Trial 1 / P1) then paste (Ctrl+V) a block copied from Excel for that appraiser — it fills forward automatically.
+              {t('grr_paste_tip')}
             </div>
             <div style={{ overflowX: 'auto' }}>
               {Array.from({ length: numAppraisers }, (_, a) => (
@@ -665,18 +665,18 @@ export default function GageRR() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Array.from({ length: numTrials }, (_, t) => (
-                        <tr key={t}>
-                          <td style={{ ...s.td, padding: '4px 6px', color: c.muted, whiteSpace: 'nowrap' }}>Trial {t + 1}</td>
+                      {Array.from({ length: numTrials }, (_, t2) => (
+                        <tr key={t2}>
+                          <td style={{ ...s.td, padding: '4px 6px', color: c.muted, whiteSpace: 'nowrap' }}>{t('grr_trial_label').replace('{n}', String(t2 + 1))}</td>
                           {Array.from({ length: numParts }, (_, p) => (
                             <td key={p} style={{ ...s.td, padding: '2px 3px' }}>
                               <input
                                 style={{ ...s.input, padding: '4px 5px', fontSize: 11, width: 52, textAlign: 'center' }}
                                 type="number"
                                 step="any"
-                                value={measurements[a]?.[p]?.[t] ?? ''}
-                                onChange={e => setCell(a, p, t, e.target.value)}
-                                onPaste={e => handlePaste(a, p, t, e)}
+                                value={measurements[a]?.[p]?.[t2] ?? ''}
+                                onChange={e => setCell(a, p, t2, e.target.value)}
+                                onPaste={e => handlePaste(a, p, t2, e)}
                                 title="Click here, then paste an Excel block (rows = trials, columns = parts) starting from this cell"
                               />
                             </td>
@@ -691,7 +691,7 @@ export default function GageRR() {
           </div>
 
           <button style={s.addBtn} onClick={runAnalysis} disabled={loading}>
-            {loading ? 'Calculating…' : '▶ Run Gage R&R Analysis'}
+            {loading ? t('grr_calculating') : t('grr_run_analysis')}
           </button>
           {errorMsg && (
             <div style={{ color: c.danger, fontSize: 12, marginTop: 8 }}>{errorMsg}</div>
@@ -702,8 +702,8 @@ export default function GageRR() {
         <div className="qh-right" style={s.right}>
           {!result && !loading && (
             <div style={{ ...s.card, textAlign: 'center', color: c.muted, padding: 60 }}>
-              Configure your study and click <strong>Run Gage R&amp;R Analysis</strong> to see results.
-              <div style={{ marginTop: 8, fontSize: 12 }}>A verified sample dataset is preloaded — try it first.</div>
+              {t('grr_empty_state')}
+              <div style={{ marginTop: 8, fontSize: 12 }}>{t('grr_empty_state_2')}</div>
             </div>
           )}
 
@@ -711,10 +711,10 @@ export default function GageRR() {
             <>
               {/* Export bar */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? '📄 CSV' : '🔒 CSV'}</button>
-                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Excel' : '🔒 Excel'}</button>
-                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? '🖼️ PNG' : '🔒 PNG'}</button>
-                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? '📑 PDF' : '🔒 PDF'}</button>
+                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
+                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
+                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
+                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
                 <SaveAnalysisButton
                   theme={theme}
                   tool="gage_rr"
@@ -730,27 +730,27 @@ export default function GageRR() {
               <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(result.EV, 4)}</div>
-                  <div style={s.statLabel}>EV — Repeatability</div>
+                  <div style={s.statLabel}>{t('grr_stat_ev')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(result.AV, 4)}</div>
-                  <div style={s.statLabel}>AV — Reproducibility</div>
+                  <div style={s.statLabel}>{t('grr_stat_av')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(result.GRR, 4)}</div>
-                  <div style={s.statLabel}>Gage R&R</div>
+                  <div style={s.statLabel}>{t('grr_stat_grr')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(result.PV, 4)}</div>
-                  <div style={s.statLabel}>PV — Part Variation</div>
+                  <div style={s.statLabel}>{t('grr_stat_pv')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(result.TV, 4)}</div>
-                  <div style={s.statLabel}>TV — Total Variation</div>
+                  <div style={s.statLabel}>{t('grr_stat_tv')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{result.ndc}</div>
-                  <div style={s.statLabel}>NDC (ndc ≥ 5 preferred)</div>
+                  <div style={s.statLabel}>{t('grr_stat_ndc')}</div>
                 </div>
               </div>
 
@@ -760,7 +760,7 @@ export default function GageRR() {
                   <span style={{ fontSize: 22 }}>{conclusionStyle.icon}</span>
                   <div>
                     <div style={{ fontWeight: 700, color: conclusionStyle.color }}>
-                      %GRR {result.pctOfTolerance ? 'of Tolerance' : 'of Total Variation'}: {pct(result.pctOfTolerance ? result.pctOfTolerance.GRR : pctTV(result).GRR)}
+                      %GRR {result.pctOfTolerance ? t('grr_pct_of_tolerance') : t('grr_pct_of_totalvar')}: {pct(result.pctOfTolerance ? result.pctOfTolerance.GRR : pctTV(result).GRR)}
                     </div>
                     <div style={{ fontSize: 13, color: c.text, marginTop: 2 }}>{result.conclusionText}</div>
                   </div>
@@ -770,7 +770,7 @@ export default function GageRR() {
               {/* ANOVA — statistical significance */}
               {result.method === 'anova' && (
                 <div style={s.card}>
-                  <div style={s.sectionTitle}>Statistical Significance (ANOVA)</div>
+                  <div style={s.sectionTitle}>{t('grr_anova_title')}</div>
                   <div style={{
                     fontSize: 13, lineHeight: 1.6, padding: 12, borderRadius: 8, marginBottom: 14,
                     background: 'rgba(15,212,200,.06)', border: '1px solid rgba(15,212,200,.15)', color: c.text,
@@ -779,20 +779,22 @@ export default function GageRR() {
                   </div>
                   {result.pooled && (
                     <div style={{ fontSize: 12, color: c.muted, marginBottom: 10 }}>
-                      ℹ️ Part × Appraiser interaction (p = {result.unpooledInteraction?.p !== null && result.unpooledInteraction?.p !== undefined ? result.unpooledInteraction.p.toFixed(4) : '—'}) was pooled into the error term (α = {result.poolingAlpha}), per standard AIAG practice — the table below reflects the pooled model.
+                      {t('grr_anova_pooled_note')
+                        .replace('{p}', result.unpooledInteraction?.p !== null && result.unpooledInteraction?.p !== undefined ? result.unpooledInteraction.p.toFixed(4) : '—')
+                        .replace('{alpha}', String(result.poolingAlpha))}
                     </div>
                   )}
                   <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                   <table style={s.table}>
                     <thead>
                       <tr>
-                        <th style={s.th}>Source</th>
-                        <th style={s.th}>SS</th>
-                        <th style={s.th}>df</th>
-                        <th style={s.th}>MS</th>
-                        <th style={s.th}>F</th>
-                        <th style={s.th}>p-value</th>
-                        <th style={s.th}>Significant?</th>
+                        <th style={s.th}>{t('grr_col_source')}</th>
+                        <th style={s.th}>{t('grr_col_ss')}</th>
+                        <th style={s.th}>{t('grr_col_df')}</th>
+                        <th style={s.th}>{t('grr_col_ms')}</th>
+                        <th style={s.th}>{t('grr_col_f')}</th>
+                        <th style={s.th}>{t('grr_col_pvalue')}</th>
+                        <th style={s.th}>{t('grr_col_significant')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -807,7 +809,7 @@ export default function GageRR() {
                           <td style={s.td}>
                             {row.significant === null ? '—' : (
                               <span style={{ color: row.significant ? '#ef4444' : '#4ade80', fontWeight: 700 }}>
-                                {row.significant ? 'Yes (p < 0.05)' : 'No'}
+                                {row.significant ? t('grr_sig_yes') : t('grr_sig_no')}
                               </span>
                             )}
                           </td>
@@ -821,24 +823,24 @@ export default function GageRR() {
 
               {/* % Contribution table */}
               <div style={s.card}>
-                <div style={s.sectionTitle}>Variation Contribution</div>
+                <div style={s.sectionTitle}>{t('grr_variation_contribution')}</div>
                 <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                 <table style={s.table}>
                   <thead>
                     <tr>
-                      <th style={s.th}>Source</th>
-                      <th style={s.th}>Value</th>
-                      <th style={s.th}>% of Total Variation</th>
-                      {result.pctOfTolerance && <th style={s.th}>% of Tolerance</th>}
+                      <th style={s.th}>{t('grr_col_source')}</th>
+                      <th style={s.th}>{t('grr_col_value')}</th>
+                      <th style={s.th}>{t('grr_col_pcttotalvar')}</th>
+                      {result.pctOfTolerance && <th style={s.th}>{t('grr_col_pcttolerance')}</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {[
-                      ['EV (Repeatability)', result.EV, pctTV(result).EV, result.pctOfTolerance?.EV],
-                      ['AV (Reproducibility)', result.AV, pctTV(result).AV, result.pctOfTolerance?.AV],
-                      ['Gage R&R', result.GRR, pctTV(result).GRR, result.pctOfTolerance?.GRR],
-                      ['PV (Part Variation)', result.PV, pctTV(result).PV, result.pctOfTolerance?.PV],
-                      ['TV (Total Variation)', result.TV, 1, null],
+                      [t('grr_row_ev'), result.EV, pctTV(result).EV, result.pctOfTolerance?.EV],
+                      [t('grr_row_av'), result.AV, pctTV(result).AV, result.pctOfTolerance?.AV],
+                      [t('grr_row_grr'), result.GRR, pctTV(result).GRR, result.pctOfTolerance?.GRR],
+                      [t('grr_row_pv'), result.PV, pctTV(result).PV, result.pctOfTolerance?.PV],
+                      [t('grr_row_tv'), result.TV, 1, null],
                     ].map((row, i) => (
                       <tr key={i}>
                         <td style={s.td}>{row[0] as string}</td>
@@ -856,7 +858,7 @@ export default function GageRR() {
                       ref={contribChartRef}
                       type="bar"
                       data={contribChartData}
-                      options={{ ...chartOpts('% of Total Variation'), plugins: { legend: { display: false } } } as never}
+                      options={{ ...chartOpts(t('grr_col_pcttotalvar')), plugins: { legend: { display: false } } } as never}
                     />
                   )}
                 </div>
@@ -865,15 +867,15 @@ export default function GageRR() {
               {/* Range chart — Average & Range method only (UCL/D4 concept doesn't apply to ANOVA) */}
               {result.method === 'average-range' && (
                 <div className="qh-chart-wrap" style={s.chartWrap}>
-                  <div style={s.sectionTitle}>Range Chart by Appraiser × Part (UCL = {fmt(result.uclR, 4)})</div>
+                  <div style={s.sectionTitle}>{t('grr_range_chart_title').replace('{n}', fmt(result.uclR, 4))}</div>
                   <div className="qh-chart-inner" style={s.chartInner}>
                     {rangeChartData && (
-                      <Chart ref={rangeChartRef} type="line" data={rangeChartData as never} options={chartOpts('Range') as never} />
+                      <Chart ref={rangeChartRef} type="line" data={rangeChartData as never} options={chartOpts(t('grr_axis_range')) as never} />
                     )}
                   </div>
                   {result.outOfControlRanges.length > 0 && (
                     <div style={{ marginTop: 10, fontSize: 12, color: c.danger }}>
-                      ⚠ {result.outOfControlRanges.length} range(s) beyond UCL — investigate appraiser consistency:{' '}
+                      {t('grr_range_ooc_warning').replace('{n}', String(result.outOfControlRanges.length))}{' '}
                       {result.outOfControlRanges.map(r => `${r.appraiser} / Part ${r.part}`).join(', ')}
                     </div>
                   )}
@@ -882,10 +884,10 @@ export default function GageRR() {
 
               {/* Xbar comparison chart */}
               <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={s.sectionTitle}>Average by Part — Appraiser Comparison</div>
+                <div style={s.sectionTitle}>{t('grr_xbar_chart_title')}</div>
                 <div className="qh-chart-inner" style={s.chartInner}>
                   {xbarChartData && (
-                    <Chart ref={xbarChartRef} type="line" data={xbarChartData as never} options={chartOpts('Average Measurement') as never} />
+                    <Chart ref={xbarChartRef} type="line" data={xbarChartData as never} options={chartOpts(t('grr_axis_avgmeasurement')) as never} />
                   )}
                 </div>
               </div>

@@ -12,6 +12,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedSection } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { useLanguage } from '@/lib/i18n/context'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -204,6 +205,7 @@ function parseAttributePaste(text: string, attrType: AttrType): AttrRow[] {
 
 export default function SPCEngine() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const { isPro, isLoggedIn } = useSubscription()
@@ -270,7 +272,7 @@ export default function SPCEngine() {
   }
 
   const clearAll = () => {
-    if (!window.confirm('Clear all data? This cannot be undone.')) return
+    if (!window.confirm(t('spc_confirm_clear'))) return
     setResult(null)
     setErrorMsg('')
     setDataEntryOpen(true)
@@ -319,7 +321,7 @@ export default function SPCEngine() {
           .map(r => r.vals.map(v => parseFloat(v)))
           .filter(row => row.every(v => !isNaN(v)) && row.length === N)
         if (data.length < 3) {
-          setErrorMsg('Please provide at least 3 valid rows of data.')
+          setErrorMsg(t('spc_err_min3rows'))
           setLoading(false)
           return
         }
@@ -341,7 +343,7 @@ export default function SPCEngine() {
           )
           .filter(row => row.every(v => !isNaN(v)))
         if (data.length < 5) {
-          setErrorMsg('At least 5 rows are required for attribute charts.')
+          setErrorMsg(t('spc_err_min5rows'))
           setLoading(false)
           return
         }
@@ -360,13 +362,13 @@ export default function SPCEngine() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setErrorMsg(json.error || 'Calculation failed.')
+        setErrorMsg(json.error || t('spc_err_calc_failed'))
       } else {
         setResult(json)
         setDataEntryOpen(false)
       }
     } catch {
-      setErrorMsg('Could not reach the analysis engine. Please try again.')
+      setErrorMsg(t('spc_err_network'))
     } finally {
       setLoading(false)
     }
@@ -485,14 +487,14 @@ export default function SPCEngine() {
       downloadChartImage(ecdfChartRef.current, 'spc-ecdf-chart.png'),
       downloadChartImage(attrChartRef.current, 'spc-attribute-chart.png'),
     ].some(Boolean)
-    if (!exportedAny) setErrorMsg('Run an analysis first to generate charts to export.')
+    if (!exportedAny) setErrorMsg(t('spc_err_no_charts'))
   }
 
   // ── Export: full report as PDF ── (Pro only)
   const exportPDF = () => {
     if (!isPro) { goToPricing(); return }
     if (!result) {
-      setErrorMsg('Run an analysis first to generate a report to export.')
+      setErrorMsg(t('spc_err_no_report'))
       return
     }
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
@@ -812,8 +814,8 @@ export default function SPCEngine() {
   const rangeValsTrimmed = rangeVals.slice(1)
 
   const allViolations = [
-    ...(varResult?.violations_x.map(v => ({ ...v, chart: 'X̄ / Individuals' })) ?? []),
-    ...(varResult?.violations_r.map(v => ({ ...v, chart: 'R / MR' })) ?? []),
+    ...(varResult?.violations_x.map(v => ({ ...v, chart: t('spc_chart_xbar_indiv') })) ?? []),
+    ...(varResult?.violations_r.map(v => ({ ...v, chart: t('spc_chart_r_mr') })) ?? []),
     ...(attrResult?.violations.map(v => ({ ...v, chart: attrResult.chartLabel })) ?? []),
   ]
 
@@ -824,10 +826,10 @@ export default function SPCEngine() {
   const verdict = !hasSpecLimits || pkVal === null
     ? null
     : pkVal >= 1.33
-    ? { icon: '✅', color: '#4ade80', bg: 'rgba(74,222,128,0.1)', text: 'Process is CAPABLE', sub: 'Process is well within specification limits.' }
+    ? { icon: '✅', color: '#4ade80', bg: 'rgba(74,222,128,0.1)', text: t('spc_capable'), sub: t('spc_capable_sub') }
     : pkVal < 1.0
-    ? { icon: '❌', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', text: `Process is NOT CAPABLE (Ppk = ${fmt(varResult!.Ppk, 3)})`, sub: 'Producing defects. Reduce variation or re-center urgently.' }
-    : { icon: '⚠️', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', text: 'Marginal Process', sub: 'Monitor closely and investigate variation sources.' }
+    ? { icon: '❌', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', text: t('spc_notcapable').replace('{n}', fmt(varResult!.Ppk, 3)), sub: t('spc_notcapable_sub') }
+    : { icon: '⚠️', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', text: t('spc_marginal'), sub: t('spc_marginal_sub') }
 
   const displaySigLvl = varResult ? varResult.sigLvl_st ?? varResult.sigLvl_lt : null
 
@@ -839,7 +841,7 @@ export default function SPCEngine() {
         {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
         <div className="qh-left" style={s.left}>
           <div>
-            <div style={s.sectionTitle}>📊 Data Type</div>
+            <div style={s.sectionTitle}>{t('spc_data_type')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <button
                 style={{
@@ -850,7 +852,7 @@ export default function SPCEngine() {
                 }}
                 onClick={() => { setDataType('variable'); setResult(null); setErrorMsg('') }}
               >
-                Variable
+                {t('spc_variable')}
               </button>
               <button
                 style={{
@@ -861,7 +863,7 @@ export default function SPCEngine() {
                 }}
                 onClick={() => { setDataType('attribute'); setResult(null); setErrorMsg('') }}
               >
-                Attribute {!isPro && '🔒'}
+                {t('spc_attribute')} {!isPro && '🔒'}
               </button>
             </div>
           </div>
@@ -869,7 +871,7 @@ export default function SPCEngine() {
           {dataType === 'variable' ? (
             <>
               <div>
-                <div style={s.sectionTitle}>⚙️ Subgroup Size (n)</div>
+                <div style={s.sectionTitle}>{t('spc_subgroup_size')}</div>
                 <input
                   style={s.input}
                   type="number"
@@ -879,23 +881,23 @@ export default function SPCEngine() {
                   onChange={e => handleNChange(parseInt(e.target.value, 10) || 1)}
                 />
                 <div style={{ fontSize: 10, color: c.muted, marginTop: 6, lineHeight: 1.5 }}>
-                  n = 1 uses an Individuals / Moving Range (I-MR) chart. n ≥ 2 uses an X̄-R chart.
+                  {t('spc_subgroup_hint')}
                 </div>
               </div>
 
               <div>
-                <div style={s.sectionTitle}>🎯 Spec Limits</div>
+                <div style={s.sectionTitle}>{t('spc_spec_limits')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div>
-                    <div style={s.label}>LSL (optional)</div>
+                    <div style={s.label}>{t('spc_lsl')}</div>
                     <input style={s.input} type="number" value={LSL} onChange={e => setLSL(e.target.value)} />
                   </div>
                   <div>
-                    <div style={s.label}>Target (optional)</div>
+                    <div style={s.label}>{t('spc_target')}</div>
                     <input style={s.input} type="number" value={target} onChange={e => setTarget(e.target.value)} />
                   </div>
                   <div>
-                    <div style={s.label}>USL (optional)</div>
+                    <div style={s.label}>{t('spc_usl')}</div>
                     <input style={s.input} type="number" value={USL} onChange={e => setUSL(e.target.value)} />
                   </div>
                 </div>
@@ -917,28 +919,28 @@ export default function SPCEngine() {
                     font: 'inherit',
                   }}
                 >
-                  <span>🔍 Advanced</span>
-                  <span style={{ fontSize: 11, color: c.muted }}>{advancedOpen ? '▲ Hide' : '▼ Show'}</span>
+                  <span>{t('spc_advanced')}</span>
+                  <span style={{ fontSize: 11, color: c.muted }}>{advancedOpen ? t('spc_hide') : t('spc_show')}</span>
                 </button>
                 {advancedOpen && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
                     <div>
-                      <div style={s.label}>Last N Subgroups (0 = all)</div>
+                      <div style={s.label}>{t('spc_last_n')}</div>
                       <input style={s.input} type="number" min={0} value={lastN} onChange={e => setLastN(e.target.value)} />
                     </div>
                     <div>
-                      <div style={s.label}>Sigma Convention</div>
+                      <div style={s.label}>{t('spc_sigma_convention')}</div>
                       <select style={s.select} value={sigmaConvention} onChange={e => setSigmaConvention(e.target.value as SigmaConvention)}>
-                        <option value="direct">Direct (Z)</option>
-                        <option value="sixsigma">+1.5σ Shift (Six Sigma)</option>
+                        <option value="direct">{t('spc_conv_direct')}</option>
+                        <option value="sixsigma">{t('spc_conv_sixsigma')}</option>
                       </select>
                     </div>
                     <div>
-                      <div style={s.label}>Show</div>
+                      <div style={s.label}>{t('spc_display_show')}</div>
                       <select style={s.select} value={displayMode} onChange={e => setDisplayMode(e.target.value as DisplayMode)}>
-                        <option value="both">Capability + Benchmark Z</option>
-                        <option value="capability">Capability Only (Cp/Cpk)</option>
-                        <option value="benchmark">Benchmark Z Only</option>
+                        <option value="both">{t('spc_show_both')}</option>
+                        <option value="capability">{t('spc_show_capability')}</option>
+                        <option value="benchmark">{t('spc_show_benchmark')}</option>
                       </select>
                     </div>
                   </div>
@@ -948,29 +950,29 @@ export default function SPCEngine() {
           ) : (
             <>
               <div>
-                <div style={s.sectionTitle}>⚙️ Chart Type</div>
+                <div style={s.sectionTitle}>{t('spc_chart_type')}</div>
                 <select
                   style={s.select}
                   value={attrType}
                   onChange={e => { setAttrType(e.target.value as AttrType); setResult(null) }}
                 >
-                  <option value="p">p-Chart (proportion defective, variable n)</option>
-                  <option value="np">np-Chart (count defective, fixed n)</option>
-                  <option value="c">c-Chart (defects per unit)</option>
-                  <option value="u">u-Chart (defects per unit, variable n)</option>
+                  <option value="p">{t('spc_p_chart_opt')}</option>
+                  <option value="np">{t('spc_np_chart_opt')}</option>
+                  <option value="c">{t('spc_c_chart_opt')}</option>
+                  <option value="u">{t('spc_u_chart_opt')}</option>
                 </select>
               </div>
               {attrType === 'np' && (
                 <div>
-                  <div style={s.label}>Fixed Sample Size (n)</div>
+                  <div style={s.label}>{t('spc_fixed_n')}</div>
                   <input style={s.input} type="number" value={fixedN} onChange={e => setFixedN(e.target.value)} />
                 </div>
               )}
               <div>
-                <div style={s.label}>Sigma Convention</div>
+                <div style={s.label}>{t('spc_sigma_convention')}</div>
                 <select style={s.select} value={sigmaConvention} onChange={e => setSigmaConvention(e.target.value as SigmaConvention)}>
-                  <option value="direct">Direct (Z)</option>
-                  <option value="sixsigma">+1.5σ Shift (Six Sigma)</option>
+                  <option value="direct">{t('spc_conv_direct')}</option>
+                  <option value="sixsigma">{t('spc_conv_sixsigma')}</option>
                 </select>
               </div>
             </>
@@ -978,7 +980,7 @@ export default function SPCEngine() {
 
           <div>
             <button style={{ ...s.ctaBtn, width: '100%', textAlign: 'center', border: 'none', cursor: 'pointer', fontSize: 13, padding: '10px 16px' }} onClick={analyze} disabled={loading}>
-              {loading ? 'Analyzing…' : '▶ Analyze'}
+              {loading ? t('spc_analyzing') : t('spc_analyze_btn')}
             </button>
           </div>
 
@@ -987,16 +989,16 @@ export default function SPCEngine() {
               style={{ ...s.addBtn, background: 'rgba(239,68,68,0.1)', border: '1px dashed #ef4444', color: '#ef4444' }}
               onClick={clearAll}
             >
-              🗑️ Clear All
+              {t('spc_clear_all')}
             </button>
           </div>
 
           <div>
-            <div style={s.sectionTitle}>📤 Export</div>
+            <div style={s.sectionTitle}>{t('spc_export')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? '📊 Export Excel' : '🔒 Export Excel'}</button>
-              <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>{isLoggedIn ? '🖼️ Export Charts (PNG)' : '🔒 Export Charts (PNG)'}</button>
-              <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>{isPro ? '📄 Export Full Report (PDF)' : '🔒 Export Full Report (PDF)'}</button>
+              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('spc_export_excel') : t('spc_export_excel_locked')}</button>
+              <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>{isLoggedIn ? t('spc_export_png') : t('spc_export_png_locked')}</button>
+              <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>{isPro ? t('spc_export_pdf') : t('spc_export_pdf_locked')}</button>
             </div>
             <div style={{ marginTop: 8 }}>
               <SaveAnalysisButton
@@ -1032,20 +1034,20 @@ export default function SPCEngine() {
           <div style={s.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: dataEntryOpen ? 12 : 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>Data Entry</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{t('spc_data_entry')}</div>
                 {!dataEntryOpen && (
                   <div style={{ fontSize: 12, color: c.muted }}>
-                    {dataType === 'variable' ? `${varRows.length} subgroup${varRows.length === 1 ? '' : 's'}` : `${attrRows.length} row${attrRows.length === 1 ? '' : 's'}`} entered
+                    {dataType === 'variable' ? t('spc_subgroups_entered').replace('{n}', String(varRows.length)) : t('spc_rows_entered').replace('{n}', String(attrRows.length))}
                   </div>
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                {dataEntryOpen && <div style={{ fontSize: 11, color: c.muted }}>Paste from Excel with Ctrl+V</div>}
+                {dataEntryOpen && <div style={{ fontSize: 11, color: c.muted }}>{t('spc_paste_hint')}</div>}
                 <button
                   onClick={() => setDataEntryOpen(o => !o)}
                   style={{ ...s.exportBtn, padding: '4px 10px', fontSize: 11 }}
                 >
-                  {dataEntryOpen ? '▲ Collapse' : '✎ Edit Data'}
+                  {dataEntryOpen ? t('spc_collapse') : t('spc_edit_data')}
                 </button>
               </div>
             </div>
@@ -1058,7 +1060,7 @@ export default function SPCEngine() {
                     <tr>
                       <th style={s.th}>#</th>
                       {Array.from({ length: N }, (_, i) => (
-                        <th key={i} style={s.th}>{N === 1 ? 'Value' : `x${i + 1}`}</th>
+                        <th key={i} style={s.th}>{N === 1 ? t('spc_col_value') : `x${i + 1}`}</th>
                       ))}
                       <th style={s.th}></th>
                     </tr>
@@ -1085,7 +1087,7 @@ export default function SPCEngine() {
                   </tbody>
                 </table>
                 </div>
-                <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addVarRow}>+ Add Subgroup</button>
+                <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addVarRow}>{t('spc_add_subgroup')}</button>
               </>
             ) : (
               <>
@@ -1094,8 +1096,8 @@ export default function SPCEngine() {
                   <thead>
                     <tr>
                       <th style={s.th}>#</th>
-                      {(attrType === 'p' || attrType === 'u') && <th style={s.th}>Sample Size (n)</th>}
-                      <th style={s.th}>Defects</th>
+                      {(attrType === 'p' || attrType === 'u') && <th style={s.th}>{t('spc_col_samplesize')}</th>}
+                      <th style={s.th}>{t('spc_col_defects')}</th>
                       <th style={s.th}></th>
                     </tr>
                   </thead>
@@ -1119,7 +1121,7 @@ export default function SPCEngine() {
                   </tbody>
                 </table>
                 </div>
-                <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addAttrRow}>+ Add Row</button>
+                <button style={{ ...s.addBtn, marginTop: 10 }} onClick={addAttrRow}>{t('spc_add_row')}</button>
               </>
             ))}
           </div>
@@ -1134,30 +1136,30 @@ export default function SPCEngine() {
               <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{varResult.n}</div>
-                  <div style={s.statLabel}>Data Points</div>
+                  <div style={s.statLabel}>{t('spc_stat_datapoints')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(varResult.mu)}</div>
-                  <div style={s.statLabel}>Overall Mean</div>
+                  <div style={s.statLabel}>{t('spc_stat_mean')}</div>
                 </div>
                 <div style={s.statCard}>
                   <div style={s.statVal}>{fmt(varResult.sigma)}</div>
-                  <div style={s.statLabel}>Within Std Dev (σ)</div>
+                  <div style={s.statLabel}>{t('spc_stat_withinstddev')}</div>
                 </div>
-                <LockedSection theme={theme} feature="Normality Test" minHeight={72}>
+                <LockedSection theme={theme} feature={t('spc_normality_test')} minHeight={72}>
                   {varResult.ad ? (
                     <div style={s.statCard}>
                       <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
-                        {varResult.isNormal ? 'Normal' : 'Non-Normal'}
+                        {varResult.isNormal ? t('spc_normal') : t('spc_nonnormal')}
                       </div>
                       <div style={s.statLabel}>
-                        Anderson-Darling (p={fmt(varResult.ad.p, 3)})
+                        {t('spc_ad_label').replace('{p}', fmt(varResult.ad.p, 3))}
                       </div>
                     </div>
                   ) : (
                     <div style={s.statCard}>
                       <div style={{ ...s.statVal, fontSize: 13, color: c.muted }}>
-                        Need at least 8 data points to run the normality test.
+                        {t('spc_ad_need8')}
                       </div>
                     </div>
                   )}
@@ -1175,15 +1177,15 @@ export default function SPCEngine() {
                 )}
                 {(displayMode === 'benchmark' || displayMode === 'both') && (
                   <>
-                    <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.sigLvl_st)}σ</div><div style={s.statLabel}>Sigma (Short-term)</div></div>
-                    <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.sigLvl_lt)}σ</div><div style={s.statLabel}>Sigma (Long-term)</div></div>
+                    <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.sigLvl_st)}σ</div><div style={s.statLabel}>{t('spc_stat_sigma_st')}</div></div>
+                    <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.sigLvl_lt)}σ</div><div style={s.statLabel}>{t('spc_stat_sigma_lt')}</div></div>
                   </>
                 )}
               </div>
 
               <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
-                  {varResult.N === 1 ? 'Individuals (I) Chart' : 'X̄ Chart'}
+                  {varResult.N === 1 ? t('spc_ichart_individuals') : t('spc_ichart_xbar')}
                 </div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   CL = {fmt(varResult.cl_x)} · UCL = {fmt(varResult.ucl_x)} · LCL = {fmt(varResult.lcl_x)}
@@ -1200,7 +1202,7 @@ export default function SPCEngine() {
 
               <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
-                  {varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart'}
+                  {varResult.N === 1 ? t('spc_rchart_mr') : t('spc_rchart_r')}
                 </div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   {varResult.N === 1 ? 'MR̄' : 'R̄'} = {fmt(varResult.cl_r)} · UCL = {fmt(varResult.ucl_r)} · LCL = {fmt(Math.max(0, varResult.lcl_r))}
@@ -1226,31 +1228,31 @@ export default function SPCEngine() {
                             {isFinite(displaySigLvl) ? displaySigLvl.toFixed(2) : '∞'}
                           </div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: sigmaColor(displaySigLvl) }}>σ</div>
-                          <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>Sigma Level</div>
+                          <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{t('spc_sigma_level')}</div>
                         </div>
                         <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 4 }}>
                           {varResult.sigLvl_st !== null && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>Z-bench (Short-term, within σ)</span><span>{fmt(varResult.Z_bench_st)}</span>
+                              <span style={{ color: c.muted }}>{t('spc_zbench_st')}</span><span>{fmt(varResult.Z_bench_st)}</span>
                             </div>
                           )}
                           {varResult.sigLvl_lt !== null && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>Z-bench (Long-term, overall σ)</span><span>{fmt(varResult.Z_bench_lt)}</span>
+                              <span style={{ color: c.muted }}>{t('spc_zbench_lt')}</span><span>{fmt(varResult.Z_bench_lt)}</span>
                             </div>
                           )}
                           {varResult.Z_USL_st !== null && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>Z_USL (within)</span><span>{fmt(varResult.Z_USL_st)}</span>
+                              <span style={{ color: c.muted }}>{t('spc_zusl_within')}</span><span>{fmt(varResult.Z_USL_st)}</span>
                             </div>
                           )}
                           {varResult.Z_LSL_st !== null && (
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>Z_LSL (within)</span><span>{fmt(varResult.Z_LSL_st)}</span>
+                              <span style={{ color: c.muted }}>{t('spc_zlsl_within')}</span><span>{fmt(varResult.Z_LSL_st)}</span>
                             </div>
                           )}
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
-                            <span style={{ color: c.muted }}>Convention</span><span>{sigmaConvention === 'sixsigma' ? 'Z + 1.5σ shift' : 'Direct Z'}</span>
+                            <span style={{ color: c.muted }}>{t('spc_convention_label')}</span><span>{sigmaConvention === 'sixsigma' ? t('spc_conv_shift') : t('spc_conv_direct_val')}</span>
                           </div>
                         </div>
                       </div>
@@ -1260,10 +1262,10 @@ export default function SPCEngine() {
                   {(displayMode === 'capability' || displayMode === 'both') && (
                     <div className="qh-stats-row" style={s.statsRow}>
                       {[
-                        { label: 'Cp', val: varResult.Cp, sub: 'Within σ · Short-term — Spread potential' },
-                        { label: 'Cpk', val: varResult.Cpk, sub: 'Within σ · Short-term — Centering' },
-                        { label: 'Pp', val: varResult.Pp, sub: 'Overall σ · Long-term — Spread performance' },
-                        { label: 'Ppk', val: varResult.Ppk, sub: 'Overall σ · Long-term — Centering' },
+                        { label: 'Cp', val: varResult.Cp, sub: t('spc_cp_sub') },
+                        { label: 'Cpk', val: varResult.Cpk, sub: t('spc_cpk_sub') },
+                        { label: 'Pp', val: varResult.Pp, sub: t('spc_pp_sub') },
+                        { label: 'Ppk', val: varResult.Ppk, sub: t('spc_ppk_sub') },
                       ].map(item => (
                         <div key={item.label} style={{ ...s.statCard, border: `1px solid ${capabilityColor(item.val)}44` }}>
                           <div style={{ ...s.statVal, color: capabilityColor(item.val) }}>{fmt(item.val)}</div>
@@ -1274,7 +1276,7 @@ export default function SPCEngine() {
                       {varResult.Cpm !== null && (
                         <div style={{ ...s.statCard, border: `1px solid ${capabilityColor(varResult.Cpm)}44` }}>
                           <div style={{ ...s.statVal, color: capabilityColor(varResult.Cpm) }}>{fmt(varResult.Cpm, 4)}</div>
-                          <div style={s.statLabel}>Cpm (Taguchi)</div>
+                          <div style={s.statLabel}>{t('spc_cpm_taguchi')}</div>
                           <div style={{ fontSize: 10, color: capabilityColor(varResult.Cpm), marginTop: 4 }}>{capabilityLabel(varResult.Cpm)}</div>
                         </div>
                       )}
@@ -1283,21 +1285,21 @@ export default function SPCEngine() {
 
                   {(varResult.ppmD_st || varResult.ppmD_lt) && (
                     <div style={s.card}>
-                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>PPM / DPM Defective — Detailed Breakdown</div>
+                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_ppm_breakdown_title')}</div>
                       <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
                       <table style={s.table}>
                         <thead>
-                          <tr><th style={s.th}>Region</th><th style={s.th}>Short-term (within σ)</th><th style={s.th}>Long-term (overall σ)</th></tr>
+                          <tr><th style={s.th}>{t('spc_col_region')}</th><th style={s.th}>{t('spc_col_shortterm')}</th><th style={s.th}>{t('spc_col_longterm')}</th></tr>
                         </thead>
                         <tbody>
                           {varResult.USL !== null && (
-                            <tr><td style={s.td}>Above USL</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(2) : '—'}</td></tr>
+                            <tr><td style={s.td}>{t('spc_row_aboveusl')}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(2) : '—'}</td></tr>
                           )}
                           {varResult.LSL !== null && (
-                            <tr><td style={s.td}>Below LSL</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(2) : '—'}</td></tr>
+                            <tr><td style={s.td}>{t('spc_row_belowlsl')}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(2) : '—'}</td></tr>
                           )}
                           <tr style={{ fontWeight: 700 }}>
-                            <td style={s.td}>Total PPM</td>
+                            <td style={s.td}>{t('spc_row_totalppm')}</td>
                             <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(2) : '—'}</td>
                             <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(2) : '—'}</td>
                           </tr>
@@ -1323,9 +1325,9 @@ export default function SPCEngine() {
                   )}
 
                   {submittedVals.length > 0 && (
-                    <LockedSection theme={theme} feature="Distribution Chart" minHeight={340}>
+                    <LockedSection theme={theme} feature={t('spc_distribution_chart_feature')} minHeight={340}>
                       <div className="qh-chart-wrap" style={s.chartWrap}>
-                        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Distribution vs. Specification Limits</div>
+                        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('spc_dist_vs_spec')}</div>
                         <div className="qh-chart-inner" style={s.chartInner}>
                           <Chart
                             ref={distChartRef}
@@ -1340,14 +1342,14 @@ export default function SPCEngine() {
                 </>
               ) : (
                 <div style={{ ...s.card, fontSize: 11, color: c.muted }}>
-                  Enter LSL/USL on the left to unlock the full Capability Analysis (verdict, Cp/Cpk/Pp/Ppk, PPM breakdown, distribution chart).
+                  {t('spc_enter_spec_hint')}
                 </div>
               )}
 
               {submittedVals.length > 0 && (
-                <LockedSection theme={theme} feature="Empirical CDF Chart" minHeight={340}>
+                <LockedSection theme={theme} feature={t('spc_ecdf_feature')} minHeight={340}>
                   <div className="qh-chart-wrap" style={s.chartWrap}>
-                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>Empirical CDF vs. Normal Distribution</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('spc_ecdf_vs_normal')}</div>
                     <div className="qh-chart-inner" style={s.chartInner}>
                       <Chart
                         ref={ecdfChartRef}
@@ -1364,12 +1366,12 @@ export default function SPCEngine() {
 
           {/* ── ATTRIBUTE RESULTS ──────────────────────────────────────── */}
           {attrResult && (
-            <LockedSection theme={theme} feature="Attribute Charts (p/np/c/u)" minHeight={420}>
+            <LockedSection theme={theme} feature={t('spc_attr_feature')} minHeight={420}>
               <>
                 <div className="qh-stats-row" style={s.statsRow}>
                   <div style={s.statCard}>
                     <div style={s.statVal}>{attrResult.pts.length}</div>
-                    <div style={s.statLabel}>Subgroups</div>
+                    <div style={s.statLabel}>{t('spc_subgroups')}</div>
                   </div>
                   <div style={s.statCard}>
                     <div style={s.statVal}>{fmt(attrResult.metric, 4)}</div>
@@ -1377,11 +1379,11 @@ export default function SPCEngine() {
                   </div>
                   <div style={s.statCard}>
                     <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
-                    <div style={s.statLabel}>DPM</div>
+                    <div style={s.statLabel}>{t('spc_dpm')}</div>
                   </div>
                   <div style={s.statCard}>
                     <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
-                    <div style={s.statLabel}>Sigma Level</div>
+                    <div style={s.statLabel}>{t('spc_sigma_level')}</div>
                   </div>
                 </div>
 
@@ -1405,16 +1407,16 @@ export default function SPCEngine() {
 
           {/* ── NELSON RULE VIOLATIONS ─────────────────────────────────── */}
           {result && (
-            <LockedSection theme={theme} feature="Nelson Rule Violations" minHeight={140}>
+            <LockedSection theme={theme} feature={t('spc_nelson_feature')} minHeight={140}>
               <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>Nelson Rule Violations</div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_nelson_title')}</div>
                 {allViolations.length === 0 ? (
-                  <div style={{ color: '#4ade80', fontSize: 13 }}>✅ No out-of-control signals detected.</div>
+                  <div style={{ color: '#4ade80', fontSize: 13 }}>{t('spc_no_violations')}</div>
                 ) : (
                   allViolations.map((v, i) => (
                     <div key={i} style={s.rowCard}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>Rule {v.rule}: {v.label}</span>
+                        <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {v.label}</span>
                         <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
                       </div>
                       <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>
@@ -1427,13 +1429,13 @@ export default function SPCEngine() {
 
           {!result && !errorMsg && (
             <div style={{ ...s.card, textAlign: 'center', padding: 60, color: c.muted }}>
-              Enter your data on the left and click Analyze to generate control charts, capability indices, and Nelson Rule diagnostics.
+              {t('spc_empty_state')}
             </div>
           )}
         </div>
       </div>
 
-      {pasteToast && <div style={s.toast}>✅ Data pasted successfully</div>}
+      {pasteToast && <div style={s.toast}>{t('spc_toast')}</div>}
     </div>
   )
 }
