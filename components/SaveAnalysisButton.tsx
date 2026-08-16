@@ -29,7 +29,7 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
   const btnStyle: CSSProperties = {
     background: c.surface2,
     border: `1px solid ${c.border}`,
-    borderRadius: 8,
+    borderRadius: 9,
     color: c.text,
     padding: '9px 14px',
     cursor: 'pointer',
@@ -40,6 +40,14 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
     gap: 6,
     textDecoration: 'none',
     whiteSpace: 'nowrap',
+  }
+
+  const saveBtnStyle: CSSProperties = {
+    ...btnStyle,
+    background: `${c.accent}16`,
+    border: `1px solid ${c.accent}55`,
+    color: c.accent,
+    fontWeight: 700,
   }
 
   async function handleSave() {
@@ -78,7 +86,7 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       {isPro ? (
-        <button style={btnStyle} onClick={handleSave} disabled={saving}>
+        <button style={saveBtnStyle} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : '💾 Save Project'}
         </button>
       ) : (

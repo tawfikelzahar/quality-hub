@@ -142,7 +142,7 @@ export default function DashboardPage() {
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_dashboard" showGetPro={false} />
 
-      <div style={s.main}>
+      <div className="qh-main" style={s.main}>
         {!isPro ? (
           <div style={{ ...s.card, textAlign: 'center', padding: 48 }}>
             <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 700 }}>Saved Projects</div>
                 <div style={{ color: c.muted, fontSize: 13 }}>
@@ -193,8 +193,8 @@ export default function DashboardPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {analyses.map(a => (
                   <div key={a.id} style={s.rowCard}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                         {renamingId === a.id ? (
                           <input
                             style={{ ...s.input, marginBottom: 0 }}
@@ -216,7 +216,7 @@ export default function DashboardPage() {
                           {TOOL_LABELS[a.tool]} · Last updated {new Date(a.updated_at).toLocaleDateString('en-US')}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                         <Link href={TOOL_ROUTES[a.tool]} style={{ ...s.exportBtn, textDecoration: 'none' }}>
                           Open
                         </Link>

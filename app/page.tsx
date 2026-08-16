@@ -25,7 +25,7 @@ export default function Home() {
   const comingSoonBg = dark ? 'rgba(11,22,40,.45)' : c.surface2
   const comingSoonBorder = dark ? 'rgba(255,255,255,.04)' : c.border
   const footerBorder = dark ? 'rgba(255,255,255,.05)' : c.border
-  const footerMuted = dark ? '#2d3748' : c.muted
+  const footerMuted = dark ? '#6b89b4' : c.muted
   const glowOpacity = dark ? 1 : 0 // the animated background glows are dark-mode only
 
   const featurePills = [dict.pill_1, dict.pill_2, dict.pill_3, dict.pill_4, dict.pill_5, dict.pill_6]

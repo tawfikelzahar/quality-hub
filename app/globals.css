@@ -56,6 +56,33 @@ img {
   max-width: 100%;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Universal button polish
+ * ─────────────────────────────────────────────────────────────────────────
+ * Applies to every <button> in the app (export/save/delete/tab/CTA — all
+ * of them use plain <button> tags with inline styles), without needing to
+ * touch every component individually. Gives consistent hover/press/disabled
+ * feedback so buttons feel alive instead of static.
+ * ───────────────────────────────────────────────────────────────────── */
+button {
+  transition: transform .12s ease, filter .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  filter: none;
+}
+button:focus-visible {
+  outline: 2px solid #0fd4c8;
+  outline-offset: 2px;
+}
+
 @media (max-width: 768px) {
   /* Top nav (tool pages + landing page) */
   .qh-nav {
