@@ -608,6 +608,9 @@ export const translations = {
     spc_notcapable_sub: 'Producing defects. Reduce variation or re-center urgently.',
     spc_marginal: 'Marginal Process',
     spc_marginal_sub: 'Monitor closely and investigate variation sources.',
+    spc_capability_needs_stability_title: 'Process shows out-of-control signals',
+    spc_capability_needs_stability_note:
+      'Cp/Cpk/Pp/Ppk assume a statistically stable, predictable process. Review the Nelson Rule violations below and address special causes before relying on these capability numbers.',
     spc_distribution_chart_feature: 'Distribution Chart',
     spc_dist_vs_spec: 'Distribution vs. Specification Limits',
     spc_enter_spec_hint:
@@ -620,6 +623,7 @@ export const translations = {
     spc_nelson_feature: 'Nelson Rule Violations',
     spc_nelson_title: 'Nelson Rule Violations',
     spc_no_violations: '✅ No out-of-control signals detected.',
+    spc_adequacy_note: 'Based on {n} observations. This is a practical guideline, not a statistical rule — treat estimates from smaller samples with proportionally lower confidence.',
     spc_rule_label: 'Rule {n}:',
     spc_chart_xbar_indiv: 'X̄ / Individuals',
     spc_chart_r_mr: 'R / MR',
@@ -1234,6 +1238,9 @@ export const translations = {
     spc_notcapable_sub: 'تُنتج عيوبًا. قلّل التباين أو أعد التمركز فورًا.',
     spc_marginal: 'عملية هامشية',
     spc_marginal_sub: 'راقب عن كثب وابحث عن مصادر التباين.',
+    spc_capability_needs_stability_title: 'العملية تُظهر إشارات خروج عن السيطرة',
+    spc_capability_needs_stability_note:
+      'مؤشرات Cp/Cpk/Pp/Ppk تفترض عملية مستقرة إحصائيًا ويمكن التنبؤ بها. راجع مخالفات قواعد Nelson بالأسفل وعالج الأسباب الخاصة (special causes) قبل الاعتماد على أرقام القدرة هذه.',
     spc_distribution_chart_feature: 'مخطط التوزيع',
     spc_dist_vs_spec: 'التوزيع مقابل الحدود المواصفاتية',
     spc_enter_spec_hint:
@@ -1246,6 +1253,7 @@ export const translations = {
     spc_nelson_feature: 'مخالفات قواعد Nelson',
     spc_nelson_title: 'مخالفات قواعد Nelson',
     spc_no_violations: '✅ لم يُكتشف أي إشارة خروج عن السيطرة.',
+    spc_adequacy_note: 'بناءً على {n} قراءة. هذا معيار عملي إرشادي وليس قاعدة إحصائية ثابتة — تعامل مع التقديرات من العينات الصغيرة بثقة أقل نسبيًا.',
     spc_rule_label: 'القاعدة {n}:',
     spc_chart_xbar_indiv: 'X̄ / الأفراد',
     spc_chart_r_mr: 'R / MR',

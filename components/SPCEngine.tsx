@@ -35,6 +35,12 @@ interface PpmDetail {
   total: number
 }
 
+interface DataAdequacy {
+  n: number
+  tier: 'low' | 'moderate' | 'adequate'
+  label: string
+}
+
 interface VariableResult {
   n: number
   mu: number
@@ -73,6 +79,7 @@ interface VariableResult {
   N: number
   LSL: number | null
   USL: number | null
+  dataAdequacy: DataAdequacy
 }
 
 interface AttributeResult {
@@ -88,6 +95,7 @@ interface AttributeResult {
   metric: number
   metricLabel: string
   violations: Violation[]
+  dataAdequacy: DataAdequacy
 }
 
 type ApiResult = VariableResult | AttributeResult
@@ -819,6 +827,10 @@ export default function SPCEngine() {
     ...(attrResult?.violations.map(v => ({ ...v, chart: attrResult.chartLabel })) ?? []),
   ]
 
+  const adequacy = varResult?.dataAdequacy ?? attrResult?.dataAdequacy ?? null
+  const adequacyColor = adequacy?.tier === 'adequate' ? '#4ade80' : adequacy?.tier === 'moderate' ? '#facc15' : '#ef4444'
+  const adequacyIcon = adequacy?.tier === 'adequate' ? '🟢' : adequacy?.tier === 'moderate' ? '🟡' : '⚠️'
+
   // Capability verdict prefers Cpk (short-term/within) and falls back to Ppk,
   // matching the legacy tool's `const pkVal = Cpk !== null ? Cpk : Ppk`
   const hasSpecLimits = !!(varResult && (varResult.LSL !== null || varResult.USL !== null))
@@ -1220,6 +1232,15 @@ export default function SPCEngine() {
               {/* ── CAPABILITY ANALYSIS (only when LSL/USL is set) ─────── */}
               {hasSpecLimits ? (
                 <>
+                  {allViolations.length > 0 && (
+                    <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'rgba(239,68,68,0.08)', border: '1px solid #ef444455' }}>
+                      <div style={{ fontSize: 20 }}>⚠️</div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#ef4444' }}>{t('spc_capability_needs_stability_title')}</div>
+                        <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{t('spc_capability_needs_stability_note')}</div>
+                      </div>
+                    </div>
+                  )}
                   {displaySigLvl !== null && (
                     <div style={s.card}>
                       <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1403,6 +1424,19 @@ export default function SPCEngine() {
                 </div>
               </>
             </LockedSection>
+          )}
+
+          {/* ── DATA ADEQUACY ──────────────────────────────────────────── */}
+          {result && adequacy && (
+            <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${adequacyColor}55` }}>
+              <div style={{ fontSize: 20 }}>{adequacyIcon}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: adequacyColor }}>{adequacy.label}</div>
+                <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
+                  {t('spc_adequacy_note').replace('{n}', String(adequacy.n))}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* ── NELSON RULE VIOLATIONS ─────────────────────────────────── */}

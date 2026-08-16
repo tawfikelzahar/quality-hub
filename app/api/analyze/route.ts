@@ -68,7 +68,37 @@ function nelsonRules(points: number[], cl: number, sigma: number) {
     const run = z.slice(i - 4, i + 1)
     if (run.filter(v => v > 1).length >= 4 || run.filter(v => v < -1).length >= 4) { violations.push({ rule: 6, label: '4 of 5 beyond 1σ', points: [i - 3, i + 1], desc: 'Moderate shift.' }); break }
   }
+  // Rule 4 — 14 points in a row alternating up and down (systematic variation).
+  for (let i = 13; i < n; i++) {
+    const run = points.slice(i - 13, i + 1)
+    let alternating = true
+    for (let j = 2; j < run.length; j++) {
+      const prevDiff = run[j - 1] - run[j - 2]
+      const curDiff = run[j] - run[j - 1]
+      if (curDiff === 0 || prevDiff === 0 || curDiff * prevDiff >= 0) { alternating = false; break }
+    }
+    if (alternating) { violations.push({ rule: 4, label: '14 in a row alternating', points: [i - 12, i + 1], desc: 'Systematic alternating pattern — possible over-adjustment or two interleaved sources.' }); break }
+  }
+  // Rule 7 — 15 points in a row within 1σ of the centerline (stratification).
+  for (let i = 14; i < n; i++) {
+    const run = z.slice(i - 14, i + 1)
+    if (run.every(v => Math.abs(v) < 1)) { violations.push({ rule: 7, label: '15 in a row within 1σ', points: [i - 13, i + 1], desc: 'Stratification — variation smaller than expected, check for mixed subgroups or miscalculated limits.' }); break }
+  }
+  // Rule 8 — 8 points in a row beyond 1σ on either side, none within 1σ (mixture).
+  for (let i = 7; i < n; i++) {
+    const run = z.slice(i - 7, i + 1)
+    if (run.every(v => Math.abs(v) > 1)) { violations.push({ rule: 8, label: '8 in a row beyond 1σ (mixture)', points: [i - 6, i + 1], desc: 'Mixture — possible two overlapping distributions or sources.' }); break }
+  }
   return violations
+}
+// Data Adequacy — practical guideline (not a statistical law) for how much
+// confidence to place in a Capability/Stability read given the sample size.
+// Based on total INDIVIDUAL observations (not subgroup count): 30 individual
+// points is not the same thing as 30 subgroups.
+function dataAdequacy(nIndividual: number) {
+  if (nIndividual < 30) return { n: nIndividual, tier: 'low' as const, label: 'Insufficient Data — Low Confidence' }
+  if (nIndividual < 100) return { n: nIndividual, tier: 'moderate' as const, label: 'Limited Data — Moderate Confidence' }
+  return { n: nIndividual, tier: 'adequate' as const, label: 'Adequate Data' }
 }
 const SPC_CONST: Record<number, { A2: number; D3: number; D4: number }> = {
   2:{A2:1.880,D3:0,D4:3.267},3:{A2:1.023,D3:0,D4:2.574},4:{A2:0.729,D3:0,D4:2.282},
@@ -182,7 +212,7 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
     labels, xbarVals, rangeVals, cl_x, ucl_x, lcl_x, cl_r, ucl_r, lcl_r, sigma,
     violations_x, violations_r, ad, isNormal, Cp, Cpk, Pp, Ppk, Cpm,
     Z_USL_st, Z_LSL_st, Z_USL_lt, Z_LSL_lt, Z_bench_st, Z_bench_lt, sigLvl_st, sigLvl_lt,
-    ppmD_st, ppmD_lt, N, LSL, USL
+    ppmD_st, ppmD_lt, N, LSL, USL, dataAdequacy: dataAdequacy(allVals.length)
   }
 }
 
@@ -216,7 +246,7 @@ function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention }: {
     sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, uBar)), conv)
   }
   const violations = nelsonRules(pts, clVal, (ucl - clVal) / 3)
-  return { pts, clVal, ucl, lcl, labels: pts.map((_, i) => i + 1), chartLabel, dpm, sigmaLvl, metric, metricLabel, violations }
+  return { pts, clVal, ucl, lcl, labels: pts.map((_, i) => i + 1), chartLabel, dpm, sigmaLvl, metric, metricLabel, violations, dataAdequacy: dataAdequacy(data.length) }
 }
 
 export async function POST(request: NextRequest) {
