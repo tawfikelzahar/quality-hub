@@ -69,10 +69,9 @@ export default function Home() {
             <a href="/about" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_about')}</a>
             <a href="/contact" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_contact')}</a>
            <AuthStatus />
-            <LanguageToggle theme={theme} className="qh-hide-small" />
+            <LanguageToggle theme={theme} />
             <button
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-              className="qh-hide-small"
               style={{background:dark?'rgba(255,255,255,0.08)':c.surface2,border:`1px solid ${c.border}`,borderRadius:20,padding:'5px 14px',color:text,cursor:'pointer',fontSize:12,fontWeight:600}}
             >
               {dark ? '☀️ Light' : '🌙 Dark'}
