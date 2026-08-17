@@ -57,7 +57,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
         <LanguageToggle theme={theme} />
         <AuthStatus />
         {showGetPro && (
-          <Link href="/pricing" style={s.ctaBtn}>
+          <Link href="/pricing" className="qh-hide-mobile" style={s.ctaBtn}>
             {t('nav_getpro')} →
           </Link>
         )}
