@@ -20,7 +20,6 @@ import { messagesAr } from '@/lib/aql/messages.ar';
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
-import { LockedPage } from '@/components/Locked';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
@@ -107,7 +106,7 @@ export default function AQLPage() {
 
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
-  const { isPro, isLoggedIn, loading: subLoading } = useSubscription();
+  const { isPro, isLoggedIn } = useSubscription();
 
   function updateRow(id: string, patch: Partial<InspectionRowInput>) {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -312,19 +311,6 @@ export default function AQLPage() {
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_aql" />
 
-      {!subLoading && !isPro ? (
-        <LockedPage
-          theme={theme}
-          feature="AQL Sampling Plan Calculator"
-          description="AQL sampling plans (ISO 2859-1 / ANSI Z1.4) are part of the Pro toolkit."
-          bullets={[
-            'Normal, Tightened & Reduced inspection',
-            'Full Ac/Re lookup table',
-            'Multi-stage inspection plans',
-            'Excel / PDF export, no watermark',
-          ]}
-        />
-      ) : (
       <div className="qh-main" style={s.main}>
         <div>
           <p style={{ fontSize: 13, color: c.muted }}>{messages.appSubtitle}</p>
@@ -647,7 +633,6 @@ export default function AQLPage() {
 
         <p style={{ fontSize: 11, color: c.muted, opacity: 0.7 }}>{messages.footerNote}</p>
       </div>
-      )}
     </div>
   );
 }

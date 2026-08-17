@@ -9,7 +9,6 @@ import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
-import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
@@ -49,7 +48,7 @@ export default function StabilityStudy() {
   const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
-  const { isPro, isLoggedIn, loading: subLoading } = useSubscription()
+  const { isPro, isLoggedIn } = useSubscription()
 
   // ── Study setup ──────────────────────────────────────────────────────
   const [attributeName, setAttributeName] = useState('Assay')
@@ -366,19 +365,6 @@ export default function StabilityStudy() {
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_stability" />
 
-      {!subLoading && !isPro ? (
-        <LockedPage
-          theme={theme}
-          feature={t('bc_stability')}
-          description={t('stab_locked_desc')}
-          bullets={[
-            t('stab_locked_b1'),
-            t('stab_locked_b2'),
-            t('stab_locked_b3'),
-            t('stab_locked_b4'),
-          ]}
-        />
-      ) : (
       <div className="qh-body" style={s.body}>
         {/* ── LEFT: Setup + Data Entry ─────────────────────────────────── */}
         <div style={{ ...s.left, width: 460 }}>
@@ -642,7 +628,6 @@ export default function StabilityStudy() {
           </div>
         </div>
       </div>
-      )}
     </div>
   )
 }

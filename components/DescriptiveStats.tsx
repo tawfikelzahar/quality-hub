@@ -8,7 +8,6 @@ import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADI
 
 type PaletteColors = (typeof COLORS)[keyof typeof COLORS]
 import Nav from '@/components/Nav'
-import { LockedSection } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
@@ -246,32 +245,30 @@ export default function DescriptiveStats() {
                 <BoxPlotSVG box={result.boxPlot} min={result.min} max={result.max} colors={c} />
               </div>
 
-              {/* Anderson-Darling Normality Test — Pro */}
-              <LockedSection theme={theme} feature={t('ds_ad_test_name')} minHeight={110}>
-                {result.andersonDarling ? (
-                  <div
-                    style={{
-                      ...(s.card as CSSProperties),
-                      background: `${c.amber}12`,
-                      border: `1px solid ${c.amber}40`,
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, color: c.amber, marginBottom: 4 }}>
-                      {t('ds_ad_test_name')}
-                    </div>
-                    <div style={{ fontSize: 13, color: c.text }}>
-                      A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {fmt3(result.andersonDarling.pValue)}
-                    </div>
-                    <div style={{ fontSize: 12, color: c.muted, marginTop: 6 }}>
-                      {result.andersonDarling.normalAtAlpha05
-                        ? t('ds_ad_normal')
-                        : t('ds_ad_not_normal')}
-                    </div>
+              {/* Anderson-Darling Normality Test — free */}
+              {result.andersonDarling ? (
+                <div
+                  style={{
+                    ...(s.card as CSSProperties),
+                    background: `${c.amber}12`,
+                    border: `1px solid ${c.amber}40`,
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: c.amber, marginBottom: 4 }}>
+                    {t('ds_ad_test_name')}
                   </div>
-                ) : (
-                  <div style={s.card}>{t('ds_ad_need_8')}</div>
-                )}
-              </LockedSection>
+                  <div style={{ fontSize: 13, color: c.text }}>
+                    A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {fmt3(result.andersonDarling.pValue)}
+                  </div>
+                  <div style={{ fontSize: 12, color: c.muted, marginTop: 6 }}>
+                    {result.andersonDarling.normalAtAlpha05
+                      ? t('ds_ad_normal')
+                      : t('ds_ad_not_normal')}
+                  </div>
+                </div>
+              ) : (
+                <div style={s.card}>{t('ds_ad_need_8')}</div>
+              )}
 
               {/* Stats table — free */}
               <div style={s.card}>
@@ -296,31 +293,29 @@ export default function DescriptiveStats() {
                 </table>
               </div>
 
-              {/* 95% Confidence Intervals — Pro */}
-              <LockedSection theme={theme} feature={t('ds_ci_title')} minHeight={150}>
-                <div style={s.card}>
-                  <div style={s.sectionTitle}>{t('ds_ci_title')}</div>
-                  <table style={s.table}>
-                    <tbody>
-                      <StatRow
-                        label={t('ds_stat_mean')}
-                        value={result.ciMean ? `${fmt(result.ciMean.lower)} ${t('ds_range_to')} ${fmt(result.ciMean.upper)}` : '—'}
-                        th={s.th} td={s.td}
-                      />
-                      <StatRow
-                        label={t('ds_stat_median')}
-                        value={result.ciMedian ? `${fmt(result.ciMedian.lower)} ${t('ds_range_to')} ${fmt(result.ciMedian.upper)}` : t('ds_ci_need_n6')}
-                        th={s.th} td={s.td}
-                      />
-                      <StatRow
-                        label={t('ds_stat_stdev')}
-                        value={result.ciStdev ? `${fmt(result.ciStdev.lower)} ${t('ds_range_to')} ${fmt(result.ciStdev.upper)}` : '—'}
-                        th={s.th} td={s.td}
-                      />
-                    </tbody>
-                  </table>
-                </div>
-              </LockedSection>
+              {/* 95% Confidence Intervals — free */}
+              <div style={s.card}>
+                <div style={s.sectionTitle}>{t('ds_ci_title')}</div>
+                <table style={s.table}>
+                  <tbody>
+                    <StatRow
+                      label={t('ds_stat_mean')}
+                      value={result.ciMean ? `${fmt(result.ciMean.lower)} ${t('ds_range_to')} ${fmt(result.ciMean.upper)}` : '—'}
+                      th={s.th} td={s.td}
+                    />
+                    <StatRow
+                      label={t('ds_stat_median')}
+                      value={result.ciMedian ? `${fmt(result.ciMedian.lower)} ${t('ds_range_to')} ${fmt(result.ciMedian.upper)}` : t('ds_ci_need_n6')}
+                      th={s.th} td={s.td}
+                    />
+                    <StatRow
+                      label={t('ds_stat_stdev')}
+                      value={result.ciStdev ? `${fmt(result.ciStdev.lower)} ${t('ds_range_to')} ${fmt(result.ciStdev.upper)}` : '—'}
+                      th={s.th} td={s.td}
+                    />
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>

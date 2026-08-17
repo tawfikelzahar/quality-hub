@@ -9,7 +9,6 @@ import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
-import { LockedSection } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
@@ -1158,24 +1157,22 @@ export default function SPCEngine() {
                   <div style={s.statVal}>{fmt(varResult.sigma)}</div>
                   <div style={s.statLabel}>{t('spc_stat_withinstddev')}</div>
                 </div>
-                <LockedSection theme={theme} feature={t('spc_normality_test')} minHeight={72}>
-                  {varResult.ad ? (
-                    <div style={s.statCard}>
-                      <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
-                        {varResult.isNormal ? t('spc_normal') : t('spc_nonnormal')}
-                      </div>
-                      <div style={s.statLabel}>
-                        {t('spc_ad_label').replace('{p}', fmt(varResult.ad.p, 3))}
-                      </div>
+                {varResult.ad ? (
+                  <div style={s.statCard}>
+                    <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
+                      {varResult.isNormal ? t('spc_normal') : t('spc_nonnormal')}
                     </div>
-                  ) : (
-                    <div style={s.statCard}>
-                      <div style={{ ...s.statVal, fontSize: 13, color: c.muted }}>
-                        {t('spc_ad_need8')}
-                      </div>
+                    <div style={s.statLabel}>
+                      {t('spc_ad_label').replace('{p}', fmt(varResult.ad.p, 3))}
                     </div>
-                  )}
-                </LockedSection>
+                  </div>
+                ) : (
+                  <div style={s.statCard}>
+                    <div style={{ ...s.statVal, fontSize: 13, color: c.muted }}>
+                      {t('spc_ad_need8')}
+                    </div>
+                  </div>
+                )}
                 {(displayMode === 'capability' || displayMode === 'both') && (
                   <>
                     <div style={s.statCard}><div style={s.statVal}>{fmt(varResult.Cp)}</div><div style={s.statLabel}>Cp</div></div>
@@ -1346,19 +1343,17 @@ export default function SPCEngine() {
                   )}
 
                   {submittedVals.length > 0 && (
-                    <LockedSection theme={theme} feature={t('spc_distribution_chart_feature')} minHeight={340}>
-                      <div className="qh-chart-wrap" style={s.chartWrap}>
-                        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('spc_dist_vs_spec')}</div>
-                        <div className="qh-chart-inner" style={s.chartInner}>
-                          <Chart
-                            ref={distChartRef}
-                            type="scatter"
-                            data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
-                            options={linearChartOptions(false)}
-                          />
-                        </div>
+                    <div className="qh-chart-wrap" style={s.chartWrap}>
+                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('spc_dist_vs_spec')}</div>
+                      <div className="qh-chart-inner" style={s.chartInner}>
+                        <Chart
+                          ref={distChartRef}
+                          type="scatter"
+                          data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
+                          options={linearChartOptions(false)}
+                        />
                       </div>
-                    </LockedSection>
+                    </div>
                   )}
                 </>
               ) : (
@@ -1368,62 +1363,58 @@ export default function SPCEngine() {
               )}
 
               {submittedVals.length > 0 && (
-                <LockedSection theme={theme} feature={t('spc_ecdf_feature')} minHeight={340}>
-                  <div className="qh-chart-wrap" style={s.chartWrap}>
-                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('spc_ecdf_vs_normal')}</div>
-                    <div className="qh-chart-inner" style={s.chartInner}>
-                      <Chart
-                        ref={ecdfChartRef}
-                        type="scatter"
-                        data={buildEcdfChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
-                        options={linearChartOptions(true)}
-                      />
-                    </div>
+                <div className="qh-chart-wrap" style={s.chartWrap}>
+                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>{t('spc_ecdf_vs_normal')}</div>
+                  <div className="qh-chart-inner" style={s.chartInner}>
+                    <Chart
+                      ref={ecdfChartRef}
+                      type="scatter"
+                      data={buildEcdfChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
+                      options={linearChartOptions(true)}
+                    />
                   </div>
-                </LockedSection>
+                </div>
               )}
             </>
           )}
 
           {/* ── ATTRIBUTE RESULTS ──────────────────────────────────────── */}
           {attrResult && (
-            <LockedSection theme={theme} feature={t('spc_attr_feature')} minHeight={420}>
-              <>
-                <div className="qh-stats-row" style={s.statsRow}>
-                  <div style={s.statCard}>
-                    <div style={s.statVal}>{attrResult.pts.length}</div>
-                    <div style={s.statLabel}>{t('spc_subgroups')}</div>
-                  </div>
-                  <div style={s.statCard}>
-                    <div style={s.statVal}>{fmt(attrResult.metric, 4)}</div>
-                    <div style={s.statLabel}>{attrResult.metricLabel}</div>
-                  </div>
-                  <div style={s.statCard}>
-                    <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
-                    <div style={s.statLabel}>{t('spc_dpm')}</div>
-                  </div>
-                  <div style={s.statCard}>
-                    <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
-                    <div style={s.statLabel}>{t('spc_sigma_level')}</div>
-                  </div>
+            <>
+              <div className="qh-stats-row" style={s.statsRow}>
+                <div style={s.statCard}>
+                  <div style={s.statVal}>{attrResult.pts.length}</div>
+                  <div style={s.statLabel}>{t('spc_subgroups')}</div>
                 </div>
+                <div style={s.statCard}>
+                  <div style={s.statVal}>{fmt(attrResult.metric, 4)}</div>
+                  <div style={s.statLabel}>{attrResult.metricLabel}</div>
+                </div>
+                <div style={s.statCard}>
+                  <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
+                  <div style={s.statLabel}>{t('spc_dpm')}</div>
+                </div>
+                <div style={s.statCard}>
+                  <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
+                  <div style={s.statLabel}>{t('spc_sigma_level')}</div>
+                </div>
+              </div>
 
-                <div className="qh-chart-wrap" style={s.chartWrap}>
-                  <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{attrResult.chartLabel}</div>
-                  <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                    CL = {fmt(attrResult.clVal, 4)} · UCL = {fmt(attrResult.ucl, 4)} · LCL = {fmt(Math.max(0, attrResult.lcl), 4)}
-                  </div>
-                  <div className="qh-chart-inner" style={s.chartInner}>
-                    <Chart
-                      ref={attrChartRef}
-                      type="line"
-                      data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.ucl, attrResult.clVal, Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
-                      options={lineChartOptions}
-                    />
-                  </div>
+              <div className="qh-chart-wrap" style={s.chartWrap}>
+                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{attrResult.chartLabel}</div>
+                <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
+                  CL = {fmt(attrResult.clVal, 4)} · UCL = {fmt(attrResult.ucl, 4)} · LCL = {fmt(Math.max(0, attrResult.lcl), 4)}
                 </div>
-              </>
-            </LockedSection>
+                <div className="qh-chart-inner" style={s.chartInner}>
+                  <Chart
+                    ref={attrChartRef}
+                    type="line"
+                    data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.ucl, attrResult.clVal, Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
+                    options={lineChartOptions}
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           {/* ── DATA ADEQUACY ──────────────────────────────────────────── */}
@@ -1441,24 +1432,22 @@ export default function SPCEngine() {
 
           {/* ── NELSON RULE VIOLATIONS ─────────────────────────────────── */}
           {result && (
-            <LockedSection theme={theme} feature={t('spc_nelson_feature')} minHeight={140}>
-              <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_nelson_title')}</div>
-                {allViolations.length === 0 ? (
-                  <div style={{ color: '#4ade80', fontSize: 13 }}>{t('spc_no_violations')}</div>
-                ) : (
-                  allViolations.map((v, i) => (
-                    <div key={i} style={s.rowCard}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {v.label}</span>
-                        <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>
+            <div style={s.card}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_nelson_title')}</div>
+              {allViolations.length === 0 ? (
+                <div style={{ color: '#4ade80', fontSize: 13 }}>{t('spc_no_violations')}</div>
+              ) : (
+                allViolations.map((v, i) => (
+                  <div key={i} style={s.rowCard}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {v.label}</span>
+                      <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
                     </div>
-                  ))
-                )}
-              </div>
-            </LockedSection>
+                    <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
 
           {!result && !errorMsg && (
