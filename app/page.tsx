@@ -68,7 +68,7 @@ export default function Home() {
             <a href="/pricing" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_pricing')}</a>
             <a href="/about" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_about')}</a>
             <a href="/contact" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_contact')}</a>
-            <a href="/download" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_getapp')}</a>
+            <a href="/download" className="nl" style={{fontSize:13,color:navLinkColor,textDecoration:'none',fontWeight:600,whiteSpace:'nowrap'}}>{t('nav_getapp')}</a>
            <AuthStatus />
             <LanguageToggle theme={theme} />
             <button
