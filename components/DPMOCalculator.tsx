@@ -13,6 +13,7 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
+import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
 
 interface ProcessRow {
   id: string
@@ -241,23 +242,52 @@ export default function DPMOCalculator() {
     URL.revokeObjectURL(url)
   }
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!isPro) { goToPricing(); return }
-    const data = results.map(r => ({
-      Process: r.name,
-      Units: r.units,
-      'Opportunities/Unit': r.opportunities,
-      Defects: r.defects,
-      DPO: r.dpo.toFixed(6),
-      DPMO: Math.round(r.dpmo),
-      'Yield %': `${r.yieldPct.toFixed(2)}%`,
-      'Sigma Level': r.sigma.toFixed(2),
-      Rating: sigmaBand(r.sigma).label,
-    }))
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'DPMO Analysis')
-    XLSX.writeFile(wb, 'dpmo-analysis.xlsx')
+    const report = createReport({ toolName: 'DPMO Calculator' })
+    const bandTone = (sigma: number): Tone => sigma >= 5 ? 'good' : sigma >= 3 ? 'warning' : 'danger'
+
+    const overview = report.addSheet('Overview')
+    overview.titleBand('DPMO & Sigma Level Report', `${results.length} process(es) analyzed`)
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Standard', 'Six Sigma DPMO / Sigma Level (industry benchmarks)'],
+    ])
+
+    if (results.length > 0) {
+      const avgSigma = results.reduce((s, r) => s + r.sigma, 0) / results.length
+      const worst = results.reduce((a, b) => (a.sigma < b.sigma ? a : b))
+      overview.sectionHeading('At a Glance')
+      overview.kpiRow([
+        { label: 'Processes', value: results.length, tone: 'neutral' },
+        { label: 'Avg Sigma Level', value: avgSigma.toFixed(2), tone: bandTone(avgSigma) },
+        { label: 'Lowest Sigma', value: `${worst.sigma.toFixed(2)} (${worst.name})`, tone: bandTone(worst.sigma) },
+      ])
+    }
+
+    overview.sectionHeading('Process Detail')
+    overview.table({
+      headers: [
+        { header: 'Process', key: 'process', align: 'left', width: 22 },
+        { header: 'Units', key: 'units', align: 'right' },
+        { header: 'Opportunities/Unit', key: 'opp', align: 'right' },
+        { header: 'Defects', key: 'defects', align: 'right' },
+        { header: 'DPO', key: 'dpo', align: 'right' },
+        { header: 'DPMO', key: 'dpmo', align: 'right' },
+        { header: 'Yield %', key: 'yield', align: 'right' },
+        { header: 'Sigma Level', key: 'sigma', align: 'right' },
+        { header: 'Rating', key: 'rating', align: 'left', width: 20 },
+      ],
+      rows: results.map(r => [
+        r.name, r.units, r.opportunities, r.defects,
+        r.dpo.toFixed(6), Math.round(r.dpmo), `${r.yieldPct.toFixed(2)}%`, r.sigma.toFixed(2),
+        sigmaBand(r.sigma).label,
+      ]),
+      rowTones: results.map(r => bandTone(r.sigma)),
+    })
+    overview.freezeHeader(2)
+
+    await report.download('dpmo-analysis.xlsx')
   }
 
   const exportPNG = () => {

@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
@@ -21,6 +20,7 @@ import {
   poolabilityTest,
   STORAGE_CONDITIONS,
 } from '@/lib/stability/calc'
+import { createReport, nowStamp } from '@/lib/excelReport'
 
 // ── Sample dataset — a realistic assay(%) decline over 36 months ──────────
 const SAMPLE_TIME_POINTS = [0, 3, 6, 9, 12, 18, 24, 36]
@@ -269,30 +269,74 @@ export default function StabilityStudy() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!isPro) { goToPricing(); return }
-    const wb = XLSX.utils.book_new()
-    const rawRows: Record<string, string | number>[] = timePoints.map((t, tIdx) => {
-      const row: Record<string, string | number> = { 'Time (months)': t }
-      batchNames.forEach((name, bIdx) => { row[name] = values[tIdx][bIdx] ?? '' })
-      return row
-    })
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawRows), 'Raw Data')
+    const report = createReport({ toolName: 'Stability Study' })
 
-    const summaryRows = analysis.individual.map((r) => ({
-      Batch: r.batch.name,
-      Slope: r.reg?.slope ?? '',
-      Intercept: r.reg?.intercept ?? '',
-      'R²': r.reg?.r2 ?? '',
-      'Shelf life (months)': r.shelfLife ?? 'not reached',
-      Extrapolated: r.extrapolated ? 'Yes' : 'No',
-    }))
-    summaryRows.push({
-      Batch: 'RECOMMENDED', Slope: '', Intercept: '', 'R²': '',
-      'Shelf life (months)': analysis.recommended ?? 'n/a', Extrapolated: analysis.basis,
+    const overview = report.addSheet('Overview')
+    overview.titleBand('Stability Study Report', `${attributeName || 'Attribute'} (${unit || 'unit'}) — ${direction === 'decreasing' ? 'Decreasing trend' : 'Increasing trend'}`)
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Confidence level', `${confidence}%`],
+      ['Standard', 'ICH Q1E'],
+    ])
+
+    overview.sectionHeading('Shelf Life Summary')
+    overview.kpiRow([
+      {
+        label: 'Recommended Shelf Life',
+        value: analysis.recommended !== null ? `${fmt(analysis.recommended, 1)} mo` : 'n/a',
+        sub: analysis.basis === 'pooled' ? 'Pooled regression' : analysis.basis === 'individual-min' ? 'Min. of individual batches' : undefined,
+        tone: analysis.recommended !== null ? 'good' : 'warning',
+      },
+      { label: 'Batches Analyzed', value: analysis.individual.length, tone: 'neutral' },
+      ...(analysis.poolability ? [{
+        label: 'Poolability',
+        value: analysis.poolability.fullyPoolable ? 'Poolable' : 'Not poolable',
+        tone: analysis.poolability.fullyPoolable ? 'good' as const : 'warning' as const,
+      }] : []),
+    ])
+
+    overview.sectionHeading('Per-Batch Regression')
+    overview.table({
+      headers: [
+        { header: 'Batch', key: 'batch', align: 'left', width: 18 },
+        { header: 'Slope', key: 'slope', align: 'right' },
+        { header: 'Intercept', key: 'intercept', align: 'right' },
+        { header: 'R²', key: 'r2', align: 'right' },
+        { header: 'Shelf Life (months)', key: 'sl', align: 'right' },
+        { header: 'Extrapolated', key: 'extrap', align: 'center' },
+      ],
+      rows: analysis.individual.map(r => [
+        r.batch.name,
+        r.reg ? fmt(r.reg.slope, 5) : '—',
+        r.reg ? fmt(r.reg.intercept, 5) : '—',
+        r.reg ? fmt(r.reg.r2, 4) : '—',
+        r.shelfLife !== null ? fmt(r.shelfLife, 1) : 'not reached',
+        r.extrapolated ? 'Yes' : 'No',
+      ]),
+      rowTones: analysis.individual.map(r => r.extrapolated ? 'warning' : undefined),
     })
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary')
-    XLSX.writeFile(wb, 'stability-study-results.xlsx')
+
+    overview.note(
+      `Recommended shelf life: ${analysis.recommended !== null ? fmt(analysis.recommended, 1) + ' months' : 'n/a'}. Basis: ${analysis.basis}.`,
+      analysis.recommended !== null ? 'good' : 'warning'
+    )
+    overview.freezeHeader(2)
+
+    // ── Sheet 2: Raw Data ──
+    const dataSheet = report.addSheet('Raw Data')
+    dataSheet.titleBand('Raw Data', 'Time-series measurements per batch')
+    dataSheet.table({
+      headers: [
+        { header: 'Time (months)', key: 'time', align: 'center', width: 16 },
+        ...batchNames.map(name => ({ header: name, key: name, align: 'right' as const })),
+      ],
+      rows: timePoints.map((tm, tIdx) => [tm, ...batchNames.map((_, bIdx) => values[tIdx][bIdx] ?? '')]),
+    })
+    dataSheet.freezeHeader(2)
+
+    await report.download('stability-study-results.xlsx')
   }
 
   // ── Export: PNG ──────────────────────────────────────────────────────

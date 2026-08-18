@@ -4,7 +4,6 @@ import { useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
@@ -13,6 +12,7 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
+import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
 
 // ─────────────────────────────────────────────────────────────────────────
 // OEE = Availability × Performance × Quality  (Nakajima / JIPM TPM standard)
@@ -205,30 +205,71 @@ export default function OEECalculator() {
     URL.revokeObjectURL(url)
   }
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!isPro) { goToPricing(); return }
     if (!result || !cls) return
-    const indices = [
-      { Metric: 'OEE (Overall)', 'Value (%)': result.oee.toFixed(2) },
-      { Metric: 'Availability', 'Value (%)': result.availability.toFixed(2) },
-      { Metric: 'Performance', 'Value (%)': result.performanceCapped.toFixed(2) },
-      { Metric: 'Quality (First Pass Yield)', 'Value (%)': result.quality.toFixed(2) },
-    ]
-    const losses = lossData.map(l => ({ 'Loss Category': t(l.labelKey), Description: t(l.subKey), 'Value (%)': l.value.toFixed(2) }))
-    const bench = BENCH.map(b => {
-      const yours = result[b.key]
-      return {
-        Metric: t(b.labelKey),
-        'Your Value (%)': yours.toFixed(2),
-        'World-Class (%)': b.wc,
-        'Gap (%)': (yours - b.wc).toFixed(2),
-      }
+    const report = createReport({ toolName: 'OEE Calculator' })
+    const classTone: Tone = cls.type === 'world-class' || cls.type === 'good' ? 'good' : cls.type === 'average' ? 'warning' : 'danger'
+
+    const overview = report.addSheet('Overview')
+    overview.titleBand('OEE (Overall Equipment Effectiveness) Report', t(cls.labelKey))
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Standard', 'Nakajima / JIPM TPM — OEE = Availability × Performance × Quality'],
+    ])
+
+    overview.sectionHeading('OEE Indices')
+    overview.kpiRow([
+      { label: 'OEE (Overall)', value: `${result.oee.toFixed(2)}%`, tone: classTone },
+      { label: 'Availability', value: `${result.availability.toFixed(2)}%`, tone: 'neutral' },
+      { label: 'Performance', value: `${result.performanceCapped.toFixed(2)}%`, tone: 'neutral' },
+      { label: 'Quality', value: `${result.quality.toFixed(2)}%`, tone: 'neutral' },
+    ])
+
+    overview.table({
+      headers: [
+        { header: 'Metric', key: 'metric', align: 'left', width: 26 },
+        { header: 'Value (%)', key: 'value', align: 'right' },
+      ],
+      rows: [
+        ['OEE (Overall)', result.oee.toFixed(2)],
+        ['Availability', result.availability.toFixed(2)],
+        ['Performance', result.performanceCapped.toFixed(2)],
+        ['Quality (First Pass Yield)', result.quality.toFixed(2)],
+      ],
     })
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(indices), 'OEE Indices')
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(losses), 'Six Big Losses')
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bench), 'Benchmark')
-    XLSX.writeFile(wb, 'oee-analysis.xlsx')
+
+    overview.sectionHeading('Six Big Losses')
+    overview.table({
+      headers: [
+        { header: 'Loss Category', key: 'cat', align: 'left', width: 22 },
+        { header: 'Description', key: 'desc', align: 'left', width: 36 },
+        { header: 'Value (%)', key: 'value', align: 'right' },
+      ],
+      rows: lossData.map(l => [t(l.labelKey), t(l.subKey), l.value.toFixed(2)]),
+      rowTones: lossData.map(l => l.value >= 15 ? 'danger' : l.value >= 5 ? 'warning' : undefined),
+    })
+
+    overview.sectionHeading('Benchmark vs World-Class')
+    overview.table({
+      headers: [
+        { header: 'Metric', key: 'metric', align: 'left', width: 22 },
+        { header: 'Your Value (%)', key: 'yours', align: 'right' },
+        { header: 'World-Class (%)', key: 'wc', align: 'right' },
+        { header: 'Gap (%)', key: 'gap', align: 'right' },
+      ],
+      rows: BENCH.map(b => {
+        const yours = result[b.key]
+        const gap = yours - b.wc
+        return [t(b.labelKey), yours.toFixed(2), b.wc, `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}`]
+      }),
+      rowTones: BENCH.map(b => (result[b.key] - b.wc) >= 0 ? 'good' : 'warning'),
+    })
+
+    overview.note(`Classification: ${t(cls.labelKey)}`, classTone)
+    overview.freezeHeader(2)
+
+    await report.download('oee-analysis.xlsx')
   }
 
   const exportPNG = () => {

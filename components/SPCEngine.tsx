@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import 'chart.js/auto'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
@@ -12,6 +11,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
+import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -381,97 +381,192 @@ export default function SPCEngine() {
     }
   }
 
-  // ── Export: Data + Stats as Excel workbook ── (Pro only)
-  const exportExcel = () => {
+  // ── Export: Data + Stats as a professional Excel workbook ── (Pro only)
+  const exportExcel = async () => {
     if (!isPro) { goToPricing(); return }
-    const wb = XLSX.utils.book_new()
+    const report = createReport({ toolName: 'SPC Engine' })
 
-    if (dataType === 'variable') {
-      const rows = varRows.map((r, i) => {
-        const row: Record<string, string | number> = { Subgroup: i + 1 }
-        r.vals.forEach((v, j) => { row[N === 1 ? 'Value' : `x${j + 1}`] = v === '' ? '' : parseFloat(v) })
-        return row
-      })
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Raw Data')
-    } else {
-      const needsN = attrType === 'p' || attrType === 'u'
-      const rows = attrRows.map((r, i) => {
-        const row: Record<string, string | number> = { Row: i + 1 }
-        if (needsN) row['Sample Size (n)'] = r.n === '' ? '' : parseFloat(r.n)
-        row['Defects'] = r.defects === '' ? '' : parseFloat(r.defects)
-        return row
-      })
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Raw Data')
-    }
+    // ── Sheet 1: Overview — KPI cards + chart limits + capability summary ──
+    const overview = report.addSheet('Overview')
+    overview.titleBand(
+      'Statistical Process Control Report',
+      dataType === 'variable' ? 'Variable (Continuous) Data — Control Chart Analysis' : 'Attribute Data — Control Chart Analysis'
+    )
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Data type', dataType === 'variable' ? `Variable — subgroup size n = ${N}` : `Attribute — ${attrType.toUpperCase()} chart`],
+      ['Standard', 'Nelson Rules (Western Electric derivative), AIAG SPC'],
+    ])
 
     if (varResult) {
-      const chartWord = varResult.N === 1 ? 'Individuals' : 'X̄'
+      const chartWord = varResult.N === 1 ? 'Individuals (X)' : 'X̄'
       const clWord = varResult.N === 1 ? 'MR̄' : 'R̄'
-      const summary = [
-        { Metric: 'Data Points', Value: varResult.n },
-        { Metric: 'Overall Mean', Value: varResult.mu },
-        { Metric: 'Within Std Dev (σ)', Value: varResult.sigma },
-        { Metric: 'Overall Std Dev', Value: varResult.sdOverall },
-        { Metric: 'Anderson-Darling A²', Value: varResult.ad?.A2 ?? '' },
-        { Metric: 'Anderson-Darling p-value', Value: varResult.ad?.p ?? '' },
-        { Metric: 'Normality', Value: varResult.isNormal ? 'Normal' : 'Non-Normal' },
-        { Metric: `${chartWord} CL`, Value: varResult.cl_x },
-        { Metric: `${chartWord} UCL`, Value: varResult.ucl_x },
-        { Metric: `${chartWord} LCL`, Value: varResult.lcl_x },
-        { Metric: clWord, Value: varResult.cl_r },
-        { Metric: 'Range/MR UCL', Value: varResult.ucl_r },
-        { Metric: 'Range/MR LCL', Value: Math.max(0, varResult.lcl_r) },
-      ]
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary')
+
+      overview.sectionHeading('Process Summary')
+      overview.kpiRow([
+        { label: 'Data Points', value: varResult.n, tone: 'neutral' },
+        { label: 'Mean (μ)', value: fmt(varResult.mu, 4), tone: 'accent' },
+        { label: 'Within σ', value: fmt(varResult.sigma, 4), tone: 'accent' },
+        { label: 'Normality', value: varResult.isNormal ? 'Normal' : 'Non-Normal', tone: varResult.isNormal ? 'good' : 'warning' },
+      ])
 
       if (hasSpecLimits) {
-        const cap = [
-          { Metric: 'LSL', Value: varResult.LSL ?? '' },
-          { Metric: 'USL', Value: varResult.USL ?? '' },
-          { Metric: 'Cp', Value: varResult.Cp ?? '' },
-          { Metric: 'Cpk', Value: varResult.Cpk ?? '' },
-          { Metric: 'Pp', Value: varResult.Pp ?? '' },
-          { Metric: 'Ppk', Value: varResult.Ppk ?? '' },
-          { Metric: 'Cpm', Value: varResult.Cpm ?? '' },
-          { Metric: 'Sigma Level (Short-term)', Value: varResult.sigLvl_st ?? '' },
-          { Metric: 'Sigma Level (Long-term)', Value: varResult.sigLvl_lt ?? '' },
-          { Metric: 'Z-bench (Short-term)', Value: varResult.Z_bench_st ?? '' },
-          { Metric: 'Z-bench (Long-term)', Value: varResult.Z_bench_lt ?? '' },
-          { Metric: 'PPM Above USL (Short-term)', Value: varResult.ppmD_st?.above ?? '' },
-          { Metric: 'PPM Below LSL (Short-term)', Value: varResult.ppmD_st?.below ?? '' },
-          { Metric: 'Total PPM (Short-term)', Value: varResult.ppmD_st?.total ?? '' },
-          { Metric: 'PPM Above USL (Long-term)', Value: varResult.ppmD_lt?.above ?? '' },
-          { Metric: 'PPM Below LSL (Long-term)', Value: varResult.ppmD_lt?.below ?? '' },
-          { Metric: 'Total PPM (Long-term)', Value: varResult.ppmD_lt?.total ?? '' },
-        ]
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(cap), 'Capability')
+        overview.sectionHeading('Process Capability')
+        overview.kpiRow([
+          { label: 'Cp', value: fmt(varResult.Cp, 2), sub: 'Potential', tone: varResult.Cp !== null ? (varResult.Cp >= 1.33 ? 'good' : varResult.Cp >= 1 ? 'warning' : 'danger') : 'neutral' },
+          { label: 'Cpk', value: fmt(varResult.Cpk, 2), sub: 'Actual', tone: varResult.Cpk !== null ? (varResult.Cpk >= 1.33 ? 'good' : varResult.Cpk >= 1 ? 'warning' : 'danger') : 'neutral' },
+          { label: 'Pp', value: fmt(varResult.Pp, 2), sub: 'Overall potential', tone: 'neutral' },
+          { label: 'Ppk', value: fmt(varResult.Ppk, 2), sub: 'Overall actual', tone: 'neutral' },
+        ])
+        overview.spacer(1)
+        overview.kpiRow([
+          { label: 'Sigma Level (ST)', value: fmt(varResult.sigLvl_st, 2), tone: 'accent' },
+          { label: 'Sigma Level (LT)', value: fmt(varResult.sigLvl_lt, 2), sub: 'incl. 1.5σ shift', tone: 'accent' },
+          { label: 'Total PPM (ST)', value: varResult.ppmD_st ? Math.round(varResult.ppmD_st.total) : '—', tone: 'neutral' },
+          { label: 'Total PPM (LT)', value: varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.total) : '—', tone: 'neutral' },
+        ])
       }
+
+      overview.sectionHeading('Control Limits')
+      overview.table({
+        title: undefined,
+        headers: [
+          { header: 'Chart', key: 'chart', align: 'left', width: 22 },
+          { header: 'CL', key: 'cl', align: 'right' },
+          { header: 'UCL', key: 'ucl', align: 'right' },
+          { header: 'LCL', key: 'lcl', align: 'right' },
+        ],
+        rows: [
+          [chartWord, fmt(varResult.cl_x, 4), fmt(varResult.ucl_x, 4), fmt(varResult.lcl_x, 4)],
+          [clWord, fmt(varResult.cl_r, 4), fmt(varResult.ucl_r, 4), fmt(Math.max(0, varResult.lcl_r), 4)],
+        ],
+      })
+
+      if (hasSpecLimits) {
+        overview.sectionHeading('Specification Limits & PPM')
+        overview.table({
+          headers: [
+            { header: 'Metric', key: 'metric', align: 'left', width: 26 },
+            { header: 'Value', key: 'value', align: 'right' },
+          ],
+          rows: [
+            ['LSL', varResult.LSL ?? '—'],
+            ['USL', varResult.USL ?? '—'],
+            ['Cpm', fmt(varResult.Cpm, 3)],
+            ['Z-bench (Short-term)', fmt(varResult.Z_bench_st, 3)],
+            ['Z-bench (Long-term)', fmt(varResult.Z_bench_lt, 3)],
+            ['PPM Above USL (Short-term)', varResult.ppmD_st ? Math.round(varResult.ppmD_st.above) : '—'],
+            ['PPM Below LSL (Short-term)', varResult.ppmD_st ? Math.round(varResult.ppmD_st.below) : '—'],
+            ['PPM Above USL (Long-term)', varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.above) : '—'],
+            ['PPM Below LSL (Long-term)', varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.below) : '—'],
+          ],
+        })
+      }
+
+      overview.sectionHeading('Normality Test (Anderson-Darling)')
+      overview.table({
+        headers: [
+          { header: 'Statistic', key: 'k', align: 'left', width: 26 },
+          { header: 'Value', key: 'v', align: 'right' },
+        ],
+        rows: [
+          ['A² (adjusted)', fmt(varResult.ad?.A2adj ?? varResult.ad?.A2, 4)],
+          ['p-value', fmt(varResult.ad?.p, 4)],
+          ['Conclusion', varResult.isNormal ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'],
+        ],
+        rowTones: [undefined, undefined, varResult.isNormal ? 'good' : 'warning'],
+      })
+
+      overview.note(
+        `Data adequacy: ${varResult.dataAdequacy.label} (n = ${varResult.dataAdequacy.n}). ` +
+        (varResult.dataAdequacy.tier === 'low'
+          ? 'Consider collecting more subgroups before drawing firm capability conclusions.'
+          : 'Sample size is sufficient for the reported statistics.'),
+        varResult.dataAdequacy.tier === 'low' ? 'warning' : 'good'
+      )
     } else if (attrResult) {
-      const summary = [
-        { Metric: 'Chart Type', Value: attrResult.chartLabel },
-        { Metric: 'Subgroups', Value: attrResult.pts.length },
-        { Metric: attrResult.metricLabel, Value: attrResult.metric },
-        { Metric: 'CL', Value: attrResult.clVal },
-        { Metric: 'UCL', Value: attrResult.ucl },
-        { Metric: 'LCL', Value: Math.max(0, attrResult.lcl) },
-        { Metric: 'DPM', Value: attrResult.dpm },
-        { Metric: 'Sigma Level', Value: attrResult.sigmaLvl },
+      overview.sectionHeading('Process Summary')
+      overview.kpiRow([
+        { label: 'Chart Type', value: attrResult.chartLabel, tone: 'accent' },
+        { label: 'Subgroups', value: attrResult.pts.length, tone: 'neutral' },
+        { label: attrResult.metricLabel, value: fmt(attrResult.metric, 4), tone: 'accent' },
+        { label: 'Sigma Level', value: fmt(attrResult.sigmaLvl, 2), tone: attrResult.sigmaLvl >= 4 ? 'good' : attrResult.sigmaLvl >= 3 ? 'warning' : 'danger' },
+      ])
+      overview.sectionHeading('Control Limits')
+      overview.table({
+        headers: [
+          { header: 'Metric', key: 'k', align: 'left', width: 24 },
+          { header: 'Value', key: 'v', align: 'right' },
+        ],
+        rows: [
+          ['CL', fmt(attrResult.clVal, 4)],
+          ['UCL', fmt(attrResult.ucl, 4)],
+          ['LCL', fmt(Math.max(0, attrResult.lcl), 4)],
+          ['DPM (Defects per Million)', fmt(attrResult.dpm, 1)],
+        ],
+      })
+      overview.note(
+        `Data adequacy: ${attrResult.dataAdequacy.label} (n = ${attrResult.dataAdequacy.n}).`,
+        attrResult.dataAdequacy.tier === 'low' ? 'warning' : 'good'
+      )
+    }
+    overview.freezeHeader(2)
+
+    // ── Sheet 2: Raw Data ──
+    const dataSheet = report.addSheet('Raw Data')
+    dataSheet.titleBand('Raw Data', 'As entered / pasted into the tool')
+    if (dataType === 'variable') {
+      const cols: TableColumn[] = [
+        { header: 'Subgroup', key: 'subgroup', align: 'center', width: 12 },
+        ...Array.from({ length: N }, (_, j) => ({
+          header: N === 1 ? 'Value' : `x${j + 1}`,
+          key: `x${j}`,
+          align: 'right' as const,
+          numFmt: '0.0000',
+        })),
       ]
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summary), 'Summary')
+      const rows = varRows.map((r, i) => {
+        const row: Record<string, string | number> = { subgroup: i + 1 }
+        r.vals.forEach((v, j) => { row[`x${j}`] = v === '' ? '' : parseFloat(v) })
+        return row
+      })
+      dataSheet.table({ headers: cols, rows })
+    } else {
+      const needsN = attrType === 'p' || attrType === 'u'
+      const cols: TableColumn[] = [
+        { header: 'Row', key: 'row', align: 'center', width: 10 },
+        ...(needsN ? [{ header: 'Sample Size (n)', key: 'n', align: 'right' as const }] : []),
+        { header: 'Defects', key: 'defects', align: 'right' },
+      ]
+      const rows = attrRows.map((r, i) => {
+        const row: Record<string, string | number> = { row: i + 1 }
+        if (needsN) row['n'] = r.n === '' ? '' : parseFloat(r.n)
+        row['defects'] = r.defects === '' ? '' : parseFloat(r.defects)
+        return row
+      })
+      dataSheet.table({ headers: cols, rows })
     }
+    dataSheet.freezeHeader(2)
 
+    // ── Sheet 3: Nelson Rule Violations (only if any) ──
     if (allViolations.length > 0) {
-      const viol = allViolations.map(v => ({
-        Chart: v.chart,
-        Rule: v.rule,
-        Test: v.label,
-        Description: v.desc,
-        Points: expandViolationPoints(v).join(', '),
-      }))
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(viol), 'Nelson Violations')
+      const violSheet = report.addSheet('Nelson Violations')
+      violSheet.titleBand('Nelson Rule Violations', `${allViolations.length} violation(s) detected across all charts`)
+      violSheet.table({
+        headers: [
+          { header: 'Chart', key: 'chart', align: 'left', width: 16 },
+          { header: 'Rule #', key: 'rule', align: 'center', width: 10 },
+          { header: 'Test', key: 'test', align: 'left', width: 26 },
+          { header: 'Description', key: 'desc', align: 'left', width: 44 },
+          { header: 'Points', key: 'points', align: 'left', width: 22 },
+        ],
+        rows: allViolations.map(v => [v.chart, v.rule, v.label, v.desc, expandViolationPoints(v).join(', ')]),
+        rowTones: allViolations.map(() => 'danger'),
+      })
+      violSheet.freezeHeader(2)
     }
 
-    XLSX.writeFile(wb, 'spc-report.xlsx')
+    await report.download('spc-report.xlsx')
   }
 
   // ── Export: charts as PNG ────────────────────────────────────────────────

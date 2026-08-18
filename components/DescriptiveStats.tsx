@@ -5,6 +5,7 @@ import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import * as XLSX from 'xlsx'
 import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
+import { createReport, nowStamp } from '@/lib/excelReport'
 
 type PaletteColors = (typeof COLORS)[keyof typeof COLORS]
 import Nav from '@/components/Nav'
@@ -97,30 +98,136 @@ export default function DescriptiveStats() {
     e.target.value = ''
   }, [t])
 
-  const handleExportExcel = useCallback(() => {
+  const handleExportExcel = useCallback(async () => {
     if (!isPro) { goToPricing(); return }
     if (!result) return
-    const rows = [
-      { Statistic: 'N', Value: result.n },
-      { Statistic: 'Mean', Value: result.mean },
-      { Statistic: 'StDev', Value: result.stdev },
-      { Statistic: 'Variance', Value: result.variance },
-      { Statistic: 'CV (%)', Value: result.cv },
-      { Statistic: 'Skewness', Value: result.skewness },
-      { Statistic: 'Kurtosis', Value: result.kurtosis },
-      { Statistic: 'Minimum', Value: result.min },
-      { Statistic: 'Q1', Value: result.q1 },
-      { Statistic: 'Median', Value: result.median },
-      { Statistic: 'Q3', Value: result.q3 },
-      { Statistic: 'Maximum', Value: result.max },
-      { Statistic: 'IQR', Value: result.iqr },
-      { Statistic: 'Range', Value: result.range },
-    ]
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Descriptive Stats')
-    XLSX.writeFile(wb, 'descriptive-statistics.xlsx')
-  }, [result, isPro])
+    const report = createReport({ toolName: 'Descriptive Statistics' })
+
+    // ── Sheet 1: Overview ──
+    const overview = report.addSheet('Overview')
+    overview.titleBand('Descriptive Statistics Report', `N = ${result.n} data points`)
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Sample size (n)', result.n],
+    ])
+
+    overview.sectionHeading('Central Tendency & Spread')
+    overview.kpiRow([
+      { label: 'Mean', value: fmt(result.mean), tone: 'accent' },
+      { label: 'StDev', value: fmt(result.stdev), tone: 'accent' },
+      { label: 'Median', value: fmt(result.median), tone: 'neutral' },
+      { label: 'Range', value: fmt(result.range), tone: 'neutral' },
+    ])
+
+    overview.sectionHeading('Full Statistics')
+    overview.table({
+      headers: [
+        { header: 'Statistic', key: 'k', align: 'left', width: 22 },
+        { header: 'Value', key: 'v', align: 'right' },
+      ],
+      rows: [
+        ['N', result.n],
+        ['Mean', fmt(result.mean)],
+        ['StDev', fmt(result.stdev)],
+        ['Variance', fmt(result.variance)],
+        ['CV (%)', result.cv !== null ? fmt(result.cv) : '—'],
+        ['Skewness', result.skewness !== null ? fmt(result.skewness) : '—'],
+        ['Kurtosis', result.kurtosis !== null ? fmt(result.kurtosis) : '—'],
+        ['Minimum', fmt(result.min)],
+        ['Q1', fmt(result.q1)],
+        ['Median', fmt(result.median)],
+        ['Q3', fmt(result.q3)],
+        ['Maximum', fmt(result.max)],
+        ['IQR', fmt(result.iqr)],
+        ['Range', fmt(result.range)],
+      ],
+    })
+
+    if (result.ciMean || result.ciMedian || result.ciStdev) {
+      overview.sectionHeading('95% Confidence Intervals')
+      overview.table({
+        headers: [
+          { header: 'Statistic', key: 'k', align: 'left', width: 20 },
+          { header: 'Lower', key: 'lo', align: 'right' },
+          { header: 'Upper', key: 'hi', align: 'right' },
+        ],
+        rows: [
+          ...(result.ciMean ? [['Mean', fmt(result.ciMean.lower), fmt(result.ciMean.upper)]] : []),
+          ...(result.ciMedian ? [['Median', fmt(result.ciMedian.lower), fmt(result.ciMedian.upper)]] : []),
+          ...(result.ciStdev ? [['StDev', fmt(result.ciStdev.lower), fmt(result.ciStdev.upper)]] : []),
+        ],
+      })
+    }
+
+    if (result.andersonDarling) {
+      const ad = result.andersonDarling
+      overview.sectionHeading('Normality Test (Anderson-Darling)')
+      overview.table({
+        headers: [
+          { header: 'Statistic', key: 'k', align: 'left', width: 22 },
+          { header: 'Value', key: 'v', align: 'right' },
+        ],
+        rows: [
+          ['A² (adjusted)', fmt3(ad.statistic)],
+          ['p-value', fmt3(ad.pValue)],
+          ['Conclusion', ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'],
+        ],
+        rowTones: [undefined, undefined, ad.normalAtAlpha05 ? 'good' : 'warning'],
+      })
+    }
+
+    overview.sectionHeading('Box Plot Summary')
+    const bp = result.boxPlot
+    overview.table({
+      headers: [
+        { header: 'Statistic', key: 'k', align: 'left', width: 22 },
+        { header: 'Value', key: 'v', align: 'right' },
+      ],
+      rows: [
+        ['Min', fmt(bp.min)],
+        ['Q1', fmt(bp.q1)],
+        ['Median', fmt(bp.median)],
+        ['Q3', fmt(bp.q3)],
+        ['Max', fmt(bp.max)],
+        ['Lower Whisker', fmt(bp.lowerWhisker)],
+        ['Upper Whisker', fmt(bp.upperWhisker)],
+        ['Outliers', bp.outliers.length > 0 ? bp.outliers.map(v => fmt(v)).join(', ') : 'None'],
+      ],
+      rowTones: bp.outliers.length > 0 ? [undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'warning'] : undefined,
+    })
+    overview.freezeHeader(2)
+
+    // ── Sheet 2: Histogram Data ──
+    if (result.histogram.length > 0) {
+      const histSheet = report.addSheet('Histogram')
+      histSheet.titleBand('Histogram Bins', `${result.histogram.length} bins`)
+      histSheet.table({
+        headers: [
+          { header: 'Bin Start', key: 'x0', align: 'right' },
+          { header: 'Bin End', key: 'x1', align: 'right' },
+          { header: 'Count', key: 'count', align: 'right' },
+        ],
+        rows: result.histogram.map(b => [fmt(b.x0), fmt(b.x1), b.count]),
+      })
+      histSheet.freezeHeader(2)
+    }
+
+    // ── Sheet 3: Raw Data ──
+    if (values.length > 0) {
+      const rawSheet = report.addSheet('Raw Data')
+      rawSheet.titleBand('Raw Data', `${values.length} values`)
+      rawSheet.table({
+        headers: [
+          { header: '#', key: 'i', align: 'center', width: 8 },
+          { header: 'Value', key: 'v', align: 'right', numFmt: '0.0000' },
+        ],
+        rows: values.map((v, i) => [i + 1, v]),
+      })
+      rawSheet.freezeHeader(2)
+    }
+
+    await report.download('descriptive-statistics.xlsx')
+  }, [result, isPro, values])
 
   const clearAll = () => {
     setRawText('')

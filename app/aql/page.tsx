@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import {
   AQL_VALUES,
@@ -24,6 +23,7 @@ import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
+import { createReport, nowStamp } from '@/lib/excelReport';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
 const TYPES: InspectionType[] = ['Normal', 'Tightened', 'Reduced'];
@@ -175,26 +175,42 @@ export default function AQLPage() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  function exportExcel() {
+  async function exportExcel() {
     if (!isPro) { goToPricing(); return }
     const flat = flattenResults(results, messages);
-    const data = flat.map((r) => ({
-      Stage: r.stage,
-      'Lot Size': r.lotSize,
-      Level: r.level,
-      'Inspection Type': r.inspectionType,
-      'Code Letter': r.codeLetter,
-      'Defect Class': r.defectClass,
-      'AQL %': r.aql,
-      'Sample (n)': r.sampleSize,
-      Ac: r.ac,
-      Re: r.re,
-      Note: r.note,
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'AQL Sampling Plan');
-    XLSX.writeFile(wb, 'aql-sampling-plan.xlsx');
+    const report = createReport({ toolName: 'AQL Sampling Plan' });
+
+    const overview = report.addSheet('Sampling Plan');
+    overview.titleBand('AQL Sampling Plan Report', `${results.length} inspection stage(s)`);
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Standard', 'ISO 2859-1:2026'],
+    ]);
+
+    overview.sectionHeading('Sampling Plan Detail');
+    overview.table({
+      headers: [
+        { header: 'Stage', key: 'stage', align: 'left', width: 18 },
+        { header: 'Lot Size', key: 'lotSize', align: 'right' },
+        { header: 'Level', key: 'level', align: 'center' },
+        { header: 'Inspection Type', key: 'inspectionType', align: 'center', width: 16 },
+        { header: 'Code Letter', key: 'codeLetter', align: 'center' },
+        { header: 'Defect Class', key: 'defectClass', align: 'left', width: 18 },
+        { header: 'AQL %', key: 'aql', align: 'right' },
+        { header: 'Sample (n)', key: 'sampleSize', align: 'right' },
+        { header: 'Ac', key: 'ac', align: 'center' },
+        { header: 'Re', key: 're', align: 'center' },
+        { header: 'Note', key: 'note', align: 'left', width: 34 },
+      ],
+      rows: flat.map(r => [
+        r.stage, r.lotSize, r.level, r.inspectionType, r.codeLetter,
+        r.defectClass, r.aql, r.sampleSize, r.ac, r.re, r.note,
+      ]),
+      rowTones: flat.map(r => r.note ? 'warning' : undefined),
+    });
+    overview.freezeHeader(2);
+
+    await report.download('aql-sampling-plan.xlsx');
   }
 
   // ── Export: PNG ──────────────────────────────────────────────────────

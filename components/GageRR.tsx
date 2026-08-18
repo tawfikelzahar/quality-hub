@@ -4,7 +4,6 @@ import { useState, useRef, useMemo } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
@@ -13,6 +12,7 @@ import { LockedPage } from '@/components/Locked'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
+import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
 
 // ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
 interface AvgRangeResult {
@@ -404,48 +404,102 @@ export default function GageRR() {
 
 
   // ── Export: Excel ──────────────────────────────────────────────────────
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!isPro) { goToPricing(); return }
     if (!result) return
     const p = pctTV(result)
-    const wb = XLSX.utils.book_new()
-    const rawRows: Record<string, string | number>[] = []
+    const conclusionTone: Tone = result.conclusion === 'okay' ? 'good' : result.conclusion === 'marginal' ? 'warning' : 'danger'
+    const report = createReport({ toolName: 'Gage R&R Study' })
+
+    // ── Sheet 1: Overview ──
+    const overview = report.addSheet('Overview')
+    overview.titleBand('Gage Repeatability & Reproducibility Study', `Method: ${result.method === 'anova' ? 'ANOVA' : 'Average & Range'}`)
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Appraisers × Parts × Trials', `${numAppraisers} × ${numParts} × ${numTrials}`],
+      ['Standard', 'AIAG MSA 4th Edition'],
+    ])
+
+    overview.sectionHeading('Variance Components')
+    overview.kpiRow([
+      { label: '%GRR (of Total Variation)', value: `${(p.GRR * 100).toFixed(1)}%`, tone: conclusionTone },
+      { label: 'NDC', value: result.ndc, sub: 'Number of Distinct Categories', tone: result.ndc >= 5 ? 'good' : 'warning' },
+      { label: 'Repeatability (EV)', value: `${(p.EV * 100).toFixed(1)}%`, tone: 'neutral' },
+      { label: 'Reproducibility (AV)', value: `${(p.AV * 100).toFixed(1)}%`, tone: 'neutral' },
+    ])
+
+    overview.sectionHeading('Detailed Breakdown')
+    overview.table({
+      headers: [
+        { header: 'Metric', key: 'metric', align: 'left', width: 26 },
+        { header: 'Value', key: 'value', align: 'right', numFmt: '0.00000' },
+        { header: '% of Total Variation', key: 'pctTV', align: 'right' },
+        ...(result.pctOfTolerance ? [{ header: '% of Tolerance', key: 'pctTol', align: 'right' as const }] : []),
+      ],
+      rows: [
+        ['EV (Repeatability)', result.EV, `${(p.EV * 100).toFixed(2)}%`, result.pctOfTolerance ? `${(result.pctOfTolerance.EV * 100).toFixed(2)}%` : ''],
+        ['AV (Reproducibility)', result.AV, `${(p.AV * 100).toFixed(2)}%`, result.pctOfTolerance ? `${(result.pctOfTolerance.AV * 100).toFixed(2)}%` : ''],
+        ['GRR', result.GRR, `${(p.GRR * 100).toFixed(2)}%`, result.pctOfTolerance ? `${(result.pctOfTolerance.GRR * 100).toFixed(2)}%` : ''],
+        ['PV (Part Variation)', result.PV, `${(p.PV * 100).toFixed(2)}%`, result.pctOfTolerance ? `${(result.pctOfTolerance.PV * 100).toFixed(2)}%` : ''],
+        ['TV (Total Variation)', result.TV, '100.00%', ''],
+      ],
+      rowTones: [undefined, undefined, conclusionTone, undefined, undefined],
+    })
+
+    overview.note(`Conclusion: ${result.conclusionText}`, conclusionTone)
+
+    if (result.method === 'anova' && result.significanceNote) {
+      overview.note(result.significanceNote, 'neutral')
+    }
+    overview.freezeHeader(2)
+
+    // ── Sheet 2: Raw Data ──
+    const dataSheet = report.addSheet('Raw Data')
+    dataSheet.titleBand('Raw Measurements', 'As entered into the study')
+    const rawRows: (string | number)[][] = []
     for (let a = 0; a < numAppraisers; a++) {
       for (let p2 = 0; p2 < numParts; p2++) {
         for (let t = 0; t < numTrials; t++) {
-          rawRows.push({ Appraiser: appraiserNames[a], Part: p2 + 1, Trial: t + 1, Value: measurements[a][p2][t] ?? '' })
+          rawRows.push([appraiserNames[a], p2 + 1, t + 1, measurements[a][p2][t] ?? ''])
         }
       }
     }
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rawRows), 'Raw Data')
+    dataSheet.table({
+      headers: [
+        { header: 'Appraiser', key: 'appraiser', align: 'left', width: 18 },
+        { header: 'Part', key: 'part', align: 'center' },
+        { header: 'Trial', key: 'trial', align: 'center' },
+        { header: 'Value', key: 'value', align: 'right', numFmt: '0.0000' },
+      ],
+      rows: rawRows,
+    })
+    dataSheet.freezeHeader(2)
 
-    const summaryRows = [
-      { Metric: 'Method', Value: result.method === 'anova' ? 'ANOVA' : 'Average & Range', '% of Total Variation': '', '% of Tolerance': '' },
-      { Metric: 'EV (Repeatability)', Value: result.EV, '% of Total Variation': p.EV, '% of Tolerance': result.pctOfTolerance?.EV ?? '' },
-      { Metric: 'AV (Reproducibility)', Value: result.AV, '% of Total Variation': p.AV, '% of Tolerance': result.pctOfTolerance?.AV ?? '' },
-      { Metric: 'GRR', Value: result.GRR, '% of Total Variation': p.GRR, '% of Tolerance': result.pctOfTolerance?.GRR ?? '' },
-      { Metric: 'PV (Part Variation)', Value: result.PV, '% of Total Variation': p.PV, '% of Tolerance': result.pctOfTolerance?.PV ?? '' },
-      { Metric: 'TV (Total Variation)', Value: result.TV, '% of Total Variation': 1, '% of Tolerance': '' },
-      { Metric: 'NDC', Value: result.ndc, '% of Total Variation': '', '% of Tolerance': '' },
-      { Metric: 'Conclusion', Value: result.conclusionText, '% of Total Variation': '', '% of Tolerance': '' },
-    ]
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary')
-
+    // ── Sheet 3: ANOVA Table (only for ANOVA method) ──
     if (result.method === 'anova') {
-      const anovaRows = result.anovaTable.map(row => ({
-        Source: row.source,
-        SS: row.SS,
-        df: row.df,
-        MS: row.MS,
-        F: row.F ?? '',
-        'p-value': row.p ?? '',
-        'Significant (p<0.05)': row.significant === null ? '' : row.significant ? 'Yes' : 'No',
-      }))
-      anovaRows.push({ Source: 'Interaction pooled into error?', SS: NaN, df: NaN, MS: NaN, F: '', 'p-value': '', 'Significant (p<0.05)': result.pooled ? `Yes (alpha=${result.poolingAlpha})` : 'No' } as never)
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(anovaRows), 'ANOVA Table')
+      const anovaSheet = report.addSheet('ANOVA Table')
+      anovaSheet.titleBand('ANOVA Table', result.pooled ? `Interaction pooled into error (α = ${result.poolingAlpha})` : 'Interaction not pooled')
+      anovaSheet.table({
+        headers: [
+          { header: 'Source', key: 'source', align: 'left', width: 22 },
+          { header: 'SS', key: 'ss', align: 'right', numFmt: '0.000000' },
+          { header: 'df', key: 'df', align: 'center' },
+          { header: 'MS', key: 'ms', align: 'right', numFmt: '0.000000' },
+          { header: 'F', key: 'f', align: 'right', numFmt: '0.0000' },
+          { header: 'p-value', key: 'p', align: 'right', numFmt: '0.000000' },
+          { header: 'Significant (p<0.05)', key: 'sig', align: 'center' },
+        ],
+        rows: result.anovaTable.map(row => [
+          row.source, row.SS, row.df, row.MS,
+          row.F ?? '', row.p ?? '',
+          row.significant === null ? '' : row.significant ? 'Yes' : 'No',
+        ]),
+        rowTones: result.anovaTable.map(row => row.significant ? 'warning' : undefined),
+      })
+      anovaSheet.freezeHeader(2)
     }
 
-    XLSX.writeFile(wb, 'gage-rr-results.xlsx')
+    await report.download('gage-rr-results.xlsx')
   }
 
 

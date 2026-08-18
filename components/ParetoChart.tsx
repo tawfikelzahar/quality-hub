@@ -12,6 +12,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
+import { createReport, nowStamp } from '@/lib/excelReport'
 
 interface DataRow {
   id: string
@@ -210,19 +211,44 @@ export default function ParetoChart() {
   }
 
   // ── Export: Data as Excel ── (Pro only)
-  const exportExcel = () => {
+  const exportExcel = async () => {
     if (!isPro) { goToPricing(); return }
-    const data = sorted.map((r, i) => ({
-      Category: r.label,
-      Count: r.value,
-      'Percent of Total': `${total > 0 ? Math.round((r.value / total) * 100) : 0}%`,
-      'Cumulative Percent': `${cumulative[i]}%`,
-      Status: i < vitalFew ? 'Vital Few' : 'Useful Many',
-    }))
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Pareto Data')
-    XLSX.writeFile(wb, 'pareto-data.xlsx')
+    const report = createReport({ toolName: 'Pareto Chart' })
+
+    const overview = report.addSheet('Overview')
+    overview.titleBand('Pareto Analysis Report', `${sorted.length} categories — 80/20 rule`)
+    overview.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Total count', total],
+    ])
+
+    overview.sectionHeading('At a Glance')
+    overview.kpiRow([
+      { label: 'Vital Few', value: vitalFew, sub: 'categories drive 80%', tone: 'accent' },
+      { label: 'Total Categories', value: sorted.length, tone: 'neutral' },
+      { label: 'Total Count', value: total, tone: 'neutral' },
+    ])
+
+    overview.sectionHeading('Category Breakdown')
+    overview.table({
+      headers: [
+        { header: 'Category', key: 'category', align: 'left', width: 26 },
+        { header: 'Count', key: 'count', align: 'right' },
+        { header: 'Percent of Total', key: 'pct', align: 'right' },
+        { header: 'Cumulative Percent', key: 'cum', align: 'right' },
+        { header: 'Status', key: 'status', align: 'center', width: 16 },
+      ],
+      rows: sorted.map((r, i) => [
+        r.label, r.value,
+        `${total > 0 ? Math.round((r.value / total) * 100) : 0}%`,
+        `${cumulative[i]}%`,
+        i < vitalFew ? 'Vital Few' : 'Useful Many',
+      ]),
+      rowTones: sorted.map((_, i) => i < vitalFew ? 'accent' : undefined),
+    })
+    overview.freezeHeader(2)
+
+    await report.download('pareto-data.xlsx')
   }
 
   // ── Export: Chart as PNG ── (free — requires a login so we capture an email)
