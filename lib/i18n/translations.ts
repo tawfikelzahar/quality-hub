@@ -21,6 +21,7 @@ export const translations = {
     nav_about: 'About',
     nav_contact: 'Contact',
     nav_getpro: 'Get Pro',
+    nav_getapp: 'Get the App',
     nav_signin: 'Sign In',
     nav_signout: 'Sign Out',
 
@@ -38,6 +39,7 @@ export const translations = {
     bc_pricing: 'Pricing',
     bc_about: 'About',
     bc_contact: 'Contact',
+    bc_download: 'Get the App',
 
     // ── Landing hero ──
     hero_badge: 'Free to start · No installation required',
@@ -117,6 +119,27 @@ export const translations = {
     cta_email: 'Email',
     cta_whatsapp: 'WhatsApp',
     cta_linkedin: 'LinkedIn',
+
+    // ── Download page (Android app) ──
+    download_kicker: 'Android App',
+    download_hero_title: 'Quality Hub in your pocket',
+    download_hero_sub:
+      'The full Quality Hub platform, packaged as an Android app. Same tools, same account, same subscription — just install it on your phone.',
+    download_btn: 'Download for Android',
+    download_size_note: 'APK file · Free · Works with your existing account',
+    download_why_heading: 'Why an app?',
+    download_why_p:
+      'This app is a direct window into qualityhub.tools — it isn\u2019t a separate copy. Signing in, your subscription tier, and every update to the site show up automatically, with nothing extra to install or configure.',
+    download_steps_heading: 'How to install',
+    download_step1_title: 'Download the APK',
+    download_step1_desc: 'Tap the download button above from your Android phone.',
+    download_step2_title: 'Allow installation',
+    download_step2_desc:
+      'Android may ask you to allow installing apps from this source \u2014 this is a normal one-time confirmation for apps installed outside the Play Store.',
+    download_step3_title: 'Open and sign in',
+    download_step3_desc: 'Launch Quality Hub from your home screen and sign in with your existing account.',
+    download_ios_note:
+      'On iPhone? Open qualityhub.tools in Safari, tap Share, then \u201cAdd to Home Screen\u201d for the same app-like experience.',
 
     // ── Contact page ──
     contact_hero_title: 'Get in touch',
@@ -651,6 +674,7 @@ export const translations = {
     nav_about: 'عن الموقع',
     nav_contact: 'تواصل معنا',
     nav_getpro: 'اشترك في Pro',
+    nav_getapp: 'حمّل التطبيق',
     nav_signin: 'تسجيل الدخول',
     nav_signout: 'تسجيل الخروج',
 
@@ -668,6 +692,7 @@ export const translations = {
     bc_pricing: 'الأسعار',
     bc_about: 'عن الموقع',
     bc_contact: 'تواصل معنا',
+    bc_download: 'حمّل التطبيق',
 
     // ── Landing hero ──
     hero_badge: 'مجاني للبدء · بدون أي تثبيت',
@@ -747,6 +772,27 @@ export const translations = {
     cta_email: 'البريد الإلكتروني',
     cta_whatsapp: 'WhatsApp',
     cta_linkedin: 'LinkedIn',
+
+    // ── Download page (Android app) ──
+    download_kicker: 'تطبيق أندرويد',
+    download_hero_title: 'Quality Hub في جيبك',
+    download_hero_sub:
+      'منصة Quality Hub بالكامل، في تطبيق أندرويد. نفس الأدوات، نفس الحساب، نفس الاشتراك — فقط ثبّته على هاتفك.',
+    download_btn: 'تحميل لأندرويد',
+    download_size_note: 'ملف APK · مجاني · يعمل بحسابك الحالي',
+    download_why_heading: 'ليه تطبيق؟',
+    download_why_p:
+      'هذا التطبيق نافذة مباشرة على qualityhub.tools — وليس نسخة منفصلة. تسجيل الدخول، مستوى اشتراكك، وأي تحديث على الموقع يظهر تلقائيًا، دون أي شيء إضافي تثبّته أو تضبطه.',
+    download_steps_heading: 'طريقة التثبيت',
+    download_step1_title: 'حمّل ملف APK',
+    download_step1_desc: 'اضغط على زر التحميل بالأعلى من هاتف الأندرويد الخاص بك.',
+    download_step2_title: 'اسمح بالتثبيت',
+    download_step2_desc:
+      'قد يطلب منك أندرويد السماح بتثبيت تطبيقات من هذا المصدر — هذا إجراء طبيعي يظهر مرة واحدة فقط للتطبيقات المثبتة من خارج متجر Play.',
+    download_step3_title: 'افتح وسجّل الدخول',
+    download_step3_desc: 'افتح Quality Hub من الشاشة الرئيسية وسجّل الدخول بحسابك الحالي.',
+    download_ios_note:
+      'على آيفون؟ افتح qualityhub.tools في Safari، اضغط على زر المشاركة، ثم \u201cAdd to Home Screen\u201d للحصول على نفس تجربة التطبيق.',
 
     // ── Contact page ──
     contact_hero_title: 'تواصل معنا',
