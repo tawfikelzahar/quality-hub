@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import {
   AQL_VALUES,
@@ -103,6 +103,24 @@ export default function AQLPage() {
   const [rows, setRows] = useState<InspectionRowInput[]>([
     makeDefaultRow('Incoming Inspection'),
   ]);
+  const [loadedProjectName, setLoadedProjectName] = useState('');
+  const [loadError, setLoadError] = useState('');
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) return;
+    fetch(`/api/saved-analyses/${id}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        setRows(analysis.input_data as InspectionRowInput[]);
+        setLoadedProjectName(analysis.name as string);
+      })
+      .catch(() =>
+        setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
@@ -326,6 +344,21 @@ export default function AQLPage() {
   return (
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_aql" />
+
+      {loadedProjectName && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+            {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+          </div>
+        </div>
+      )}
+      {loadError && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          <div style={{ fontSize: 13, color: c.danger, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+            {loadError}
+          </div>
+        </div>
+      )}
 
       <div className="qh-main" style={s.main}>
         <div>

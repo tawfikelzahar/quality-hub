@@ -76,7 +76,7 @@ function parseExcelFile(file: File): Promise<DataRow[]> {
 export default function ParetoChart() {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [rows, setRows] = useState<DataRow[]>([
     { id: generateId(), label: 'Dimensional Error', value: 42 },
     { id: generateId(), label: 'Surface Defect', value: 28 },
@@ -87,6 +87,7 @@ export default function ParetoChart() {
   const [dragOver, setDragOver] = useState(false)
   const [fileError, setFileError] = useState('')
   const [pasteToast, setPasteToast] = useState(false)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const chartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null)
   const c = COLORS[theme]
@@ -152,6 +153,22 @@ export default function ParetoChart() {
     }
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
+  }, [])
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        setRows(analysis.input_data as DataRow[])
+        setLoadedProjectName(analysis.name as string)
+      })
+      .catch(() =>
+        setFileError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── File upload (CSV or Excel) ──
@@ -568,6 +585,12 @@ export default function ParetoChart() {
     <div style={s.page}>
       {/* Nav */}
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_pareto" />
+
+      {loadedProjectName && (
+        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+        </div>
+      )}
 
       <div className="qh-body" style={s.body}>
         {/* Left Panel */}

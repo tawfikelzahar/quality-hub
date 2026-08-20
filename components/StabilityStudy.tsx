@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -45,7 +45,7 @@ function fmt(n: number | null | undefined, digits = 3): string {
 
 export default function StabilityStudy() {
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const { isPro, isLoggedIn } = useSubscription()
@@ -63,6 +63,41 @@ export default function StabilityStudy() {
   const [timePoints, setTimePoints] = useState<number[]>(SAMPLE_TIME_POINTS)
   const [batchNames, setBatchNames] = useState<string[]>(SAMPLE_BATCH_NAMES)
   const [values, setValues] = useState<(number | null)[][]>(SAMPLE_VALUES)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
+  const [loadError, setLoadError] = useState('')
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        const input = analysis.input_data as {
+          storageCondition: string
+          direction: TrendDirection
+          confidence: 90 | 95 | 99
+          timePoints: number[]
+          batchNames: string[]
+          values: (number | null)[][]
+          specLower: string
+          specUpper: string
+        }
+        setStorageCondition(input.storageCondition)
+        setDirection(input.direction)
+        setConfidence(input.confidence)
+        setTimePoints(input.timePoints)
+        setBatchNames(input.batchNames)
+        setValues(input.values)
+        setSpecLower(input.specLower)
+        setSpecUpper(input.specUpper)
+        setLoadedProjectName(analysis.name as string)
+      })
+      .catch(() =>
+        setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const chartRef = useRef<ChartJSInstance | null>(null)
 
@@ -408,6 +443,17 @@ export default function StabilityStudy() {
   return (
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_stability" />
+
+      {loadedProjectName && (
+        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+        </div>
+      )}
+      {loadError && (
+        <div style={{ margin: '0 32px', fontSize: 13, color: c.danger, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+          {loadError}
+        </div>
+      )}
 
       <div className="qh-body" style={s.body}>
         {/* ── LEFT: Setup + Data Entry ─────────────────────────────────── */}

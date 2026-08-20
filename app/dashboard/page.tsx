@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -49,17 +49,6 @@ export default function DashboardPage() {
   const [error, setError] = useState('')
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
-
-  const loadAnalyses = useCallback(async () => {
-    const res = await fetch('/api/saved-analyses')
-    const json = await res.json()
-    if (!res.ok) {
-      setError(json.error ?? 'Failed to load saved projects.')
-      return
-    }
-    setAnalyses(json.analyses)
-    setError('')
-  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -112,28 +101,6 @@ export default function DashboardPage() {
     setRenamingId(null)
   }
 
-  // ── TEMPORARY: test-only button, just to confirm list/delete/rename
-  // work before the real "Save" button is wired into each tool.
-  // Delete this function and its button once tools are wired up. ──
-  async function handleAddTestProject() {
-    const res = await fetch('/api/saved-analyses', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tool: 'dpmo',
-        name: `Test project — ${new Date().toLocaleString('en-US')}`,
-        input_data: { test: true },
-        results: { test: true },
-      }),
-    })
-    if (res.ok) {
-      loadAnalyses()
-    } else {
-      const json = await res.json()
-      alert(json.error ?? 'Failed to save.')
-    }
-  }
-
   if (subLoading) {
     return <div style={{ ...s.page, alignItems: 'center', justifyContent: 'center' }}>Loading...</div>
   }
@@ -175,10 +142,6 @@ export default function DashboardPage() {
                   {analyses?.length ?? 0} / 50 saved projects
                 </div>
               </div>
-              {/* TEMPORARY — remove once real Save is wired into the tools */}
-              <button style={s.exportBtn} onClick={handleAddTestProject}>
-                + Add Test Project (temporary)
-              </button>
             </div>
 
             {error && <div style={{ color: c.danger, fontSize: 13 }}>{error}</div>}
@@ -217,7 +180,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
-                        <Link href={TOOL_ROUTES[a.tool]} style={{ ...s.exportBtn, textDecoration: 'none' }}>
+                        <Link href={`${TOOL_ROUTES[a.tool]}?id=${a.id}`} style={{ ...s.exportBtn, textDecoration: 'none' }}>
                           Open
                         </Link>
                         <button

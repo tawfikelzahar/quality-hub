@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -147,10 +147,11 @@ function pctTV(r: GageResult) {
 
 export default function GageRR() {
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const { isPro, isLoggedIn, loading: subLoading } = useSubscription()
+  const [loadedProjectName, setLoadedProjectName] = useState('')
 
   const [numAppraisers, setNumAppraisers] = useState<2 | 3>(3)
   const [numTrials, setNumTrials] = useState<2 | 3>(3)
@@ -164,6 +165,40 @@ export default function GageRR() {
   const [result, setResult] = useState<GageResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        const input = analysis.input_data as {
+          numAppraisers: 2 | 3
+          numTrials: 2 | 3
+          numParts: number
+          appraiserNames: string[]
+          measurements: (number | null)[][][]
+          USL: string
+          LSL: string
+          method: 'average-range' | 'anova'
+        }
+        setNumAppraisers(input.numAppraisers)
+        setNumTrials(input.numTrials)
+        setNumParts(input.numParts)
+        setAppraiserNames(input.appraiserNames)
+        setMeasurements(input.measurements)
+        setUSL(input.USL)
+        setLSL(input.LSL)
+        setMethod(input.method)
+        setResult(analysis.results as GageResult)
+        setLoadedProjectName(analysis.name as string)
+      })
+      .catch(() =>
+        setErrorMsg(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const contribChartRef = useRef<ChartJSInstance<'bar'>>(null)
   const rangeChartRef = useRef<ChartJSInstance<'line' | 'bar'>>(null)
@@ -606,6 +641,14 @@ export default function GageRR() {
   return (
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_gagerr" />
+
+      {loadedProjectName && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+            {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+          </div>
+        </div>
+      )}
 
       {!subLoading && !isPro ? (
         <LockedPage

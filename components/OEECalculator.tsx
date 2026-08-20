@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -93,7 +93,7 @@ const BENCH = [
 export default function OEECalculator() {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const c = COLORS[theme]
   const chartRef = useRef<ChartJSInstance<'bar'>>(null)
 
@@ -105,6 +105,24 @@ export default function OEECalculator() {
     totalCount: 3800,
     goodCount: 3650,
   })
+  const [loadedProjectName, setLoadedProjectName] = useState('')
+  const [loadError, setLoadError] = useState('')
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        setInputs(analysis.input_data as OEEInputs)
+        setLoadedProjectName(analysis.name as string)
+      })
+      .catch(() =>
+        setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const setField = (field: keyof OEEInputs, val: string) => {
     setInputs(prev => ({ ...prev, [field]: parseFloat(val) || 0 }))
@@ -440,6 +458,17 @@ export default function OEECalculator() {
   return (
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_oee" />
+
+      {loadedProjectName && (
+        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+        </div>
+      )}
+      {loadError && (
+        <div style={{ margin: '0 32px', fontSize: 13, color: c.danger, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+          {loadError}
+        </div>
+      )}
 
       <div className="qh-body" style={s.body}>
         <div className="qh-left" style={s.left}>

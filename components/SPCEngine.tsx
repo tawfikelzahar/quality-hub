@@ -212,7 +212,7 @@ function parseAttributePaste(text: string, attrType: AttrType): AttrRow[] {
 
 export default function SPCEngine() {
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const { isPro, isLoggedIn } = useSubscription()
@@ -244,6 +244,7 @@ export default function SPCEngine() {
   const [result, setResult] = useState<ApiResult | null>(null)
   const [submittedVals, setSubmittedVals] = useState<number[]>([])
   const [pasteToast, setPasteToast] = useState(false)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
 
   // UX: Advanced options are collapsed by default; Data Entry auto-collapses
   // into a summary bar once a result exists so the charts aren't pushed down.
@@ -315,6 +316,52 @@ export default function SPCEngine() {
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
   }, [dataType, N, attrType])
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        const input = analysis.input_data as {
+          dataType: DataType
+          varRows: VarRow[]
+          attrRows: AttrRow[]
+          attrType: AttrType
+          fixedN: string
+          LSL: string
+          USL: string
+          target: string
+          sigmaConvention: SigmaConvention
+        }
+        setDataType(input.dataType)
+        setVarRows(input.varRows)
+        setAttrRows(input.attrRows)
+        setAttrType(input.attrType)
+        setFixedN(input.fixedN)
+        setLSL(input.LSL)
+        setUSL(input.USL)
+        setTarget(input.target)
+        setSigmaConvention(input.sigmaConvention)
+        if (input.dataType === 'variable' && input.varRows.length > 0) {
+          setN(input.varRows[0].vals.length)
+          setSubmittedVals(
+            input.varRows
+              .map(r => r.vals.map(v => parseFloat(v)))
+              .filter(row => row.every(v => !isNaN(v)))
+              .flat()
+          )
+        }
+        setResult(analysis.results as ApiResult)
+        setDataEntryOpen(false)
+        setLoadedProjectName(analysis.name as string)
+      })
+      .catch(() =>
+        setErrorMsg(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Analyze ──────────────────────────────────────────────────────────────
   const analyze = async () => {
@@ -942,6 +989,14 @@ export default function SPCEngine() {
   return (
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_spc" />
+
+      {loadedProjectName && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+            {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+          </div>
+        </div>
+      )}
 
       <div className="qh-body" style={s.body}>
         {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}

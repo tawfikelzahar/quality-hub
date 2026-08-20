@@ -136,13 +136,14 @@ function parseExcelFile(file: File): Promise<ProcessRow[]> {
 export default function DPMOCalculator() {
   const { isPro, isLoggedIn } = useSubscription()
  const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [rows, setRows] = useState<ProcessRow[]>([
     { id: generateId(), name: 'Assembly Line A', units: 500, opportunities: 12, defects: 18 },
   ])
   const [dragOver, setDragOver] = useState(false)
   const [fileError, setFileError] = useState('')
   const [pasteToast, setPasteToast] = useState(false)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
   const [showReference, setShowReference] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const chartRef = useRef<ChartJSInstance<'bar'>>(null)
@@ -190,6 +191,22 @@ export default function DPMOCalculator() {
     }
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
+  }, [])
+
+  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        setRows(analysis.input_data as ProcessRow[])
+        setLoadedProjectName(analysis.name as string)
+      })
+      .catch(() =>
+        setFileError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
+      )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleFile = useCallback((file: File) => {
@@ -541,6 +558,12 @@ export default function DPMOCalculator() {
   return (
     <div style={s.page}>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_dpmo" />
+
+      {loadedProjectName && (
+        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+        </div>
+      )}
 
       <div className="qh-body" style={s.body}>
         <div className="qh-left" style={s.left}>
