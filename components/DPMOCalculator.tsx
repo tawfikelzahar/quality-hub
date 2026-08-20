@@ -242,7 +242,7 @@ export default function DPMOCalculator() {
   }, [t])
 
   const exportCSV = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('dpmo', 'csv'); return }
     const header = 'Process,Units,Opportunities per Unit,Defects,DPO,DPMO,Yield %,Sigma Level,Rating\n'
     const body = results
       .map(r => {
@@ -260,7 +260,7 @@ export default function DPMOCalculator() {
   }
 
   const exportExcel = async () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('dpmo', 'excel'); return }
     const report = createReport({ toolName: 'DPMO Calculator' })
     const bandTone = (sigma: number): Tone => sigma >= 5 ? 'good' : sigma >= 3 ? 'warning' : 'danger'
 
@@ -308,7 +308,7 @@ export default function DPMOCalculator() {
   }
 
   const exportPNG = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('dpmo', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -319,7 +319,7 @@ export default function DPMOCalculator() {
   }
 
   const exportPDF = () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('dpmo', 'pdf'); return }
     const chart = chartRef.current
     if (!chart) return
     const imgData = chart.toBase64Image('image/png', 1)

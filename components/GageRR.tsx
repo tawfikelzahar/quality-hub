@@ -387,7 +387,7 @@ export default function GageRR() {
 
   // ── Export: CSV ────────────────────────────────────────────────────────
   const exportCSV = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('gage-rr', 'csv'); return }
     if (!result) return
     const p = pctTV(result)
     const lines: string[] = []
@@ -440,7 +440,7 @@ export default function GageRR() {
 
   // ── Export: Excel ──────────────────────────────────────────────────────
   const exportExcel = async () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('gage-rr', 'excel'); return }
     if (!result) return
     const p = pctTV(result)
     const conclusionTone: Tone = result.conclusion === 'okay' ? 'good' : result.conclusion === 'marginal' ? 'warning' : 'danger'
@@ -540,7 +540,7 @@ export default function GageRR() {
 
   // ── Export: PNG (contribution chart) ─────────────────────────────────
   const exportPNG = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('gage-rr', 'png'); return }
     const chart = contribChartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -550,7 +550,7 @@ export default function GageRR() {
 
   // ── Export: PDF ─────────────────────────────────────────────────────
   const exportPDF = () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('gage-rr', 'pdf'); return }
     if (!result) return
     const p = pctTV(result)
     const chart = contribChartRef.current

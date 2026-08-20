@@ -209,7 +209,7 @@ export default function ParetoChart() {
 
   // ── Export: Data as CSV ── (free — requires a login so we capture an email)
   const exportCSV = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('pareto', 'csv'); return }
     const header = 'Category,Count,Percent of Total,Cumulative Percent,Status\n'
     const body = sorted
       .map((r, i) => {
@@ -229,7 +229,7 @@ export default function ParetoChart() {
 
   // ── Export: Data as Excel ── (Pro only)
   const exportExcel = async () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('pareto', 'excel'); return }
     const report = createReport({ toolName: 'Pareto Chart' })
 
     const overview = report.addSheet('Overview')
@@ -270,7 +270,7 @@ export default function ParetoChart() {
 
   // ── Export: Chart as PNG ── (free — requires a login so we capture an email)
   const exportPNG = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('pareto', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -282,7 +282,7 @@ export default function ParetoChart() {
 
  // ── Export: Chart + Table as PDF ── (Pro only)
   const exportPDF = () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('pareto', 'pdf'); return }
     const chart = chartRef.current
     if (!chart) return
     const imgData = chart.toBase64Image('image/png', 1)

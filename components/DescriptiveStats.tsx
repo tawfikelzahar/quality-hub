@@ -99,7 +99,7 @@ export default function DescriptiveStats() {
   }, [t])
 
   const handleExportExcel = useCallback(async () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('descriptive-stats', 'excel'); return }
     if (!result) return
     const report = createReport({ toolName: 'Descriptive Statistics' })
 

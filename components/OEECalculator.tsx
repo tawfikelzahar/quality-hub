@@ -195,7 +195,7 @@ export default function OEECalculator() {
   }
 
   const exportCSV = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('oee', 'csv'); return }
     if (!result || !cls) return
     const lines = [
       'Metric,Value,Unit',
@@ -224,7 +224,7 @@ export default function OEECalculator() {
   }
 
   const exportExcel = async () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('oee', 'excel'); return }
     if (!result || !cls) return
     const report = createReport({ toolName: 'OEE Calculator' })
     const classTone: Tone = cls.type === 'world-class' || cls.type === 'good' ? 'good' : cls.type === 'average' ? 'warning' : 'danger'
@@ -291,7 +291,7 @@ export default function OEECalculator() {
   }
 
   const exportPNG = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('oee', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
     const url = chart.toBase64Image('image/png', 1)
@@ -302,7 +302,7 @@ export default function OEECalculator() {
   }
 
   const exportPDF = () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('oee', 'pdf'); return }
     if (!result || !cls) return
     const chart = chartRef.current
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
