@@ -430,7 +430,7 @@ export default function SPCEngine() {
 
   // ── Export: raw data + key stats as CSV ── (free, requires login — same as other tools)
   const exportCSV = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('spc', 'csv'); return }
 
     let csv = ''
 
@@ -488,7 +488,7 @@ export default function SPCEngine() {
 
   // ── Export: Data + Stats as a professional Excel workbook ── (Pro only)
   const exportExcel = async () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('spc', 'excel'); return }
     const report = createReport({ toolName: 'SPC Engine' })
 
     // ── Sheet 1: Overview — KPI cards + chart limits + capability summary ──
@@ -686,7 +686,7 @@ export default function SPCEngine() {
   }
 
   const exportPNG = () => {
-    if (!isLoggedIn) { goToLogin(); return }
+    if (!isLoggedIn) { goToLogin('spc', 'png'); return }
     const exportedAny = [
       downloadChartImage(iChartRef.current, 'spc-control-chart.png'),
       downloadChartImage(rChartRef.current, 'spc-range-chart.png'),
@@ -699,7 +699,7 @@ export default function SPCEngine() {
 
   // ── Export: full report as PDF ── (Pro only)
   const exportPDF = () => {
-    if (!isPro) { goToPricing(); return }
+    if (!isPro) { goToPricing('spc', 'pdf'); return }
     if (!result) {
       setErrorMsg(t('spc_err_no_report'))
       return
