@@ -79,6 +79,8 @@ export const translations = {
 
     aql_title: 'AQL Sampling Plan Calculator',
     aql_desc: 'ISO 2859-1 / ANSI ASQ Z1.4 · Code Letter & Ac/Re lookup · Normal / Tightened / Reduced',
+    icmsf_title: 'ICMSF Microbiological Sampling Plan',
+    icmsf_desc: 'Case selector (hazard level × conditions of use) · n/c/m/M lookup · Operating Characteristic curve',
 
     gagerr_title: 'Gage R&R Study',
     gagerr_desc: 'AIAG Average & Range method · %Study Variation · NDC · Range & X̄ charts',
@@ -735,6 +737,8 @@ export const translations = {
 
     aql_title: 'حاسبة خطة عينات AQL',
     aql_desc: 'ISO 2859-1 / ANSI ASQ Z1.4 · استخراج Code Letter و Ac/Re · Normal / Tightened / Reduced',
+    icmsf_title: 'خطة عينات ICMSF الميكروبيولوجية',
+    icmsf_desc: 'اختيار Case (درجة الخطورة × ظروف الاستخدام) · استخراج n/c/m/M · منحنى Operating Characteristic',
 
     gagerr_title: 'دراسة Gage R&R',
     gagerr_desc: 'AIAG Average & Range method · %Study Variation · NDC · Range & X̄ charts',

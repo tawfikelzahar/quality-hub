@@ -8,7 +8,7 @@ import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, getSharedStyles, usePersistedTheme, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
 import Nav from '@/components/Nav'
 
-type Tool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql'
+type Tool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf'
 
 interface SavedAnalysis {
   id: string
@@ -26,6 +26,7 @@ const TOOL_LABELS: Record<Tool, string> = {
   gage_rr: 'Gage R&R',
   stability: 'Stability Study',
   aql: 'AQL Sampling Plan',
+  icmsf: 'ICMSF Microbiological Sampling Plan',
 }
 
 const TOOL_ROUTES: Record<Tool, string> = {
@@ -36,6 +37,7 @@ const TOOL_ROUTES: Record<Tool, string> = {
   gage_rr: '/gage-rr',
   stability: '/stability',
   aql: '/aql',
+  icmsf: '/icmsf',
 }
 
 export default function DashboardPage() {
