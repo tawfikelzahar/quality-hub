@@ -428,9 +428,67 @@ export default function SPCEngine() {
     }
   }
 
+  // ── Export: raw data + key stats as CSV ── (free, requires login — same as other tools)
+  const exportCSV = () => {
+    if (!isLoggedIn) { goToLogin(); return }
+
+    let csv = ''
+
+    if (dataType === 'variable' && varResult) {
+      const header = ['Subgroup', ...Array.from({ length: N }, (_, i) => `x${i + 1}`), 'Mean', 'Range'].join(',')
+      const rows = varRows.map((row, i) => {
+        const nums = row.vals.map(v => parseFloat(v)).filter(v => !isNaN(v))
+        const mean = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : ''
+        const range = nums.length ? Math.max(...nums) - Math.min(...nums) : ''
+        return [i + 1, ...row.vals, mean, range].join(',')
+      })
+      csv = [header, ...rows].join('\n')
+
+      csv += '\n\nSummary,\n'
+      csv += `Mean (μ),${fmt(varResult.mu, 4)}\n`
+      csv += `Within Sigma,${fmt(varResult.sigma, 4)}\n`
+      csv += `${varResult.N === 1 ? 'Individuals (X)' : 'X̄'} CL,${fmt(varResult.cl_x, 4)}\n`
+      csv += `${varResult.N === 1 ? 'Individuals (X)' : 'X̄'} UCL,${fmt(varResult.ucl_x, 4)}\n`
+      csv += `${varResult.N === 1 ? 'Individuals (X)' : 'X̄'} LCL,${fmt(varResult.lcl_x, 4)}\n`
+      csv += `${varResult.N === 1 ? 'MR̄' : 'R̄'} CL,${fmt(varResult.cl_r, 4)}\n`
+      csv += `${varResult.N === 1 ? 'MR̄' : 'R̄'} UCL,${fmt(varResult.ucl_r, 4)}\n`
+      csv += `${varResult.N === 1 ? 'MR̄' : 'R̄'} LCL,${fmt(Math.max(0, varResult.lcl_r), 4)}\n`
+      if (hasSpecLimits) {
+        csv += `Cp,${fmt(varResult.Cp, 2)}\n`
+        csv += `Cpk,${fmt(varResult.Cpk, 2)}\n`
+        csv += `Pp,${fmt(varResult.Pp, 2)}\n`
+        csv += `Ppk,${fmt(varResult.Ppk, 2)}\n`
+        csv += `Sigma Level (ST),${fmt(varResult.sigLvl_st, 2)}\n`
+        csv += `Sigma Level (LT),${fmt(varResult.sigLvl_lt, 2)}\n`
+      }
+    } else if (dataType === 'attribute' && attrResult) {
+      const header = ['Subgroup', 'n', 'Defects', attrResult.metricLabel].join(',')
+      const rows = attrRows.map((row, i) => [i + 1, row.n, row.defects, fmt(attrResult.pts[i], 4)].join(','))
+      csv = [header, ...rows].join('\n')
+
+      csv += '\n\nSummary,\n'
+      csv += `Chart Type,${attrResult.chartLabel}\n`
+      csv += `CL,${fmt(attrResult.clVal, 4)}\n`
+      csv += `UCL,${fmt(attrResult.ucl, 4)}\n`
+      csv += `LCL,${fmt(Math.max(0, attrResult.lcl), 4)}\n`
+      csv += `DPM,${fmt(attrResult.dpm, 1)}\n`
+      csv += `Sigma Level,${fmt(attrResult.sigmaLvl, 2)}\n`
+    } else {
+      return
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'spc-data.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   // ── Export: Data + Stats as a professional Excel workbook ── (Pro only)
   const exportExcel = async () => {
-    if (!isPro) { goToPricing('spc', 'excel'); return }
+    if (!isPro) { goToPricing(); return }
     const report = createReport({ toolName: 'SPC Engine' })
 
     // ── Sheet 1: Overview — KPI cards + chart limits + capability summary ──
@@ -628,7 +686,7 @@ export default function SPCEngine() {
   }
 
   const exportPNG = () => {
-    if (!isLoggedIn) { goToLogin('spc', 'png'); return }
+    if (!isLoggedIn) { goToLogin(); return }
     const exportedAny = [
       downloadChartImage(iChartRef.current, 'spc-control-chart.png'),
       downloadChartImage(rChartRef.current, 'spc-range-chart.png'),
@@ -641,7 +699,7 @@ export default function SPCEngine() {
 
   // ── Export: full report as PDF ── (Pro only)
   const exportPDF = () => {
-    if (!isPro) { goToPricing('spc', 'pdf'); return }
+    if (!isPro) { goToPricing(); return }
     if (!result) {
       setErrorMsg(t('spc_err_no_report'))
       return
@@ -1157,6 +1215,7 @@ export default function SPCEngine() {
           <div>
             <div style={s.sectionTitle}>{t('spc_export')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button style={s.exportBtn} onClick={exportCSV} disabled={!result}>{isLoggedIn ? t('spc_export_csv') : t('spc_export_csv_locked')}</button>
               <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('spc_export_excel') : t('spc_export_excel_locked')}</button>
               <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>{isLoggedIn ? t('spc_export_png') : t('spc_export_png_locked')}</button>
               <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>{isPro ? t('spc_export_pdf') : t('spc_export_pdf_locked')}</button>

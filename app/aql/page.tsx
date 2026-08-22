@@ -173,7 +173,7 @@ export default function AQLPage() {
 
   // ── Export: CSV ──────────────────────────────────────────────────────
   function exportCSV() {
-    if (!isLoggedIn) { goToLogin('aql', 'csv'); return }
+    if (!isLoggedIn) { goToLogin(); return }
     const flat = flattenResults(results, messages);
     const header = 'Stage,Lot Size,Level,Inspection Type,Code Letter,Defect Class,AQL%,Sample (n),Ac,Re,Note\n';
     const body = flat
@@ -194,7 +194,7 @@ export default function AQLPage() {
 
   // ── Export: Excel ────────────────────────────────────────────────────
   async function exportExcel() {
-    if (!isPro) { goToPricing('aql', 'excel'); return }
+    if (!isPro) { goToPricing(); return }
     const flat = flattenResults(results, messages);
     const report = createReport({ toolName: 'AQL Sampling Plan' });
 
@@ -235,7 +235,7 @@ export default function AQLPage() {
   // Drawn directly on a canvas (same "draw the report, don't screenshot
   // the page" approach used for the PDF), so no extra dependency is needed.
   function exportPNG() {
-    if (!isLoggedIn) { goToLogin('aql', 'png'); return }
+    if (!isLoggedIn) { goToLogin(); return }
     const flat = flattenResults(results, messages);
     const rowH = 24;
     const colX = [16, 190, 260, 340, 440, 590, 650, 710];
@@ -289,7 +289,7 @@ export default function AQLPage() {
   // ── Export: PDF ──────────────────────────────────────────────────────
   // Same manual-table approach used in the DPMO tool's PDF export.
   function exportPDF() {
-    if (!isPro) { goToPricing('aql', 'pdf'); return }
+    if (!isPro) { goToPricing(); return }
     const flat = flattenResults(results, messages);
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -450,13 +450,13 @@ export default function AQLPage() {
               {isLoggedIn ? '📄' : '🔒'} {messages.exportCsvButton}
             </button>
             <button style={s.exportBtn} onClick={exportExcel}>
-              {isPro ? '📊' : '🔒'} {messages.exportExcelButton}
+              {isPro ? `📊 ${messages.exportExcelButton}` : `🔒 ${messages.exportExcelButton} (Pro)`}
             </button>
             <button style={s.exportBtn} onClick={exportPNG}>
               {isLoggedIn ? '🖼️' : '🔒'} {messages.exportPngButton}
             </button>
             <button style={s.exportBtn} onClick={exportPDF}>
-              {isPro ? '📕' : '🔒'} {messages.exportPdfButton}
+              {isPro ? `📕 ${messages.exportPdfButton}` : `🔒 ${messages.exportPdfButton} (Pro)`}
             </button>
           </div>
           <div style={{ marginTop: 10 }}>
