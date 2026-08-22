@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, type ThemeMode } from '@/lib/theme'
 
-export type SavableTool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql'
+export type SavableTool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf'
 
 interface SaveAnalysisButtonProps {
   theme: ThemeMode
