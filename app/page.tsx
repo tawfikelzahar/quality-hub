@@ -228,6 +228,46 @@ export default function Home() {
               <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
             </Link>
 
+            {/* Simple Linear Regression — Live */}
+            <Link href="/regression" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(59,130,246,.1)',border:'1px solid rgba(59,130,246,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📈</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
+                </span>
+              </div>
+              <div>
+                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('regression_title')}</div>
+                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('regression_desc')}</div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {['OLS Fit','ANOVA','Residual Diagnostics','Prediction Intervals'].map(tag=>(
+                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
+                ))}
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
+            </Link>
+
+            {/* Multiple Linear Regression — Live */}
+            <Link href="/multiregression" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{width:52,height:52,borderRadius:14,background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📉</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
+                </span>
+              </div>
+              <div>
+                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('multiregression_title')}</div>
+                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('multiregression_desc')}</div>
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                {['Multiple Predictors','VIF','ANOVA','Prediction Intervals'].map(tag=>(
+                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
+                ))}
+              </div>
+              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
+            </Link>
+
             {/* Gage R&R — Live */}
             <Link href="/gage-rr" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
