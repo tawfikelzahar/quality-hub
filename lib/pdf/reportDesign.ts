@@ -95,6 +95,47 @@ function setText(pdf: jsPDF, rgb: RGB) {
   pdf.setTextColor(rgb[0], rgb[1], rgb[2])
 }
 
+// ── Unicode-safe text drawing ───────────────────────────────────────────
+// jsPDF's built-in standard fonts (Helvetica, etc.) only support the
+// WinAnsi/Latin-1 character set. Anything outside it — Greek letters like
+// σ, math symbols like ≥, or a combining macron like the one in "X̄" —
+// doesn't have a glyph and renders as mojibake (e.g. "Ã"). Every piece of
+// text in this file (including strings handed in by a tool component,
+// such as chart titles or formatted metric values) is funneled through
+// `text()` below so this is handled in exactly one place.
+const PDF_SYMBOL_MAP: Array<[RegExp, string]> = [
+  [/X\u0304/g, 'X-bar'], // X̄
+  [/R\u0304/g, 'R-bar'], // R̄
+  [/P\u0304/g, 'P-bar'], // P̄
+  [/p\u0304/g, 'p-bar'], // p̄
+  [/σ/g, 'sigma'],
+  [/Σ/g, 'Sigma'],
+  [/≥/g, '>='],
+  [/≤/g, '<='],
+  [/±/g, '+/-'],
+  [/×/g, 'x'],
+]
+
+export function sanitizePdfText(input: string): string {
+  let s = input
+  for (const [pattern, replacement] of PDF_SYMBOL_MAP) s = s.replace(pattern, replacement)
+  // Strip any remaining combining diacritical marks (e.g. leftover accents).
+  // Note: we deliberately do NOT strip everything outside \x00-\xFF here —
+  // jsPDF's WinAnsi mapping already handles common punctuation like em/en
+  // dashes (—/–), curly quotes, and the middle dot (·) correctly even
+  // though their code points are above U+00FF. Only the specific symbols
+  // above (Greek letters, math comparison operators) lack a glyph.
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return s
+}
+
+type TextOpts = { align?: 'left' | 'center' | 'right' }
+
+/** Every text draw in this file goes through here so Unicode sanitization is applied exactly once. */
+function drawText(pdf: jsPDF, str: string, x: number, y: number, opts?: TextOpts) {
+  pdf.text(sanitizePdfText(str), x, y, opts)
+}
+
 /**
  * Starts a new A4 report: creates the jsPDF document, draws the Quality
  * Hub header (logo mark, wordmark, report title, generated timestamp,
@@ -122,16 +163,16 @@ function drawHeader(ctx: ReportContext) {
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(14)
   setText(pdf, REPORT_COLORS.white)
-  pdf.text('Q', margin + markSize / 2, y + markSize / 2 + 5, { align: 'center' })
+  drawText(pdf, 'Q', margin + markSize / 2, y + markSize / 2 + 5, { align: 'center' })
 
   // Wordmark + tagline
   pdf.setFontSize(13)
   setText(pdf, REPORT_COLORS.brand)
-  pdf.text('QUALITY HUB', margin + markSize + 8, y + 11)
+  drawText(pdf, 'QUALITY HUB', margin + markSize + 8, y + 11)
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(7.5)
   setText(pdf, REPORT_COLORS.muted)
-  pdf.text('Statistical Quality Engineering', margin + markSize + 8, y + 21)
+  drawText(pdf, 'Statistical Quality Engineering', margin + markSize + 8, y + 21)
 
   // Meta block, right-aligned
   const now = new Date()
@@ -139,8 +180,8 @@ function drawHeader(ctx: ReportContext) {
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(8.5)
   setText(pdf, REPORT_COLORS.muted)
-  pdf.text(`Generated: ${generated}`, ctx.pageWidth - margin, y + 9, { align: 'right' })
-  pdf.text('qualityhub.tools', ctx.pageWidth - margin, y + 20, { align: 'right' })
+  drawText(pdf, `Generated: ${generated}`, ctx.pageWidth - margin, y + 9, { align: 'right' })
+  drawText(pdf, 'qualityhub.tools', ctx.pageWidth - margin, y + 20, { align: 'right' })
 
   y += markSize + 20
 
@@ -148,7 +189,7 @@ function drawHeader(ctx: ReportContext) {
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(19)
   setText(pdf, REPORT_COLORS.brandDark)
-  pdf.text(ctx.reportTitle, margin, y)
+  drawText(pdf, ctx.reportTitle, margin, y)
   y += 12
 
   // Brand rule
@@ -178,14 +219,21 @@ export function ensureSpace(ctx: ReportContext, neededHeight: number) {
   }
 }
 
-/** A bold section heading with a thin rule underneath (e.g. "Process Stability Assessment"). */
-export function sectionHeading(ctx: ReportContext, text: string) {
-  ensureSpace(ctx, 26)
+/**
+ * A bold section heading with a thin rule underneath (e.g. "Process
+ * Stability Assessment"). Pass `reserveBelow` (the height in points of
+ * whatever content immediately follows) so the page-break check accounts
+ * for the heading *and* its content together — otherwise a heading can
+ * end up alone at the bottom of a page while its chart/table gets pushed
+ * to the next one.
+ */
+export function sectionHeading(ctx: ReportContext, text: string, reserveBelow = 0) {
+  ensureSpace(ctx, 26 + reserveBelow)
   const { pdf, margin } = ctx
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(12.5)
   setText(pdf, REPORT_COLORS.brandDark)
-  pdf.text(text, margin, ctx.y)
+  drawText(pdf, text, margin, ctx.y)
   ctx.y += 6
   setDraw(pdf, REPORT_COLORS.border)
   pdf.setLineWidth(0.75)
@@ -211,7 +259,7 @@ export function classificationBanner(ctx: ReportContext, cls: Classification, pr
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(11)
   setText(pdf, cls.color)
-  pdf.text(`${prefix}: ${cls.label}`, margin + 14, ctx.y + h / 2 + 4)
+  drawText(pdf, `${prefix}: ${cls.label}`, margin + 14, ctx.y + h / 2 + 4)
   ctx.y += h + 18
 }
 
@@ -238,7 +286,7 @@ export function calloutBox(ctx: ReportContext, text: string, tone: CalloutTone =
   setFill(pdf, color)
   pdf.rect(margin, ctx.y, 3, h, 'F')
   setText(pdf, REPORT_COLORS.ink)
-  lines.forEach((line, i) => pdf.text(line, margin + 13, ctx.y + 17 + i * 13))
+  lines.forEach((line, i) => drawText(pdf, line, margin + 13, ctx.y + 17 + i * 13))
   ctx.y += h + 16
 }
 
@@ -248,20 +296,19 @@ export function calloutBox(ctx: ReportContext, text: string, tone: CalloutTone =
  * paginates automatically.
  */
 export function interpretationBox(ctx: ReportContext, title: string, text: string, tone: CalloutTone = 'info') {
-  sectionHeading(ctx, title)
   const { pdf, margin, pageWidth } = ctx
   const { color, bg } = TONE_COLORS[tone]
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(9.5)
   const lines = pdf.splitTextToSize(text, pageWidth - margin * 2 - 24) as string[]
   const h = lines.length * 13.5 + 16
-  ensureSpace(ctx, h + 10)
+  sectionHeading(ctx, title, h + 10)
   setFill(pdf, bg)
   pdf.rect(margin, ctx.y, pageWidth - margin * 2, h, 'F')
   setFill(pdf, color)
   pdf.rect(margin, ctx.y, 3, h, 'F')
   setText(pdf, REPORT_COLORS.ink)
-  lines.forEach((line, i) => pdf.text(line, margin + 13, ctx.y + 18 + i * 13.5))
+  lines.forEach((line, i) => drawText(pdf, line, margin + 13, ctx.y + 18 + i * 13.5))
   ctx.y += h + 18
 }
 
@@ -286,12 +333,12 @@ export function twoColumnTables(
   const colW = (pageWidth - margin * 2 - gap) / 2
   const startY = ctx.y
 
-  ensureSpace(ctx, 24)
+  ensureSpace(ctx, 24 + 17) // titles + their tables' header row, kept together
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(11)
   setText(pdf, REPORT_COLORS.brandDark)
-  pdf.text(leftTitle, margin, ctx.y)
-  pdf.text(rightTitle, margin + colW + gap, ctx.y)
+  drawText(pdf, leftTitle, margin, ctx.y)
+  drawText(pdf, rightTitle, margin + colW + gap, ctx.y)
   ctx.y += 12
 
   const afterTitlesY = ctx.y
@@ -316,8 +363,8 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(8)
     setText(pdf, REPORT_COLORS.muted)
-    pdf.text(headers[0], x + 8, curY + rowH / 2 + 3)
-    pdf.text(headers[1], x + labelW + 8, curY + rowH / 2 + 3)
+    drawText(pdf, headers[0], x + 8, curY + rowH / 2 + 3)
+    drawText(pdf, headers[1], x + labelW + 8, curY + rowH / 2 + 3)
     curY += rowH
   }
 
@@ -335,10 +382,10 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
       pdf.rect(x, curY, width, rowH, 'F')
     }
     setText(pdf, REPORT_COLORS.muted)
-    pdf.text(label, x + 8, curY + rowH / 2 + 3)
+    drawText(pdf, label, x + 8, curY + rowH / 2 + 3)
     setText(pdf, REPORT_COLORS.ink)
     pdf.setFont('helvetica', 'bold')
-    pdf.text(value, x + labelW + 8, curY + rowH / 2 + 3)
+    drawText(pdf, value, x + labelW + 8, curY + rowH / 2 + 3)
     pdf.setFont('helvetica', 'normal')
     curY += rowH
   })
@@ -356,16 +403,24 @@ export interface DataTableColumn {
   align?: 'left' | 'right' | 'center'
 }
 
+export interface DataTableOptions {
+  /** Optional per-cell text color override, same [row][col] shape as `rows`. Falls back to ink when omitted/null. */
+  cellColors?: (RGB | null)[][]
+}
+
 /**
  * Generic multi-column data table (Nelson Rule Violations, PPM Estimates,
  * Capability Classification Summary, ...) with a repeating header on
  * page breaks and zebra striping.
  */
-export function dataTable(ctx: ReportContext, title: string, columns: DataTableColumn[], rows: string[][]) {
-  if (title) sectionHeading(ctx, title)
+export function dataTable(ctx: ReportContext, title: string, columns: DataTableColumn[], rows: string[][], options?: DataTableOptions) {
   const { pdf, margin } = ctx
   const rowH = 18
-  ensureSpace(ctx, rowH * 2)
+  if (title) {
+    sectionHeading(ctx, title, rowH * 2)
+  } else {
+    ensureSpace(ctx, rowH * 2)
+  }
 
   const totalWidth = columns.reduce((sum, c) => sum + c.width, 0)
   const colX: number[] = []
@@ -383,7 +438,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
     setText(pdf, REPORT_COLORS.white)
     columns.forEach((c, i) => {
       const tx = c.align === 'right' ? colX[i] + c.width - 6 : colX[i] + 6
-      pdf.text(c.header, tx, ctx.y + rowH / 2 + 3, { align: c.align === 'right' ? 'right' : 'left' })
+      drawText(pdf, c.header, tx, ctx.y + rowH / 2 + 3, { align: c.align === 'right' ? 'right' : 'left' })
     })
     ctx.y += rowH
   }
@@ -400,11 +455,14 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
       setFill(pdf, REPORT_COLORS.stripe)
       pdf.rect(margin, ctx.y, totalWidth, rowH, 'F')
     }
-    setText(pdf, REPORT_COLORS.ink)
     row.forEach((cell, j) => {
       const c = columns[j]
       const tx = c.align === 'right' ? colX[j] + c.width - 6 : colX[j] + 6
-      pdf.text(cell, tx, ctx.y + rowH / 2 + 3, { align: c.align === 'right' ? 'right' : 'left' })
+      const override = options?.cellColors?.[i]?.[j]
+      setText(pdf, override ?? REPORT_COLORS.ink)
+      pdf.setFont('helvetica', override ? 'bold' : 'normal')
+      drawText(pdf, cell, tx, ctx.y + rowH / 2 + 3, { align: c.align === 'right' ? 'right' : 'left' })
+      pdf.setFont('helvetica', 'normal')
     })
     ctx.y += rowH
   })
@@ -449,8 +507,11 @@ export function capabilityGauge(
       { upTo: max, color: REPORT_COLORS.good },
     ]
 
-  if (opts.title) sectionHeading(ctx, opts.title)
-  ensureSpace(ctx, 70)
+  if (opts.title) {
+    sectionHeading(ctx, opts.title, 70)
+  } else {
+    ensureSpace(ctx, 70)
+  }
   const { pdf, margin, pageWidth } = ctx
   const barX = margin
   const barW = pageWidth - margin * 2
@@ -486,17 +547,17 @@ export function capabilityGauge(
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(7.5)
   setText(pdf, REPORT_COLORS.muted)
-  pdf.text(min.toFixed(2), barX, barY + barH + 12)
-  pdf.text('1.00', toX(1.0), barY + barH + 12, { align: 'center' })
-  pdf.text('1.33', toX(1.33), barY + barH + 12, { align: 'center' })
-  pdf.text(`${max.toFixed(2)}+`, barX + barW, barY + barH + 12, { align: 'right' })
+  drawText(pdf, min.toFixed(2), barX, barY + barH + 12)
+  drawText(pdf, '1.00', toX(1.0), barY + barH + 12, { align: 'center' })
+  drawText(pdf, '1.33', toX(1.33), barY + barH + 12, { align: 'center' })
+  drawText(pdf, `${max.toFixed(2)}+`, barX + barW, barY + barH + 12, { align: 'right' })
 
   ctx.y = barY + barH + 26
 
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(8.5)
   setText(pdf, REPORT_COLORS.ink)
-  pdf.text(opts.caption, margin, ctx.y)
+  drawText(pdf, opts.caption, margin, ctx.y)
   ctx.y += 20
 }
 
@@ -520,13 +581,14 @@ export interface CapabilityBarsOptions {
  * side tables.
  */
 export function capabilityComparisonPlot(ctx: ReportContext, title: string, opts: CapabilityBarsOptions) {
-  sectionHeading(ctx, title)
-  const { pdf, margin, pageWidth } = ctx
   const panelW = 100
-  const plotX = margin + panelW + 12
-  const plotW = pageWidth - margin * 2 - panelW * 2 - 24
   const rowH = 20
   const gap = 14
+  const blockH = rowH * 3 + gap * 2 + 20
+  sectionHeading(ctx, title, blockH + 20)
+  const { pdf, margin, pageWidth } = ctx
+  const plotX = margin + panelW + 12
+  const plotW = pageWidth - margin * 2 - panelW * 2 - 24
 
   const specsLo = opts.lsl
   const specsHi = opts.usl
@@ -543,15 +605,13 @@ export function capabilityComparisonPlot(ctx: ReportContext, title: string, opts
   const scaleMax = dataMax + pad
   const toX = (v: number) => plotX + ((v - scaleMin) / (scaleMax - scaleMin)) * plotW
 
-  const blockH = rowH * 3 + gap * 2 + 20
-  ensureSpace(ctx, blockH + 20)
   const top = ctx.y
 
   const drawBar = (label: string, lo: number | null, hi: number | null, rowY: number) => {
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(8.5)
     setText(pdf, REPORT_COLORS.ink)
-    pdf.text(label, plotX + plotW / 2, rowY - 5, { align: 'center' })
+    drawText(pdf, label, plotX + plotW / 2, rowY - 5, { align: 'center' })
     setDraw(pdf, REPORT_COLORS.brand)
     pdf.setLineWidth(2)
     if (lo !== null && hi !== null) {
@@ -561,7 +621,7 @@ export function capabilityComparisonPlot(ctx: ReportContext, title: string, opts
     } else {
       pdf.setFontSize(7.5)
       setText(pdf, REPORT_COLORS.faint)
-      pdf.text('n/a', plotX + plotW / 2, rowY + 4, { align: 'center' })
+      drawText(pdf, 'n/a', plotX + plotW / 2, rowY + 4, { align: 'center' })
     }
   }
 
@@ -587,16 +647,16 @@ function drawStatPanel(ctx: ReportContext, x: number, y: number, width: number, 
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8.5)
   setText(pdf, REPORT_COLORS.brandDark)
-  pdf.text(title, x, y)
+  drawText(pdf, title, x, y)
   let ry = y + 14
   pdf.setFontSize(7.8)
   rows.forEach(([label, value]) => {
     pdf.setFont('helvetica', 'normal')
     setText(pdf, REPORT_COLORS.muted)
-    pdf.text(label, x, ry)
+    drawText(pdf, label, x, ry)
     pdf.setFont('helvetica', 'bold')
     setText(pdf, REPORT_COLORS.ink)
-    pdf.text(value, x + width, ry, { align: 'right' })
+    drawText(pdf, value, x + width, ry, { align: 'right' })
     ry += 12
   })
 }
@@ -612,11 +672,11 @@ interface EmbeddableChart {
 /** Embeds a full-width Chart.js chart as a PNG, with a section-style title above it. */
 export function addChartImage(ctx: ReportContext, chart: EmbeddableChart | null, title: string) {
   if (!chart) return
-  sectionHeading(ctx, title)
-  const { pdf, margin, pageWidth } = ctx
+  const { margin, pageWidth } = ctx
   const imgWidth = pageWidth - margin * 2
   const imgHeight = (chart.height / chart.width) * imgWidth
-  ensureSpace(ctx, imgHeight)
+  sectionHeading(ctx, title, imgHeight)
+  const { pdf } = ctx
   const imgData = chart.toBase64Image('image/png', 1)
   pdf.addImage(imgData, 'PNG', margin, ctx.y, imgWidth, imgHeight)
   ctx.y += imgHeight + 20
@@ -630,8 +690,7 @@ export function addChartImagePair(
   right: { chart: EmbeddableChart | null; title: string }
 ) {
   if (!left.chart && !right.chart) return
-  if (sectionTitle) sectionHeading(ctx, sectionTitle)
-  const { pdf, margin, pageWidth } = ctx
+  const { margin, pageWidth } = ctx
   const gap = 16
   const colW = (pageWidth - margin * 2 - gap) / 2
 
@@ -639,14 +698,20 @@ export function addChartImagePair(
   if (left.chart) heights.push((left.chart.height / left.chart.width) * colW)
   if (right.chart) heights.push((right.chart.height / right.chart.width) * colW)
   const rowHeight = Math.max(...heights, 0)
-  ensureSpace(ctx, rowHeight + 24)
+
+  if (sectionTitle) {
+    sectionHeading(ctx, sectionTitle, rowHeight + 24)
+  } else {
+    ensureSpace(ctx, rowHeight + 24)
+  }
+  const { pdf } = ctx
 
   const drawOne = (item: { chart: EmbeddableChart | null; title: string }, x: number) => {
     if (!item.chart) return
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(9)
     setText(pdf, REPORT_COLORS.ink)
-    pdf.text(item.title, x, ctx.y)
+    drawText(pdf, item.title, x, ctx.y)
     const h = (item.chart.height / item.chart.width) * colW
     const imgData = item.chart.toBase64Image('image/png', 1)
     pdf.addImage(imgData, 'PNG', x, ctx.y + 8, colW, h)
@@ -693,8 +758,8 @@ export function finalizeReport(ctx: ReportContext) {
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(7.5)
     setText(pdf, REPORT_COLORS.faint)
-    pdf.text(`© ${year} Quality Hub · qualityhub.tools`, margin, fy + 13)
-    pdf.text(ctx.reportTitle, pageWidth / 2, fy + 13, { align: 'center' })
-    pdf.text(`Page ${i} of ${pageCount}`, pageWidth - margin, fy + 13, { align: 'right' })
+    drawText(pdf, `© ${year} Quality Hub · qualityhub.tools`, margin, fy + 13)
+    drawText(pdf, ctx.reportTitle, pageWidth / 2, fy + 13, { align: 'center' })
+    drawText(pdf, `Page ${i} of ${pageCount}`, pageWidth - margin, fy + 13, { align: 'right' })
   }
 }

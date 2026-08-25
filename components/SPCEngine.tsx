@@ -25,6 +25,7 @@ import {
   addChartImage,
   addChartImagePair,
   finalizeReport,
+  REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign'
 
@@ -761,6 +762,9 @@ export default function SPCEngine() {
       twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
 
       if (cls && pkVal !== null) {
+        const cpkCls = classifyCapability(varResult.Cpk)
+        const ppkCls = classifyCapability(varResult.Ppk)
+        const stable = allViolations.length === 0
         dataTable(
           ctx,
           'Capability Classification Summary',
@@ -771,14 +775,22 @@ export default function SPCEngine() {
           ],
           [
             ['Minimum Cpk / Ppk', fmt(pkVal), cls.label],
-            ['Within Capability', `Cp ${fmt(varResult.Cp)} / Cpk ${fmt(varResult.Cpk)}`, classifyCapability(varResult.Cpk).label],
-            ['Overall Performance', `Pp ${fmt(varResult.Pp)} / Ppk ${fmt(varResult.Ppk)}`, classifyCapability(varResult.Ppk).label],
+            ['Within Capability', `Cp ${fmt(varResult.Cp)} / Cpk ${fmt(varResult.Cpk)}`, cpkCls.label],
+            ['Overall Performance', `Pp ${fmt(varResult.Pp)} / Ppk ${fmt(varResult.Ppk)}`, ppkCls.label],
             [
               'Stability Screen',
-              allViolations.length === 0 ? 'No violations detected' : `${allViolations.length} rule violation(s)`,
-              allViolations.length === 0 ? 'Stable' : 'Review required',
+              stable ? 'No violations detected' : `${allViolations.length} rule violation(s)`,
+              stable ? 'Stable' : 'Review required',
             ],
-          ]
+          ],
+          {
+            cellColors: [
+              [null, null, cls.color],
+              [null, null, cpkCls.color],
+              [null, null, ppkCls.color],
+              [null, null, stable ? REPORT_COLORS.good : REPORT_COLORS.warn],
+            ],
+          }
         )
 
         capabilityGauge(ctx, {
