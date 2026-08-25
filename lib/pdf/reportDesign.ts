@@ -359,28 +359,36 @@ export function twoColumnTables(
   void startY
 }
 
-/** Draws one key/value table at a fixed (x, y) and returns the y just below it. Handles pagination on its own. */
+/** Draws one key/value table at a fixed (x, y) and returns the y just below it. Handles pagination and long-value wrapping on its own. */
 function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, rows: KVRow[], headers: [string, string]): number {
   const { pdf } = ctx
-  const rowH = 17
+  const baseRowH = 17
+  const lineH = 11
   const labelW = width * 0.55
+  const valueW = width - labelW - 16
   let curY = y
 
   const drawHeaderRow = () => {
     setFill(pdf, REPORT_COLORS.headerFill)
-    pdf.rect(x, curY, width, rowH, 'F')
+    pdf.rect(x, curY, width, baseRowH, 'F')
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(8)
     setText(pdf, REPORT_COLORS.muted)
-    drawText(pdf, headers[0], x + 8, curY + rowH / 2 + 3)
-    drawText(pdf, headers[1], x + labelW + 8, curY + rowH / 2 + 3)
-    curY += rowH
+    drawText(pdf, headers[0], x + 8, curY + baseRowH / 2 + 3)
+    drawText(pdf, headers[1], x + labelW + 8, curY + baseRowH / 2 + 3)
+    curY += baseRowH
   }
 
   drawHeaderRow()
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(9)
   rows.forEach(([label, value], i) => {
+    // Long values (e.g. "Subgrouped measurements (n=5)") wrap onto
+    // multiple lines within the value column instead of overflowing past
+    // the table's — and potentially the next table's — edge.
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(9)
+    const valueLines = pdf.splitTextToSize(value, valueW) as string[]
+    const rowH = Math.max(baseRowH, valueLines.length * lineH + 6)
+
     if (curY + rowH > ctx.pageHeight - ctx.margin - 26) {
       newPage(ctx)
       curY = ctx.y
@@ -390,11 +398,14 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
       setFill(pdf, REPORT_COLORS.stripe)
       pdf.rect(x, curY, width, rowH, 'F')
     }
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(9)
     setText(pdf, REPORT_COLORS.muted)
-    drawText(pdf, label, x + 8, curY + rowH / 2 + 3)
+    drawText(pdf, label, x + 8, curY + baseRowH / 2 + 3)
     setText(pdf, REPORT_COLORS.ink)
     pdf.setFont('helvetica', 'bold')
-    drawText(pdf, value, x + labelW + 8, curY + rowH / 2 + 3)
+    const textStartY = valueLines.length > 1 ? curY + lineH + 1 : curY + baseRowH / 2 + 3
+    valueLines.forEach((line, li) => drawText(pdf, line, x + labelW + 8, textStartY + li * lineH))
     pdf.setFont('helvetica', 'normal')
     curY += rowH
   })
