@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import 'chart.js/auto'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
-import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -12,6 +11,22 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  classifyCapability,
+  classificationBanner,
+  twoColumnTables,
+  dataTable,
+  capabilityGauge,
+  capabilityComparisonPlot,
+  interpretationBox,
+  calloutBox,
+  criteriaReferenceTable,
+  addChartImage,
+  addChartImagePair,
+  finalizeReport,
+  type KVRow,
+} from '@/lib/pdf/reportDesign'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -704,142 +719,178 @@ export default function SPCEngine() {
       setErrorMsg(t('spc_err_no_report'))
       return
     }
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 40
-    let y = margin
 
-    const ensureSpace = (needed: number) => {
-      if (y + needed > pageHeight - margin) {
-        pdf.addPage()
-        y = margin
-      }
-    }
+    const ctx = createPdfReport('SPC Analysis Report', 'spc')
+    const cls = varResult && hasSpecLimits ? classifyCapability(pkVal) : null
 
-    pdf.setFontSize(18)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setTextColor(0)
-    pdf.text('SPC Analysis Report', margin, y)
-    y += 10
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12)
-    y += 30
-
-    const addChartImage = (chart: ChartJSInstance<'line'> | ChartJSInstance<'scatter'> | null, title: string) => {
-      if (!chart) return
-      ensureSpace(60)
-      pdf.setFontSize(12)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(0)
-      pdf.text(title, margin, y)
-      y += 12
-      const imgData = chart.toBase64Image('image/png', 1)
-      const imgWidth = pageWidth - margin * 2
-      const imgHeight = (chart.height / chart.width) * imgWidth
-      ensureSpace(imgHeight)
-      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-      y += imgHeight + 24
+    if (cls) {
+      classificationBanner(ctx, cls)
+    } else if (varResult) {
+      calloutBox(
+        ctx,
+        'No specification limits were provided — capability indices (Cp/Cpk/Pp/Ppk) are not applicable. Statistical control and stability are assessed below instead.',
+        'info'
+      )
     }
 
     if (varResult) {
-      pdf.setFontSize(11)
-      pdf.setTextColor(0)
-      pdf.text(
-        `N=${varResult.n}  ·  Mean=${fmt(varResult.mu)}  ·  σ(within)=${fmt(varResult.sigma)}  ·  ${varResult.isNormal ? 'Normal' : 'Non-Normal'} (p=${fmt(varResult.ad?.p ?? null, 3)})`,
-        margin,
-        y
-      )
-      y += 24
-      addChartImage(iChartRef.current, varResult.N === 1 ? 'Individuals (I) Chart' : 'X̄ Chart')
-      addChartImage(rChartRef.current, varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart')
+      const dataTypeLabel = varResult.N === 1 ? 'Individual measurements' : `Subgrouped measurements (n=${varResult.N})`
+      const withinMethod = varResult.N === 1 ? 'Average moving range / d2' : 'Average range / d2 (X̄-R)'
 
-      if (hasSpecLimits) {
-        ensureSpace(70)
-        pdf.setFontSize(12)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(0)
-        pdf.text('Process Capability', margin, y)
-        y += 16
-        pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(10)
-        const capLines = [
-          `Cp = ${fmt(varResult.Cp)}   Cpk = ${fmt(varResult.Cpk)}   Pp = ${fmt(varResult.Pp)}   Ppk = ${fmt(varResult.Ppk)}${varResult.Cpm !== null ? `   Cpm = ${fmt(varResult.Cpm, 4)}` : ''}`,
-          `Sigma Level: ${fmt(varResult.sigLvl_st)}σ (short-term) / ${fmt(varResult.sigLvl_lt)}σ (long-term)`,
-          `Total PPM: ${varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(2) : '—'} (short-term) / ${varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(2) : '—'} (long-term)`,
-        ]
-        capLines.forEach(line => {
-          pdf.text(line, margin, y)
-          y += 14
+      const studyRows: KVRow[] = [
+        ['Data Type', dataTypeLabel],
+        ['Observations', String(varResult.labels.length)],
+        ['Subgroup Size', String(varResult.N)],
+        ['Within Sigma Method', withinMethod],
+        ['LSL', varResult.LSL !== null ? fmt(varResult.LSL, 3) : '—'],
+        ['Target', target !== '' ? fmt(parseFloat(target), 3) : '—'],
+        ['USL', varResult.USL !== null ? fmt(varResult.USL, 3) : '—'],
+      ]
+
+      const metricRows: KVRow[] = [
+        ['Mean', fmt(varResult.mu)],
+        ['StDev Within', fmt(varResult.sigma)],
+        ['StDev Overall', fmt(varResult.sdOverall)],
+        ['Cp', fmt(varResult.Cp)],
+        ['Cpk', fmt(varResult.Cpk)],
+        ['Pp', fmt(varResult.Pp)],
+        ['Ppk', fmt(varResult.Ppk)],
+        ['Sigma Level (Overall)', varResult.sigLvl_lt !== null ? `${fmt(varResult.sigLvl_lt)} σ` : '—'],
+      ]
+
+      twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
+
+      if (cls && pkVal !== null) {
+        dataTable(
+          ctx,
+          'Capability Classification Summary',
+          [
+            { header: 'CRITERION', width: 150 },
+            { header: 'RESULT', width: 190 },
+            { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 340 },
+          ],
+          [
+            ['Minimum Cpk / Ppk', fmt(pkVal), cls.label],
+            ['Within Capability', `Cp ${fmt(varResult.Cp)} / Cpk ${fmt(varResult.Cpk)}`, classifyCapability(varResult.Cpk).label],
+            ['Overall Performance', `Pp ${fmt(varResult.Pp)} / Ppk ${fmt(varResult.Ppk)}`, classifyCapability(varResult.Ppk).label],
+            [
+              'Stability Screen',
+              allViolations.length === 0 ? 'No violations detected' : `${allViolations.length} rule violation(s)`,
+              allViolations.length === 0 ? 'Stable' : 'Review required',
+            ],
+          ]
+        )
+
+        capabilityGauge(ctx, {
+          title: 'Capability Classification Gauge',
+          value: pkVal,
+          caption: `Primary capability index: min(Cpk, Ppk) = ${fmt(pkVal)}`,
         })
-        if (verdict) {
-          y += 4
-          pdf.setFont('helvetica', 'bold')
-          pdf.text(verdict.text, margin, y)
-          y += 18
-        }
-        pdf.setFont('helvetica', 'normal')
-        addChartImage(distChartRef.current, 'Distribution vs. Specification Limits')
       }
-      addChartImage(ecdfChartRef.current, 'Empirical CDF vs. Normal Distribution')
-    } else if (attrResult) {
-      pdf.setFontSize(11)
-      pdf.setTextColor(0)
-      pdf.text(
-        `${attrResult.chartLabel}  ·  Subgroups=${attrResult.pts.length}  ·  ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)}  ·  DPM=${Math.round(attrResult.dpm)}  ·  Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}`,
-        margin,
-        y
+
+      // Process Stability Assessment
+      addChartImagePair(
+        ctx,
+        'Process Stability Assessment',
+        { chart: iChartRef.current, title: varResult.N === 1 ? 'Individuals (I) Chart' : 'X̄ Chart' },
+        { chart: rChartRef.current, title: varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart' }
       )
-      y += 24
-      addChartImage(attrChartRef.current, attrResult.chartLabel)
+      calloutBox(
+        ctx,
+        allViolations.length === 0
+          ? 'No basic Nelson Rule signal was detected in the displayed charts. Continue to review patterns, subgrouping, and practical process knowledge.'
+          : `${allViolations.length} Nelson Rule violation(s) were detected in the displayed charts — see the detailed table below.`,
+        allViolations.length === 0 ? 'good' : 'warn'
+      )
+
+      if (cls) {
+        addChartImagePair(
+          ctx,
+          'Distribution and Capability Evidence',
+          { chart: distChartRef.current, title: 'Capability Histogram' },
+          { chart: ecdfChartRef.current, title: 'Empirical CDF vs. Normal' }
+        )
+
+        capabilityComparisonPlot(ctx, 'Capability Plot', {
+          lsl: varResult.LSL,
+          usl: varResult.USL,
+          mean: varResult.mu,
+          sigmaWithin: varResult.sigma,
+          sigmaOverall: varResult.sdOverall,
+          withinStats: [
+            ['StDev', fmt(varResult.sigma)],
+            ['Cp', fmt(varResult.Cp)],
+            ['Cpk', fmt(varResult.Cpk)],
+            ['PPM', varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(1) : '—'],
+          ],
+          overallStats: [
+            ['StDev', fmt(varResult.sdOverall)],
+            ['Pp', fmt(varResult.Pp)],
+            ['Ppk', fmt(varResult.Ppk)],
+            ['PPM', varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(1) : '—'],
+          ],
+        })
+
+        dataTable(
+          ctx,
+          'Performance and Defect Risk',
+          [
+            { header: 'PPM ESTIMATE', width: 260 },
+            { header: 'VALUE', width: ctx.pageWidth - ctx.margin * 2 - 260 },
+          ],
+          [
+            ['Within - Below LSL', varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(1) : '—'],
+            ['Within - Above USL', varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(1) : '—'],
+            ['Within - Total PPM', varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(1) : '—'],
+            ['Overall - Below LSL', varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(1) : '—'],
+            ['Overall - Above USL', varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(1) : '—'],
+            ['Overall - Total PPM', varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(1) : '—'],
+            ['Estimated Yield (Overall)', varResult.ppmD_lt ? `${(100 - varResult.ppmD_lt.total / 10000).toFixed(3)}%` : '—'],
+          ]
+        )
+      }
+    } else if (attrResult) {
+      calloutBox(
+        ctx,
+        `${attrResult.chartLabel} · Subgroups=${attrResult.pts.length} · ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)} · DPM=${Math.round(attrResult.dpm)} · Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}`,
+        'info'
+      )
+      addChartImage(ctx, attrChartRef.current, attrResult.chartLabel)
+      calloutBox(
+        ctx,
+        allViolations.length === 0
+          ? 'No basic Nelson Rule signal was detected in the displayed chart.'
+          : `${allViolations.length} Nelson Rule violation(s) were detected — see the detailed table below.`,
+        allViolations.length === 0 ? 'good' : 'warn'
+      )
     }
 
     if (allViolations.length > 0) {
-      ensureSpace(50)
-      pdf.setFontSize(12)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(0)
-      pdf.text('Nelson Rule Violations', margin, y)
-      y += 16
-      const rowHeight = 18
-      const colX = [margin, margin + 60, margin + 180, margin + 320]
-      const drawHeader = () => {
-        pdf.setFillColor(230, 230, 230)
-        pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
-        pdf.setFont('helvetica', 'bold')
-        pdf.setFontSize(9)
-        pdf.setTextColor(0)
-        pdf.text('Rule', colX[0] + 4, y + 13)
-        pdf.text('Test', colX[1] + 4, y + 13)
-        pdf.text('Chart', colX[2] + 4, y + 13)
-        pdf.text('Points', colX[3] + 4, y + 13)
-        y += rowHeight
-      }
-      drawHeader()
-      pdf.setFont('helvetica', 'normal')
-      allViolations.forEach(v => {
-        if (y + rowHeight > pageHeight - margin) {
-          pdf.addPage()
-          y = margin
-          drawHeader()
-        }
-        pdf.setTextColor(0)
-        pdf.text(String(v.rule), colX[0] + 4, y + 13)
-        pdf.text(v.label.slice(0, 26), colX[1] + 4, y + 13)
-        pdf.text(v.chart.slice(0, 22), colX[2] + 4, y + 13)
-        pdf.text(expandViolationPoints(v).join(',').slice(0, 26), colX[3] + 4, y + 13)
-        y += rowHeight
-      })
-    } else {
-      ensureSpace(20)
-      pdf.setFontSize(10)
-      pdf.setTextColor(0, 150, 0)
-      pdf.text('No Nelson Rule violations — process in statistical control.', margin, y)
+      dataTable(
+        ctx,
+        'Nelson Rule Violations',
+        [
+          { header: 'RULE', width: 40 },
+          { header: 'TEST', width: 180 },
+          { header: 'CHART', width: 120 },
+          { header: 'POINTS', width: ctx.pageWidth - ctx.margin * 2 - 340 },
+        ],
+        allViolations.map(v => [String(v.rule), v.label, v.chart, expandViolationPoints(v).join(', ')])
+      )
     }
 
-    pdf.save('spc-report.pdf')
+    if (cls && varResult) {
+      const yieldPct = varResult.ppmD_lt ? (100 - varResult.ppmD_lt.total / 10000).toFixed(3) : null
+      const tone = pkVal === null ? 'info' : pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
+      const conclusion = `The process is classified as ${cls.label} using the minimum of Cpk and Ppk. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.${
+        yieldPct ? ` The estimated overall nonconformance rate is ${varResult.ppmD_lt!.total.toFixed(1)} PPM (yield ${yieldPct}%).` : ''
+      } Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
+      interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
+      criteriaReferenceTable(ctx)
+    }
+
+    finalizeReport(ctx)
+    ctx.pdf.save('spc-report.pdf')
   }
 
   // ── Chart builders ──────────────────────────────────────────────────────
