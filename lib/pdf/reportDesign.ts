@@ -43,12 +43,15 @@ export const REPORT_COLORS = {
   headerFill: [240, 244, 248] as RGB,
   stripe: [248, 250, 252] as RGB,
   white: [255, 255, 255] as RGB,
-  good: [22, 163, 74] as RGB,
-  goodBg: [220, 252, 231] as RGB,
-  warn: [180, 83, 9] as RGB,
-  warnBg: [254, 243, 199] as RGB,
-  bad: [220, 38, 38] as RGB,
-  badBg: [254, 226, 226] as RGB,
+  // Excel's built-in "Good/Bad/Neutral" cell-style palette — instantly
+  // familiar to anyone who has used conditional formatting in Excel,
+  // which is exactly the audience for these reports.
+  good: [0, 97, 0] as RGB, // Excel "Good" text (#006100)
+  goodBg: [198, 239, 206] as RGB, // Excel "Good" fill (#C6EFCE)
+  warn: [156, 101, 0] as RGB, // Excel "Neutral" text (#9C6500)
+  warnBg: [255, 235, 156] as RGB, // Excel "Neutral" fill (#FFEB9C)
+  bad: [156, 0, 6] as RGB, // Excel "Bad" text (#9C0006)
+  badBg: [255, 199, 206] as RGB, // Excel "Bad" fill (#FFC7CE)
   neutral: [100, 116, 139] as RGB,
   neutralBg: [241, 245, 249] as RGB,
 } as const
@@ -303,6 +306,12 @@ export function interpretationBox(ctx: ReportContext, title: string, text: strin
   const lines = pdf.splitTextToSize(text, pageWidth - margin * 2 - 24) as string[]
   const h = lines.length * 13.5 + 16
   sectionHeading(ctx, title, h + 10)
+  // sectionHeading() switches the active font to bold 12.5pt to draw the
+  // heading and doesn't restore it — re-set it here before drawing the
+  // wrapped lines, otherwise they render larger than the width they were
+  // wrapped to and spill past the right edge of the box.
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(9.5)
   setFill(pdf, bg)
   pdf.rect(margin, ctx.y, pageWidth - margin * 2, h, 'F')
   setFill(pdf, color)
@@ -502,9 +511,9 @@ export function capabilityGauge(
   const bands: GaugeBand[] =
     opts.bands ??
     [
-      { upTo: 1.0, color: REPORT_COLORS.bad },
-      { upTo: 1.33, color: REPORT_COLORS.warn },
-      { upTo: max, color: REPORT_COLORS.good },
+      { upTo: 1.0, color: REPORT_COLORS.badBg },
+      { upTo: 1.33, color: REPORT_COLORS.warnBg },
+      { upTo: max, color: REPORT_COLORS.goodBg },
     ]
 
   if (opts.title) {
@@ -533,6 +542,10 @@ export function capabilityGauge(
   // Rounded caps: mask corners with a thin white round-rect outline for a softer look
   setDraw(pdf, REPORT_COLORS.white)
   pdf.setLineWidth(1.5)
+  pdf.roundedRect(barX, barY, barW, barH, 4, 4, 'S')
+  // A subtle border keeps the pastel bands from looking washed out against the white page.
+  setDraw(pdf, REPORT_COLORS.border)
+  pdf.setLineWidth(0.75)
   pdf.roundedRect(barX, barY, barW, barH, 4, 4, 'S')
 
   // Pointer
