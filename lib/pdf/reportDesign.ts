@@ -393,13 +393,16 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
 
   drawHeaderRow()
   rows.forEach(([label, value], i) => {
-    // Long values (e.g. "Subgrouped measurements (n=5)") wrap onto
-    // multiple lines within the value column instead of overflowing past
-    // the table's — and potentially the next table's — edge.
-    pdf.setFont('helvetica', 'bold')
+    // Long labels (e.g. "Number of Distinct Categories (ndc)") and long
+    // values (e.g. "Subgrouped measurements (n=5)") both wrap onto
+    // multiple lines within their own column instead of overflowing into
+    // each other or past the table's edge.
+    pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(9)
+    const labelLines = pdf.splitTextToSize(label, labelW - 8) as string[]
+    pdf.setFont('helvetica', 'bold')
     const valueLines = pdf.splitTextToSize(value, valueW) as string[]
-    const rowH = Math.max(baseRowH, valueLines.length * lineH + 6)
+    const rowH = Math.max(baseRowH, Math.max(labelLines.length, valueLines.length) * lineH + 6)
 
     if (curY + rowH > ctx.pageHeight - ctx.margin - 26) {
       newPage(ctx)
@@ -413,11 +416,12 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(9)
     setText(pdf, REPORT_COLORS.muted)
-    drawText(pdf, label, x + 8, curY + baseRowH / 2 + 3)
+    const labelStartY = labelLines.length > 1 ? curY + lineH + 1 : curY + baseRowH / 2 + 3
+    labelLines.forEach((line, li) => drawText(pdf, line, x + 8, labelStartY + li * lineH))
     setText(pdf, REPORT_COLORS.ink)
     pdf.setFont('helvetica', 'bold')
-    const textStartY = valueLines.length > 1 ? curY + lineH + 1 : curY + baseRowH / 2 + 3
-    valueLines.forEach((line, li) => drawText(pdf, line, x + labelW + 8, textStartY + li * lineH))
+    const valueStartY = valueLines.length > 1 ? curY + lineH + 1 : curY + baseRowH / 2 + 3
+    valueLines.forEach((line, li) => drawText(pdf, line, x + labelW + 8, valueStartY + li * lineH))
     pdf.setFont('helvetica', 'normal')
     curY += rowH
   })
@@ -447,11 +451,12 @@ export interface DataTableOptions {
  */
 export function dataTable(ctx: ReportContext, title: string, columns: DataTableColumn[], rows: string[][], options?: DataTableOptions) {
   const { pdf, margin } = ctx
-  const rowH = 18
+  const baseRowH = 18
+  const lineH = 11
   if (title) {
-    sectionHeading(ctx, title, rowH * 2)
+    sectionHeading(ctx, title, baseRowH * 2)
   } else {
-    ensureSpace(ctx, rowH * 2)
+    ensureSpace(ctx, baseRowH * 2)
   }
 
   const totalWidth = columns.reduce((sum, c) => sum + c.width, 0)
@@ -461,27 +466,50 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
     colX.push(acc)
     acc += c.width
   })
+  const cellPad = 12 // 6pt padding each side, matches the 6pt text inset used below
 
   const drawHeaderRow = () => {
-    setFill(pdf, REPORT_COLORS.brand)
-    pdf.rect(margin, ctx.y, totalWidth, rowH, 'F')
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(8.5)
+    // Headers wrap too — defends against a header like "P-VALUE" or a
+    // translated label being wider than its column.
+    const headerLines = columns.map(c => pdf.splitTextToSize(c.header, c.width - cellPad) as string[])
+    const hRowH = Math.max(baseRowH, Math.max(...headerLines.map(l => l.length)) * lineH + 7)
+    setFill(pdf, REPORT_COLORS.brand)
+    pdf.rect(margin, ctx.y, totalWidth, hRowH, 'F')
     setText(pdf, REPORT_COLORS.white)
     columns.forEach((c, i) => {
       const tx = c.align === 'right' ? colX[i] + c.width - 6 : colX[i] + 6
-      drawText(pdf, c.header, tx, ctx.y + rowH / 2 + 3, { align: c.align === 'right' ? 'right' : 'left' })
+      const lines = headerLines[i]
+      const startY = lines.length > 1 ? ctx.y + lineH + 1 : ctx.y + hRowH / 2 + 3
+      lines.forEach((line, li) => drawText(pdf, line, tx, startY + li * lineH, { align: c.align === 'right' ? 'right' : 'left' }))
     })
-    ctx.y += rowH
+    ctx.y += hRowH
   }
 
   drawHeaderRow()
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(8.5)
+  let segmentTop = ctx.y // top of the table body currently visible on this page, for the border box
+
   rows.forEach((row, i) => {
+    // Wrap every cell to its column width — a long sentence (e.g. in a
+    // "GENERAL INTERPRETATION" column) breaks onto multiple lines instead
+    // of running off the edge of the page, and the row grows to fit.
+    const cellLines: string[][] = row.map((cell, j) => {
+      const c = columns[j]
+      const override = options?.cellColors?.[i]?.[j]
+      pdf.setFont('helvetica', override ? 'bold' : 'normal')
+      pdf.setFontSize(8.5)
+      return pdf.splitTextToSize(cell, c.width - cellPad) as string[]
+    })
+    const rowH = Math.max(baseRowH, Math.max(...cellLines.map(l => l.length)) * lineH + 7)
+
     if (ctx.y + rowH > ctx.pageHeight - ctx.margin - 26) {
+      setDraw(pdf, REPORT_COLORS.border)
+      pdf.setLineWidth(0.5)
+      pdf.rect(margin, segmentTop, totalWidth, ctx.y - segmentTop, 'S')
       newPage(ctx)
       drawHeaderRow()
+      segmentTop = ctx.y
     }
     if (i % 2 === 1) {
       setFill(pdf, REPORT_COLORS.stripe)
@@ -493,15 +521,17 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
       const override = options?.cellColors?.[i]?.[j]
       setText(pdf, override ?? REPORT_COLORS.ink)
       pdf.setFont('helvetica', override ? 'bold' : 'normal')
-      drawText(pdf, cell, tx, ctx.y + rowH / 2 + 3, { align: c.align === 'right' ? 'right' : 'left' })
-      pdf.setFont('helvetica', 'normal')
+      const lines = cellLines[j]
+      const startY = lines.length > 1 ? ctx.y + lineH + 1 : ctx.y + rowH / 2 + 3
+      lines.forEach((line, li) => drawText(pdf, line, tx, startY + li * lineH, { align: c.align === 'right' ? 'right' : 'left' }))
     })
+    pdf.setFont('helvetica', 'normal')
     ctx.y += rowH
   })
 
   setDraw(pdf, REPORT_COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin, ctx.y - rows.length * rowH - rowH, totalWidth, (rows.length + 1) * rowH, 'S')
+  pdf.rect(margin, segmentTop, totalWidth, ctx.y - segmentTop, 'S')
   ctx.y += 16
 }
 
