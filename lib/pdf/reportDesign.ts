@@ -76,6 +76,18 @@ export function classifyCapability(val: number | null | undefined): Classificati
   return { label: 'NOT CAPABLE', color: REPORT_COLORS.bad, bg: REPORT_COLORS.badBg }
 }
 
+/**
+ * Maps a Gage R&R engine's own 'okay' | 'marginal' | 'unacceptable'
+ * conclusion to a Classification. Deliberately takes the app's already-
+ * computed AIAG verdict rather than re-deriving thresholds here, so the
+ * PDF can never disagree with what GageRR.tsx shows on screen.
+ */
+export function classifyGageConclusion(conclusion: 'okay' | 'marginal' | 'unacceptable'): Classification {
+  if (conclusion === 'okay') return { label: 'ACCEPTABLE MEASUREMENT SYSTEM', color: REPORT_COLORS.good, bg: REPORT_COLORS.goodBg }
+  if (conclusion === 'marginal') return { label: 'MARGINAL — USE WITH CAUTION', color: REPORT_COLORS.warn, bg: REPORT_COLORS.warnBg }
+  return { label: 'UNACCEPTABLE MEASUREMENT SYSTEM', color: REPORT_COLORS.bad, bg: REPORT_COLORS.badBg }
+}
+
 // ── Report context ──────────────────────────────────────────────────────
 
 export interface ReportContext {
@@ -514,6 +526,8 @@ export function capabilityGauge(
     min?: number
     max?: number
     bands?: GaugeBand[]
+    /** Axis tick marks. Defaults to the SPC capability scale (0 / 1.00 / 1.33 / max+) if omitted. */
+    ticks?: { value: number; label: string }[]
     caption: string
   }
 ) {
@@ -525,6 +539,14 @@ export function capabilityGauge(
       { upTo: 1.0, color: REPORT_COLORS.badBg },
       { upTo: 1.33, color: REPORT_COLORS.warnBg },
       { upTo: max, color: REPORT_COLORS.goodBg },
+    ]
+  const ticks =
+    opts.ticks ??
+    [
+      { value: min, label: min.toFixed(2) },
+      { value: 1.0, label: '1.00' },
+      { value: 1.33, label: '1.33' },
+      { value: max, label: `${max.toFixed(2)}+` },
     ]
 
   if (opts.title) {
@@ -571,10 +593,10 @@ export function capabilityGauge(
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(7.5)
   setText(pdf, REPORT_COLORS.muted)
-  drawText(pdf, min.toFixed(2), barX, barY + barH + 12)
-  drawText(pdf, '1.00', toX(1.0), barY + barH + 12, { align: 'center' })
-  drawText(pdf, '1.33', toX(1.33), barY + barH + 12, { align: 'center' })
-  drawText(pdf, `${max.toFixed(2)}+`, barX + barW, barY + barH + 12, { align: 'right' })
+  ticks.forEach((t, i) => {
+    const align: 'left' | 'center' | 'right' = i === 0 ? 'left' : i === ticks.length - 1 ? 'right' : 'center'
+    drawText(pdf, t.label, toX(t.value), barY + barH + 12, { align })
+  })
 
   ctx.y = barY + barH + 26
 
@@ -749,20 +771,33 @@ export function addChartImagePair(
 // ── Static criteria reference table ─────────────────────────────────────
 
 /** The educational "what does this number mean" table, matching the reference report. */
-export function criteriaReferenceTable(ctx: ReportContext, title = 'Capability Criteria Reference') {
+const CPK_CRITERIA_ROWS: string[][] = [
+  ['≥ 1.33', 'Capable Process', 'Common benchmark indicating a useful capability margin.'],
+  ['1.00 to < 1.33', 'Marginal Capability', 'Process may meet specifications but has limited margin.'],
+  ['< 1.00', 'Not Capable', 'Process spread and/or centering is not adequate for the specification width.'],
+]
+
+/**
+ * The educational "what does this number mean" reference table. Defaults
+ * to the SPC Cpk/Ppk criteria (matching the reference report this design
+ * system was modeled on); pass `rows` for other tools whose acceptance
+ * bands differ (e.g. Gage R&R's %GRR of tolerance).
+ */
+export function criteriaReferenceTable(
+  ctx: ReportContext,
+  title = 'Capability Criteria Reference',
+  rows: string[][] = CPK_CRITERIA_ROWS,
+  headers: [string, string, string] = ['INDEX RANGE', 'CLASSIFICATION', 'GENERAL INTERPRETATION']
+) {
   dataTable(
     ctx,
     title,
     [
-      { header: 'INDEX RANGE', width: 90 },
-      { header: 'CLASSIFICATION', width: 130 },
-      { header: 'GENERAL INTERPRETATION', width: ctx.pageWidth - ctx.margin * 2 - 220 },
+      { header: headers[0], width: 90 },
+      { header: headers[1], width: 150 },
+      { header: headers[2], width: ctx.pageWidth - ctx.margin * 2 - 240 },
     ],
-    [
-      ['≥ 1.33', 'Capable Process', 'Common benchmark indicating a useful capability margin.'],
-      ['1.00 to < 1.33', 'Marginal Capability', 'Process may meet specifications but has limited margin.'],
-      ['< 1.00', 'Not Capable', 'Process spread and/or centering is not adequate for the specification width.'],
-    ]
+    rows
   )
 }
 

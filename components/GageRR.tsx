@@ -4,7 +4,6 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -13,6 +12,22 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  classifyGageConclusion,
+  classificationBanner,
+  twoColumnTables,
+  dataTable,
+  capabilityGauge,
+  interpretationBox,
+  calloutBox,
+  criteriaReferenceTable,
+  addChartImage,
+  addChartImagePair,
+  finalizeReport,
+  REPORT_COLORS,
+  type KVRow,
+} from '@/lib/pdf/reportDesign'
 
 // ── Types — mirror the shapes returned by app/api/gage-rr/route.ts ─────────
 interface AvgRangeResult {
@@ -553,83 +568,147 @@ export default function GageRR() {
     if (!isPro) { goToPricing('gage-rr', 'pdf'); return }
     if (!result) return
     const p = pctTV(result)
-    const chart = contribChartRef.current
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 40
-    let y = margin
+    const cls = classifyGageConclusion(result.conclusion)
+    // The engine bases its verdict on %GRR of Tolerance when specs were
+    // given, falling back to %GRR of Total Variation otherwise — mirror
+    // that exact choice here so the gauge always agrees with the badge.
+    const gaugeBasisPct = (result.pctOfTolerance ? result.pctOfTolerance.GRR : p.GRR) * 100
+    const gaugeBasisLabel = result.pctOfTolerance ? '% GRR of Tolerance' : '% GRR of Total Variation'
 
-    pdf.setFontSize(18); pdf.setFont('helvetica', 'bold')
-    pdf.text('Gage R&R Study Report', margin, y); y += 20
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}   Method: ${result.method === 'anova' ? 'ANOVA' : 'Average & Range'}`, margin, y); y += 24
+    const ctx = createPdfReport('Gage R&R Study Report', 'gage-rr')
+    classificationBanner(ctx, cls, 'Measurement System Assessment')
 
-    pdf.setFontSize(11); pdf.setTextColor(0); pdf.setFont('helvetica', 'bold')
-    pdf.text(`Appraisers: ${result.numAppraisers}   Trials: ${result.numTrials}   Parts: ${result.numParts}`, margin, y)
-    y += 20
-
-    const rows: [string, string][] = [
-      ['EV (Repeatability)', `${fmt(result.EV)}  (${pct(p.EV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.EV)} of Tol.` : ''})`],
-      ['AV (Reproducibility)', `${fmt(result.AV)}  (${pct(p.AV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.AV)} of Tol.` : ''})`],
-      ['Gage R&R', `${fmt(result.GRR)}  (${pct(p.GRR)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.GRR)} of Tol.` : ''})`],
-      ['Part Variation', `${fmt(result.PV)}  (${pct(p.PV)} of TV${result.pctOfTolerance ? `, ${pct(result.pctOfTolerance.PV)} of Tol.` : ''})`],
-      ['Total Variation', fmt(result.TV)],
-      ['NDC', String(result.ndc)],
+    const studyRows: KVRow[] = [
+      ['Method', result.method === 'anova' ? 'ANOVA' : 'Average & Range'],
+      ['Appraisers', String(result.numAppraisers)],
+      ['Trials', String(result.numTrials)],
+      ['Parts', String(result.numParts)],
+      ['Tolerance', result.tolerance !== null ? fmt(result.tolerance) : '—'],
+      ...(result.method === 'anova' ? [['Interaction Pooling', result.pooled ? `Pooled (α=${result.poolingAlpha})` : 'Not pooled'] as KVRow] : []),
     ]
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10)
-    rows.forEach(([label, val]) => {
-      pdf.text(label + ':', margin, y)
-      pdf.text(val, margin + 160, y)
-      y += 16
+
+    const metricRows: KVRow[] = [
+      ['EV (Repeatability)', fmt(result.EV)],
+      ['AV (Reproducibility)', fmt(result.AV)],
+      ['Gage R&R', fmt(result.GRR)],
+      ['Part Variation (PV)', fmt(result.PV)],
+      ['Total Variation (TV)', fmt(result.TV)],
+      ['Number of Distinct Categories (ndc)', String(result.ndc)],
+    ]
+
+    twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
+
+    const rowValue = (frac: number, tolFrac: number | null) =>
+      tolFrac !== null ? `${pct(tolFrac)} of Tolerance  ·  ${pct(frac)} of TV` : `${pct(frac)} of TV`
+
+    dataTable(
+      ctx,
+      'Variation Summary',
+      [
+        { header: 'SOURCE', width: 200 },
+        { header: 'RESULT', width: ctx.pageWidth - ctx.margin * 2 - 200 },
+      ],
+      [
+        ['EV — Repeatability', rowValue(p.EV, result.pctOfTolerance?.EV ?? null)],
+        ['AV — Reproducibility', rowValue(p.AV, result.pctOfTolerance?.AV ?? null)],
+        ['GRR — Combined', rowValue(p.GRR, result.pctOfTolerance?.GRR ?? null)],
+        ['PV — Part Variation', rowValue(p.PV, result.pctOfTolerance?.PV ?? null)],
+      ],
+      { cellColors: [[], [], [null, cls.color], []] }
+    )
+
+    capabilityGauge(ctx, {
+      title: 'Measurement System Gauge',
+      value: gaugeBasisPct,
+      min: 0,
+      max: 60,
+      bands: [
+        { upTo: 10, color: REPORT_COLORS.goodBg },
+        { upTo: 30, color: REPORT_COLORS.warnBg },
+        { upTo: 60, color: REPORT_COLORS.badBg },
+      ],
+      ticks: [
+        { value: 0, label: '0%' },
+        { value: 10, label: '10%' },
+        { value: 30, label: '30%' },
+        { value: 60, label: '60%+' },
+      ],
+      caption: `${gaugeBasisLabel} = ${gaugeBasisPct.toFixed(1)}% (AIAG: <10% acceptable, 10–30% marginal, >30% unacceptable)`,
     })
-    y += 10
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('Conclusion:', margin, y); y += 14
-    pdf.setFont('helvetica', 'normal')
-    const wrapped = pdf.splitTextToSize(result.conclusionText, pageWidth - margin * 2)
-    pdf.text(wrapped, margin, y)
-    y += wrapped.length * 14 + 14
+
+    addChartImage(ctx, contribChartRef.current, 'Variation by Source')
+
+    if (result.method === 'average-range') {
+      addChartImagePair(
+        ctx,
+        'Process Stability Assessment',
+        { chart: rangeChartRef.current, title: `Range Chart (UCL=${fmt(result.uclR, 4)})` },
+        { chart: xbarChartRef.current, title: 'X̄ Chart by Appraiser' }
+      )
+      calloutBox(
+        ctx,
+        result.outOfControlRanges.length === 0
+          ? 'No out-of-control ranges were detected — appraisers are applying the gage consistently.'
+          : `${result.outOfControlRanges.length} out-of-control range(s) detected — see the detailed table below.`,
+        result.outOfControlRanges.length === 0 ? 'good' : 'warn'
+      )
+      if (result.outOfControlRanges.length > 0) {
+        dataTable(
+          ctx,
+          'Out-of-Control Ranges',
+          [
+            { header: 'APPRAISER', width: 200 },
+            { header: 'PART', width: 100 },
+            { header: 'RANGE', width: ctx.pageWidth - ctx.margin * 2 - 300 },
+          ],
+          result.outOfControlRanges.map(r => [r.appraiser, String(r.part), fmt(r.range)])
+        )
+      }
+    } else {
+      addChartImage(ctx, xbarChartRef.current, 'X̄ Chart by Appraiser')
+    }
 
     if (result.method === 'anova') {
-      if (y > pageHeight - 180) { pdf.addPage(); y = margin }
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12)
-      pdf.text('ANOVA Table' + (result.pooled ? ` (interaction pooled into error, α=${result.poolingAlpha})` : ''), margin, y)
-      y += 18
-      pdf.setFontSize(9)
-      const colX = [margin, margin + 150, margin + 190, margin + 230, margin + 300, margin + 360, margin + 420]
-      const headers = ['Source', 'SS', 'df', 'MS', 'F', 'p-value', 'Sig.']
-      pdf.setFont('helvetica', 'bold')
-      headers.forEach((h, i) => pdf.text(h, colX[i], y))
-      y += 14
-      pdf.setFont('helvetica', 'normal')
-      result.anovaTable.forEach(row => {
-        pdf.text(row.source, colX[0], y)
-        pdf.text(row.SS.toFixed(4), colX[1], y)
-        pdf.text(String(row.df), colX[2], y)
-        pdf.text(row.MS.toFixed(4), colX[3], y)
-        pdf.text(row.F !== null ? row.F.toFixed(3) : '—', colX[4], y)
-        pdf.text(row.p !== null ? row.p.toFixed(4) : '—', colX[5], y)
-        pdf.text(row.significant === null ? '—' : row.significant ? 'Yes' : 'No', colX[6], y)
-        y += 14
-      })
-      y += 10
-      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10)
-      pdf.text('Statistical interpretation:', margin, y); y += 14
-      pdf.setFont('helvetica', 'normal')
-      const noteWrapped = pdf.splitTextToSize(result.significanceNote, pageWidth - margin * 2)
-      pdf.text(noteWrapped, margin, y)
-      y += noteWrapped.length * 14 + 14
+      dataTable(
+        ctx,
+        result.pooled ? `ANOVA Table (interaction pooled into error, α=${result.poolingAlpha})` : 'ANOVA Table',
+        [
+          { header: 'SOURCE', width: 130 },
+          { header: 'SS', width: 90, align: 'right' },
+          { header: 'DF', width: 50, align: 'right' },
+          { header: 'MS', width: 90, align: 'right' },
+          { header: 'F', width: 70, align: 'right' },
+          { header: 'P-VALUE', width: 80, align: 'right' },
+          { header: 'SIG.', width: ctx.pageWidth - ctx.margin * 2 - 510, align: 'right' },
+        ],
+        result.anovaTable.map(row => [
+          row.source,
+          row.SS.toFixed(4),
+          String(row.df),
+          row.MS.toFixed(4),
+          row.F !== null ? row.F.toFixed(3) : '—',
+          row.p !== null ? row.p.toFixed(4) : '—',
+          row.significant === null ? '—' : row.significant ? 'Yes' : 'No',
+        ])
+      )
+      interpretationBox(ctx, 'Statistical Interpretation', result.significanceNote, 'info')
     }
 
-    if (chart) {
-      if (y > pageHeight - 200) { pdf.addPage(); y = margin }
-      const imgData = chart.toBase64Image('image/png', 1)
-      const imgWidth = pageWidth - margin * 2
-      const imgHeight = (chart.height / chart.width) * imgWidth
-      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-    }
-    pdf.save('gage-rr-report.pdf')
+    const tone = result.conclusion === 'okay' ? 'good' : result.conclusion === 'marginal' ? 'warn' : 'bad'
+    interpretationBox(ctx, 'Study Conclusion', result.conclusionText, tone)
+    criteriaReferenceTable(
+      ctx,
+      'Gage R&R Acceptance Criteria (AIAG)',
+      [
+        ['< 10%', 'Acceptable', 'Measurement system is acceptable for most applications.'],
+        ['10% to 30%', 'Marginal', 'May be acceptable depending on application importance and cost of measurement.'],
+        ['> 30%', 'Unacceptable', 'Measurement system needs improvement — investigate repeatability and reproducibility sources.'],
+      ],
+      ['% GRR', 'CLASSIFICATION', 'GENERAL INTERPRETATION']
+    )
+
+    finalizeReport(ctx)
+    ctx.pdf.save('gage-rr-report.pdf')
   }
 
   const conclusionStyle = !result ? null : result.conclusion === 'okay'

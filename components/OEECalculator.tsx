@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -13,6 +12,20 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  classificationBanner,
+  twoColumnTables,
+  dataTable,
+  capabilityGauge,
+  interpretationBox,
+  criteriaReferenceTable,
+  addChartImage,
+  finalizeReport,
+  REPORT_COLORS,
+  type KVRow,
+  type Classification as PdfClassification,
+} from '@/lib/pdf/reportDesign'
 
 // ─────────────────────────────────────────────────────────────────────────
 // OEE = Availability × Performance × Quality  (Nakajima / JIPM TPM standard)
@@ -89,6 +102,26 @@ const BENCH = [
   { key: 'quality', labelKey: 'oee_bench_quality', wc: 99.9, note: 'Q ≥ 99.9%' },
   { key: 'oee', labelKey: 'oee_bench_oee', wc: 85, note: 'OEE ≥ 85%' },
 ] as const
+
+const BENCH_ENGLISH: Record<(typeof BENCH)[number]['key'], string> = {
+  availability: 'Availability',
+  performanceCapped: 'Performance',
+  quality: 'Quality',
+  oee: 'OEE',
+}
+
+/**
+ * PDF reports stay in English regardless of the UI language, matching the
+ * convention used elsewhere (exported file content stays in English for
+ * interoperability) — so this maps the 4-tier OEE classification to a
+ * report Classification directly, rather than routing through t().
+ */
+function oeeClassificationForPdf(type: Classification): PdfClassification {
+  if (type === 'world-class') return { label: 'WORLD-CLASS PERFORMANCE', color: REPORT_COLORS.good, bg: REPORT_COLORS.goodBg }
+  if (type === 'good') return { label: 'TYPICAL PERFORMANCE', color: REPORT_COLORS.brand, bg: REPORT_COLORS.panelTint }
+  if (type === 'average') return { label: 'BELOW AVERAGE', color: REPORT_COLORS.warn, bg: REPORT_COLORS.warnBg }
+  return { label: 'SIGNIFICANT LOSSES', color: REPORT_COLORS.bad, bg: REPORT_COLORS.badBg }
+}
 
 export default function OEECalculator() {
   const { isPro, isLoggedIn } = useSubscription()
@@ -304,63 +337,115 @@ export default function OEECalculator() {
   const exportPDF = () => {
     if (!isPro) { goToPricing('oee', 'pdf'); return }
     if (!result || !cls) return
-    const chart = chartRef.current
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const margin = 40
-    let y = margin
 
-    pdf.setFontSize(18)
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('OEE Analysis Report', margin, y)
-    y += 10
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12)
-    y += 34
+    const pdfCls = oeeClassificationForPdf(cls.type)
+    const ctx = createPdfReport('OEE Analysis Report', 'oee')
+    classificationBanner(ctx, pdfCls, 'OEE Performance Classification')
 
-    pdf.setFontSize(13)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setTextColor(0)
-    pdf.text(`OEE: ${result.oee.toFixed(2)}%  —  ${t(cls.labelKey)}`, margin, y)
-    y += 24
-
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'normal')
-    const indexLines = [
-      `Availability: ${result.availability.toFixed(2)}%`,
-      `Performance: ${result.performanceCapped.toFixed(2)}%`,
-      `Quality: ${result.quality.toFixed(2)}%`,
+    const studyRows: KVRow[] = [
+      ['Planned Production Time', `${inputs.plannedTime.toFixed(1)} min`],
+      ['Breaks (Planned)', `${inputs.breaks.toFixed(1)} min`],
+      ['Downtime (Unplanned)', `${inputs.downtime.toFixed(1)} min`],
+      ['Ideal Cycle Time', `${inputs.cycleTime.toFixed(2)} s/part`],
+      ['Total Count', String(inputs.totalCount)],
+      ['Good Count', String(inputs.goodCount)],
     ]
-    indexLines.forEach(line => { pdf.text(line, margin, y); y += 16 })
-    y += 10
 
-    if (chart) {
-      const imgData = chart.toBase64Image('image/png', 1)
-      const imgWidth = pageWidth - margin * 2
-      const imgHeight = (chart.height / chart.width) * imgWidth
-      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-      y += imgHeight + 24
-    }
+    const metricRows: KVRow[] = [
+      ['Net Planned Time', `${result.netPlanned.toFixed(1)} min`],
+      ['Run Time', `${result.runTime.toFixed(1)} min`],
+      ['Availability', `${result.availability.toFixed(2)}%`],
+      ['Performance', `${result.performanceCapped.toFixed(2)}%`],
+      ['Quality', `${result.quality.toFixed(2)}%`],
+      ['OEE', `${result.oee.toFixed(2)}%`],
+    ]
 
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(11)
-    pdf.text('World-Class Benchmark', margin, y)
-    y += 18
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(9)
-    BENCH.forEach(b => {
-      const yours = result[b.key]
-      const gap = yours - b.wc
-      pdf.text(
-        `${t(b.labelKey)}: ${yours.toFixed(2)}%  (World-class ${b.wc}%, gap ${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%)`,
-        margin, y
-      )
-      y += 15
+    twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
+
+    dataTable(
+      ctx,
+      'World-Class Benchmark',
+      [
+        { header: 'FACTOR', width: 110 },
+        { header: 'YOUR RESULT', width: 100, align: 'right' },
+        { header: 'WORLD-CLASS TARGET', width: 140, align: 'right' },
+        { header: 'GAP', width: ctx.pageWidth - ctx.margin * 2 - 350, align: 'right' },
+      ],
+      BENCH.map(b => {
+        const yours = result[b.key]
+        const gap = yours - b.wc
+        return [BENCH_ENGLISH[b.key], `${yours.toFixed(2)}%`, `${b.wc}%`, `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`]
+      }),
+      {
+        cellColors: BENCH.map(b => {
+          const gap = result[b.key] - b.wc
+          return [null, null, null, gap >= 0 ? REPORT_COLORS.good : REPORT_COLORS.bad]
+        }),
+      }
+    )
+
+    capabilityGauge(ctx, {
+      title: 'OEE Performance Gauge',
+      value: result.oee,
+      min: 0,
+      max: 100,
+      bands: [
+        { upTo: 40, color: REPORT_COLORS.badBg },
+        { upTo: 60, color: REPORT_COLORS.warnBg },
+        { upTo: 85, color: REPORT_COLORS.panelTint },
+        { upTo: 100, color: REPORT_COLORS.goodBg },
+      ],
+      ticks: [
+        { value: 0, label: '0%' },
+        { value: 40, label: '40%' },
+        { value: 60, label: '60%' },
+        { value: 85, label: '85%' },
+        { value: 100, label: '100%' },
+      ],
+      caption: `OEE = ${result.oee.toFixed(2)}% — ${pdfCls.label} (World-class benchmark: OEE ≥ 85%)`,
     })
 
-    pdf.save('oee-report.pdf')
+    addChartImage(ctx, chartRef.current, 'Six Big Losses Breakdown')
+
+    dataTable(
+      ctx,
+      'Loss Detail',
+      [
+        { header: 'LOSS CATEGORY', width: 140 },
+        { header: 'DESCRIPTION', width: 220 },
+        { header: 'IMPACT', width: ctx.pageWidth - ctx.margin * 2 - 360, align: 'right' },
+      ],
+      [
+        ['Downtime Loss', 'Breakdown + Changeover', `${result.downtimeLoss.toFixed(2)}%`],
+        ['Speed Loss', 'Minor Stops + Reduced Speed', `${result.speedLoss.toFixed(2)}%`],
+        ['Quality Loss', 'Defects + Startup Rejects', `${result.qualityLoss.toFixed(2)}%`],
+      ]
+    )
+
+    const losses = [
+      { name: 'downtime', value: result.downtimeLoss },
+      { name: 'speed', value: result.speedLoss },
+      { name: 'quality', value: result.qualityLoss },
+    ]
+    const biggest = losses.reduce((a, b) => (b.value > a.value ? b : a))
+    const conclusionTone = cls.type === 'world-class' ? 'good' : cls.type === 'good' ? 'info' : cls.type === 'average' ? 'warn' : 'bad'
+    const conclusion = `The line achieved an OEE of ${result.oee.toFixed(2)}%, classified as ${pdfCls.label.toLowerCase()}. Availability was ${result.availability.toFixed(1)}%, Performance ${result.performanceCapped.toFixed(1)}%, and Quality ${result.quality.toFixed(1)}%. The largest loss category was ${biggest.name} loss at ${biggest.value.toFixed(2)}% of net planned time — prioritize improvement efforts there. World-class benchmark is OEE ≥ 85% (A ≥ 90%, P ≥ 95%, Q ≥ 99.9%).`
+    interpretationBox(ctx, 'Study Conclusion', conclusion, conclusionTone)
+
+    criteriaReferenceTable(
+      ctx,
+      'OEE Classification Reference',
+      [
+        ['≥ 85%', 'World-Class Performance', 'Common benchmark for world-class manufacturing (Nakajima / JIPM TPM standard).'],
+        ['60% to < 85%', 'Typical Performance', 'Common for most manufacturers — room to improve.'],
+        ['40% to < 60%', 'Below Average', 'Focus on the single weakest factor (Availability, Performance, or Quality).'],
+        ['< 40%', 'Significant Losses', 'Investigate root causes across all three factors.'],
+      ],
+      ['OEE RANGE', 'CLASSIFICATION', 'GENERAL INTERPRETATION']
+    )
+
+    finalizeReport(ctx)
+    ctx.pdf.save('oee-report.pdf')
   }
 
   const s: Record<string, React.CSSProperties> = {
