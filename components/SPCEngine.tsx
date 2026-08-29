@@ -822,6 +822,8 @@ export default function SPCEngine() {
         const cpkCls = classifyCapability(varResult.Cpk)
         const ppkCls = classifyCapability(varResult.Ppk)
         const stable = allViolations.length === 0
+        const usingCpk = varResult.Cpk !== null
+        const primaryLabel = usingCpk ? 'Primary Capability Index' : 'Primary Performance Indicator'
         dataTable(
           ctx,
           'Capability Classification Summary',
@@ -831,7 +833,7 @@ export default function SPCEngine() {
             { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 340 },
           ],
           [
-            ['Primary Capability Index', fmt(pkVal), cls.label],
+            [primaryLabel, fmt(pkVal), cls.label],
             ['Within Capability', `Cp ${fmt(varResult.Cp)} / Cpk ${fmt(varResult.Cpk)}`, cpkCls.label],
             ['Overall Performance', `Pp ${fmt(varResult.Pp)} / Ppk ${fmt(varResult.Ppk)}`, ppkCls.label],
             [
@@ -852,14 +854,16 @@ export default function SPCEngine() {
 
         calloutBox(
           ctx,
-          'Primary capability index selection: Cpk is used when the normality assumption is not rejected; Ppk (based on overall variation) is used otherwise. See the Normality Test result later in this report.',
+          usingCpk
+            ? 'Cpk is used as the primary capability index because the normality assumption was not rejected.'
+            : 'Cpk is not reported because the normality assumption was rejected. Ppk is shown to provide a performance-based assessment using the overall variation observed in the study data.',
           'info'
         )
 
         capabilityGauge(ctx, {
-          title: 'Capability Classification Gauge',
+          title: usingCpk ? 'Capability Classification Gauge' : 'Performance Classification Gauge',
           value: pkVal,
-          caption: `Primary capability index = ${fmt(pkVal)}`,
+          caption: `${primaryLabel} = ${fmt(pkVal)}`,
         })
       }
 
@@ -1038,11 +1042,11 @@ export default function SPCEngine() {
     if (cls && varResult) {
       const yieldStr = varResult.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null
       const tone = pkVal === null ? 'info' : pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
-      const indexBasis =
-        varResult.Cpk !== null
-          ? 'Cpk, based on within-process variation, since the normality assumption was not rejected'
-          : 'Ppk, based on overall variation, since the normality assumption was rejected'
-      const conclusion = `The process is classified as ${cls.label} using ${indexBasis} as the primary capability index. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.${
+      const usingCpkInConclusion = varResult.Cpk !== null
+      const indexBasis = usingCpkInConclusion
+        ? 'Cpk, based on within-process variation, since the normality assumption was not rejected, as the primary capability index'
+        : 'Ppk, based on overall variation, since the normality assumption was rejected, as the primary performance indicator'
+      const conclusion = `The process is classified as ${cls.label} using ${indexBasis}. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.${
         yieldStr ? ` The estimated overall nonconformance rate is ${varResult.ppmD_lt!.total.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}.` : ''
       } Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
       interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
