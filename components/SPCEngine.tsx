@@ -954,7 +954,7 @@ export default function SPCEngine() {
 
         calloutBox(
           ctx,
-          'Within (short-term) and Overall (long-term) PPM estimates use different sigma values — Within reflects the process\u2019s inherent short-term variation, while Overall reflects everything observed during the study, including shifts and drift. The two figures are expected to differ and are not a check on each other.',
+          'Within PPM is based on within-process variation estimated from moving ranges, while Overall PPM is based on the total variation observed in the study data. The two estimates use different sigma values and may differ — this is expected and is not a check on each other.',
           'info'
         )
 
@@ -1030,10 +1030,10 @@ export default function SPCEngine() {
     }
 
     if (cls && varResult) {
-      const yieldPct = varResult.ppmD_lt ? (100 - varResult.ppmD_lt.total / 10000).toFixed(3) : null
+      const yieldStr = varResult.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null
       const tone = pkVal === null ? 'info' : pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
       const conclusion = `The process is classified as ${cls.label} using the minimum of Cpk and Ppk. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.${
-        yieldPct ? ` The estimated overall nonconformance rate is ${varResult.ppmD_lt!.total.toFixed(1)} PPM (yield ${yieldPct}%).` : ''
+        yieldStr ? ` The estimated overall nonconformance rate is ${varResult.ppmD_lt!.total.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}.` : ''
       } Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
       interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
       criteriaReferenceTable(ctx)
