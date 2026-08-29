@@ -912,7 +912,7 @@ export default function SPCEngine() {
         ctx,
         varResult.isNormal
           ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
-          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Capability indices and PPM estimates in this report assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
+          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cpk is therefore not reported in this analysis; Ppk is shown instead as a performance indicator based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
         varResult.isNormal ? 'good' : 'warn'
       )
 
@@ -1043,10 +1043,10 @@ export default function SPCEngine() {
       const yieldStr = varResult.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null
       const tone = pkVal === null ? 'info' : pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
       const usingCpkInConclusion = varResult.Cpk !== null
-      const indexBasis = usingCpkInConclusion
-        ? 'Cpk, based on within-process variation, since the normality assumption was not rejected, as the primary capability index'
-        : 'Ppk, based on overall variation, since the normality assumption was rejected, as the primary performance indicator'
-      const conclusion = `The process is classified as ${cls.label} using ${indexBasis}. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.${
+      const basisSentence = usingCpkInConclusion
+        ? `The process is classified as ${cls.label} based on Cpk, the primary capability index for this analysis, since the normality assumption was not rejected. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.`
+        : `The process is classified as ${cls.label} based on Ppk, the primary performance indicator for this analysis. Because the normality assumption was rejected, Cpk is not reported. Ppk is ${fmt(varResult.Ppk)}.`
+      const conclusion = `${basisSentence}${
         yieldStr ? ` The estimated overall nonconformance rate is ${varResult.ppmD_lt!.total.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}.` : ''
       } Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
       interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
