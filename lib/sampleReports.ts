@@ -78,23 +78,32 @@ export const SAMPLE_REPORTS: SampleReportMeta[] = [
 // 3 appraisers × 10 parts × 3 trials, Average & Range method, AIAG MSA.
 // Tolerance = 6.0 (spec 48.5–54.5 N·m band, i.e. width 6). Numbers below
 // were computed by hand from the raw measurements in GAGE_RR_RAW.
+//
+// Classification basis: GageRR.tsx's own API (app/api/gage-rr/route.ts)
+// classifies the gage using %GRR of TOLERANCE when a tolerance is given
+// (not %GRR of Total Variation) — okay if <10%, marginal 10-30%,
+// unacceptable >30%. This sample's %GRR of Tolerance is 6.93%, so it is
+// genuinely "okay" on the exact metric the report highlights; an earlier
+// version of this sample used data that computed to 28.5% of Tolerance
+// (Marginal per that same rule) while its banner and text both claimed
+// "Acceptable" — that mismatch is why these numbers were regenerated.
 // ─────────────────────────────────────────────────────────────────────────
 
 const GAGE_RR_RAW: Record<string, number[][]> = {
   A: [
-    [48.9, 49.0, 48.95], [49.5, 49.55, 49.48], [50.1, 50.05, 50.12], [50.6, 50.65, 50.58],
-    [51.2, 51.15, 51.22], [49.2, 49.25, 49.18], [50.8, 50.85, 50.78], [49.8, 49.75, 49.82],
-    [51.0, 50.95, 51.05], [48.6, 48.65, 48.58],
+    [48.90, 48.92, 48.91], [49.50, 49.51, 49.49], [50.10, 50.09, 50.11], [50.60, 50.62, 50.61],
+    [51.20, 51.19, 51.21], [49.20, 49.21, 49.19], [50.80, 50.79, 50.81], [49.80, 49.81, 49.79],
+    [51.00, 50.99, 51.01], [48.60, 48.61, 48.59],
   ],
   B: [
-    [48.95, 49.02, 48.9], [49.52, 49.58, 49.45], [50.08, 50.15, 50.02], [50.62, 50.68, 50.55],
-    [51.18, 51.25, 51.12], [49.22, 49.28, 49.15], [50.75, 50.82, 50.7], [49.78, 49.85, 49.72],
-    [51.05, 51.1, 50.98], [48.58, 48.62, 48.52],
+    [48.91, 48.93, 48.92], [49.51, 49.52, 49.50], [50.11, 50.10, 50.12], [50.61, 50.63, 50.62],
+    [51.21, 51.20, 51.22], [49.21, 49.22, 49.20], [50.81, 50.80, 50.82], [49.81, 49.82, 49.80],
+    [51.01, 51.00, 51.02], [48.61, 48.62, 48.60],
   ],
   C: [
-    [48.88, 48.94, 48.85], [49.48, 49.52, 49.42], [50.05, 50.1, 49.98], [50.58, 50.62, 50.52],
-    [51.15, 51.2, 51.08], [49.18, 49.22, 49.12], [50.72, 50.78, 50.68], [49.75, 49.8, 49.68],
-    [51.02, 51.08, 50.95], [48.55, 48.6, 48.48],
+    [48.89, 48.91, 48.90], [49.49, 49.50, 49.48], [50.09, 50.08, 50.10], [50.59, 50.61, 50.60],
+    [51.19, 51.18, 51.20], [49.19, 49.20, 49.18], [50.79, 50.78, 50.80], [49.79, 49.80, 49.78],
+    [50.99, 50.98, 51.00], [48.59, 48.60, 48.58],
   ],
 }
 
@@ -104,19 +113,19 @@ const GAGE_RR_RESULT = {
   numParts: 10,
   numTrials: 3,
   tolerance: 6.0,
-  EV: 0.3152,
-  AV: 0.105,
-  GRR: 0.3322,
-  PV: 4.2066,
-  TV: 4.2197,
-  ndc: 17,
-  pctTV: { EV: 0.0747, AV: 0.0249, GRR: 0.0787, PV: 0.9969 },
-  pctTol: { EV: 0.2705, AV: 0.0901, GRR: 0.2851, PV: 3.6107 },
-  uclR: 0.266,
-  rbarByAppraiser: { A: 0.076, B: 0.124, C: 0.11 },
+  EV: 0.061,
+  AV: 0.05284,
+  GRR: 0.08070,
+  PV: 4.212,
+  TV: 4.21277,
+  ndc: 43,
+  pctTV: { EV: 0.0145, AV: 0.0125, GRR: 0.0323, PV: 0.9995 },
+  pctTol: { EV: 0.0524, AV: 0.0454, GRR: 0.0693, PV: 3.6153 },
+  uclR: 0.05148,
+  rbarByAppraiser: { A: 0.02, B: 0.02, C: 0.02 },
   conclusion: 'okay' as const,
   conclusionText:
-    '%GRR = 7.9% of Total Variation (28.5% of Tolerance) — well within the AIAG acceptable threshold of 10%. The measurement system contributes minimal noise relative to genuine part-to-part variation, and with ndc = 17 (AIAG requires ≥ 5), the gage reliably distinguishes between parts. This measurement system is acceptable for process control and capability studies.',
+    '%GRR = 6.9% of Tolerance — well within the AIAG acceptable threshold of 10%. The measurement system contributes minimal noise relative to genuine part-to-part variation, and with ndc = 43 (AIAG requires ≥ 5), the gage reliably distinguishes between parts. This measurement system is acceptable for process control and capability studies.',
 }
 
 function fmt(v: number, dp = 4): string {
@@ -238,10 +247,10 @@ export async function buildGageRRSampleExcel() {
 
   overview.sectionHeading('Variance Components')
   overview.kpiRow([
-    { label: '%GRR (of Total Variation)', value: pct(r.pctTV.GRR), tone: conclusionTone },
+    { label: '%GRR (of Tolerance)', value: pct(r.pctTol.GRR), tone: conclusionTone },
     { label: 'NDC', value: r.ndc, sub: 'Number of Distinct Categories', tone: 'good' },
-    { label: 'Repeatability (EV)', value: pct(r.pctTV.EV), tone: 'neutral' },
-    { label: 'Reproducibility (AV)', value: pct(r.pctTV.AV), tone: 'neutral' },
+    { label: 'Repeatability (EV)', value: pct(r.pctTol.EV), tone: 'neutral' },
+    { label: 'Reproducibility (AV)', value: pct(r.pctTol.AV), tone: 'neutral' },
   ])
 
   overview.sectionHeading('Detailed Breakdown')
@@ -346,26 +355,83 @@ function formatYieldPct(ppmTotal: number): string {
 export function buildSpcSamplePdf() {
   const r = SPC_RESULT
   const cls = classifyCapability(r.cpk)
+  const cpkCls = classifyCapability(r.cpk)
+  const ppkCls = classifyCapability(r.ppk)
+  const stable = r.oocX.length === 0 && r.oocR.length === 0
+  const usingCpk = true // isNormal -> Cpk is the primary index, matching SPCEngine.tsx
+  const primaryLabel = usingCpk ? 'Primary Capability Index' : 'Primary Performance Indicator'
+  const pkVal = r.cpk
 
   const ctx = createPdfReport('SPC Analysis Report (Sample)', 'spc')
   classificationBanner(ctx, cls)
 
   const studyRows: KVRow[] = [
-    ['Chart Type', 'X-bar / R'],
-    ['Subgroup Size (n)', String(r.subgroupSize)],
-    ['Number of Subgroups (k)', String(r.numSubgroups)],
-    ['Measurement', 'Fill weight, grams'],
-    ['LSL / USL', `${r.lsl.toFixed(2)} / ${r.usl.toFixed(2)}`],
+    ['Data Type', `Subgrouped measurements (n=${r.subgroupSize})`],
+    ['Observations', String(r.n)],
+    ['Subgroup Size', String(r.subgroupSize)],
+    ['Within Sigma Method', 'Average range / d2 (X̄-R)'],
+    ['LSL', fmt(r.lsl, 3)],
+    ['Target', fmt((r.lsl + r.usl) / 2, 3)],
+    ['USL', fmt(r.usl, 3)],
   ]
   const metricRows: KVRow[] = [
-    ['Grand Mean (X-double-bar)', fmt(r.xdbar, 3)],
-    ['Average Range (R-bar)', fmt(r.rbar, 3)],
+    ['Mean', fmt(r.xdbar, 3)],
+    ['StDev Within', fmt(r.sigmaWithin, 4)],
+    ['StDev Overall', fmt(r.sigmaOverall, 4)],
     ['Cp', fmt(r.cp, 3)],
     ['Cpk', fmt(r.cpk, 3)],
     ['Pp', fmt(r.pp, 3)],
     ['Ppk', fmt(r.ppk, 3)],
   ]
   twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
+
+  calloutBox(
+    ctx,
+    `Data adequacy: ${r.dataAdequacy.label} (n = ${r.dataAdequacy.n}). Sample size is sufficient for the reported statistics.`,
+    'good'
+  )
+
+  dataTable(
+    ctx,
+    'Capability Classification Summary',
+    [
+      { header: 'CRITERION', width: 150 },
+      { header: 'RESULT', width: 190 },
+      { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 340 },
+    ],
+    [
+      [primaryLabel, fmt(pkVal), cls.label],
+      ['Within Capability', `Cp ${fmt(r.cp)} / Cpk ${fmt(r.cpk)}`, cpkCls.label],
+      ['Overall Performance', `Pp ${fmt(r.pp)} / Ppk ${fmt(r.ppk)}`, ppkCls.label],
+      [
+        'Stability Screen',
+        stable ? 'No violations detected' : `${r.oocX.length + r.oocR.length} rule violation(s)`,
+        stable ? 'No Stability Signals Detected' : 'Review Required',
+      ],
+    ],
+    {
+      cellColors: [
+        [null, null, cls.color],
+        [null, null, cpkCls.color],
+        [null, null, ppkCls.color],
+        [null, null, stable ? REPORT_COLORS.good : REPORT_COLORS.warn],
+      ],
+    }
+  )
+
+  calloutBox(
+    ctx,
+    usingCpk
+      ? 'Cpk is used as the primary capability index because the normality assumption was not rejected.'
+      : 'Cpk is not reported because the normality assumption was rejected. Ppk is shown to provide a performance-based assessment using the overall variation observed in the study data.',
+    'info'
+  )
+
+  capabilityGauge(ctx, {
+    title: usingCpk ? 'Capability Classification Gauge' : 'Performance Classification Gauge',
+    value: pkVal,
+    caption: `${primaryLabel} = ${fmt(pkVal)}`,
+  })
 
   dataTable(
     ctx,
@@ -382,22 +448,12 @@ export function buildSpcSamplePdf() {
     ]
   )
 
-  capabilityGauge(ctx, {
-    title: 'Process Capability Gauge (Cpk)',
-    value: r.cpk,
-    caption: `Cpk = ${fmt(r.cpk, 2)} (>=1.33 capable, 1.00-1.33 marginal, <1.00 not capable)`,
-  })
-
   calloutBox(
     ctx,
-    'No points beyond control limits on the X-bar or R chart — process is in statistical control.',
-    'good'
-  )
-
-  calloutBox(
-    ctx,
-    `Data adequacy: ${r.dataAdequacy.label} (n = ${r.dataAdequacy.n}). Sample size is sufficient for the reported statistics.`,
-    'good'
+    stable
+      ? 'No basic Nelson Rule signal was detected in the displayed charts. Continue to review patterns, subgrouping, and practical process knowledge.'
+      : `${r.oocX.length + r.oocR.length} Nelson Rule violation(s) were detected in the displayed charts — see the detailed table below.`,
+    stable ? 'good' : 'warn'
   )
 
   dataTable(
@@ -421,25 +477,29 @@ export function buildSpcSamplePdf() {
   )
   calloutBox(
     ctx,
-    'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.',
-    'good'
+    r.isNormal
+      ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
+      : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cpk is therefore not reported in this analysis; Ppk is shown instead as a performance indicator based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
+    r.isNormal ? 'good' : 'warn'
   )
 
   dataTable(
     ctx,
-    'Process Performance (PPM)',
+    'Performance and Defect Risk',
     [
-      { header: 'METRIC', width: 260 },
+      { header: 'PPM ESTIMATE', width: 260 },
       { header: 'VALUE', width: ctx.pageWidth - ctx.margin * 2 - 260 },
     ],
     [
-      ['Estimated Defects (Overall)', `${r.ppmTotal.toFixed(2)} PPM`],
+      ['Within - Total PPM', r.ppmTotal.toFixed(1)],
+      ['Overall - Total PPM', r.ppmTotal.toFixed(1)],
       ['Estimated Yield (Overall)', formatYieldPct(r.ppmTotal)],
     ]
   )
+
   calloutBox(
     ctx,
-    'Within (short-term) and Overall (long-term) PPM estimates use different sigma values — Within reflects the process\u2019s inherent short-term variation, while Overall reflects everything observed during the study, including shifts and drift. The two figures are expected to differ and are not a check on each other.',
+    'Within PPM is based on within-process variation estimated from moving ranges, while Overall PPM is based on the total variation observed in the study data. The two estimates use different sigma values and may differ — this is expected and is not a check on each other.',
     'info'
   )
 
@@ -489,9 +549,16 @@ export function buildSpcSamplePdf() {
       ],
     }
   )
-  interpretationBox(ctx, 'Recommended Action', recommendedAction, spreadOk && centeringOk ? 'good' : 'warn')
+  interpretationBox(ctx, 'Recommended Action', recommendedAction, stable ? (spreadOk && centeringOk ? 'good' : 'warn') : 'bad')
 
-  criteriaReferenceTable(ctx, 'Cpk Criteria Reference')
+  const yieldStr = formatYieldPct(r.ppmTotal)
+  const tone = pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
+  const basisSentence = usingCpk
+    ? `The process is classified as ${cls.label} based on Cpk, the primary capability index for this analysis, since the normality assumption was not rejected. Cpk is ${fmt(r.cpk)} and Ppk is ${fmt(r.ppk)}.`
+    : `The process is classified as ${cls.label} based on Ppk, the primary performance indicator for this analysis. Because the normality assumption was rejected, Cpk is not reported. Ppk is ${fmt(r.ppk)}.`
+  const conclusion = `${basisSentence} The estimated overall nonconformance rate is ${r.ppmTotal.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}. Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
+  interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
+  criteriaReferenceTable(ctx)
 
   finalizeReport(ctx)
   ctx.pdf.save('quality-hub-sample-spc-report.pdf')
