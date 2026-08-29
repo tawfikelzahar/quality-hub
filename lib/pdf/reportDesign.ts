@@ -293,7 +293,7 @@ export function calloutBox(ctx: ReportContext, text: string, tone: CalloutTone =
   const { color, bg } = TONE_COLORS[tone]
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(9.5)
-  const lines = pdf.splitTextToSize(text, pageWidth - margin * 2 - 24) as string[]
+  const lines = pdf.splitTextToSize(sanitizePdfText(text), pageWidth - margin * 2 - 24) as string[]
   const h = lines.length * 13 + 14
   ensureSpace(ctx, h + 8)
   setFill(pdf, bg)
@@ -315,7 +315,7 @@ export function interpretationBox(ctx: ReportContext, title: string, text: strin
   const { color, bg } = TONE_COLORS[tone]
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(9.5)
-  const lines = pdf.splitTextToSize(text, pageWidth - margin * 2 - 24) as string[]
+  const lines = pdf.splitTextToSize(sanitizePdfText(text), pageWidth - margin * 2 - 24) as string[]
   const h = lines.length * 13.5 + 16
   sectionHeading(ctx, title, h + 10)
   // sectionHeading() switches the active font to bold 12.5pt to draw the
@@ -399,9 +399,9 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
     // each other or past the table's edge.
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(9)
-    const labelLines = pdf.splitTextToSize(label, labelW - 8) as string[]
+    const labelLines = pdf.splitTextToSize(sanitizePdfText(label), labelW - 8) as string[]
     pdf.setFont('helvetica', 'bold')
-    const valueLines = pdf.splitTextToSize(value, valueW) as string[]
+    const valueLines = pdf.splitTextToSize(sanitizePdfText(value), valueW) as string[]
     const rowH = Math.max(baseRowH, Math.max(labelLines.length, valueLines.length) * lineH + 6)
 
     if (curY + rowH > ctx.pageHeight - ctx.margin - 26) {
@@ -473,7 +473,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
     pdf.setFontSize(8.5)
     // Headers wrap too — defends against a header like "P-VALUE" or a
     // translated label being wider than its column.
-    const headerLines = columns.map(c => pdf.splitTextToSize(c.header, c.width - cellPad) as string[])
+    const headerLines = columns.map(c => pdf.splitTextToSize(sanitizePdfText(c.header), c.width - cellPad) as string[])
     const hRowH = Math.max(baseRowH, Math.max(...headerLines.map(l => l.length)) * lineH + 7)
     setFill(pdf, REPORT_COLORS.brand)
     pdf.rect(margin, ctx.y, totalWidth, hRowH, 'F')
@@ -499,7 +499,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
       const override = options?.cellColors?.[i]?.[j]
       pdf.setFont('helvetica', override ? 'bold' : 'normal')
       pdf.setFontSize(8.5)
-      return pdf.splitTextToSize(cell, c.width - cellPad) as string[]
+      return pdf.splitTextToSize(sanitizePdfText(cell), c.width - cellPad) as string[]
     })
     const rowH = Math.max(baseRowH, Math.max(...cellLines.map(l => l.length)) * lineH + 7)
 
