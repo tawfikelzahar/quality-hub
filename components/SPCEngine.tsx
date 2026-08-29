@@ -141,6 +141,52 @@ function fmt(n: number | null | undefined, digits = 3): string {
   return n.toFixed(digits)
 }
 
+// Yield precision — avoid a misleading "100.000%" appearing next to a
+// nonzero PPM figure. Once yield rounds to 100.000% at the standard
+// 3-decimal precision, switch to 5 decimals so the true shortfall shows.
+function formatYieldPct(ppmTotal: number | null): string {
+  if (ppmTotal === null || !isFinite(ppmTotal)) return '—'
+  const yieldPct = 100 - ppmTotal / 10000
+  return yieldPct >= 99.9995 ? `${yieldPct.toFixed(5)}%` : `${yieldPct.toFixed(3)}%`
+}
+
+// Capability diagnosis — separates "how much spread" (Cp) from "how well
+// centered" (gap between the two one-sided Cpk components) so the report
+// can point at the actual lever to pull instead of a single label.
+interface CapabilityDiagnosis {
+  spreadOk: boolean
+  centeringOk: boolean
+  nearerLimit: 'LSL' | 'USL' | null
+  recommendedAction: string
+}
+
+function buildCapabilityDiagnosis(v: VariableResult, stable: boolean): CapabilityDiagnosis | null {
+  if (v.LSL === null || v.USL === null || v.Cp === null || v.Cpk === null || v.sigma <= 0) return null
+
+  const cpkLower = (v.mu - v.LSL) / (3 * v.sigma)
+  const cpkUpper = (v.USL - v.mu) / (3 * v.sigma)
+  const nearerLimit: 'LSL' | 'USL' = cpkLower <= cpkUpper ? 'LSL' : 'USL'
+  const spreadOk = v.Cp >= 1.33
+  const centeringOk = Math.abs(cpkUpper - cpkLower) < 0.1
+
+  let recommendedAction: string
+  if (!stable) {
+    recommendedAction =
+      'Do not rely on capability indices alone — investigate special-cause variation and confirm the process is in statistical control before acting on Cp/Cpk/Pp/Ppk.'
+  } else if (!spreadOk && !centeringOk) {
+    recommendedAction = `Both variation reduction and improved centering are needed. The process mean sits closer to the ${nearerLimit}; reducing overall variation alone will not be sufficient.`
+  } else if (!spreadOk) {
+    recommendedAction =
+      'Prioritize reducing process variation — the specification width limits achievable capability even under perfect centering.'
+  } else if (!centeringOk) {
+    recommendedAction = `Prioritize centering the process away from the ${nearerLimit}; variation is already acceptable relative to the specification width.`
+  } else {
+    recommendedAction = 'Process capability is acceptable. Continue routine monitoring and control.'
+  }
+
+  return { spreadOk, centeringOk, nearerLimit, recommendedAction }
+}
+
 // Capability verdict — mirrors capabilityClass/capabilityLabel from spc-tool.html
 function capabilityColor(val: number | null): string {
   if (val === null || isNaN(val)) return '#8892a4'
@@ -761,6 +807,17 @@ export default function SPCEngine() {
 
       twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
 
+      calloutBox(
+        ctx,
+        `Data adequacy: ${varResult.dataAdequacy.label} (n = ${varResult.dataAdequacy.n}). ` +
+          (varResult.dataAdequacy.tier === 'low'
+            ? 'Treat capability and stability conclusions with proportionally lower confidence until more data is collected.'
+            : varResult.dataAdequacy.tier === 'moderate'
+            ? 'Sample size gives moderate confidence — consider collecting more data before high-stakes decisions.'
+            : 'Sample size is sufficient for the reported statistics.'),
+        varResult.dataAdequacy.tier === 'low' ? 'bad' : varResult.dataAdequacy.tier === 'moderate' ? 'warn' : 'good'
+      )
+
       if (cls && pkVal !== null) {
         const cpkCls = classifyCapability(varResult.Cpk)
         const ppkCls = classifyCapability(varResult.Ppk)
@@ -780,7 +837,7 @@ export default function SPCEngine() {
             [
               'Stability Screen',
               stable ? 'No violations detected' : `${allViolations.length} rule violation(s)`,
-              stable ? 'Stable' : 'Review required',
+              stable ? 'No Stability Signals Detected' : 'Review Required',
             ],
           ],
           {
@@ -813,6 +870,40 @@ export default function SPCEngine() {
           ? 'No basic Nelson Rule signal was detected in the displayed charts. Continue to review patterns, subgrouping, and practical process knowledge.'
           : `${allViolations.length} Nelson Rule violation(s) were detected in the displayed charts — see the detailed table below.`,
         allViolations.length === 0 ? 'good' : 'warn'
+      )
+
+      dataTable(
+        ctx,
+        'Normality Test (Anderson-Darling)',
+        [
+          { header: 'STATISTIC', width: 200 },
+          { header: 'VALUE', width: ctx.pageWidth - ctx.margin * 2 - 200 },
+        ],
+        [
+          ['N', String(varResult.n)],
+          ['Mean', fmt(varResult.mu)],
+          ['StDev', fmt(varResult.sdOverall)],
+          ['AD (A²)', fmt(varResult.ad?.A2adj ?? varResult.ad?.A2, 3)],
+          ['P-Value', fmt(varResult.ad?.p, 3)],
+          ['Conclusion', varResult.isNormal ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'],
+        ],
+        {
+          cellColors: [
+            [null, null],
+            [null, null],
+            [null, null],
+            [null, null],
+            [null, null],
+            [null, varResult.isNormal ? REPORT_COLORS.good : REPORT_COLORS.warn],
+          ],
+        }
+      )
+      calloutBox(
+        ctx,
+        varResult.isNormal
+          ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
+          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Capability indices and PPM estimates in this report assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
+        varResult.isNormal ? 'good' : 'warn'
       )
 
       if (cls) {
@@ -857,9 +948,56 @@ export default function SPCEngine() {
             ['Overall - Below LSL', varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(1) : '—'],
             ['Overall - Above USL', varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(1) : '—'],
             ['Overall - Total PPM', varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(1) : '—'],
-            ['Estimated Yield (Overall)', varResult.ppmD_lt ? `${(100 - varResult.ppmD_lt.total / 10000).toFixed(3)}%` : '—'],
+            ['Estimated Yield (Overall)', formatYieldPct(varResult.ppmD_lt ? varResult.ppmD_lt.total : null)],
           ]
         )
+
+        calloutBox(
+          ctx,
+          'Within (short-term) and Overall (long-term) PPM estimates use different sigma values — Within reflects the process\u2019s inherent short-term variation, while Overall reflects everything observed during the study, including shifts and drift. The two figures are expected to differ and are not a check on each other.',
+          'info'
+        )
+
+        const diagnosis = buildCapabilityDiagnosis(varResult, allViolations.length === 0)
+        if (diagnosis) {
+          dataTable(
+            ctx,
+            'Capability Diagnosis',
+            [
+              { header: 'DIMENSION', width: 150 },
+              { header: 'RESULT', width: 150 },
+              { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 300 },
+            ],
+            [
+              [
+                'Process Spread',
+                `Cp = ${fmt(varResult.Cp)}`,
+                diagnosis.spreadOk
+                  ? 'Spread is acceptable relative to specification width.'
+                  : 'Spread is limited relative to specification width — variation reduction is needed.',
+              ],
+              [
+                'Process Centering',
+                diagnosis.nearerLimit ? `Closer to ${diagnosis.nearerLimit}` : '—',
+                diagnosis.centeringOk
+                  ? 'Process is reasonably centered between specification limits.'
+                  : `Process mean is closer to the ${diagnosis.nearerLimit} than to the opposite limit — this is the main driver of the lower index.`,
+              ],
+            ],
+            {
+              cellColors: [
+                [null, null, diagnosis.spreadOk ? REPORT_COLORS.good : REPORT_COLORS.warn],
+                [null, null, diagnosis.centeringOk ? REPORT_COLORS.good : REPORT_COLORS.warn],
+              ],
+            }
+          )
+          interpretationBox(
+            ctx,
+            'Recommended Action',
+            diagnosis.recommendedAction,
+            allViolations.length > 0 ? 'bad' : diagnosis.spreadOk && diagnosis.centeringOk ? 'good' : 'warn'
+          )
+        }
       }
     } else if (attrResult) {
       calloutBox(

@@ -165,6 +165,25 @@ export default function PricingPage() {
           <p style={{ fontSize: 14, color: c.muted, margin: 0 }}>
             {t('pricing_hero_sub')}
           </p>
+          <Link
+            href="/sample-reports"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              marginTop: 16,
+              fontSize: 13.5,
+              fontWeight: 700,
+              color: c.accent,
+              textDecoration: 'none',
+              border: `1px solid ${c.accent}40`,
+              background: `${c.accent}12`,
+              borderRadius: 20,
+              padding: '8px 18px',
+            }}
+          >
+            📄 {t('pricing_see_samples_link')} →
+          </Link>
         </div>
 
         {/* Plan cards */}
