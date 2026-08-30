@@ -576,11 +576,11 @@ export default function RegressionPage() {
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10, marginBottom: 16 }}>
-                <div style={s.statBox}><div style={s.statVal}>{niceNum(result.r2)}</div><div style={s.statLabel}>{messages.metricR2}</div></div>
-                <div style={s.statBox}><div style={s.statVal}>{niceNum(result.r2Adj)}</div><div style={s.statLabel}>{messages.metricR2Adj}</div></div>
-                <div style={s.statBox}><div style={s.statVal}>{niceNum(result.se)}</div><div style={s.statLabel}>{messages.metricSE}</div></div>
-                <div style={s.statBox}><div style={s.statVal}>{niceNum(result.slope)}</div><div style={s.statLabel}>{messages.metricSlope}</div></div>
-                <div style={s.statBox}><div style={s.statVal}>{result.n}</div><div style={s.statLabel}>{messages.metricN}</div></div>
+                <div style={s.statCard}><div style={s.statVal}>{niceNum(result.r2)}</div><div style={s.statLabel}>{messages.metricR2}</div></div>
+                <div style={s.statCard}><div style={s.statVal}>{niceNum(result.r2Adj)}</div><div style={s.statLabel}>{messages.metricR2Adj}</div></div>
+                <div style={s.statCard}><div style={s.statVal}>{niceNum(result.se)}</div><div style={s.statLabel}>{messages.metricSE}</div></div>
+                <div style={s.statCard}><div style={s.statVal}>{niceNum(result.slope)}</div><div style={s.statLabel}>{messages.metricSlope}</div></div>
+                <div style={s.statCard}><div style={s.statVal}>{result.n}</div><div style={s.statLabel}>{messages.metricN}</div></div>
               </div>
 
               {/* Coefficient table */}
@@ -813,15 +813,15 @@ export default function RegressionPage() {
 
               {prediction && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginTop: 14 }}>
-                  <div style={s.statBox}>
+                  <div style={s.statCard}>
                     <div style={s.statVal}>{niceNum(prediction.fitted)}</div>
                     <div style={s.statLabel}>{messages.predictionFitted}</div>
                   </div>
-                  <div style={s.statBox}>
+                  <div style={s.statCard}>
                     <div style={{ ...s.statVal, fontSize: 15 }}>{niceNum(prediction.ciLow)} – {niceNum(prediction.ciHigh)}</div>
                     <div style={s.statLabel}>{messages.predictionCI}</div>
                   </div>
-                  <div style={s.statBox}>
+                  <div style={s.statCard}>
                     <div style={{ ...s.statVal, fontSize: 15 }}>{niceNum(prediction.piLow)} – {niceNum(prediction.piHigh)}</div>
                     <div style={s.statLabel}>{messages.predictionPI}</div>
                   </div>

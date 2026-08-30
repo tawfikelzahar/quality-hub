@@ -8,7 +8,7 @@ import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, getSharedStyles, usePersistedTheme, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
 import Nav from '@/components/Nav'
 
-type Tool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf' | 'regression' | 'multiregression'
+type Tool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf' | 'regression' | 'multiregression' | 'imr' | 'xbar_r' | 'xbar_s'
 
 interface SavedAnalysis {
   id: string
@@ -29,6 +29,9 @@ const TOOL_LABELS: Record<Tool, string> = {
   icmsf: 'ICMSF Microbiological Sampling Plan',
   regression: 'Simple Linear Regression',
   multiregression: 'Multiple Linear Regression',
+  imr: 'I-MR Chart',
+  xbar_r: 'Xbar-R Chart',
+  xbar_s: 'Xbar-S Chart',
 }
 
 const TOOL_ROUTES: Record<Tool, string> = {
@@ -42,6 +45,9 @@ const TOOL_ROUTES: Record<Tool, string> = {
   icmsf: '/icmsf',
   regression: '/regression',
   multiregression: '/multiregression',
+  imr: '/imr-chart',
+  xbar_r: '/xbar-r-chart',
+  xbar_s: '/xbar-s-chart',
 }
 
 export default function DashboardPage() {

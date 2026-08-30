@@ -6,6 +6,103 @@ import { COLORS, usePersistedTheme, type ThemeMode } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
+import type { TKey } from '@/lib/i18n/translations'
+
+interface ToolCardData {
+  href: string | null // null = "coming soon", card is not a link
+  icon: string
+  iconBg: string
+  iconBorder: string
+  titleKey: TKey
+  descKey: TKey
+  tags: string[]
+  live: boolean
+}
+
+interface ToolSectionData {
+  id: string
+  labelKey: TKey
+  titleKey: TKey
+  descKey: TKey
+  tools: ToolCardData[]
+}
+
+// Grouped by discipline (matches the categories quality engineers actually
+// think in — see /pricing and dashboard for the same tool set). Each
+// section gets its own anchor for the quick-jump nav above the grid.
+const TOOL_SECTIONS: ToolSectionData[] = [
+  {
+    id: 'section-stability',
+    labelKey: 'section_stability_label',
+    titleKey: 'section_stability_title',
+    descKey: 'section_stability_desc',
+    tools: [
+      { href: '/spc', icon: '📊', iconBg: 'rgba(15,212,200,.1)', iconBorder: 'rgba(15,212,200,.2)', titleKey: 'spc_title', descKey: 'spc_desc', tags: ['Cp·Cpk·Pp·Ppk', 'Nelson Rules', 'Sigma Level', 'PPM'], live: true },
+      { href: '/imr-chart', icon: '📊', iconBg: 'rgba(236,72,153,.1)', iconBorder: 'rgba(236,72,153,.2)', titleKey: 'imr_title', descKey: 'imr_desc', tags: ['Individuals Chart', 'Moving Range', 'Nelson Rules', 'Capability'], live: true },
+      { href: '/xbar-r-chart', icon: '📈', iconBg: 'rgba(20,184,166,.1)', iconBorder: 'rgba(20,184,166,.2)', titleKey: 'xbar_r_title', descKey: 'xbar_r_desc', tags: ['Subgrouped Data', 'X̄ Chart', 'Range Chart', 'Nelson Rules'], live: true },
+      { href: '/xbar-s-chart', icon: '📈', iconBg: 'rgba(6,182,212,.1)', iconBorder: 'rgba(6,182,212,.2)', titleKey: 'xbar_s_title', descKey: 'xbar_s_desc', tags: ['Subgrouped Data', 'X̄ Chart', 'Std Dev Chart', 'Nelson Rules'], live: true },
+    ],
+  },
+  {
+    id: 'section-msa',
+    labelKey: 'section_msa_label',
+    titleKey: 'section_msa_title',
+    descKey: 'section_msa_desc',
+    tools: [
+      { href: '/gage-rr', icon: '🎯', iconBg: 'rgba(232,160,32,.1)', iconBorder: 'rgba(232,160,32,.2)', titleKey: 'gagerr_title', descKey: 'gagerr_desc', tags: ['AIAG MSA', 'EV/AV/GRR', 'NDC'], live: true },
+    ],
+  },
+  {
+    id: 'section-regression',
+    labelKey: 'section_regression_label',
+    titleKey: 'section_regression_title',
+    descKey: 'section_regression_desc',
+    tools: [
+      { href: '/regression', icon: '📈', iconBg: 'rgba(59,130,246,.1)', iconBorder: 'rgba(59,130,246,.2)', titleKey: 'regression_title', descKey: 'regression_desc', tags: ['OLS Fit', 'ANOVA', 'Residual Diagnostics', 'Prediction Intervals'], live: true },
+      { href: '/multiregression', icon: '📉', iconBg: 'rgba(99,102,241,.1)', iconBorder: 'rgba(99,102,241,.2)', titleKey: 'multiregression_title', descKey: 'multiregression_desc', tags: ['Multiple Predictors', 'VIF', 'ANOVA', 'Prediction Intervals'], live: true },
+    ],
+  },
+  {
+    id: 'section-sampling',
+    labelKey: 'section_sampling_label',
+    titleKey: 'section_sampling_title',
+    descKey: 'section_sampling_desc',
+    tools: [
+      { href: '/aql', icon: '📋', iconBg: 'rgba(168,85,247,.1)', iconBorder: 'rgba(168,85,247,.2)', titleKey: 'aql_title', descKey: 'aql_desc', tags: ['ISO 2859-1', 'Ac/Re Tables', 'CSV/Excel/PDF Export'], live: true },
+      { href: '/icmsf', icon: '🧫', iconBg: 'rgba(34,197,94,.1)', iconBorder: 'rgba(34,197,94,.2)', titleKey: 'icmsf_title', descKey: 'icmsf_desc', tags: ['ICMSF Case Selector', 'n/c/m/M', 'OC Curve'], live: true },
+    ],
+  },
+  {
+    id: 'section-quality',
+    labelKey: 'section_quality_label',
+    titleKey: 'section_quality_title',
+    descKey: 'section_quality_desc',
+    tools: [
+      { href: '/pareto', icon: '📈', iconBg: 'rgba(245,158,11,.1)', iconBorder: 'rgba(245,158,11,.2)', titleKey: 'pareto_title', descKey: 'pareto_desc', tags: ['80/20 Rule', 'Excel Import', 'PDF Export'], live: true },
+      { href: '/dpmo', icon: '🎯', iconBg: 'rgba(59,130,246,.1)', iconBorder: 'rgba(59,130,246,.2)', titleKey: 'dpmo_title', descKey: 'dpmo_desc', tags: ['Six Sigma', 'DPMO', 'Yield %'], live: true },
+      { href: '/oee', icon: '⚙️', iconBg: 'rgba(15,212,200,.1)', iconBorder: 'rgba(15,212,200,.2)', titleKey: 'oee_title', descKey: 'oee_desc', tags: ['JIPM TPM', 'Six Big Losses', 'CSV/Excel/PDF Export'], live: true },
+      { href: null, icon: '⚠️', iconBg: 'rgba(239,68,68,.08)', iconBorder: 'rgba(239,68,68,.12)', titleKey: 'fmea_title', descKey: 'fmea_desc', tags: [], live: false },
+    ],
+  },
+  {
+    id: 'section-descriptive',
+    labelKey: 'section_descriptive_label',
+    titleKey: 'section_descriptive_title',
+    descKey: 'section_descriptive_desc',
+    tools: [
+      { href: '/descriptive', icon: '📐', iconBg: 'rgba(20,184,166,.1)', iconBorder: 'rgba(20,184,166,.2)', titleKey: 'descriptive_title', descKey: 'descriptive_desc', tags: ['Mean/Median/StdDev', 'Histogram', 'Confidence Intervals'], live: true },
+    ],
+  },
+  {
+    id: 'section-reliability',
+    labelKey: 'section_reliability_label',
+    titleKey: 'section_reliability_title',
+    descKey: 'section_reliability_desc',
+    tools: [
+      { href: '/stability', icon: '🧪', iconBg: 'rgba(15,212,200,.1)', iconBorder: 'rgba(15,212,200,.2)', titleKey: 'stability_title', descKey: 'stability_desc', tags: ['ICH Q1E', 'Shelf-Life', 'CSV/Excel/PDF Export'], live: true },
+    ],
+  },
+]
 
 export default function Home() {
   const [theme, setTheme] = usePersistedTheme()
@@ -123,223 +220,73 @@ export default function Home() {
           <h2 style={{fontSize:'clamp(30px,4vw,50px)',fontWeight:800,letterSpacing:-1.5,marginBottom:12,lineHeight:1.1}}>
             {t('tools_h1')}<br/>{t('tools_h2')}
           </h2>
-          <p style={{fontSize:15,color:c.muted,maxWidth:440,fontWeight:300,lineHeight:1.7,marginBottom:56}}>
+          <p style={{fontSize:15,color:c.muted,maxWidth:440,fontWeight:300,lineHeight:1.7,marginBottom:32}}>
             {t('tools_sub')}
           </p>
 
-          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:20}}>
-            {/* SPC — Live */}
-            <Link href="/spc" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(15,212,200,.1)',border:'1px solid rgba(15,212,200,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📊</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('spc_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('spc_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['Cp·Cpk·Pp·Ppk','Nelson Rules','Sigma Level','PPM'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
+          {/* Quick-jump section nav */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:64}}>
+            {TOOL_SECTIONS.map(section=>(
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                style={{fontSize:12,fontWeight:600,color:dark?'#8fafd4':c.muted,background:dark?'rgba(255,255,255,.03)':c.surface2,border:`1px solid ${dark?'rgba(255,255,255,.08)':c.border}`,borderRadius:20,padding:'7px 16px',textDecoration:'none',transition:'color .2s,border-color .2s'}}
+                className="nl"
+              >
+                {t(section.labelKey)}
+              </a>
+            ))}
+          </div>
 
-            {/* Pareto — Live */}
-            <Link href="/pareto" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(245,158,11,.1)',border:'1px solid rgba(245,158,11,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📈</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('pareto_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('pareto_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['80/20 Rule','Excel Import','PDF Export'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* DPMO — Live */}
-            <Link href="/dpmo" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(59,130,246,.1)',border:'1px solid rgba(59,130,246,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🎯</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('dpmo_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('dpmo_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['Six Sigma','DPMO','Yield %'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* AQL — Live */}
-            <Link href="/aql" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(168,85,247,.1)',border:'1px solid rgba(168,85,247,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📋</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('aql_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('aql_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['ISO 2859-1','Ac/Re Tables','CSV/Excel/PDF Export'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* ICMSF — Live */}
-            <Link href="/icmsf" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧫</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('icmsf_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('icmsf_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['ICMSF Case Selector','n/c/m/M','OC Curve'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* Simple Linear Regression — Live */}
-            <Link href="/regression" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(59,130,246,.1)',border:'1px solid rgba(59,130,246,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📈</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('regression_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('regression_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['OLS Fit','ANOVA','Residual Diagnostics','Prediction Intervals'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* Multiple Linear Regression — Live */}
-            <Link href="/multiregression" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(99,102,241,.1)',border:'1px solid rgba(99,102,241,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>📉</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('multiregression_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('multiregression_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['Multiple Predictors','VIF','ANOVA','Prediction Intervals'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* Gage R&R — Live */}
-            <Link href="/gage-rr" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(232,160,32,.1)',border:'1px solid rgba(232,160,32,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🎯</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('gagerr_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('gagerr_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['AIAG MSA','EV/AV/GRR','NDC'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* Stability Study — Live */}
-            <Link href="/stability" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(15,212,200,.1)',border:'1px solid rgba(15,212,200,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>🧪</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('stability_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('stability_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['ICH Q1E','Shelf-Life','CSV/Excel/PDF Export'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* OEE Calculator — Live */}
-            <Link href="/oee" className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(15,212,200,.1)',border:'1px solid rgba(15,212,200,.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>⚙️</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                  <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
-                </span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('oee_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('oee_desc')}</div>
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
-                {['JIPM TPM','Six Big Losses','CSV/Excel/PDF Export'].map(tag=>(
-                  <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                ))}
-              </div>
-              <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>
-            </Link>
-
-            {/* FMEA */}
-            <div style={{background:comingSoonBg,border:`1px solid ${comingSoonBorder}`,borderRadius:20,padding:32,display:'flex',flexDirection:'column',gap:20,opacity:.6}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div style={{width:52,height:52,borderRadius:14,background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.12)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>⚠️</div>
-                <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(148,163,184,.06)',color:'#64748b',border:'1px solid rgba(148,163,184,.1)'}}>{t('badge_soon')}</span>
-              </div>
-              <div>
-                <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t('fmea_title')}</div>
-                <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t('fmea_desc')}</div>
+          {TOOL_SECTIONS.map((section, sIdx)=>(
+            <div key={section.id} id={section.id} style={{marginBottom: sIdx === TOOL_SECTIONS.length-1 ? 0 : 72, scrollMarginTop: 90}}>
+              <h3 style={{fontSize:'clamp(20px,2.4vw,26px)',fontWeight:800,letterSpacing:-0.5,marginBottom:8}}>
+                {t(section.titleKey)}
+              </h3>
+              <p style={{fontSize:14,color:c.muted,maxWidth:560,fontWeight:300,lineHeight:1.6,marginBottom:28}}>
+                {t(section.descKey)}
+              </p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:20}}>
+                {section.tools.map(tool=>{
+                  const cardInner = (
+                    <>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                        <div style={{width:52,height:52,borderRadius:14,background:tool.iconBg,border:`1px solid ${tool.iconBorder}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>{tool.icon}</div>
+                        {tool.live ? (
+                          <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
+                            <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
+                          </span>
+                        ) : (
+                          <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(148,163,184,.06)',color:'#64748b',border:'1px solid rgba(148,163,184,.1)'}}>{t('badge_soon')}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{t(tool.titleKey)}</div>
+                        <div style={{fontSize:13,color:c.muted,lineHeight:1.75,fontWeight:300}}>{t(tool.descKey)}</div>
+                      </div>
+                      {tool.tags.length > 0 && (
+                        <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                          {tool.tags.map(tag=>(
+                            <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
+                          ))}
+                        </div>
+                      )}
+                      {tool.live && <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>}
+                    </>
+                  )
+                  return tool.live && tool.href ? (
+                    <Link key={tool.titleKey} href={tool.href} className="card" style={{background:cardBg,border:`1px solid ${cardBorder}`,borderRadius:20,padding:32,textDecoration:'none',color:'inherit',display:'flex',flexDirection:'column',gap:20}}>
+                      {cardInner}
+                    </Link>
+                  ) : (
+                    <div key={tool.titleKey} style={{background:comingSoonBg,border:`1px solid ${comingSoonBorder}`,borderRadius:20,padding:32,display:'flex',flexDirection:'column',gap:20,opacity:.6}}>
+                      {cardInner}
+                    </div>
+                  )
+                })}
               </div>
             </div>
-          </div>
+          ))}
         </section>
 
         {/* ── Footer ── */}

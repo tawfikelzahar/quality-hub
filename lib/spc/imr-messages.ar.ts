@@ -1,0 +1,62 @@
+import type { ImrMessages } from './imr-messages'
+
+export const imrMessagesAr: ImrMessages = {
+  appSubtitle:
+    'إنشاء مخطط الأفراد ومدى التحرك (I-MR) لبيانات القياس المتسلسلة قيمة واحدة في كل مرة — استقرار العملية، وفحص قواعد Nelson، والقدرة في عرض واحد.',
+  dataSectionTitle: 'بيانات الإدخال',
+  dataSectionHelp:
+    'ارفع ملف CSV أو الصق عمودًا واحدًا من القياسات المتسلسلة (قيمة واحدة في كل سطر أو صف، بترتيب جمعها).',
+  loadExampleButton: 'تحميل بيانات مثال',
+  clearDataButton: 'مسح',
+  measurementLabel: 'عمود القياس',
+  csvUploadLabel: 'رفع ملف CSV',
+  csvUploadHint: 'عمود واحد من القيم الرقمية، بترتيب الجمع. صف الرأس اختياري.',
+  pasteLabel: 'أو الصق البيانات',
+  pastePlaceholder: 'الصق قياسًا واحدًا في كل سطر، بترتيب الجمع',
+  readColumnButton: 'قراءة البيانات',
+  specLimitsTitle: 'حدود المواصفات (اختياري — مطلوبة لمؤشرات القدرة)',
+  lslLabel: 'الحد الأدنى للمواصفة (LSL)',
+  uslLabel: 'الحد الأعلى للمواصفة (USL)',
+  targetLabel: 'القيمة المستهدفة (اختياري، لـ Cpm)',
+  optionalHint: 'اتركه فارغًا إن لم يكن منطبقًا.',
+  runAnalysisButton: 'تشغيل تحليل I-MR',
+  errorInsufficientData: 'يلزم 3 قياسات صالحة على الأقل لإنشاء مخطط I-MR (يُفضّل عدد أكبر — 20 إلى 25 قياسًا هو المعتاد في دراسة الاستقرار).',
+  errorNoData: 'لا توجد بيانات بعد. حمّل المثال أو الصق/ارفع بياناتك أولًا.',
+  errorBadColumn: 'اختر عمود القياس قبل تشغيل التحليل.',
+  resultsTitle: 'نتائج مخطط I-MR',
+  chartITitle: 'مخطط الأفراد (I)',
+  chartMRTitle: 'مخطط مدى التحرك (MR)',
+  metricMean: 'المتوسط (X̄)',
+  metricSigma: 'σ (من MR̄/1.128)',
+  metricUCL: 'الحد الأعلى للضبط (UCL)',
+  metricLCL: 'الحد الأدنى للضبط (LCL)',
+  metricN: 'N',
+  violationsTitle: 'مخالفات قواعد مخطط الضبط',
+  noViolations: 'لم يتم رصد أي مخالفات للقواعد — العملية تبدو مستقرة إحصائيًا خلال هذه البيانات.',
+  ruleLabel: 'القاعدة',
+  pointsAffected: 'النقاط المتأثرة',
+  capabilityTitle: 'قدرة العملية',
+  metricCp: 'Cp',
+  metricCpk: 'Cpk',
+  metricPp: 'Pp',
+  metricPpk: 'Ppk',
+  metricSigmaLevel: 'مستوى سيجما (Z.Bench)',
+  metricPpmTotal: 'إجمالي أجزاء في المليون (العيوب)',
+  capabilityNeedsLimits: 'أدخل حد أدنى و/أو حد أعلى للمواصفة أعلاه لعرض مؤشرات القدرة.',
+  normalityNote: (pValue, normal) =>
+    normal
+      ? `اختبار Anderson-Darling للتوزيع الطبيعي: P = ${pValue}. البيانات متسقة مع التوزيع الطبيعي، لذا تُعرض Cp/Cpk.`
+      : `اختبار Anderson-Darling للتوزيع الطبيعي: P = ${pValue}. البيانات تنحرف عن التوزيع الطبيعي، لذا تُحجب Cp/Cpk (تُعرض Pp/Ppk، اللتان لا تفترضان التوزيع الطبيعي).`,
+  dataAdequacyNote: (label, n) => `${label} (N = ${n}). زيادة عدد نقاط البيانات تعطي قراءة قدرة أكثر موثوقية.`,
+  exportSectionTitle: 'تصدير وحفظ',
+  exportCsvButton: 'CSV',
+  exportExcelButton: 'Excel',
+  exportPngButton: 'PNG',
+  exportPdfButton: 'PDF',
+  pdfReportTitle: 'مخطط I-MR — تقرير الدراسة',
+  footerNote:
+    'حدود الضبط تستخدم ±3σ من خط المنتصف، مع تقدير σ بواسطة MR̄/1.128 (الاصطلاح القياسي لمخطط الأفراد). قواعد مخطط الضبط تتبع قواعد Nelson (1-8). اختبار Anderson-Darling للتوزيع الطبيعي يستخدم تصحيح Stephens (1974) للعينات الصغيرة.',
+  whatIsTitle: 'متى تُستخدم مخطط I-MR',
+  whatIsBody:
+    'استخدم مخطط I-MR عندما يكون لديك قياس واحد لكل وحدة أو لكل فترة زمنية — بدون مجموعات فرعية طبيعية (مثلًا قراءة واحدة للدفعة يوميًا، أو اختبار إتلافي لا تتوفر منه سوى عينة واحدة). إذا كانت عمليتك تنتج عدة قياسات لكل مجموعة فرعية، استخدم مخطط Xbar-R أو Xbar-S بدلًا من ذلك.',
+}

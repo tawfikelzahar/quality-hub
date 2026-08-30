@@ -5,7 +5,8 @@
 --   'spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql'
 -- وده كان ناقص 'icmsf' أصلاً (اتضاف في الكود من غير ما الـ constraint يتحدّث)،
 -- ودلوقتي بنضيف 'regression' (Simple Linear Regression) و'multiregression'
--- (Multiple Linear Regression) كمان.
+-- (Multiple Linear Regression) و'imr' (مخطط I-MR المستقل) و'xbar_r'
+-- (مخطط Xbar-R المستقل) و'xbar_s' (مخطط Xbar-S المستقل) كمان.
 --
 -- لازم تشتغل مع تحديث VALID_TOOLS في app/api/saved-analyses/route.ts —
 -- الاتنين لازم يفضلوا متطابقين، زي التعليق الأصلي بيقول.
@@ -15,4 +16,4 @@ alter table public.saved_analyses
 
 alter table public.saved_analyses
   add constraint saved_analyses_tool_check
-  check (tool in ('spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql', 'icmsf', 'regression', 'multiregression'));
+  check (tool in ('spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql', 'icmsf', 'regression', 'multiregression', 'imr', 'xbar_r', 'xbar_s'));
