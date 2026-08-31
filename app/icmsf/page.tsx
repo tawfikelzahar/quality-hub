@@ -51,6 +51,17 @@ const PAD = { top: 16, right: 20, bottom: 40, left: 48 };
 const PLOT_W = CHART_W - PAD.left - PAD.right;
 const PLOT_H = CHART_H - PAD.top - PAD.bottom;
 
+// Short label for PDF/Excel table cells — messagesEn.testTypes[] is the full
+// explanatory paragraph meant for the Step 0 selector UI; dropping that
+// whole paragraph into a report table row pushed rows tall enough to force
+// an unnecessary second page (confirmed by rendering both variants
+// headlessly and comparing page counts). Exports stay English regardless
+// of UI language, same as the rest of messagesEn usage in this file.
+const TEST_TYPE_REPORT_LABEL: Record<TestType, string> = {
+  qualitative: 'Qualitative — Presence/Absence',
+  quantitative: 'Quantitative — Enumeration',
+};
+
 function xForP(p: number) {
   return PAD.left + p * PLOT_W;
 }
@@ -237,7 +248,7 @@ export default function IcmsfPage() {
     sheet.titleBand('ICMSF Microbiological Sampling Plan', messagesEn.appSubtitle);
     sheet.metaStrip([
       ['Generated on', nowStamp()],
-      ['Test Method Type', messagesEn.testTypes[testType]],
+      ['Test Method Type', TEST_TYPE_REPORT_LABEL[testType]],
       ['ICMSF Case', messagesEn.resolvedCaseLabel(resolvedCase.case)],
     ]);
 
@@ -245,7 +256,7 @@ export default function IcmsfPage() {
     sheet.table({
       headers: ['Field', 'Value'],
       rows: [
-        ['Test Method Type', messagesEn.testTypes[testType]],
+        ['Test Method Type', TEST_TYPE_REPORT_LABEL[testType]],
         ['Degree of Health Hazard', messagesEn.hazardLevels[hazardLevel]],
         ['Conditions after Sampling', messagesEn.conditionEffects[conditionEffect]],
       ],
@@ -315,7 +326,7 @@ export default function IcmsfPage() {
     );
 
     const caseRows: KVRow[] = [
-      ['Test Method Type', messagesEn.testTypes[testType]],
+      ['Test Method Type', TEST_TYPE_REPORT_LABEL[testType]],
       ['Degree of Health Hazard', messagesEn.hazardLevels[hazardLevel]],
       ['Conditions after Sampling', messagesEn.conditionEffects[conditionEffect]],
       ['ICMSF Case', messagesEn.resolvedCaseLabel(resolvedCase.case)],
