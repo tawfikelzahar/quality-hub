@@ -16,9 +16,7 @@ export const messages = {
   // Step 0 — Test method type
   step0Title: 'Step 0 — What kind of test are you running?',
   testTypeLabel: 'Test method type',
-  testTypeHelp:
-    'This is not an extra setting — it determines which sampling plan structure applies, and narrows the ' +
-    'hazard levels below to only the ones reachable for this test type.',
+  testTypeHelp: 'Determines the sampling plan structure (2-class or 3-class) and filters the hazard levels below to match.',
   testTypes: {
     qualitative:
       'Qualitative — Presence/Absence (e.g. Salmonella, Listeria, Shigella). Result: positive or negative ' +

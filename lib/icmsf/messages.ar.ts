@@ -17,9 +17,7 @@ export const messagesAr: IcmsfMessages = {
   // Step 0 — Test method type
   step0Title: 'الخطوة 0 — ما نوع الاختبار الذي تجريه؟',
   testTypeLabel: 'نوع طريقة الاختبار',
-  testTypeHelp:
-    'هذا ليس إعدادًا إضافيًا — هو الذي يحدد بنية خطة العينات المطبّقة، ويُظهر أدناه فقط درجات الخطورة ' +
-    'الممكنة لهذا النوع من الاختبار.',
+  testTypeHelp: 'يحدد بنية خطة العينات (2-class أو 3-class) ويُظهر أدناه فقط درجات الخطورة المطابقة.',
   testTypes: {
     qualitative:
       'Qualitative — كشف وجود/عدم وجود (مثل Salmonella وListeria وShigella). النتيجة: موجب أو سالب في وزن ' +

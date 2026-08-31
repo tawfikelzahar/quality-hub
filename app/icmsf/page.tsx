@@ -25,6 +25,20 @@ import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
+import { createReport as createExcelReport, nowStamp } from '@/lib/excelReport';
+import {
+  createReport as createPdfReport,
+  classificationBanner,
+  twoColumnTables,
+  calloutBox,
+  interpretationBox,
+  finalizeReport,
+  sectionHeading,
+  sanitizePdfText,
+  REPORT_COLORS,
+  type KVRow,
+  type ReportContext,
+} from '@/lib/pdf/reportDesign';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Chart geometry — plain inline SVG (no charting library dependency),
@@ -153,14 +167,193 @@ export default function IcmsfPage() {
     a.click();
   }
 
-  function exportExcel() {
+  /** Vector OC curve drawn directly with jsPDF primitives (not a bitmap) —
+   * ICMSF's on-screen OC curve is a hand-drawn inline SVG, not a Chart.js
+   * canvas, so it doesn't fit the shared addChartImage() helper which
+   * expects something with .toBase64Image(). */
+  function drawOcCurvePdf(
+    ctx: ReportContext,
+    points: { p: number; pa: number }[],
+    riskP: number,
+    riskPa: number | null,
+  ) {
+    const { pdf, margin, pageWidth } = ctx;
+    const chartH = 190;
+    sectionHeading(ctx, 'Operating Characteristic (OC) Curve', chartH + 34);
+
+    const plotLeft = margin + 34;
+    const plotRight = pageWidth - margin;
+    const plotTop = ctx.y;
+    const plotBottom = ctx.y + chartH;
+    const plotW = plotRight - plotLeft;
+    const plotH = plotBottom - plotTop;
+    const xForP = (p: number) => plotLeft + p * plotW;
+    const yForPa = (pa: number) => plotBottom - pa * plotH;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7.5);
+    [0, 0.25, 0.5, 0.75, 1].forEach((frac) => {
+      const y = yForPa(frac);
+      pdf.setDrawColor(...REPORT_COLORS.border);
+      pdf.setLineWidth(0.5);
+      pdf.line(plotLeft, y, plotRight, y);
+      pdf.setTextColor(...REPORT_COLORS.muted);
+      pdf.text(`${Math.round(frac * 100)}%`, plotLeft - 6, y + 2, { align: 'right' });
+      pdf.text(`${Math.round(frac * 100)}%`, xForP(frac), plotBottom + 10, { align: 'center' });
+    });
+
+    pdf.setDrawColor(...REPORT_COLORS.brand);
+    pdf.setLineWidth(1.4);
+    for (let i = 1; i < points.length; i++) {
+      pdf.line(xForP(points[i - 1].p), yForPa(points[i - 1].pa), xForP(points[i].p), yForPa(points[i].pa));
+    }
+
+    if (riskPa !== null) {
+      pdf.setFillColor(...REPORT_COLORS.warn);
+      pdf.setDrawColor(...REPORT_COLORS.white);
+      pdf.setLineWidth(0.8);
+      pdf.circle(xForP(riskP / 100), yForPa(riskPa), 2.4, 'FD');
+    }
+
+    pdf.setTextColor(...REPORT_COLORS.muted);
+    pdf.setFontSize(8);
+    pdf.text(
+      sanitizePdfText('True proportion defective in the lot (%)'),
+      plotLeft + plotW / 2,
+      plotBottom + 22,
+      { align: 'center' },
+    );
+    pdf.text(sanitizePdfText('Probability of acceptance (%)'), margin, plotTop - 6);
+
+    ctx.y = plotBottom + 30;
+  }
+
+  async function exportExcel() {
     if (!isPro) { goToPricing('icmsf', 'excel'); return; }
-    exportCSV(); // Excel-format upgrade path can reuse createReport() later; CSV data is identical for now.
+    if (!plan || !resolvedCase || !hazardLevel || !conditionEffect || !testType) return;
+
+    const report = createExcelReport({ toolName: 'ICMSF Microbiological Sampling Plan' });
+    const sheet = report.addSheet('Sampling Plan');
+    sheet.titleBand('ICMSF Microbiological Sampling Plan', messagesEn.appSubtitle);
+    sheet.metaStrip([
+      ['Generated on', nowStamp()],
+      ['Test Method Type', messagesEn.testTypes[testType]],
+      ['ICMSF Case', messagesEn.resolvedCaseLabel(resolvedCase.case)],
+    ]);
+
+    sheet.sectionHeading('Case Selection');
+    sheet.table({
+      headers: ['Field', 'Value'],
+      rows: [
+        ['Test Method Type', messagesEn.testTypes[testType]],
+        ['Degree of Health Hazard', messagesEn.hazardLevels[hazardLevel]],
+        ['Conditions after Sampling', messagesEn.conditionEffects[conditionEffect]],
+      ],
+      zebra: false,
+    });
+
+    sheet.sectionHeading('Sampling Plan');
+    sheet.kpiRow([
+      { label: 'Case', value: resolvedCase.case, tone: 'accent' },
+      { label: 'Plan Class', value: `${resolvedCase.planClass}-class`, tone: 'accent' },
+      { label: 'n', value: resolvedCase.n, tone: 'neutral' },
+      { label: 'c', value: resolvedCase.c, tone: 'neutral' },
+    ]);
+    sheet.table({
+      headers: ['Case', 'Plan Class', 'n', 'c', 'm', 'M'],
+      rows: [[
+        resolvedCase.case,
+        `${resolvedCase.planClass}-class`,
+        resolvedCase.n,
+        resolvedCase.c,
+        limits.m ?? '—',
+        resolvedCase.planClass === 3 ? (limits.M ?? '—') : 'N/A (2-class plan)',
+      ]],
+    });
+    sheet.note(
+      resolvedCase.planClass === 2
+        ? messagesEn.planSummary(resolvedCase.n, resolvedCase.c)
+        : messagesEn.threeClassSummary(resolvedCase.n, resolvedCase.c),
+      'accent',
+    );
+
+    if (plan.ocCurveAvailable && ocCurve) {
+      sheet.sectionHeading('Operating Characteristic (OC) Curve');
+      sheet.table({
+        headers: ['True % Defective', 'Probability of Acceptance (%)'],
+        rows: ocCurve
+          .filter((_, i) => i % 5 === 0)
+          .map((pt) => [`${Math.round(pt.p * 100)}%`, Math.round(pt.pa * 1000) / 10]),
+      });
+      if (riskCheckPa !== null) {
+        sheet.note(
+          `At ${riskCheckP}% actual defective, this plan accepts the lot ${Math.round(riskCheckPa * 1000) / 10}% of the time.`,
+          'warning',
+        );
+      }
+    } else {
+      sheet.note(messagesEn.ocCurveUnavailable3Class, 'neutral');
+    }
+
+    sheet.sectionHeading('Methodology');
+    sheet.note(messagesEn.methodologyNote, 'neutral');
+    sheet.freezeHeader(2);
+
+    await report.download('icmsf-sampling-plan.xlsx');
   }
 
   function exportPDF() {
     if (!isPro) { goToPricing('icmsf', 'pdf'); return; }
-    exportPNG(); // Same underlying content; full multi-page jsPDF report can be added when demand justifies it.
+    if (!plan || !resolvedCase || !hazardLevel || !conditionEffect || !testType) return;
+
+    const ctx = createPdfReport('ICMSF Microbiological Sampling Plan Report', 'icmsf');
+
+    classificationBanner(
+      ctx,
+      { label: `${messagesEn.planClassLabel(resolvedCase.planClass)} — ${messagesEn.planClassDescription(resolvedCase.planClass)}`, color: REPORT_COLORS.brand, bg: REPORT_COLORS.panelTint },
+      'Sampling Plan',
+    );
+
+    const caseRows: KVRow[] = [
+      ['Test Method Type', messagesEn.testTypes[testType]],
+      ['Degree of Health Hazard', messagesEn.hazardLevels[hazardLevel]],
+      ['Conditions after Sampling', messagesEn.conditionEffects[conditionEffect]],
+      ['ICMSF Case', messagesEn.resolvedCaseLabel(resolvedCase.case)],
+    ];
+    const planRows: KVRow[] = [
+      ['Plan Class', messagesEn.planClassLabel(resolvedCase.planClass)],
+      [messagesEn.sampleSizeLabel, String(resolvedCase.n)],
+      [messagesEn.acceptNumberLabel, String(resolvedCase.c)],
+      [messagesEn.mLabel, limits.m !== null ? String(limits.m) : '—'],
+      [messagesEn.MLabel, resolvedCase.planClass === 3 ? (limits.M !== null ? String(limits.M) : '—') : messagesEn.MNotApplicable],
+    ];
+    twoColumnTables(ctx, 'Case Selection', caseRows, 'Sampling Plan', planRows);
+
+    calloutBox(
+      ctx,
+      resolvedCase.planClass === 2
+        ? messagesEn.planSummary(resolvedCase.n, resolvedCase.c)
+        : messagesEn.threeClassSummary(resolvedCase.n, resolvedCase.c),
+      'info',
+    );
+
+    if (plan.ocCurveAvailable && ocCurve) {
+      drawOcCurvePdf(ctx, ocCurve, riskCheckP, riskCheckPa);
+      if (riskCheckPa !== null) {
+        calloutBox(
+          ctx,
+          `At ${riskCheckP}% actual defective, this plan accepts the lot ${Math.round(riskCheckPa * 1000) / 10}% of the time.`,
+          'warn',
+        );
+      }
+    } else {
+      calloutBox(ctx, messagesEn.ocCurveUnavailable3Class, 'info');
+    }
+
+    interpretationBox(ctx, 'Methodology', messagesEn.methodologyNote, 'info');
+
+    finalizeReport(ctx);
+    ctx.pdf.save('icmsf-sampling-plan.pdf');
   }
 
   return (
