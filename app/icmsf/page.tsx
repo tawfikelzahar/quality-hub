@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import {
-  HAZARD_LEVEL_ORDER,
   CONDITION_EFFECT_ORDER,
+  TEST_TYPE_ORDER,
+  getHazardLevelsForTestType,
   type HazardLevel,
   type ConditionEffect,
+  type TestType,
 } from '@/lib/icmsf/tables';
 import {
   resolveCase,
@@ -50,10 +52,25 @@ export default function IcmsfPage() {
   const s = getSharedStyles(theme);
   const { isPro, isLoggedIn } = useSubscription();
 
+  const [testType, setTestType] = useState<TestType | ''>('');
   const [hazardLevel, setHazardLevel] = useState<HazardLevel | ''>('');
   const [conditionEffect, setConditionEffect] = useState<ConditionEffect | ''>('');
   const [limits, setLimits] = useState<Limits>({ m: null, M: null });
   const [riskCheckP, setRiskCheckP] = useState<number>(10);
+
+  const availableHazardLevels = useMemo(
+    () => (testType ? getHazardLevelsForTestType(testType) : []),
+    [testType],
+  );
+
+  function handleTestTypeChange(next: TestType) {
+    setTestType(next);
+    // Reset everything downstream — a hazard level valid for the previous
+    // test type may not exist for the new one.
+    setHazardLevel('');
+    setConditionEffect('');
+    setLimits({ m: null, M: null });
+  }
 
   const resolvedCase = useMemo(() => {
     if (!hazardLevel || !conditionEffect) return null;
@@ -167,7 +184,32 @@ export default function IcmsfPage() {
           />
         </div>
 
+        {/* Step 0 — Test method type */}
+        <div style={s.card}>
+          <div style={s.sectionTitle}>{messages.step0Title}</div>
+          <div>
+            <div style={s.label}>{messages.testTypeLabel}</div>
+            <p style={{ fontSize: 12, color: c.muted, marginTop: 0, marginBottom: 6 }}>{messages.testTypeHelp}</p>
+            <select
+              style={s.select}
+              value={testType}
+              onChange={(e) => handleTestTypeChange(e.target.value as TestType)}
+            >
+              <option value="">—</option>
+              {TEST_TYPE_ORDER.map((t) => (
+                <option key={t} value={t}>
+                  {messages.testTypes[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {!testType && (
+            <p style={{ fontSize: 13, color: c.muted, marginTop: 14 }}>{messages.testTypeRequired}</p>
+          )}
+        </div>
+
         {/* Step 1 — Case selector */}
+        {testType && (
         <div style={s.card}>
           <div style={s.sectionTitle}>{messages.step1Title}</div>
 
@@ -183,7 +225,7 @@ export default function IcmsfPage() {
                 onChange={(e) => setHazardLevel(e.target.value as HazardLevel)}
               >
                 <option value="">—</option>
-                {HAZARD_LEVEL_ORDER.map((h) => (
+                {availableHazardLevels.map((h) => (
                   <option key={h} value={h}>
                     {messages.hazardLevels[h]}
                   </option>
@@ -232,7 +274,12 @@ export default function IcmsfPage() {
               <span style={{ ...s.badge, background: c.accent, color: theme === 'dark' ? '#04211f' : '#fff' }}>
                 {messages.resolvedCaseLabel(resolvedCase.case)}
               </span>
-              <span style={{ fontSize: 13, color: c.text }}>{messages.planClassLabel(resolvedCase.planClass)}</span>
+              <span style={{ fontSize: 13, color: c.text }}>
+                {messages.planClassLabel(resolvedCase.planClass)}
+                <span style={{ color: c.muted, fontWeight: 400 }}>
+                  {' '}— {messages.planClassDescription(resolvedCase.planClass)}
+                </span>
+              </span>
               <span style={{ fontSize: 13, color: c.muted }}>
                 {messages.sampleSizeLabel}: <b style={{ color: c.text }}>{resolvedCase.n}</b>
               </span>
@@ -242,6 +289,7 @@ export default function IcmsfPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Step 2 — limits */}
         {resolvedCase && (
@@ -459,7 +507,7 @@ export default function IcmsfPage() {
                 tool="icmsf"
                 defaultName={`ICMSF — ${new Date().toLocaleDateString('en-US')}`}
                 getPayload={() =>
-                  !plan ? null : { input_data: { hazardLevel, conditionEffect, limits }, results: plan }
+                  !plan ? null : { input_data: { testType, hazardLevel, conditionEffect, limits }, results: plan }
                 }
               />
             </div>

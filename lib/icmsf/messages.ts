@@ -13,6 +13,22 @@ export const messages = {
   darkModeToggleOn: '🌙 Dark',
   darkModeToggleOff: '☀️ Light',
 
+  // Step 0 — Test method type
+  step0Title: 'Step 0 — What kind of test are you running?',
+  testTypeLabel: 'Test method type',
+  testTypeHelp:
+    'This is not an extra setting — it determines which sampling plan structure applies, and narrows the ' +
+    'hazard levels below to only the ones reachable for this test type.',
+  testTypes: {
+    qualitative:
+      'Qualitative — Presence/Absence (e.g. Salmonella, Listeria, Shigella). Result: positive or negative ' +
+      'in a fixed sample weight (e.g. /25g). Always resolves to a 2-class plan — n, c, m only, no M.',
+    quantitative:
+      'Quantitative — Enumeration (e.g. Total Plate Count, Coliforms, Staph aureus counts). Result: CFU/g ' +
+      'or CFU/ml. Always resolves to a 3-class plan — n, c, m, and M.',
+  } as Record<'qualitative' | 'quantitative', string>,
+  testTypeRequired: 'Select a test method type to see the relevant hazard levels.',
+
   // Step 1 — Case selector wizard
   step1Title: 'Step 1 — Select your sampling plan Case',
   hazardLevelLabel: 'Degree of health hazard',
@@ -35,6 +51,8 @@ export const messages = {
 
   resolvedCaseLabel: (caseNumber: number) => `Case ${caseNumber}`,
   planClassLabel: (planClass: 2 | 3): string => (planClass === 2 ? '2-class plan' : '3-class plan'),
+  planClassDescription: (planClass: 2 | 3): string =>
+    planClass === 2 ? 'Presence/Absence (Qualitative) — no M' : 'Enumeration (Quantitative) — full n/c/m/M',
   sampleSizeLabel: 'n (sample units)',
   acceptNumberLabel: 'c (max allowed defective/marginal units)',
 

@@ -58,6 +58,26 @@ export type ConditionEffect =
 
 export type PlanClass = 2 | 3;
 
+// ─────────────────────────────────────────────────────────────────────────
+// Test method type (Qualitative vs Quantitative)
+// ─────────────────────────────────────────────────────────────────────────
+// Not a new/independent input — it's the same grouping Table 6-1 already
+// encodes via planClass per hazardLevel:
+//   utility / low / moderate_limited        -> planClass 3 -> Quantitative
+//   moderate_extensive / severe             -> planClass 2 -> Qualitative
+// Exposing it as an explicit first choice lets the UI filter the hazard
+// level list down to only the levels that are actually reachable for that
+// test type, instead of relying on the person to already know which
+// hazard levels imply which plan class.
+export type TestType = 'qualitative' | 'quantitative';
+
+export const TEST_TYPE_ORDER: TestType[] = ['qualitative', 'quantitative'];
+
+export const PLAN_CLASS_BY_TEST_TYPE: Record<TestType, PlanClass> = {
+  qualitative: 2,  // Presence/Absence — n, c, m only, no M
+  quantitative: 3, // Enumeration — n, c, m, M
+};
+
 export interface IcmsfCase {
   case: number; // 1–15
   hazardLevel: HazardLevel;
@@ -117,3 +137,16 @@ export const HAZARD_LEVEL_ORDER: HazardLevel[] = [
 ];
 
 export const CONDITION_EFFECT_ORDER: ConditionEffect[] = ['reduce', 'none', 'increase'];
+
+/**
+ * Hazard levels reachable for a given test type, in HAZARD_LEVEL_ORDER.
+ * Derived from each hazard level's planClass in ICMSF_CASES rather than
+ * hardcoded twice, so this can never drift out of sync with the Table 6-1
+ * data above.
+ */
+export function getHazardLevelsForTestType(testType: TestType): HazardLevel[] {
+  const targetPlanClass = PLAN_CLASS_BY_TEST_TYPE[testType];
+  return HAZARD_LEVEL_ORDER.filter(
+    (h) => ICMSF_CASES.find((c) => c.hazardLevel === h)?.planClass === targetPlanClass
+  );
+}

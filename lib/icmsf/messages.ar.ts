@@ -14,6 +14,22 @@ export const messagesAr: IcmsfMessages = {
   darkModeToggleOn: '🌙 داكن',
   darkModeToggleOff: '☀️ فاتح',
 
+  // Step 0 — Test method type
+  step0Title: 'الخطوة 0 — ما نوع الاختبار الذي تجريه؟',
+  testTypeLabel: 'نوع طريقة الاختبار',
+  testTypeHelp:
+    'هذا ليس إعدادًا إضافيًا — هو الذي يحدد بنية خطة العينات المطبّقة، ويُظهر أدناه فقط درجات الخطورة ' +
+    'الممكنة لهذا النوع من الاختبار.',
+  testTypes: {
+    qualitative:
+      'Qualitative — كشف وجود/عدم وجود (مثل Salmonella وListeria وShigella). النتيجة: موجب أو سالب في وزن ' +
+      'عينة ثابت (مثل /25g). دائمًا خطة 2-class — n وc وm فقط، بدون M.',
+    quantitative:
+      'Quantitative — عدّ (Enumeration) (مثل Total Plate Count وColiforms وعدّ Staph aureus). النتيجة: ' +
+      'CFU/g أو CFU/ml. دائمًا خطة 3-class — n وc وm وM.',
+  } as Record<'qualitative' | 'quantitative', string>,
+  testTypeRequired: 'اختر نوع طريقة الاختبار لعرض درجات الخطورة المرتبطة به.',
+
   // Step 1 — Case selector wizard
   step1Title: 'الخطوة 1 — تحديد Case خطة العينات',
   hazardLevelLabel: 'درجة الخطورة الصحية',
@@ -36,6 +52,8 @@ export const messagesAr: IcmsfMessages = {
 
   resolvedCaseLabel: (caseNumber: number) => `Case ${caseNumber}`,
   planClassLabel: (planClass: 2 | 3) => (planClass === 2 ? 'خطة 2-class' : 'خطة 3-class'),
+  planClassDescription: (planClass: 2 | 3) =>
+    planClass === 2 ? 'كشف وجود/عدم وجود (Qualitative) — بدون M' : 'عدّ (Quantitative) — n/c/m/M كاملة',
   sampleSizeLabel: 'n (عدد وحدات العينة)',
   acceptNumberLabel: 'c (الحد الأقصى المسموح من الوحدات غير المطابقة/الحدية)',
 
