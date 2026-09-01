@@ -71,6 +71,12 @@ export const messages = {
   planSummary: (n: number, c: number) => `Test ${n} sample units. Reject the lot if more than ${c} are unacceptable.`,
   threeClassSummary: (n: number, c: number) =>
     `Test ${n} sample units. Reject the lot if any unit exceeds M, and/or if more than ${c} units exceed m.`,
+  planTableCaseHeader: 'Case',
+  planTablePlanHeader: 'Plan',
+  planTableNHeader: 'n',
+  planTableCHeader: 'c',
+  planTableMHeader: 'm (marginal limit)',
+  planTableBigMHeader: 'M (unacceptable limit)',
 
   // OC curve
   ocCurveTitle: 'Operating Characteristic (OC) curve',

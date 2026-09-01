@@ -695,12 +695,12 @@ export default function IcmsfPage() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  <th style={s.th}>Case</th>
-                  <th style={s.th}>Plan</th>
-                  <th style={s.th}>n</th>
-                  <th style={s.th}>c</th>
-                  <th style={s.th}>m</th>
-                  <th style={s.th}>M</th>
+                  <th style={s.th}>{messages.planTableCaseHeader}</th>
+                  <th style={s.th}>{messages.planTablePlanHeader}</th>
+                  <th style={s.th}>{messages.planTableNHeader}</th>
+                  <th style={s.th}>{messages.planTableCHeader}</th>
+                  <th style={s.th}>{messages.planTableMHeader}</th>
+                  <th style={s.th}>{messages.planTableBigMHeader}</th>
                 </tr>
               </thead>
               <tbody>

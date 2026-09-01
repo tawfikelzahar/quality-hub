@@ -72,6 +72,12 @@ export const messagesAr: IcmsfMessages = {
   planSummary: (n: number, c: number) => `اختبر ${n} وحدة عينة. ارفض الدفعة إذا كانت أكثر من ${c} وحدة غير مطابقة.`,
   threeClassSummary: (n: number, c: number) =>
     `اختبر ${n} وحدة عينة. ارفض الدفعة إذا تجاوزت أي وحدة قيمة M، و/أو إذا تجاوزت أكثر من ${c} وحدة قيمة m.`,
+  planTableCaseHeader: 'Case',
+  planTablePlanHeader: 'الخطة',
+  planTableNHeader: 'n',
+  planTableCHeader: 'c',
+  planTableMHeader: 'm (الحد الحدّي)',
+  planTableBigMHeader: 'M (الحد غير المقبول)',
 
   // OC curve
   ocCurveTitle: 'منحنى Operating Characteristic (OC)',
