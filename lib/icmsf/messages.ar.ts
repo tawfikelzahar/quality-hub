@@ -76,8 +76,10 @@ export const messagesAr: IcmsfMessages = {
   planTablePlanHeader: 'الخطة',
   planTableNHeader: 'n',
   planTableCHeader: 'c',
-  planTableMHeader: 'm (الحد الحدّي)',
-  planTableBigMHeader: 'M (الحد غير المقبول)',
+  planTableMLetter: 'm',
+  planTableMDescription: '(الحد الحدّي)',
+  planTableBigMLetter: 'M',
+  planTableBigMDescription: '(الحد غير المقبول)',
 
   // OC curve
   ocCurveTitle: 'منحنى Operating Characteristic (OC)',

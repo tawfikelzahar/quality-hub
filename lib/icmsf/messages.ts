@@ -75,8 +75,10 @@ export const messages = {
   planTablePlanHeader: 'Plan',
   planTableNHeader: 'n',
   planTableCHeader: 'c',
-  planTableMHeader: 'm (marginal limit)',
-  planTableBigMHeader: 'M (unacceptable limit)',
+  planTableMLetter: 'm',
+  planTableMDescription: '(marginal limit)',
+  planTableBigMLetter: 'M',
+  planTableBigMDescription: '(unacceptable limit)',
 
   // OC curve
   ocCurveTitle: 'Operating Characteristic (OC) curve',

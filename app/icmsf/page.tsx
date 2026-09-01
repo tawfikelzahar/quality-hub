@@ -699,8 +699,12 @@ export default function IcmsfPage() {
                   <th style={s.th}>{messages.planTablePlanHeader}</th>
                   <th style={s.th}>{messages.planTableNHeader}</th>
                   <th style={s.th}>{messages.planTableCHeader}</th>
-                  <th style={s.th}>{messages.planTableMHeader}</th>
-                  <th style={s.th}>{messages.planTableBigMHeader}</th>
+                  <th style={s.th}>
+                    <span style={{ textTransform: 'none' }}>{messages.planTableMLetter}</span> {messages.planTableMDescription}
+                  </th>
+                  <th style={s.th}>
+                    {messages.planTableBigMLetter} {messages.planTableBigMDescription}
+                  </th>
                 </tr>
               </thead>
               <tbody>
