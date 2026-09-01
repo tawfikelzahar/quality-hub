@@ -138,3 +138,153 @@ export function consumerRiskAt(n: number, c: number, defectiveProportion: number
 }
 
 export { ICMSF_CASES, factorial };
+
+// ─────────────────────────────────────────────────────────────────────────
+// EXTENDED RISK ANALYSIS — Three-class OC surface (for 3-class Cases 1–9)
+// ─────────────────────────────────────────────────────────────────────────
+// IMPORTANT — READ BEFORE MODIFYING
+//
+// This section computes an acceptance-probability curve for 3-class plans
+// (Cases 1–9), something the ICMSF/NAP methodology above explicitly does
+// NOT provide as a single curve (see METHODOLOGY SOURCE at the top of this
+// file, and ocCurveUnavailable3Class in messages.ts). It is included here
+// as a SEPARATE, CLEARLY-LABELLED supplementary risk-analysis feature —
+// never presented as part of ICMSF Table 6-1 or Codex CAC/GL 21 itself.
+//
+// Unlike Table 6-1's Case lookup (which is a fixed reference table with no
+// numerical computation involved), a 3-class OC curve requires assuming a
+// statistical distribution for the lot's true contamination level. This
+// tool assumes the standard choice for quantitative (enumeration) results:
+// the concentration is lognormally distributed (normal on the log10
+// scale) — the same assumption used throughout quantitative microbiology
+// risk assessment (ICMSF's own "Microorganisms in Foods 7", and Codex's
+// risk-assessment guidance documents).
+//
+// METHODOLOGY SOURCE: WHO/FAO FOSTAT tool ("FOS-2016_1"), the companion
+// spreadsheet to "Statistical Aspects of Microbiological Criteria Related
+// to Foods: A Risk Manager's Guide" (FAO/WHO Microbiological Risk
+// Assessment Series No. 24, 2016) — the reference implementation used by
+// international food-safety regulators for exactly this calculation.
+// Every formula below is transcribed cell-by-cell from that spreadsheet's
+// "Three-class Concentration" and "Two-class Concentration" sheets, and
+// independently cross-verified in Node.js against the spreadsheet's own
+// cached values (see calculator verification notes in project history).
+//
+// This is NOT part of ICMSF Table 6-1 or Codex CAC/GL 21. It requires an
+// additional input (SD — the standard deviation of concentration on the
+// log10 scale) that Table 6-1 itself never asks for, because Table 6-1
+// only ever defines the accept/reject rule (n, c, m, M), not the lot's
+// underlying contamination distribution.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Abramowitz & Stegun 7.1.26 erf approximation, |error| <= 1.5e-7 — same
+ * implementation used in lib/regression/calculator.ts, kept identical here
+ * so normal-distribution results are consistent app-wide. */
+function erf(x: number): number {
+  const sign = x < 0 ? -1 : 1;
+  const ax = Math.abs(x);
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+  const t = 1 / (1 + p * ax);
+  const y = 1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax);
+  return sign * y;
+}
+
+function stdNormalCdf(z: number): number {
+  return 0.5 * (1 + erf(z / Math.SQRT2));
+}
+
+/** Excel NORMDIST(x, mean, sd, TRUE). */
+function normDist(x: number, mean: number, sd: number): number {
+  if (sd <= 0) return x >= mean ? 1 : 0;
+  return stdNormalCdf((x - mean) / sd);
+}
+
+/** log10-scale mean/SD -> arithmetic-scale mean (lognormal assumption).
+ * Spreadsheet: "Two/Three-class Concentration" sheets, e.g.
+ * 10^(mean + 0.5*LN(10)*SD^2). */
+export function logMeanToArithmeticMean(logMean: number, logSd: number): number {
+  return Math.pow(10, logMean + 0.5 * Math.LN10 * logSd * logSd);
+}
+
+export interface ThreeClassConcentrationInput {
+  n: number;
+  c: number;
+  /** Standard deviation of concentration, log10 scale */
+  sd: number;
+  /** Marginal limit, log10 scale (m) */
+  m: number;
+  /** Unacceptable limit, log10 scale (M) */
+  M: number;
+}
+
+export interface ThreeClassConcentrationPoint {
+  logMean: number;
+  arithmeticMean: number;
+  pAcceptableRegion: number; // P(Conc <= m)
+  pMarginalRegion: number;   // P(m < Conc <= M)
+  pUnacceptableRegion: number; // P(Conc > M)
+  pAccept: number;
+  pReject: number;
+}
+
+/**
+ * Three-class acceptance probability at a given lot mean concentration
+ * (log10 scale). Reproduces the WHO/FAO FOSTAT spreadsheet's "Three-class
+ * Concentration" sheet formula exactly:
+ *   pAcceptableRegion = NORMDIST(m, logMean, SD, TRUE)
+ *   pMarginalRegion   = NORMDIST(M, logMean, SD, TRUE) - NORMDIST(m, logMean, SD, TRUE)
+ *   pAccept = BINOMDIST(c, n, pMarginalRegion / (pMarginalRegion + pAcceptableRegion), TRUE)
+ *             * (pAcceptableRegion + pMarginalRegion)^n
+ * i.e.: the probability that no unit falls in the unacceptable region,
+ * times the probability that (among units that do not) at most c are
+ * marginal rather than acceptable.
+ */
+export function threeClassAcceptanceAt(
+  input: ThreeClassConcentrationInput,
+  logMean: number,
+): ThreeClassConcentrationPoint {
+  const { n, c, sd, m, M } = input;
+  const arithmeticMean = logMeanToArithmeticMean(logMean, sd);
+  const pAcceptableRegion = normDist(m, logMean, sd);
+  const pMarginalRegion = normDist(M, logMean, sd) - normDist(m, logMean, sd);
+  const pUnacceptableRegion = 1 - normDist(M, logMean, sd);
+
+  const denom = pMarginalRegion + pAcceptableRegion;
+  const conditionalP = denom > 0 ? pMarginalRegion / denom : 0;
+  const pAccept = Math.min(1, Math.max(0, probabilityOfAcceptance(n, c, conditionalP) * Math.pow(denom, n)));
+
+  return {
+    logMean,
+    arithmeticMean,
+    pAcceptableRegion,
+    pMarginalRegion,
+    pUnacceptableRegion,
+    pAccept,
+    pReject: 1 - pAccept,
+  };
+}
+
+/** Generates a Three-class OC curve across a log10-mean-concentration
+ * range. Default range centers on m, spanning 4 log10 units — wide enough
+ * to show the full transition from near-0% to near-100% acceptance for
+ * typical SD values (0.5–1.5), while staying anchored to the plan's own m. */
+export function generateThreeClassOcCurve(
+  input: ThreeClassConcentrationInput,
+  logMeanMin?: number,
+  logMeanMax?: number,
+  resolution?: number,
+): ThreeClassConcentrationPoint[] {
+  const min = logMeanMin ?? input.m - 3;
+  const max = logMeanMax ?? input.M + 1;
+  const step = resolution ?? ((max - min) / 100 || 0.05);
+  const points: ThreeClassConcentrationPoint[] = [];
+  for (let x = min; x <= max + 1e-9; x += step) {
+    points.push(threeClassAcceptanceAt(input, Math.min(x, max)));
+  }
+  return points;
+}

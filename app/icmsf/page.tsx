@@ -14,7 +14,10 @@ import {
   resolvePlan,
   generateOcCurve,
   probabilityOfAcceptance,
+  generateThreeClassOcCurve,
+  threeClassAcceptanceAt,
   type Limits,
+  type ThreeClassConcentrationPoint,
 } from '@/lib/icmsf/calculator';
 import { messages as messagesEn, type IcmsfMessages } from '@/lib/icmsf/messages';
 import { messagesAr } from '@/lib/icmsf/messages.ar';
@@ -83,6 +86,15 @@ export default function IcmsfPage() {
   const [limits, setLimits] = useState<Limits>({ m: null, M: null });
   const [riskCheckP, setRiskCheckP] = useState<number>(10);
 
+  // Extended risk analysis — Three-class OC curve (supplementary, see
+  // threeClassRiskAnalysisIntro). Off by default: it requires an extra
+  // input (SD) that Table 6-1 itself never asks for, so it should be an
+  // opt-in addition, not something shown automatically alongside the
+  // official Case/plan lookup.
+  const [showThreeClassRisk, setShowThreeClassRisk] = useState(false);
+  const [sdConcentration, setSdConcentration] = useState<number>(0.8);
+  const [threeClassPointLogMean, setThreeClassPointLogMean] = useState<number | null>(null);
+
   const availableHazardLevels = useMemo(
     () => (testType ? getHazardLevelsForTestType(testType) : []),
     [testType],
@@ -116,6 +128,41 @@ export default function IcmsfPage() {
     if (!plan || !plan.ocCurveAvailable) return null;
     return probabilityOfAcceptance(plan.icmsfCase.n, plan.icmsfCase.c, riskCheckP / 100);
   }, [plan, riskCheckP]);
+
+  // Three-class supplementary risk analysis — only meaningful when both m
+  // and M are entered (Step 2) and the toggle is on.
+  const threeClassInput = useMemo(() => {
+    if (!plan || plan.icmsfCase.planClass !== 3) return null;
+    if (limits.m === null || limits.M === null) return null;
+    return { n: plan.icmsfCase.n, c: plan.icmsfCase.c, sd: sdConcentration, m: limits.m, M: limits.M };
+  }, [plan, limits, sdConcentration]);
+
+  const threeClassCurve = useMemo(() => {
+    if (!threeClassInput || !showThreeClassRisk) return null;
+    return generateThreeClassOcCurve(threeClassInput);
+  }, [threeClassInput, showThreeClassRisk]);
+
+  const threeClassPointDefault = useMemo(
+    () => (threeClassInput ? threeClassInput.m - 1 : 0),
+    [threeClassInput],
+  );
+  const threeClassPointValue = threeClassPointLogMean ?? threeClassPointDefault;
+
+  const threeClassPoint: ThreeClassConcentrationPoint | null = useMemo(() => {
+    if (!threeClassInput) return null;
+    return threeClassAcceptanceAt(threeClassInput, threeClassPointValue);
+  }, [threeClassInput, threeClassPointValue]);
+
+  const threeClassLinePath = useMemo(() => {
+    if (!threeClassCurve || !threeClassInput) return '';
+    const min = threeClassInput.m - 3;
+    const max = threeClassInput.M + 1;
+    const range = max - min || 1;
+    const xForLogMean = (lm: number) => PAD.left + ((lm - min) / range) * PLOT_W;
+    return threeClassCurve
+      .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xForLogMean(pt.logMean).toFixed(1)} ${yForPa(pt.pAccept).toFixed(1)}`)
+      .join(' ');
+  }, [threeClassCurve, threeClassInput]);
 
   const linePath = useMemo(() => {
     if (!ocCurve) return '';
@@ -239,6 +286,66 @@ export default function IcmsfPage() {
     ctx.y = plotBottom + 30;
   }
 
+  /** Vector three-class OC curve, drawn the same way as drawOcCurvePdf but
+   * with a log10-concentration x-axis instead of a proportion-defective
+   * one. Only called when the supplementary three-class risk analysis is
+   * active (see showThreeClassRisk). */
+  function drawThreeClassOcCurvePdf(
+    ctx: ReportContext,
+    input: { m: number; M: number },
+    points: ThreeClassConcentrationPoint[],
+    pointValue: number,
+    point: ThreeClassConcentrationPoint,
+  ) {
+    const { pdf, margin, pageWidth } = ctx;
+    const chartH = 190;
+    sectionHeading(ctx, 'Additional Risk Analysis (Three-class OC Curve — Supplementary)', chartH + 34);
+
+    const plotLeft = margin + 34;
+    const plotRight = pageWidth - margin;
+    const plotTop = ctx.y;
+    const plotBottom = ctx.y + chartH;
+    const plotW = plotRight - plotLeft;
+    const plotH = plotBottom - plotTop;
+
+    const min = input.m - 3;
+    const max = input.M + 1;
+    const range = max - min || 1;
+    const xForLogMean = (lm: number) => plotLeft + ((lm - min) / range) * plotW;
+    const yFor = (pa: number) => plotBottom - pa * plotH;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7.5);
+    [0, 0.25, 0.5, 0.75, 1].forEach((frac) => {
+      const y = yFor(frac);
+      pdf.setDrawColor(...REPORT_COLORS.border);
+      pdf.setLineWidth(0.5);
+      pdf.line(plotLeft, y, plotRight, y);
+      pdf.setTextColor(...REPORT_COLORS.muted);
+      pdf.text(`${Math.round(frac * 100)}%`, plotLeft - 6, y + 2, { align: 'right' });
+      const val = min + frac * range;
+      pdf.text(val.toFixed(1), xForLogMean(val), plotBottom + 10, { align: 'center' });
+    });
+
+    pdf.setDrawColor(...REPORT_COLORS.brand);
+    pdf.setLineWidth(1.4);
+    for (let i = 1; i < points.length; i++) {
+      pdf.line(xForLogMean(points[i - 1].logMean), yFor(points[i - 1].pAccept), xForLogMean(points[i].logMean), yFor(points[i].pAccept));
+    }
+
+    pdf.setFillColor(...REPORT_COLORS.warn);
+    pdf.setDrawColor(...REPORT_COLORS.white);
+    pdf.setLineWidth(0.8);
+    pdf.circle(xForLogMean(pointValue), yFor(point.pAccept), 2.4, 'FD');
+
+    pdf.setTextColor(...REPORT_COLORS.muted);
+    pdf.setFontSize(8);
+    pdf.text(sanitizePdfText('Lot mean concentration (log10 scale)'), plotLeft + plotW / 2, plotBottom + 22, { align: 'center' });
+    pdf.text(sanitizePdfText('Probability of acceptance (%)'), margin, plotTop - 6);
+
+    ctx.y = plotBottom + 30;
+  }
+
   async function exportExcel() {
     if (!isPro) { goToPricing('icmsf', 'excel'); return; }
     if (!plan || !resolvedCase || !hazardLevel || !conditionEffect || !testType) return;
@@ -304,10 +411,32 @@ export default function IcmsfPage() {
       }
     } else {
       sheet.note(messagesEn.ocCurveUnavailable3Class, 'neutral');
+      if (threeClassCurve && threeClassInput && threeClassPoint) {
+        sheet.sectionHeading('Additional Risk Analysis (Three-class OC Curve — Supplementary)');
+        sheet.note(messagesEn.threeClassRiskAnalysisIntro, 'neutral');
+        sheet.table({
+          headers: ['Field', 'Value'],
+          rows: [
+            [messagesEn.sdConcentrationLabel, String(threeClassInput.sd)],
+          ],
+          zebra: false,
+        });
+        sheet.table({
+          headers: ['Mean (log10)', 'P(accept) %'],
+          rows: threeClassCurve
+            .filter((_, i) => i % 5 === 0)
+            .map((pt) => [pt.logMean.toFixed(2), Math.round(pt.pAccept * 1000) / 10]),
+        });
+        sheet.note(
+          `At a lot mean concentration of ${threeClassPointValue.toFixed(2)} (log10), this plan accepts the lot ${Math.round(threeClassPoint.pAccept * 1000) / 10}% of the time.`,
+          'warning',
+        );
+      }
     }
 
     sheet.sectionHeading('Methodology');
     sheet.note(messagesEn.methodologyNote, 'neutral');
+    sheet.note(messagesEn.complianceDisclaimer, 'neutral');
     sheet.freezeHeader(2);
 
     await report.download('icmsf-sampling-plan.xlsx');
@@ -359,9 +488,19 @@ export default function IcmsfPage() {
       }
     } else {
       calloutBox(ctx, messagesEn.ocCurveUnavailable3Class, 'info');
+      if (threeClassCurve && threeClassInput && threeClassPoint) {
+        calloutBox(ctx, messagesEn.threeClassRiskAnalysisIntro, 'info');
+        drawThreeClassOcCurvePdf(ctx, threeClassInput, threeClassCurve, threeClassPointValue, threeClassPoint);
+        calloutBox(
+          ctx,
+          `At a lot mean concentration of ${threeClassPointValue.toFixed(2)} (log10), this plan accepts the lot ${Math.round(threeClassPoint.pAccept * 1000) / 10}% of the time.`,
+          'warn',
+        );
+      }
     }
 
     interpretationBox(ctx, 'Methodology', messagesEn.methodologyNote, 'info');
+    interpretationBox(ctx, messagesEn.complianceDisclaimerTitle, messagesEn.complianceDisclaimer, 'info');
 
     finalizeReport(ctx);
     ctx.pdf.save('icmsf-sampling-plan.pdf');
@@ -382,9 +521,13 @@ export default function IcmsfPage() {
               Press reproduction of ICMSF's Table 6-1 (source: ICMSF 1974, p.60),
               and cross-checked against every explicit case/n/c example found
               across ICMSF's own commodity chapters (raw meat, poultry, dairy,
-              pet foods). The OC curve uses the standard binomial acceptance-
-              sampling model, numerically verified against ICMSF's own worked
-              examples (n=10,c=2 and n=5,c=0)."
+              pet foods). The 2-class OC curve uses the standard binomial
+              acceptance-sampling model, numerically verified against ICMSF's
+              own worked examples (n=10,c=2 and n=5,c=0). The optional 3-class
+              risk-analysis curve is a supplementary tool (not part of ICMSF
+              methodology itself) transcribed and numerically cross-verified
+              against the WHO/FAO FOSTAT reference spreadsheet (FAO/WHO
+              Microbiological Risk Assessment Series No. 24, 2016)."
           />
         </div>
 
@@ -583,7 +726,191 @@ export default function IcmsfPage() {
             </p>
 
             {!plan.ocCurveAvailable && (
-              <p style={{ fontSize: 13, color: c.muted }}>{messages.ocCurveUnavailable3Class}</p>
+              <>
+                <p style={{ fontSize: 13, color: c.muted }}>{messages.ocCurveUnavailable3Class}</p>
+
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: '14px 16px',
+                    background: c.surface2,
+                    border: `1px solid ${c.border}`,
+                    borderRadius: 10,
+                  }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showThreeClassRisk}
+                      onChange={(e) => setShowThreeClassRisk(e.target.checked)}
+                    />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: c.text }}>
+                      {messages.threeClassRiskAnalysisToggle}
+                    </span>
+                  </label>
+
+                  {showThreeClassRisk && (
+                    <>
+                      <p style={{ fontSize: 12, color: c.muted, marginTop: 10 }}>
+                        {messages.threeClassRiskAnalysisIntro}
+                      </p>
+
+                      {(limits.m === null || limits.M === null) && (
+                        <p style={{ fontSize: 13, color: c.muted, marginTop: 10 }}>
+                          {messages.incompleteSelection}
+                        </p>
+                      )}
+
+                      {threeClassInput && (
+                        <>
+                          <div style={{ marginTop: 14, maxWidth: 260 }}>
+                            <div style={s.label}>{messages.sdConcentrationLabel}</div>
+                            <input
+                              type="number"
+                              step={0.1}
+                              min={0.01}
+                              style={s.input}
+                              value={sdConcentration}
+                              onChange={(e) => setSdConcentration(Number(e.target.value))}
+                            />
+                            <p style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>
+                              {messages.sdConcentrationHelp}
+                            </p>
+                          </div>
+
+                          {threeClassCurve && (
+                            <svg
+                              width="100%"
+                              viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+                              role="img"
+                              aria-label={messages.threeClassRiskAnalysisTitle}
+                              style={{ marginTop: 16 }}
+                            >
+                              {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
+                                <g key={frac}>
+                                  <line
+                                    x1={PAD.left}
+                                    x2={CHART_W - PAD.right}
+                                    y1={yForPa(frac)}
+                                    y2={yForPa(frac)}
+                                    stroke={c.grid}
+                                    strokeWidth={1}
+                                  />
+                                  <text x={PAD.left - 8} y={yForPa(frac) + 4} fontSize={10} fill={c.muted} textAnchor="end">
+                                    {Math.round(frac * 100)}%
+                                  </text>
+                                </g>
+                              ))}
+                              {(() => {
+                                const min = threeClassInput.m - 3;
+                                const max = threeClassInput.M + 1;
+                                const range = max - min || 1;
+                                const xForLogMean = (lm: number) => PAD.left + ((lm - min) / range) * PLOT_W;
+                                return [0, 0.25, 0.5, 0.75, 1].map((frac) => {
+                                  const val = min + frac * range;
+                                  return (
+                                    <text
+                                      key={`x-${frac}`}
+                                      x={xForLogMean(val)}
+                                      y={CHART_H - PAD.bottom + 18}
+                                      fontSize={10}
+                                      fill={c.muted}
+                                      textAnchor="middle"
+                                    >
+                                      {val.toFixed(1)}
+                                    </text>
+                                  );
+                                });
+                              })()}
+                              <text x={PAD.left + PLOT_W / 2} y={CHART_H - 4} fontSize={11} fill={c.muted} textAnchor="middle">
+                                {messages.threeClassOcCurveXAxisLabel}
+                              </text>
+                              <text
+                                x={-(PAD.top + PLOT_H / 2)}
+                                y={14}
+                                fontSize={11}
+                                fill={c.muted}
+                                textAnchor="middle"
+                                transform="rotate(-90)"
+                              >
+                                {messages.ocCurveYAxisLabel}
+                              </text>
+
+                              <path d={threeClassLinePath} fill="none" stroke={c.accent} strokeWidth={2.5} />
+
+                              {threeClassPoint && (
+                                <circle
+                                  cx={
+                                    PAD.left +
+                                    ((threeClassPointValue - (threeClassInput.m - 3)) /
+                                      (threeClassInput.M + 1 - (threeClassInput.m - 3) || 1)) *
+                                      PLOT_W
+                                  }
+                                  cy={yForPa(threeClassPoint.pAccept)}
+                                  r={5}
+                                  fill={c.amber}
+                                  stroke={theme === 'dark' ? '#000' : '#fff'}
+                                  strokeWidth={1.5}
+                                />
+                              )}
+                            </svg>
+                          )}
+
+                          {threeClassPoint && (
+                            <div
+                              style={{
+                                marginTop: 16,
+                                padding: '14px 16px',
+                                background: c.surface,
+                                border: `1px solid ${c.border}`,
+                                borderRadius: 10,
+                              }}
+                            >
+                              <div style={{ fontSize: 13, fontWeight: 700, color: c.text, marginBottom: 8 }}>
+                                {messages.threeClassCheckPointTitle}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+                                <span style={{ fontSize: 13, color: c.muted }}>{messages.threeClassCheckPointLabel}</span>
+                                <input
+                                  type="number"
+                                  step={0.1}
+                                  style={{ ...s.input, width: 100 }}
+                                  value={threeClassPointValue}
+                                  onChange={(e) => setThreeClassPointLogMean(Number(e.target.value))}
+                                />
+                              </div>
+                              <table style={s.table}>
+                                <tbody>
+                                  <tr>
+                                    <td style={s.td}>{messages.threeClassArithmeticMeanLabel}</td>
+                                    <td style={s.td}>{threeClassPoint.arithmeticMean.toFixed(3)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={s.td}>{messages.threeClassPAcceptableLabel}</td>
+                                    <td style={s.td}>{(Math.round(threeClassPoint.pAcceptableRegion * 1000) / 10)}%</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={s.td}>{messages.threeClassPMarginalLabel}</td>
+                                    <td style={s.td}>{(Math.round(threeClassPoint.pMarginalRegion * 1000) / 10)}%</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={s.td}>{messages.threeClassPUnacceptableLabel}</td>
+                                    <td style={s.td}>{(Math.round(threeClassPoint.pUnacceptableRegion * 1000) / 10)}%</td>
+                                  </tr>
+                                  <tr>
+                                    <td style={s.td}>{messages.pAcceptLabel}</td>
+                                    <td style={s.td}>{(Math.round(threeClassPoint.pAccept * 1000) / 10)}%</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </>
             )}
 
             {plan.ocCurveAvailable && ocCurve && (
@@ -684,7 +1011,22 @@ export default function IcmsfPage() {
 
         {/* Methodology note */}
         {plan && (
-          <p style={{ fontSize: 11, color: c.muted, opacity: 0.85 }}>{messages.methodologyNote}</p>
+          <>
+            <p style={{ fontSize: 11, color: c.muted, opacity: 0.85 }}>{messages.methodologyNote}</p>
+            <div
+              style={{
+                padding: '12px 16px',
+                background: c.surface2,
+                border: `1px solid ${c.border}`,
+                borderRadius: 10,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: c.text, marginBottom: 4 }}>
+                {messages.complianceDisclaimerTitle}
+              </div>
+              <p style={{ fontSize: 11, color: c.muted, margin: 0 }}>{messages.complianceDisclaimer}</p>
+            </div>
+          </>
         )}
 
         {/* Export */}
@@ -711,7 +1053,16 @@ export default function IcmsfPage() {
                 tool="icmsf"
                 defaultName={`ICMSF — ${new Date().toLocaleDateString('en-US')}`}
                 getPayload={() =>
-                  !plan ? null : { input_data: { testType, hazardLevel, conditionEffect, limits }, results: plan }
+                  !plan
+                    ? null
+                    : {
+                        input_data: { testType, hazardLevel, conditionEffect, limits },
+                        results: plan,
+                        threeClassRiskAnalysis:
+                          showThreeClassRisk && threeClassInput && threeClassPoint
+                            ? { sd: threeClassInput.sd, pointLogMean: threeClassPointValue, point: threeClassPoint }
+                            : null,
+                      }
                 }
               />
             </div>

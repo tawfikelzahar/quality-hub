@@ -86,6 +86,31 @@ export const messages = {
   consumerRiskOutputLabel: (pct: number, paPct: number) =>
     `...this plan would still accept the lot ${paPct}% of the time.`,
 
+  // Extended risk analysis — Three-class OC curve (supplementary, not part
+  // of ICMSF Table 6-1 / Codex CAC/GL 21 itself; see complianceDisclaimer)
+  threeClassRiskAnalysisTitle: 'Additional risk analysis for this 3-class plan',
+  threeClassRiskAnalysisIntro:
+    'ICMSF/Table 6-1 does not define a single OC curve for 3-class plans (see note below). This section ' +
+    'is a supplementary statistical analysis — not part of ICMSF or Codex methodology itself — that models ' +
+    'how this plan performs if your lot\'s contamination level follows a lognormal distribution (standard ' +
+    'in quantitative microbiology risk assessment). Use it as an additional decision-support signal, not as ' +
+    'a compliance requirement.',
+  threeClassRiskAnalysisToggle: 'Show additional risk analysis (Three-class OC curve)',
+  sdConcentrationLabel: 'Standard deviation of concentration, log10 scale ( SD )',
+  sdConcentrationHelp:
+    'How much the concentration varies lot-to-lot or unit-to-unit, on the log10 scale. If you don\'t know ' +
+    'this, a typical starting value for many food matrices is 0.6–1.0 — but use your own historical data ' +
+    'if you have it.',
+  threeClassOcCurveXAxisLabel: 'Lot mean concentration (log10 scale)',
+  threeClassPointOfInterestLabel: 'Mean concentration, log10 scale — point of interest',
+  threeClassArithmeticMeanLabel: 'Arithmetic mean',
+  threeClassPAcceptableLabel: 'P(Conc ≤ m) — acceptable',
+  threeClassPMarginalLabel: 'P(m < Conc ≤ M) — marginal',
+  threeClassPUnacceptableLabel: 'P(Conc > M) — unacceptable',
+  threeClassCheckPointTitle: 'Check a specific point',
+  threeClassCheckPointLabel: 'At this mean concentration (log10)...',
+  pAcceptLabel: 'P(accept)',
+
   // Export panel
   exportSectionTitle: 'Export',
   exportCsvButton: 'CSV',
@@ -102,14 +127,24 @@ export const messages = {
   methodologyNote:
     'Case selection follows ICMSF Table 6-1 (Suggested Sampling Plans for Combinations of Degrees of ' +
     "Health Hazard and Conditions of Use), independently verified against the National Academies Press " +
-    'reproduction of the same table. The OC curve uses the binomial acceptance-sampling model for 2-class ' +
-    'plans, the same approach ICMSF itself uses. m and M values are not supplied by this tool — enter ' +
+    'reproduction of the same table. The OC curve for 2-class plans uses the binomial acceptance-sampling ' +
+    'model, the same approach ICMSF itself uses. m and M values are not supplied by this tool — enter ' +
     'the values from your applicable standard.',
 
+  complianceDisclaimerTitle: 'What is and isn\'t a compliance requirement here',
+  complianceDisclaimer:
+    'Case selection (n/c from ICMSF Table 6-1) is aligned with Codex Alimentarius CAC/GL 21 methodology. ' +
+    'The Operating Characteristic curve — for both 2-class and 3-class plans — is a supplementary risk-' +
+    'analysis tool, not a requirement of ICMSF, Codex, or any other standard. No standard requires computing ' +
+    'or reviewing an OC curve as part of adopting a sampling plan. Use this tool to inform your own judgement ' +
+    '— it does not replace a review by a qualified food-safety professional or your applicable regulatory ' +
+    'and client standards.',
+
   footerNote:
-    'Case selection: ICMSF Table 6-1 methodology, cross-verified against multiple independent sources. ' +
-    'Aligned with Codex Alimentarius CAC/GL 21 principles. Not a substitute for your applicable national ' +
-    'or client microbiological standard.',
+    'Case selection: ICMSF Table 6-1 methodology, cross-verified against multiple independent sources, ' +
+    'aligned with Codex Alimentarius CAC/GL 21 principles. The OC curve (2-class and 3-class) is a ' +
+    'supplementary risk-analysis tool, not part of ICMSF/Codex methodology itself. Not a substitute for ' +
+    'your applicable national or client microbiological standard, or for review by a qualified professional.',
 };
 
 export type IcmsfMessages = typeof messages;
