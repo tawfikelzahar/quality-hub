@@ -3,7 +3,7 @@ import { createServerSupabase } from '@/lib/supabase-server'
 
 // نفس الأدوات المسموح بيها في CHECK constraint بتاع الجدول —
 // لو ضفنا أداة جديدة، لازم تتضاف هنا وفي الـ SQL مع بعض.
-const VALID_TOOLS = ['spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql', 'icmsf', 'regression', 'multiregression', 'imr', 'xbar_r', 'xbar_s'] as const
+const VALID_TOOLS = ['spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql', 'icmsf', 'regression', 'multiregression', 'imr', 'xbar_r', 'xbar_s', 'doe'] as const
 type Tool = (typeof VALID_TOOLS)[number]
 
 const MAX_SAVED_ANALYSES = 50

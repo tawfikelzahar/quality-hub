@@ -40,6 +40,7 @@ export const translations = {
     bc_imr: 'I-MR Chart',
     bc_xbar_r: 'Xbar-R Chart',
     bc_xbar_s: 'Xbar-S Chart',
+    bc_doe: 'Design of Experiments (Full Factorial)',
     bc_account: 'Account',
     bc_dashboard: 'Dashboard',
     bc_pricing: 'Pricing',
@@ -97,6 +98,8 @@ export const translations = {
     xbar_r_desc: 'X̄ and Range chart for subgrouped data · Nelson Rules screening · Process capability',
     xbar_s_title: 'Xbar-S Chart',
     xbar_s_desc: 'X̄ and Standard Deviation chart for larger subgroups (n ≥ 10) · Nelson Rules screening · Process capability',
+    doe_title: 'Design of Experiments (Full Factorial)',
+    doe_desc: '2–5 factor 2^k design matrix generator · Effects & Pareto of Effects · ANOVA · Coded regression equation',
 
     gagerr_title: 'Gage R&R Study',
     gagerr_desc: 'AIAG Average & Range method · %Study Variation · NDC · Range & X̄ charts',
@@ -125,6 +128,9 @@ export const translations = {
     section_reliability_label: 'Reliability',
     section_reliability_title: 'Reliability & Shelf-Life',
     section_reliability_desc: 'Estimate expiration dates and long-term product stability from accelerated or real-time data.',
+    section_doe_label: 'Design of Experiments',
+    section_doe_title: 'Design of Experiments',
+    section_doe_desc: 'Plan structured experiments and find which factors actually drive your process outcomes.',
 
     stability_title: 'Stability Study',
     stability_desc: 'ICH Q1E shelf-life estimation · Multi-batch regression · Poolability test',
@@ -761,6 +767,7 @@ export const translations = {
     bc_imr: 'مخطط I-MR',
     bc_xbar_r: 'مخطط Xbar-R',
     bc_xbar_s: 'مخطط Xbar-S',
+    bc_doe: 'تصميم التجارب (عاملي كامل)',
     bc_account: 'الحساب',
     bc_dashboard: 'لوحة التحكم',
     bc_pricing: 'الأسعار',
@@ -818,6 +825,8 @@ export const translations = {
     xbar_r_desc: 'مخطط X̄ والمدى للبيانات ذات المجموعات الفرعية · فحص قواعد Nelson · قدرة العملية',
     xbar_s_title: 'مخطط Xbar-S',
     xbar_s_desc: 'مخطط X̄ والانحراف المعياري للمجموعات الفرعية الأكبر (n ≥ 10) · فحص قواعد Nelson · قدرة العملية',
+    doe_title: 'تصميم التجارب (عاملي كامل)',
+    doe_desc: 'توليد مصفوفة تصميم عاملي 2^k لعدد 2–5 عوامل · التأثيرات ومخطط باريتو للتأثيرات · تحليل التباين (ANOVA) · معادلة الانحدار المُرمَّزة',
 
     gagerr_title: 'دراسة Gage R&R',
     gagerr_desc: 'AIAG Average & Range method · %Study Variation · NDC · Range & X̄ charts',
@@ -846,6 +855,9 @@ export const translations = {
     section_reliability_label: 'الموثوقية',
     section_reliability_title: 'الموثوقية ومدة الصلاحية',
     section_reliability_desc: 'قدّر تواريخ انتهاء الصلاحية واستقرار المنتج طويل المدى من بيانات معجّلة أو فعلية.',
+    section_doe_label: 'تصميم التجارب',
+    section_doe_title: 'تصميم التجارب (DOE)',
+    section_doe_desc: 'خطّط تجارب مُنظَّمة واكتشف أي العوامل تؤثر فعليًا على نتائج عمليتك.',
 
     stability_title: 'دراسة الاستقرار (Stability Study)',
     stability_desc: 'حساب مدة الصلاحية بمعيار ICH Q1E · انحدار على أكثر من Batch · اختبار Poolability',

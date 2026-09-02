@@ -63,6 +63,15 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     ],
   },
   {
+    id: 'section-doe',
+    labelKey: 'section_doe_label',
+    titleKey: 'section_doe_title',
+    descKey: 'section_doe_desc',
+    tools: [
+      { href: '/doe', icon: '🧪', iconBg: 'rgba(244,114,182,.1)', iconBorder: 'rgba(244,114,182,.2)', titleKey: 'doe_title', descKey: 'doe_desc', tags: ['2^k Full Factorial', 'Pareto of Effects', 'ANOVA', 'Coded Equation'], live: true },
+    ],
+  },
+  {
     id: 'section-sampling',
     labelKey: 'section_sampling_label',
     titleKey: 'section_sampling_title',
