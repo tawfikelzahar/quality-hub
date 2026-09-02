@@ -101,7 +101,10 @@ export const messagesAr: IcmsfMessages = {
     'لا يُعرّف ICMSF/Table 6-1 منحنى OC واحد لخطط 3-class (انظر الملاحظة أدناه). هذا القسم تحليل إحصائي ' +
     'إضافي — وليس جزءًا من منهجية ICMSF أو Codex نفسها — يُحاكي أداء هذه الخطة إذا كان مستوى التلوث في ' +
     'الدفعة يتبع توزيعًا لوغاريتميًا طبيعيًا (وهو الافتراض المعتاد في تقييم مخاطر الميكروبيولوجيا الكمية). ' +
+    'قيم m وM من الخطوة 2 (المُدخلة كـ CFU/g أو CFU/ml) يتم تحويلها تلقائيًا لمقياس log10 لهذا النموذج. ' +
     'استخدمه كمؤشر داعم إضافي لاتخاذ القرار، وليس كمتطلب امتثال.',
+  threeClassRiskAnalysisNeedsLimits:
+    'أدخل m وM في الخطوة 2 (كـ CFU/g أو CFU/ml، أكبر من صفر) لعرض هذا التحليل.',
   threeClassRiskAnalysisToggle: 'عرض تحليل المخاطر الإضافي (منحنى OC ثلاثي الفئة)',
   sdConcentrationLabel: 'الانحراف المعياري للتركيز، مقياس log10 ( SD )',
   sdConcentrationHelp:
@@ -135,6 +138,10 @@ export const messagesAr: IcmsfMessages = {
     'وتم التحقق منه بشكل مستقل مقابل نسخة National Academies Press لنفس الجدول. منحنى OC لخطط 2-class يستخدم ' +
     'النموذج الاحتمالي ذو الحدين (Binomial)، وهو نفس الأسلوب الذي تستخدمه ICMSF نفسها. هذه الأداة لا توفر ' +
     'قيم m وM — أدخل القيم من المعيار المعمول به لديك.',
+  threeClassMethodologyNote:
+    'منحنى OC ثلاثي الفئة الإضافي أعلاه يستخدم نموذج WHO/FAO FOSTAT اللوغاريتمي الطبيعي (FAO/WHO ' +
+    'Microbiological Risk Assessment Series No. 24, 2016) — وهو ليس جزءًا من ICMSF Table 6-1 أو Codex ' +
+    'CAC/GL 21. قيم m وM (المُدخلة كـ CFU/g أو CFU/ml في الخطوة 2) تُحوَّل لمقياس log10 لهذا النموذج.',
 
   complianceDisclaimerTitle: 'ما الذي يُعتبر متطلب امتثال هنا وما الذي لا يُعتبر',
   complianceDisclaimer:

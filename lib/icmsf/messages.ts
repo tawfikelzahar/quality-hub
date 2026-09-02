@@ -101,8 +101,11 @@ export const messages = {
     'ICMSF/Table 6-1 does not define a single OC curve for 3-class plans (see note below). This section ' +
     'is a supplementary statistical analysis — not part of ICMSF or Codex methodology itself — that models ' +
     'how this plan performs if your lot\'s contamination level follows a lognormal distribution (standard ' +
-    'in quantitative microbiology risk assessment). Use it as an additional decision-support signal, not as ' +
-    'a compliance requirement.',
+    'in quantitative microbiology risk assessment). Your m and M from Step 2 (entered as CFU/g or CFU/ml) ' +
+    'are converted to log10 scale automatically for this model. Use it as an additional decision-support ' +
+    'signal, not as a compliance requirement.',
+  threeClassRiskAnalysisNeedsLimits:
+    'Enter m and M in Step 2 (as CFU/g or CFU/ml, greater than zero) to see this analysis.',
   threeClassRiskAnalysisToggle: 'Show additional risk analysis (Three-class OC curve)',
   sdConcentrationLabel: 'Standard deviation of concentration, log10 scale ( SD )',
   sdConcentrationHelp:
@@ -138,6 +141,11 @@ export const messages = {
     'reproduction of the same table. The OC curve for 2-class plans uses the binomial acceptance-sampling ' +
     'model, the same approach ICMSF itself uses. m and M values are not supplied by this tool — enter ' +
     'the values from your applicable standard.',
+  threeClassMethodologyNote:
+    'The supplementary Three-class OC curve above uses the WHO/FAO FOSTAT lognormal acceptance-sampling ' +
+    'model (FAO/WHO Microbiological Risk Assessment Series No. 24, 2016) — not part of ICMSF Table 6-1 or ' +
+    'Codex CAC/GL 21. Your m and M (entered as CFU/g or CFU/ml in Step 2) are converted to log10 scale for ' +
+    'this model.',
 
   complianceDisclaimerTitle: 'What is and isn\'t a compliance requirement here',
   complianceDisclaimer:

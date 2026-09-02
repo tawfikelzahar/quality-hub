@@ -131,10 +131,28 @@ export default function IcmsfPage() {
 
   // Three-class supplementary risk analysis — only meaningful when both m
   // and M are entered (Step 2) and the toggle is on.
+  //
+  // IMPORTANT: Step 2's m/M are raw CFU/g or CFU/ml counts (matching how
+  // every real microbiological standard states them), but the underlying
+  // FOSTAT lognormal model (generateThreeClassOcCurve / threeClassAcceptanceAt
+  // in lib/icmsf/calculator.ts) is defined on log10-scale concentration —
+  // its own ThreeClassConcentrationInput type documents m/M as "log10
+  // scale". Passing the raw CFU values straight through here would silently
+  // treat e.g. m=100 CFU/g as a log10-mean of 100 (i.e. 10^100 CFU/g),
+  // producing meaningless output with no warning. Convert here, once, so
+  // every consumer (on-screen chart, PDF export, Excel export) gets the
+  // same correctly-scaled value from a single source of truth.
   const threeClassInput = useMemo(() => {
     if (!plan || plan.icmsfCase.planClass !== 3) return null;
     if (limits.m === null || limits.M === null) return null;
-    return { n: plan.icmsfCase.n, c: plan.icmsfCase.c, sd: sdConcentration, m: limits.m, M: limits.M };
+    if (limits.m <= 0 || limits.M <= 0) return null; // log10 undefined/meaningless at <= 0
+    return {
+      n: plan.icmsfCase.n,
+      c: plan.icmsfCase.c,
+      sd: sdConcentration,
+      m: Math.log10(limits.m),
+      M: Math.log10(limits.M),
+    };
   }, [plan, limits, sdConcentration]);
 
   const threeClassCurve = useMemo(() => {
@@ -436,6 +454,9 @@ export default function IcmsfPage() {
 
     sheet.sectionHeading('Methodology');
     sheet.note(messagesEn.methodologyNote, 'neutral');
+    if (threeClassCurve && threeClassInput && threeClassPoint) {
+      sheet.note(messagesEn.threeClassMethodologyNote, 'neutral');
+    }
     sheet.note(messagesEn.complianceDisclaimer, 'neutral');
     sheet.freezeHeader(2);
 
@@ -500,6 +521,9 @@ export default function IcmsfPage() {
     }
 
     interpretationBox(ctx, 'Methodology', messagesEn.methodologyNote, 'info');
+    if (threeClassCurve && threeClassInput && threeClassPoint) {
+      interpretationBox(ctx, 'Methodology (Supplementary Curve)', messagesEn.threeClassMethodologyNote, 'info');
+    }
     interpretationBox(ctx, messagesEn.complianceDisclaimerTitle, messagesEn.complianceDisclaimer, 'info');
 
     finalizeReport(ctx);
@@ -759,9 +783,9 @@ export default function IcmsfPage() {
                         {messages.threeClassRiskAnalysisIntro}
                       </p>
 
-                      {(limits.m === null || limits.M === null) && (
+                      {(limits.m === null || limits.M === null || limits.m <= 0 || limits.M <= 0) && (
                         <p style={{ fontSize: 13, color: c.muted, marginTop: 10 }}>
-                          {messages.incompleteSelection}
+                          {messages.threeClassRiskAnalysisNeedsLimits}
                         </p>
                       )}
 
