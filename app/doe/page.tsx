@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import jsPDF from 'jspdf';
 import {
   runFullFactorial,
   buildDesignMatrix,
@@ -21,7 +20,18 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
-import { createReport, nowStamp } from '@/lib/excelReport';
+import { createReport as createExcelReport, nowStamp } from '@/lib/excelReport';
+import {
+  createReport as createPdfReport,
+  classificationBanner,
+  twoColumnTables,
+  calloutBox,
+  interpretationBox,
+  dataTable,
+  finalizeReport,
+  REPORT_COLORS,
+  type KVRow,
+} from '@/lib/pdf/reportDesign';
 
 const CHART_W = 640;
 const CHART_H = 260;
@@ -197,7 +207,7 @@ export default function DoePage() {
     if (!isPro) { goToPricing('doe', 'excel'); return }
     if (!result || !designRows) return;
 
-    const report = createReport({ toolName: 'Design of Experiments' });
+    const report = createExcelReport({ toolName: 'Design of Experiments' });
     const overview = report.addSheet('DOE Summary');
     overview.titleBand(
       'Full Factorial Design of Experiments Report',
@@ -309,75 +319,116 @@ export default function DoePage() {
   function exportPDF() {
     if (!isPro) { goToPricing('doe', 'pdf'); return }
     if (!result || !designRows) return;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;
-    let y = margin;
-    const rowHeight = 18;
 
-    pdf.setFontSize(18);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(messages.pdfReportTitle, margin, y);
-    y += 18;
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100);
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y);
-    y += 16;
-    pdf.setTextColor(0);
-    pdf.setFontSize(11);
-    pdf.text(`Factors = ${result.k}   Runs = ${result.totalRuns}   R² = ${niceNum(result.r2 * 100, 1)}%`, margin, y);
-    y += 24;
+    const topEffect = result.effects[0];
+    const hasReplication = result.dfError > 0;
+    const sigTerms = hasReplication ? result.anova.filter((a) => a.pValue !== null && a.pValue < 0.05) : [];
+    const isSignificant = hasReplication ? sigTerms.length > 0 : null;
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Effects & Contribution', margin, y);
-    y += 8;
-    const effColX = [margin, margin + 90, margin + 200, margin + 300, margin + 400];
-    pdf.setFillColor(230, 230, 230);
-    pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    ['Term', 'Effect', 'Contrast', 'SS', '% Contrib'].forEach((h, i) => pdf.text(h, effColX[i] + 4, y + 13));
-    y += rowHeight;
-    pdf.setFont('helvetica', 'normal');
-    result.effects.forEach((e) => {
-      if (y + rowHeight > pageHeight - margin) { pdf.addPage(); y = margin; }
-      const cells = [e.term, niceNum(e.effect, 3), niceNum(e.contrast, 3), niceNum(e.ss, 3), `${niceNum((e.ss / result.sst) * 100, 1)}%`];
-      cells.forEach((val, i) => pdf.text(val, effColX[i] + 4, y + 13));
-      y += rowHeight;
-    });
-    y += 16;
+    const ctx = createPdfReport(messages.pdfReportTitle, 'doe');
 
-    if (y + rowHeight * 3 > pageHeight - margin) { pdf.addPage(); y = margin; }
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Analysis of Variance', margin, y);
-    y += 8;
-    const anovaColX = [margin, margin + 100, margin + 160, margin + 240, margin + 320, margin + 400];
-    pdf.setFillColor(230, 230, 230);
-    pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-    pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    ['Source', 'DF', 'SS', 'MS', 'F', 'P'].forEach((h, i) => pdf.text(h, anovaColX[i] + 4, y + 13));
-    y += rowHeight;
-    pdf.setFont('helvetica', 'normal');
-    result.anova.forEach((a) => {
-      if (y + rowHeight > pageHeight - margin) { pdf.addPage(); y = margin; }
-      const cells = [
+    classificationBanner(
+      ctx,
+      isSignificant === null
+        ? { label: 'No Replication — Significance Not Tested', color: REPORT_COLORS.warn, bg: REPORT_COLORS.warnBg }
+        : isSignificant
+        ? { label: `${sigTerms.length} Significant Term(s) Found`, color: REPORT_COLORS.good, bg: REPORT_COLORS.goodBg }
+        : { label: 'No Significant Terms at alpha = 0.05', color: REPORT_COLORS.warn, bg: REPORT_COLORS.warnBg },
+      'Study Result'
+    );
+
+    const studyRows: KVRow[] = [
+      ['Design Type', `Full Factorial 2^${result.k}`],
+      ['Factors', factors.map((f) => f.name).join(', ')],
+      ['Replicates', String(result.replicates)],
+      ['Total Runs', String(result.totalRuns)],
+    ];
+    const metricRows: KVRow[] = [
+      ['Grand Mean', niceNum(result.grandMean, 3)],
+      ['R-squared', `${niceNum(result.r2 * 100, 1)}%`],
+      ['R-squared (adj)', `${niceNum(result.r2Adj * 100, 1)}%`],
+      ['Largest Effect', topEffect ? `${topEffect.term} (${niceNum(topEffect.effect, 3)})` : '—'],
+    ];
+    twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows);
+
+    calloutBox(
+      ctx,
+      hasReplication
+        ? `Pure replication error (${result.dfError} DF) was available, so each effect below was tested against it at the 0.05 significance level.`
+        : messages.noReplicationNote,
+      hasReplication ? 'info' : 'warn'
+    );
+
+    dataTable(
+      ctx,
+      'Effects & Contribution',
+      [
+        { header: 'TERM', width: 80 },
+        { header: 'EFFECT', width: 90, align: 'right' },
+        { header: 'CONTRAST', width: 100, align: 'right' },
+        { header: 'SS', width: 100, align: 'right' },
+        { header: '% CONTRIB.', width: ctx.pageWidth - ctx.margin * 2 - 370, align: 'right' },
+      ],
+      result.effects.map((e) => [
+        e.term,
+        niceNum(e.effect, 3),
+        niceNum(e.contrast, 3),
+        niceNum(e.ss, 3),
+        `${niceNum((e.ss / result.sst) * 100, 1)}%`,
+      ])
+    );
+
+    dataTable(
+      ctx,
+      'Analysis of Variance (ANOVA)',
+      [
+        { header: 'SOURCE', width: 90 },
+        { header: 'DF', width: 50, align: 'right' },
+        { header: 'SS', width: 90, align: 'right' },
+        { header: 'MS', width: 90, align: 'right' },
+        { header: 'F-VALUE', width: 90, align: 'right' },
+        { header: 'P-VALUE', width: ctx.pageWidth - ctx.margin * 2 - 410, align: 'right' },
+      ],
+      result.anova.map((a) => [
         a.source,
         String(a.df),
         niceNum(a.ss, 3),
         Number.isFinite(a.ms) ? niceNum(a.ms, 3) : '—',
         a.fStat !== null ? niceNum(a.fStat, 3) : '—',
         a.pValue !== null ? niceNum(a.pValue, 4) : '—',
-      ];
-      cells.forEach((val, i) => pdf.text(val, anovaColX[i] + 4, y + 13));
-      y += rowHeight;
-    });
+      ]),
+      {
+        cellColors: result.anova.map((a) => {
+          if (a.pValue === null) return [];
+          const sig = a.pValue < 0.05;
+          return [null, null, null, null, null, sig ? REPORT_COLORS.good : REPORT_COLORS.warn];
+        }),
+      }
+    );
 
-    pdf.save('doe-full-factorial.pdf');
+    calloutBox(
+      ctx,
+      'The regression equation below is in coded (-1 / +1) units — substitute each factor\'s coded value (-1 at its low level, +1 at its high level) to predict a response.',
+      'info'
+    );
+
+    const equationText =
+      `Y-hat = ${niceNum(result.regressionCoded[0].coefficient, 3)} ` +
+      result.regressionCoded
+        .slice(1)
+        .map((r) => `${r.coefficient >= 0 ? '+' : '-'} ${niceNum(Math.abs(r.coefficient), 3)}*${r.term}`)
+        .join(' ');
+    interpretationBox(ctx, 'Fitted Equation (Coded Units)', equationText, 'info');
+
+    const conclusion = hasReplication
+      ? isSignificant
+        ? `${sigTerms.length} term(s) were found statistically significant at the 0.05 level: ${sigTerms.map((a) => a.source).join(', ')}. The largest effect overall is ${topEffect ? topEffect.term : '—'} (${topEffect ? niceNum(topEffect.effect, 3) : '—'}), explaining ${topEffect ? niceNum((topEffect.ss / result.sst) * 100, 1) : '—'}% of the total variation. The model explains ${niceNum(result.r2 * 100, 1)}% of the variation in the response (R-squared).`
+        : `No term reached statistical significance at the 0.05 level with the available replication (${result.dfError} error DF). The largest observed effect is ${topEffect ? topEffect.term : '—'} (${topEffect ? niceNum(topEffect.effect, 3) : '—'}), but this could plausibly be due to experimental noise. Consider adding replicates or confirming with a follow-up run before acting on it.`
+      : `Only 1 replicate was run, so no formal significance test is available. Based on effect size alone, ${topEffect ? topEffect.term : '—'} (${topEffect ? niceNum(topEffect.effect, 3) : '—'}) stands out as the largest effect, contributing ${topEffect ? niceNum((topEffect.ss / result.sst) * 100, 1) : '—'}% of the total variation. Confirm with replicated runs before drawing conclusions.`;
+    interpretationBox(ctx, 'Study Conclusion', conclusion, hasReplication ? (isSignificant ? 'good' : 'warn') : 'warn');
+
+    finalizeReport(ctx);
+    ctx.pdf.save('doe-full-factorial.pdf');
   }
 
   const dangerText: React.CSSProperties = { fontSize: 13, color: c.danger, marginTop: 8 };
