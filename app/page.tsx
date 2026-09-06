@@ -311,6 +311,7 @@ export default function Home() {
     <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· Tawfik Elzahar</span>
   </div>
   <div style={{display:'flex',alignItems:'center',gap:20}}>
+    <a href="/guide" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_guide')}</a>
     <a href="/sample-reports" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_sample_reports')}</a>
     <a href="/about" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_about')}</a>
     <a href="/contact" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_contact')}</a>
