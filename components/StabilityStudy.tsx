@@ -4,7 +4,6 @@ import { useMemo, useRef, useState, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import jsPDF from 'jspdf'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -21,6 +20,17 @@ import {
   STORAGE_CONDITIONS,
 } from '@/lib/stability/calc'
 import { createReport, nowStamp } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  addChartImage,
+  twoColumnTables,
+  dataTable,
+  calloutBox,
+  interpretationBox,
+  finalizeReport,
+  REPORT_COLORS,
+  type KVRow,
+} from '@/lib/pdf/reportDesign'
 
 // ── Sample dataset — a realistic assay(%) decline over 36 months ──────────
 const SAMPLE_TIME_POINTS = [0, 3, 6, 9, 12, 18, 24, 36]
@@ -388,56 +398,88 @@ export default function StabilityStudy() {
   const exportPDF = () => {
     if (!isPro) { goToPricing('stability', 'pdf'); return }
     const chart = chartRef.current
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const margin = 40
-    let y = margin
 
-    pdf.setFontSize(18); pdf.setFont('helvetica', 'bold')
-    pdf.text('Stability Study Report', margin, y); y += 20
-    pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y); y += 24
+    const ctx = createPdfReport('Stability Study Report', 'stability')
 
-    pdf.setFontSize(11); pdf.setTextColor(0); pdf.setFont('helvetica', 'bold')
-    pdf.text(`Attribute: ${attributeName} (${unit})   Condition: ${STORAGE_CONDITIONS.find((sc) => sc.key === storageCondition)?.label ?? storageCondition}`, margin, y)
-    y += 20
-
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10)
-    const infoRows: [string, string][] = [
+    const studyRows: KVRow[] = [
+      ['Attribute', `${attributeName} (${unit})`],
+      ['Storage condition', STORAGE_CONDITIONS.find((sc) => sc.key === storageCondition)?.label ?? storageCondition],
       ['Direction', direction],
       ['Spec limit', analysis.hasSpec ? String(analysis.specLimit) : 'n/a'],
-      ['Confidence level', `${confidence}%`],
-      ['Recommended shelf life', analysis.recommended !== null ? `${fmt(analysis.recommended, 1)} months (${analysis.basis})` : 'n/a'],
     ]
-    infoRows.forEach(([label, val]) => {
-      pdf.text(label + ':', margin, y)
-      pdf.text(val, margin + 160, y)
-      y += 16
-    })
-    y += 8
+    const summaryRows: KVRow[] = [
+      ['Confidence level', `${confidence}%`],
+      ['Recommended shelf life', analysis.recommended !== null ? `${fmt(analysis.recommended, 1)} months` : 'n/a'],
+      ['Basis', analysis.basis === 'pooled' ? 'Pooled regression' : analysis.basis === 'individual-min' ? 'Min. of individual batches' : 'n/a'],
+      ['Batches analyzed', String(analysis.individual.length)],
+    ]
+    twoColumnTables(ctx, 'Study Information', studyRows, 'Shelf Life Summary', summaryRows)
+
+    calloutBox(
+      ctx,
+      analysis.recommended !== null
+        ? `Recommended shelf life: ${fmt(analysis.recommended, 1)} months, based on ${analysis.basis === 'pooled' ? 'pooled regression' : 'the minimum of individual batch estimates'}.`
+        : 'Recommended shelf life could not be determined from the data provided.',
+      analysis.recommended !== null ? 'info' : 'warn',
+    )
 
     if (analysis.poolability) {
-      pdf.setFont('helvetica', 'bold'); pdf.text('Poolability test:', margin, y); y += 16
-      pdf.setFont('helvetica', 'normal')
-      pdf.text(`Equal slopes: p = ${fmt(analysis.poolability.slopesP, 4)} (${analysis.poolability.slopesPoolable ? 'poolable' : 'not poolable'})`, margin, y); y += 14
-      pdf.text(`Equal intercepts: p = ${fmt(analysis.poolability.interceptsP, 4)} (${analysis.poolability.interceptsPoolable ? 'poolable' : 'not poolable'})`, margin, y); y += 20
+      const poolRows = [
+        ['Equal slopes', `p = ${fmt(analysis.poolability.slopesP, 4)}`, analysis.poolability.slopesPoolable ? 'Poolable' : 'Not poolable'],
+        ['Equal intercepts', `p = ${fmt(analysis.poolability.interceptsP, 4)}`, analysis.poolability.interceptsPoolable ? 'Poolable' : 'Not poolable'],
+      ]
+      dataTable(
+        ctx,
+        'Poolability Test (ANCOVA)',
+        [
+          { header: 'Test', width: 150 },
+          { header: 'Result', width: 150 },
+          { header: 'Conclusion', width: ctx.pageWidth - ctx.margin * 2 - 300 },
+        ],
+        poolRows,
+        {
+          cellColors: poolRows.map((r) => [
+            null,
+            null,
+            r[2] === 'Poolable' ? REPORT_COLORS.good : REPORT_COLORS.warn,
+          ]),
+        },
+      )
     }
 
-    pdf.setFont('helvetica', 'bold'); pdf.text('Per-batch results:', margin, y); y += 16
-    pdf.setFont('helvetica', 'normal')
-    analysis.individual.forEach((r) => {
-      const line = `${r.batch.name}: slope=${r.reg ? fmt(r.reg.slope, 4) : '—'}  R²=${r.reg ? fmt(r.reg.r2, 3) : '—'}  shelf life=${r.shelfLife !== null ? fmt(r.shelfLife, 1) + ' mo' : 'not reached'}${r.extrapolated ? ' (extrapolated)' : ''}`
-      pdf.text(line, margin, y); y += 14
-    })
-    y += 10
+    dataTable(
+      ctx,
+      'Per-Batch Regression',
+      [
+        { header: 'Batch', width: 110 },
+        { header: 'Slope', width: 80, align: 'right' },
+        { header: 'R\u00b2', width: 70, align: 'right' },
+        { header: 'Shelf Life', width: 100, align: 'right' },
+        { header: 'Extrapolated', width: ctx.pageWidth - ctx.margin * 2 - 360, align: 'center' },
+      ],
+      analysis.individual.map((r) => [
+        r.batch.name,
+        r.reg ? fmt(r.reg.slope, 4) : '—',
+        r.reg ? fmt(r.reg.r2, 3) : '—',
+        r.shelfLife !== null ? `${fmt(r.shelfLife, 1)} mo` : 'not reached',
+        r.extrapolated ? 'Yes' : 'No',
+      ]),
+      {
+        cellColors: analysis.individual.map((r) => [null, null, null, null, r.extrapolated ? REPORT_COLORS.warn : null]),
+      },
+    )
 
-    if (chart) {
-      const imgData = chart.toBase64Image('image/png', 1)
-      const imgWidth = pageWidth - margin * 2
-      const imgHeight = (chart.height / chart.width) * imgWidth
-      pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-    }
-    pdf.save('stability-study-report.pdf')
+    addChartImage(ctx, chart, 'Stability Trend')
+
+    interpretationBox(
+      ctx,
+      'Methodology',
+      'Shelf life is estimated using ICH Q1E linear regression with a one-sided confidence interval at the specified confidence level. When multiple batches are available, a poolability test (ANCOVA on slopes and intercepts) determines whether batch data can be pooled into a single regression or whether the shelf life must be based on the most limiting individual batch.',
+      'info',
+    )
+
+    finalizeReport(ctx)
+    ctx.pdf.save('stability-study-report.pdf')
   }
 
   return (

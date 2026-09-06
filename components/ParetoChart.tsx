@@ -5,7 +5,6 @@ import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -13,6 +12,14 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  addChartImage,
+  dataTable,
+  calloutBox,
+  finalizeReport,
+  REPORT_COLORS,
+} from '@/lib/pdf/reportDesign'
 
 interface DataRow {
   id: string
@@ -285,87 +292,40 @@ export default function ParetoChart() {
     if (!isPro) { goToPricing('pareto', 'pdf'); return }
     const chart = chartRef.current
     if (!chart) return
-    const imgData = chart.toBase64Image('image/png', 1)
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 40
-    let y = margin
 
-    // Title
-    pdf.setFontSize(18)
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('Pareto Analysis', margin, y)
-    y += 10
+    const ctx = createPdfReport('Pareto Analysis Report', 'pareto')
 
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12)
-    y += 30
-
-    // Summary line
-    pdf.setFontSize(11)
-    pdf.setTextColor(0)
-    pdf.text(
+    calloutBox(
+      ctx,
       `Total: ${total}  |  Categories: ${sorted.length}  |  Vital Few: ${vitalFew} categories = 80% of problems`,
-      margin,
-      y
+      'info',
     )
-    y += 20
 
-    // Chart image
-    const imgWidth = pageWidth - margin * 2
-    const imgHeight = (chart.height / chart.width) * imgWidth
-    pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-    y += imgHeight + 30
+    addChartImage(ctx, chart, 'Pareto Chart')
 
-    // Table header
-    const colX = [margin, margin + 180, margin + 260, margin + 340, margin + 430]
-    const rowHeight = 20
+    const columns = [
+      { header: 'Category', width: 190 },
+      { header: 'Count', width: 70, align: 'right' as const },
+      { header: '% Total', width: 80, align: 'right' as const },
+      { header: 'Cumulative', width: 90, align: 'right' as const },
+      { header: 'Status', width: ctx.pageWidth - ctx.margin * 2 - 430, align: 'center' as const },
+    ]
+    const rows = sorted.map((r, i) => [
+      r.label,
+      String(r.value),
+      `${total > 0 ? Math.round((r.value / total) * 100) : 0}%`,
+      `${cumulative[i]}%`,
+      i < vitalFew ? 'Vital Few' : 'Useful Many',
+    ])
+    const cellColors = sorted.map((_, i) =>
+      i < vitalFew
+        ? [null, null, null, null, REPORT_COLORS.warn] as (typeof REPORT_COLORS.warn | null)[]
+        : [null, null, null, null, null]
+    )
+    dataTable(ctx, 'Category Breakdown', columns, rows, { cellColors })
 
-    const drawTableHeader = () => {
-      pdf.setFillColor(230, 230, 230)
-      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
-      pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(10)
-      pdf.setTextColor(0)
-      pdf.text('Category', colX[0] + 4, y + 14)
-      pdf.text('Count', colX[1] + 4, y + 14)
-      pdf.text('% Total', colX[2] + 4, y + 14)
-      pdf.text('Cumulative', colX[3] + 4, y + 14)
-      pdf.text('Status', colX[4] + 4, y + 14)
-      y += rowHeight
-    }
-
-    drawTableHeader()
-
-    pdf.setFont('helvetica', 'normal')
-    sorted.forEach((r, i) => {
-      // New page if needed
-      if (y + rowHeight > pageHeight - margin) {
-        pdf.addPage()
-        y = margin
-        drawTableHeader()
-      }
-
-      if (i < vitalFew) {
-        pdf.setFillColor(255, 245, 225)
-        pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
-      }
-
-      pdf.setTextColor(0)
-      pdf.text(r.label.slice(0, 28), colX[0] + 4, y + 14)
-      pdf.text(String(r.value), colX[1] + 4, y + 14)
-      pdf.text(`${total > 0 ? Math.round((r.value / total) * 100) : 0}%`, colX[2] + 4, y + 14)
-      pdf.text(`${cumulative[i]}%`, colX[3] + 4, y + 14)
-      pdf.setTextColor(i < vitalFew ? 200 : 120, i < vitalFew ? 120 : 120, 0)
-      pdf.text(i < vitalFew ? 'Vital Few' : 'Useful Many', colX[4] + 4, y + 14)
-
-      y += rowHeight
-    })
-
-    pdf.save('pareto-report.pdf')
+    finalizeReport(ctx)
+    ctx.pdf.save('pareto-report.pdf')
   }
 
   const chartData = {
