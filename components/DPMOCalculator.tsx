@@ -5,7 +5,6 @@ import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
 import { COLORS, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -14,6 +13,14 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  addChartImage,
+  dataTable,
+  calloutBox,
+  finalizeReport,
+  REPORT_COLORS,
+} from '@/lib/pdf/reportDesign'
 
 interface ProcessRow {
   id: string
@@ -322,62 +329,52 @@ export default function DPMOCalculator() {
     if (!isPro) { goToPricing('dpmo', 'pdf'); return }
     const chart = chartRef.current
     if (!chart) return
-    const imgData = chart.toBase64Image('image/png', 1)
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 40
-    let y = margin
 
-    pdf.setFontSize(18)
-    pdf.setFont('helvetica', 'bold')
-    pdf.text('DPMO & Sigma Level Analysis', margin, y)
-    y += 10
-    pdf.setFontSize(10)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setTextColor(100)
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12)
-    y += 34
+    const ctx = createPdfReport('DPMO & Sigma Level Analysis', 'dpmo')
 
-    const imgWidth = pageWidth - margin * 2
-    const imgHeight = (chart.height / chart.width) * imgWidth
-    pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight)
-    y += imgHeight + 30
+    const avgSigma = results.length > 0 ? results.reduce((s, r) => s + r.sigma, 0) / results.length : 0
+    const worst = results.length > 0 ? results.reduce((a, b) => (a.sigma < b.sigma ? a : b)) : null
+    calloutBox(
+      ctx,
+      `Processes: ${results.length}   |   Avg Sigma Level: ${avgSigma.toFixed(2)}${worst ? `   |   Lowest: ${worst.sigma.toFixed(2)} (${worst.name})` : ''}`,
+      avgSigma >= 4 ? 'good' : avgSigma >= 3 ? 'warn' : 'bad'
+    )
 
-    const colX = [margin, margin + 130, margin + 190, margin + 250, margin + 310, margin + 370, margin + 430]
-    const rowHeight = 20
+    addChartImage(ctx, chart, 'Sigma Level by Process')
 
-    const drawHeader = () => {
-      pdf.setFillColor(230, 230, 230)
-      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F')
-      pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(9)
-      pdf.setTextColor(0)
-      const headers = ['Process', 'Units', 'Opp/Unit', 'Defects', 'DPMO', 'Yield %', 'Sigma']
-      headers.forEach((h, i) => pdf.text(h, colX[i] + 4, y + 14))
-      y += rowHeight
-    }
+    const toneColor = (sigma: number) =>
+      sigma >= 5 ? REPORT_COLORS.good : sigma >= 3 ? REPORT_COLORS.warn : REPORT_COLORS.bad
 
-    drawHeader()
-    pdf.setFont('helvetica', 'normal')
-    results.forEach(r => {
-      if (y + rowHeight > pageHeight - margin) {
-        pdf.addPage()
-        y = margin
-        drawHeader()
+    dataTable(
+      ctx,
+      'Process Detail',
+      [
+        { header: 'PROCESS', width: 130 },
+        { header: 'UNITS', width: 60, align: 'right' },
+        { header: 'OPP/UNIT', width: 60, align: 'right' },
+        { header: 'DEFECTS', width: 60, align: 'right' },
+        { header: 'DPMO', width: 60, align: 'right' },
+        { header: 'YIELD %', width: 60, align: 'right' },
+        { header: 'SIGMA', width: 50, align: 'right' },
+        { header: 'RATING', width: ctx.pageWidth - ctx.margin * 2 - 480, align: 'center' },
+      ],
+      results.map((r) => [
+        r.name,
+        String(r.units),
+        String(r.opportunities),
+        String(r.defects),
+        String(Math.round(r.dpmo)),
+        `${r.yieldPct.toFixed(1)}%`,
+        r.sigma.toFixed(2),
+        sigmaBand(r.sigma).label,
+      ]),
+      {
+        cellColors: results.map((r) => [null, null, null, null, null, null, null, toneColor(r.sigma)]),
       }
-      pdf.setTextColor(0)
-      pdf.text(r.name.slice(0, 20), colX[0] + 4, y + 14)
-      pdf.text(String(r.units), colX[1] + 4, y + 14)
-      pdf.text(String(r.opportunities), colX[2] + 4, y + 14)
-      pdf.text(String(r.defects), colX[3] + 4, y + 14)
-      pdf.text(String(Math.round(r.dpmo)), colX[4] + 4, y + 14)
-      pdf.text(`${r.yieldPct.toFixed(1)}%`, colX[5] + 4, y + 14)
-      pdf.text(r.sigma.toFixed(2), colX[6] + 4, y + 14)
-      y += rowHeight
-    })
+    )
 
-    pdf.save('dpmo-report.pdf')
+    finalizeReport(ctx)
+    ctx.pdf.save('dpmo-report.pdf')
   }
 
   const chartData = {
