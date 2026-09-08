@@ -26,7 +26,6 @@ import {
   capabilityGauge,
   calloutBox,
   criteriaReferenceTable,
-  addChartImagePair,
   addChartImage,
   finalizeReport,
   REPORT_COLORS,
@@ -64,7 +63,14 @@ function normalPdf(x: number, mu: number, sigma: number): number {
 }
 
 /** Builds histogram bins + scaled Overall/Within normal curves, all on a shared x-axis. */
-function buildCapabilityHistogram(values: number[], mu: number, sigmaOverall: number, sigmaWithin: number) {
+function buildCapabilityHistogram(
+  values: number[],
+  mu: number,
+  sigmaOverall: number,
+  sigmaWithin: number,
+  lsl: number | null,
+  usl: number | null
+) {
   const n = values.length;
   if (n === 0) return null;
   const min = Math.min(...values);
@@ -83,16 +89,26 @@ function buildCapabilityHistogram(values: number[], mu: number, sigmaOverall: nu
   });
   const binLabels = binEdges.slice(0, -1).map((edge) => edge + binWidth / 2);
 
-  // Sample points across the full range (plus a little padding) for smooth curves.
-  const curvePad = range * 0.15;
+  // Axis range must cover the data AND the spec limits, so a wide LSL/USL
+  // (outside the observed data) doesn't get clipped off the chart.
+  const specVals = [lsl, usl].filter((v): v is number => v !== null);
+  const rangeMin = Math.min(min, ...specVals);
+  const rangeMax = Math.max(max, ...specVals);
+  const fullRange = rangeMax - rangeMin || 1;
+  const curvePad = fullRange * 0.15;
+  const axisMin = rangeMin - curvePad;
+  const axisMax = rangeMax + curvePad;
+
+  // Sample points across the full range for smooth curves.
   const curveN = 80;
-  const curveX = Array.from({ length: curveN }, (_, i) => min - curvePad + ((max + curvePad - (min - curvePad)) * i) / (curveN - 1));
+  const curveX = Array.from({ length: curveN }, (_, i) => axisMin + ((axisMax - axisMin) * i) / (curveN - 1));
   // Scale each density curve so its peak roughly matches the histogram bar heights
   // (density * n * binWidth = expected count per bin under the fitted normal).
   const overallCurve = curveX.map((x) => normalPdf(x, mu, sigmaOverall) * n * binWidth);
   const withinCurve = curveX.map((x) => normalPdf(x, mu, sigmaWithin) * n * binWidth);
+  const chartMaxY = Math.max(...binCounts, ...overallCurve, ...withinCurve) * 1.08;
 
-  return { binLabels, binCounts, binWidth, curveX, overallCurve, withinCurve };
+  return { binLabels, binCounts, binWidth, curveX, overallCurve, withinCurve, axisMin, axisMax, chartMaxY };
 }
 
 export default function XbarRChartPage() {
@@ -225,7 +241,7 @@ export default function XbarRChartPage() {
 
   const histogramData = useMemo(() => {
     if (!result || !subgroups) return null;
-    return buildCapabilityHistogram(subgroups.flat(), result.mu, result.sdOverall, result.sigma);
+    return buildCapabilityHistogram(subgroups.flat(), result.mu, result.sdOverall, result.sigma, result.LSL, result.USL);
   }, [result, subgroups]);
 
   // ── Export: CSV ─────────────────────────────────────────────────────
@@ -370,12 +386,8 @@ export default function XbarRChartPage() {
       'info'
     );
 
-    addChartImagePair(
-      ctx,
-      'Control Charts',
-      { chart: xChartRef.current, title: 'X\u0304 (Subgroup Average) Chart' },
-      { chart: rChartRef.current, title: 'R (Range) Chart' }
-    );
+    addChartImage(ctx, xChartRef.current, 'X\u0304 (Subgroup Average) Chart');
+    addChartImage(ctx, rChartRef.current, 'R (Range) Chart');
 
     const limitRows: KVRow[] = [
       ['X\u0304 CL', niceNum(result.cl_x)],
@@ -559,116 +571,134 @@ export default function XbarRChartPage() {
             {/* ── X-bar chart ─────────────────────────────────────────── */}
             <div style={s.chartWrap}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 10 }}>{messages.chartXTitle}</h3>
-              <Chart
-                ref={xChartRef}
-                type="line"
-                data={{
-                  labels: result.xbarVals.map((_, i) => String(i + 1)),
-                  datasets: [
-                    {
-                      label: 'X\u0304',
-                      data: result.xbarVals,
-                      borderColor: c.line,
-                      backgroundColor: c.accent,
-                      pointBackgroundColor: result.xbarVals.map((_, i) => (violatedIndices.has(i) ? c.danger : c.accent)),
-                      pointRadius: 4,
-                      borderWidth: 1.5,
-                      tension: 0,
+              <div style={s.chartInner}>
+                <Chart
+                  ref={xChartRef}
+                  type="line"
+                  data={{
+                    labels: result.xbarVals.map((_, i) => String(i + 1)),
+                    datasets: [
+                      {
+                        label: 'X\u0304',
+                        data: result.xbarVals,
+                        borderColor: c.line,
+                        backgroundColor: c.accent,
+                        pointBackgroundColor: result.xbarVals.map((_, i) => (violatedIndices.has(i) ? c.danger : c.accent)),
+                        pointRadius: 4,
+                        borderWidth: 1.5,
+                        tension: 0,
+                      },
+                      {
+                        label: 'CL',
+                        data: result.xbarVals.map(() => result.cl_x),
+                        borderColor: c.muted,
+                        borderDash: [5, 3],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'UCL',
+                        data: result.xbarVals.map(() => result.ucl_x),
+                        borderColor: c.danger,
+                        borderDash: [3, 3],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'LCL',
+                        data: result.xbarVals.map(() => result.lcl_x),
+                        borderColor: c.danger,
+                        borderDash: [3, 3],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    devicePixelRatio: 2,
+                    plugins: {
+                      legend: {
+                        display: true,
+                        labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item) => item.text === 'X\u0304' },
+                      },
                     },
-                    {
-                      label: 'CL',
-                      data: result.xbarVals.map(() => result.cl_x),
-                      borderColor: c.muted,
-                      borderDash: [5, 3],
-                      pointRadius: 0,
-                      borderWidth: 1,
+                    scales: {
+                      x: { title: { display: true, text: 'Subgroup', color: c.muted }, ticks: { color: c.muted }, grid: { color: c.border } },
+                      y: { ticks: { color: c.muted }, grid: { color: c.border } },
                     },
-                    {
-                      label: 'UCL',
-                      data: result.xbarVals.map(() => result.ucl_x),
-                      borderColor: c.danger,
-                      borderDash: [3, 3],
-                      pointRadius: 0,
-                      borderWidth: 1,
-                    },
-                    {
-                      label: 'LCL',
-                      data: result.xbarVals.map(() => result.lcl_x),
-                      borderColor: c.danger,
-                      borderDash: [3, 3],
-                      pointRadius: 0,
-                      borderWidth: 1,
-                    },
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  animation: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: { title: { display: true, text: 'Subgroup' }, grid: { color: c.border } },
-                    y: { grid: { color: c.border } },
-                  },
-                }}
-              />
+                  }}
+                />
+              </div>
             </div>
 
             {/* ── R chart ─────────────────────────────────────────────── */}
             <div style={s.chartWrap}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 10 }}>{messages.chartRTitle}</h3>
-              <Chart
-                ref={rChartRef}
-                type="line"
-                data={{
-                  labels: result.rangeVals.map((_, i) => String(i + 1)),
-                  datasets: [
-                    {
-                      label: 'R',
-                      data: result.rangeVals,
-                      borderColor: c.line,
-                      backgroundColor: c.accent,
-                      pointRadius: 4,
-                      borderWidth: 1.5,
-                      tension: 0,
+              <div style={s.chartInner}>
+                <Chart
+                  ref={rChartRef}
+                  type="line"
+                  data={{
+                    labels: result.rangeVals.map((_, i) => String(i + 1)),
+                    datasets: [
+                      {
+                        label: 'R',
+                        data: result.rangeVals,
+                        borderColor: c.line,
+                        backgroundColor: c.accent,
+                        pointRadius: 4,
+                        borderWidth: 1.5,
+                        tension: 0,
+                      },
+                      {
+                        label: 'CL',
+                        data: result.rangeVals.map(() => result.cl_r),
+                        borderColor: c.muted,
+                        borderDash: [5, 3],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                      },
+                      {
+                        label: 'UCL',
+                        data: result.rangeVals.map(() => result.ucl_r),
+                        borderColor: c.danger,
+                        borderDash: [3, 3],
+                        pointRadius: 0,
+                        borderWidth: 1,
+                      },
+                      ...(result.lcl_r > 0
+                        ? [{
+                            label: 'LCL',
+                            data: result.rangeVals.map(() => result.lcl_r),
+                            borderColor: c.danger,
+                            borderDash: [3, 3] as [number, number],
+                            pointRadius: 0,
+                            borderWidth: 1,
+                          }]
+                        : []),
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    devicePixelRatio: 2,
+                    plugins: {
+                      legend: {
+                        display: true,
+                        labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item) => item.text === 'R' },
+                      },
                     },
-                    {
-                      label: 'CL',
-                      data: result.rangeVals.map(() => result.cl_r),
-                      borderColor: c.muted,
-                      borderDash: [5, 3],
-                      pointRadius: 0,
-                      borderWidth: 1,
+                    scales: {
+                      x: { title: { display: true, text: 'Subgroup', color: c.muted }, ticks: { color: c.muted }, grid: { color: c.border } },
+                      y: { ticks: { color: c.muted }, grid: { color: c.border } },
                     },
-                    {
-                      label: 'UCL',
-                      data: result.rangeVals.map(() => result.ucl_r),
-                      borderColor: c.danger,
-                      borderDash: [3, 3],
-                      pointRadius: 0,
-                      borderWidth: 1,
-                    },
-                    ...(result.lcl_r > 0
-                      ? [{
-                          label: 'LCL',
-                          data: result.rangeVals.map(() => result.lcl_r),
-                          borderColor: c.danger,
-                          borderDash: [3, 3] as [number, number],
-                          pointRadius: 0,
-                          borderWidth: 1,
-                        }]
-                      : []),
-                  ],
-                }}
-                options={{
-                  responsive: true,
-                  animation: false,
-                  plugins: { legend: { display: false } },
-                  scales: {
-                    x: { title: { display: true, text: 'Subgroup' }, grid: { color: c.border } },
-                    y: { grid: { color: c.border } },
-                  },
-                }}
-              />
+                  }}
+                />
+              </div>
             </div>
 
             {/* ── Violations ──────────────────────────────────────────── */}
@@ -724,62 +754,100 @@ export default function XbarRChartPage() {
                 <p style={{ fontSize: 12, color: c.muted, marginBottom: 10 }}>
                   Overall sigma ({niceNum(result.sdOverall)}) and Within sigma ({niceNum(result.sigma)}) are both shown against the raw measurement distribution.
                 </p>
-                <Chart
-                  ref={histChartRef}
-                  type="bar"
-                  data={{
-                    labels: histogramData.binLabels.map((v) => niceNum(v, 3)),
-                    datasets: [
-                      {
-                        type: 'bar' as const,
-                        label: 'Frequency',
-                        data: histogramData.binCounts,
-                        backgroundColor: c.accent + '80',
-                        borderColor: c.accent,
-                        borderWidth: 1,
-                        order: 2,
+                <div style={s.chartInner}>
+                  <Chart
+                    ref={histChartRef}
+                    type="bar"
+                    data={{
+                      labels: histogramData.binLabels.map((v) => niceNum(v, 3)),
+                      datasets: [
+                        {
+                          type: 'bar' as const,
+                          label: 'Frequency',
+                          data: histogramData.binCounts,
+                          backgroundColor: c.accent + '80',
+                          borderColor: c.accent,
+                          borderWidth: 1,
+                          order: 2,
+                        },
+                        {
+                          type: 'line' as const,
+                          label: 'Overall sigma',
+                          data: histogramData.curveX.map((x, i) => ({ x, y: histogramData.overallCurve[i] })),
+                          borderColor: c.text,
+                          borderWidth: 2,
+                          pointRadius: 0,
+                          tension: 0.3,
+                          order: 1,
+                          xAxisID: 'xCurve',
+                        },
+                        {
+                          type: 'line' as const,
+                          label: 'Within sigma',
+                          data: histogramData.curveX.map((x, i) => ({ x, y: histogramData.withinCurve[i] })),
+                          borderColor: c.line,
+                          borderDash: [6, 4],
+                          borderWidth: 2,
+                          pointRadius: 0,
+                          tension: 0.3,
+                          order: 1,
+                          xAxisID: 'xCurve',
+                        },
+                        ...(result.LSL !== null
+                          ? [{
+                              type: 'line' as const,
+                              label: 'LSL',
+                              data: [{ x: result.LSL, y: 0 }, { x: result.LSL, y: histogramData.chartMaxY }],
+                              borderColor: c.danger,
+                              borderDash: [4, 3] as [number, number],
+                              borderWidth: 1.5,
+                              pointRadius: 0,
+                              tension: 0,
+                              order: 0,
+                              xAxisID: 'xCurve',
+                            }]
+                          : []),
+                        ...(result.USL !== null
+                          ? [{
+                              type: 'line' as const,
+                              label: 'USL',
+                              data: [{ x: result.USL, y: 0 }, { x: result.USL, y: histogramData.chartMaxY }],
+                              borderColor: c.danger,
+                              borderDash: [4, 3] as [number, number],
+                              borderWidth: 1.5,
+                              pointRadius: 0,
+                              tension: 0,
+                              order: 0,
+                              xAxisID: 'xCurve',
+                            }]
+                          : []),
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      animation: false,
+                      devicePixelRatio: 2,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'top',
+                          labels: { color: c.muted, font: { size: 11 }, boxWidth: 14 },
+                        },
                       },
-                      {
-                        type: 'line' as const,
-                        label: 'Overall sigma',
-                        data: histogramData.curveX.map((x, i) => ({ x, y: histogramData.overallCurve[i] })),
-                        borderColor: c.text,
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.3,
-                        order: 1,
-                        xAxisID: 'xCurve',
+                      scales: {
+                        x: { title: { display: true, text: 'Measurement value', color: c.muted }, ticks: { color: c.muted }, grid: { color: c.border } },
+                        xCurve: {
+                          type: 'linear',
+                          display: false,
+                          min: histogramData.axisMin,
+                          max: histogramData.axisMax,
+                        },
+                        y: { title: { display: true, text: 'Frequency', color: c.muted }, ticks: { color: c.muted }, grid: { color: c.border }, beginAtZero: true },
                       },
-                      {
-                        type: 'line' as const,
-                        label: 'Within sigma',
-                        data: histogramData.curveX.map((x, i) => ({ x, y: histogramData.withinCurve[i] })),
-                        borderColor: c.line,
-                        borderDash: [6, 4],
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        tension: 0.3,
-                        order: 1,
-                        xAxisID: 'xCurve',
-                      },
-                    ],
-                  }}
-                  options={{
-                    responsive: true,
-                    animation: false,
-                    plugins: { legend: { display: true, position: 'top' } },
-                    scales: {
-                      x: { title: { display: true, text: 'Measurement value' }, grid: { color: c.border } },
-                      xCurve: {
-                        type: 'linear',
-                        display: false,
-                        min: histogramData.curveX[0],
-                        max: histogramData.curveX[histogramData.curveX.length - 1],
-                      },
-                      y: { title: { display: true, text: 'Frequency' }, grid: { color: c.border }, beginAtZero: true },
-                    },
-                  }}
-                />
+                    }}
+                  />
+                </div>
               </div>
             )}
 
