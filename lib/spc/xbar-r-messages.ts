@@ -24,6 +24,7 @@ export interface XbarRMessages {
   resultsTitle: string
   chartXTitle: string
   chartRTitle: string
+  histogramTitle: string
   metricGrandMean: string
   metricSigma: string
   metricUCL: string
@@ -83,6 +84,7 @@ export const messages: XbarRMessages = {
   resultsTitle: 'Xbar-R Chart Results',
   chartXTitle: 'X̄ (Subgroup Average) Chart',
   chartRTitle: 'R (Range) Chart',
+  histogramTitle: 'Capability Histogram (Overall vs. Within)',
   metricGrandMean: 'Grand Mean (X̿)',
   metricSigma: 'σ (pooled within-subgroup)',
   metricUCL: 'UCL',

@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import jsPDF from 'jspdf';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import 'chart.js/auto';
+import { Chart } from 'react-chartjs-2';
+import type { Chart as ChartJSInstance } from 'chart.js';
 import {
   runVariableChartAnalysis,
   type VariableChartResult,
@@ -15,12 +17,21 @@ import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
-
-const CHART_W = 680;
-const CHART_H = 280;
-const PAD = { top: 16, right: 20, bottom: 36, left: 56 };
-const PLOT_W = CHART_W - PAD.left - PAD.right;
-const PLOT_H = CHART_H - PAD.top - PAD.bottom;
+import {
+  createReport as createPdfReport,
+  classifyCapability,
+  classificationBanner,
+  twoColumnTables,
+  dataTable,
+  capabilityGauge,
+  calloutBox,
+  criteriaReferenceTable,
+  addChartImagePair,
+  addChartImage,
+  finalizeReport,
+  REPORT_COLORS,
+  type KVRow,
+} from '@/lib/pdf/reportDesign';
 
 const EXAMPLE_SUBGROUPS: number[][] = [
   [9.86, 10.12, 9.82, 10.46], [9.91, 10.17, 10.28, 10.12], [10.21, 9.86, 10.49, 10.18],
@@ -45,18 +56,43 @@ function niceNum(n: number | null | undefined, digits = 4): string {
   return n.toFixed(digits);
 }
 
-function lineChartGeom(values: (number | null)[], extraLines: number[]) {
-  const nums = values.filter((v): v is number => v !== null);
-  const all = [...nums, ...extraLines];
-  const yMin = Math.min(...all);
-  const yMax = Math.max(...all);
-  const yPad = (yMax - yMin || 1) * 0.12;
-  const yLo = yMin - yPad;
-  const yHi = yMax + yPad;
+/** Normal distribution PDF, used to draw the Overall/Within curves over the histogram. */
+function normalPdf(x: number, mu: number, sigma: number): number {
+  if (!Number.isFinite(sigma) || sigma <= 0) return 0;
+  const z = (x - mu) / sigma;
+  return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
+}
+
+/** Builds histogram bins + scaled Overall/Within normal curves, all on a shared x-axis. */
+function buildCapabilityHistogram(values: number[], mu: number, sigmaOverall: number, sigmaWithin: number) {
   const n = values.length;
-  const xFor = (i: number) => PAD.left + (n <= 1 ? 0 : (i / (n - 1)) * PLOT_W);
-  const yFor = (v: number) => PAD.top + (1 - (v - yLo) / (yHi - yLo || 1)) * PLOT_H;
-  return { xFor, yFor, yLo, yHi };
+  if (n === 0) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  // Sturges' rule, with sensible floor/ceiling for small/large samples.
+  const binCount = Math.max(5, Math.min(20, Math.round(1 + Math.log2(n))));
+  const binWidth = range / binCount;
+  const binEdges = Array.from({ length: binCount + 1 }, (_, i) => min + i * binWidth);
+  const binCounts = new Array(binCount).fill(0);
+  values.forEach((v) => {
+    let idx = Math.floor((v - min) / binWidth);
+    if (idx >= binCount) idx = binCount - 1;
+    if (idx < 0) idx = 0;
+    binCounts[idx]++;
+  });
+  const binLabels = binEdges.slice(0, -1).map((edge) => edge + binWidth / 2);
+
+  // Sample points across the full range (plus a little padding) for smooth curves.
+  const curvePad = range * 0.15;
+  const curveN = 80;
+  const curveX = Array.from({ length: curveN }, (_, i) => min - curvePad + ((max + curvePad - (min - curvePad)) * i) / (curveN - 1));
+  // Scale each density curve so its peak roughly matches the histogram bar heights
+  // (density * n * binWidth = expected count per bin under the fitted normal).
+  const overallCurve = curveX.map((x) => normalPdf(x, mu, sigmaOverall) * n * binWidth);
+  const withinCurve = curveX.map((x) => normalPdf(x, mu, sigmaWithin) * n * binWidth);
+
+  return { binLabels, binCounts, binWidth, curveX, overallCurve, withinCurve };
 }
 
 export default function XbarRChartPage() {
@@ -170,15 +206,9 @@ export default function XbarRChartPage() {
     });
   }, [subgroups, subgroupSize, appliedLimits]);
 
-  const xChartGeom = useMemo(() => {
-    if (!result) return null;
-    return lineChartGeom(result.xbarVals, [result.ucl_x, result.lcl_x, result.cl_x]);
-  }, [result]);
-
-  const rChartGeom = useMemo(() => {
-    if (!result) return null;
-    return lineChartGeom(result.rangeVals, [result.ucl_r, result.lcl_r, result.cl_r]);
-  }, [result]);
+  const xChartRef = useRef<ChartJSInstance<'line'>>(null);
+  const rChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
+  const histChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
 
   const violatedIndices = useMemo(() => {
     if (!result) return new Set<number>();
@@ -192,6 +222,11 @@ export default function XbarRChartPage() {
     });
     return idxs;
   }, [result]);
+
+  const histogramData = useMemo(() => {
+    if (!result || !subgroups) return null;
+    return buildCapabilityHistogram(subgroups.flat(), result.mu, result.sdOverall, result.sigma);
+  }, [result, subgroups]);
 
   // ── Export: CSV ─────────────────────────────────────────────────────
   function exportCSV() {
@@ -326,90 +361,99 @@ export default function XbarRChartPage() {
   function exportPDF() {
     if (!isPro) { goToPricing('xbar_r', 'pdf'); return }
     if (!result || !subgroups) return;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;
-    let y = margin;
 
-    pdf.setFontSize(18);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(messages.pdfReportTitle, margin, y);
-    y += 18;
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100);
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y);
-    y += 16;
-    pdf.setTextColor(0);
-    pdf.setFontSize(11);
-    pdf.text(`Grand Mean = ${niceNum(result.cl_x)}   k = ${subgroups.length}   n = ${subgroupSize}`, margin, y);
-    y += 24;
+    const ctx = createPdfReport(messages.pdfReportTitle, 'xbar_r');
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Control Limits', margin, y);
-    y += 8;
-    const rowHeight = 18;
-    const ctrlColX = [margin, margin + 150, margin + 250, margin + 350];
-    pdf.setFillColor(230, 230, 230);
-    pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-    pdf.setFontSize(9);
-    ['Chart', 'CL', 'UCL', 'LCL'].forEach((h, i) => pdf.text(h, ctrlColX[i] + 4, y + 13));
-    y += rowHeight;
-    pdf.setFont('helvetica', 'normal');
-    [
-      ['X̄ (Subgroup Avg)', niceNum(result.cl_x), niceNum(result.ucl_x), niceNum(result.lcl_x)],
-      ['R (Range)', niceNum(result.cl_r), niceNum(result.ucl_r), niceNum(result.lcl_r)],
-    ].forEach((row) => {
-      row.forEach((v, i) => pdf.text(v, ctrlColX[i] + 4, y + 13));
-      y += rowHeight;
-    });
-    y += 16;
+    calloutBox(
+      ctx,
+      `Grand Mean = ${niceNum(result.cl_x)}   |   k = ${subgroups.length} subgroups   |   n = ${subgroupSize}`,
+      'info'
+    );
 
-    if (result.Cp !== null || result.Ppk !== null) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(12);
-      pdf.text('Process Capability', margin, y);
-      y += 8;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      const capRows = [
-        `Cp = ${niceNum(result.Cp)}    Cpk = ${niceNum(result.Cpk)}`,
-        `Pp = ${niceNum(result.Pp)}    Ppk = ${niceNum(result.Ppk)}`,
-        `Sigma Level (ST) = ${niceNum(result.sigLvl_st)}    Total PPM (ST) = ${result.ppmD_st ? niceNum(result.ppmD_st.total, 1) : '—'}`,
-      ];
-      capRows.forEach((line) => { pdf.text(line, margin, y); y += 14; });
-      y += 10;
+    addChartImagePair(
+      ctx,
+      'Control Charts',
+      { chart: xChartRef.current, title: 'X\u0304 (Subgroup Average) Chart' },
+      { chart: rChartRef.current, title: 'R (Range) Chart' }
+    );
+
+    const limitRows: KVRow[] = [
+      ['X\u0304 CL', niceNum(result.cl_x)],
+      ['X\u0304 UCL', niceNum(result.ucl_x)],
+      ['X\u0304 LCL', niceNum(result.lcl_x)],
+      ['R CL', niceNum(result.cl_r)],
+      ['R UCL', niceNum(result.ucl_r)],
+      ['R LCL', niceNum(result.lcl_r)],
+    ];
+    const capRows: KVRow[] = [
+      ['Cp', niceNum(result.Cp)],
+      ['Cpk', niceNum(result.Cpk)],
+      ['Pp', niceNum(result.Pp)],
+      ['Ppk', niceNum(result.Ppk)],
+      ['Sigma Level (ST)', niceNum(result.sigLvl_st)],
+      ['Total PPM (ST)', result.ppmD_st ? niceNum(result.ppmD_st.total, 1) : '—'],
+    ];
+    twoColumnTables(ctx, 'Control Limits', limitRows, 'Process Capability', capRows);
+
+    const cpkVal = result.Cpk ?? result.Ppk;
+    if (cpkVal !== null && (result.LSL !== null || result.USL !== null)) {
+      const cls = classifyCapability(cpkVal);
+      classificationBanner(ctx, cls);
+      capabilityGauge(ctx, {
+        title: 'Capability Classification Gauge',
+        value: cpkVal,
+        caption: `${result.Cpk !== null ? 'Cpk' : 'Ppk'} = ${niceNum(cpkVal)}`,
+      });
     }
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Data', margin, y);
-    y += 8;
-    const dataColX = [margin, margin + 80, margin + 200];
-    const drawDataHeader = () => {
-      pdf.setFillColor(230, 230, 230);
-      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      ['Subgroup', 'X̄', 'Range'].forEach((h, i) => pdf.text(h, dataColX[i] + 4, y + 13));
-      y += rowHeight;
-    };
-    drawDataHeader();
-    pdf.setFont('helvetica', 'normal');
-    subgroups.forEach((_, i) => {
-      if (y + rowHeight > pageHeight - margin) {
-        pdf.addPage();
-        y = margin;
-        drawDataHeader();
-      }
-      const cells = [String(i + 1), niceNum(result.xbarVals[i], 3), niceNum(result.rangeVals[i], 3)];
-      cells.forEach((val, i2) => pdf.text(val, dataColX[i2] + 4, y + 13));
-      y += rowHeight;
-    });
+    addChartImage(ctx, histChartRef.current, messages.histogramTitle);
 
-    pdf.save('xbar-r-chart.pdf');
+    const stable = result.violations_x.length === 0;
+    calloutBox(
+      ctx,
+      stable
+        ? 'No Nelson Rule violations were detected on the X\u0304 chart.'
+        : `${result.violations_x.length} Nelson Rule violation(s) were detected on the X\u0304 chart — see the table below.`,
+      stable ? 'good' : 'warn'
+    );
+
+    if (result.violations_x.length > 0) {
+      dataTable(
+        ctx,
+        'Rule Violations',
+        [
+          { header: 'RULE', width: 60 },
+          { header: 'DESCRIPTION', width: 260 },
+          { header: 'POINTS', width: ctx.pageWidth - ctx.margin * 2 - 320 },
+        ],
+        result.violations_x.map((v) => [`#${v.rule}`, v.label, v.points.join('–')])
+      );
+    }
+
+    dataTable(
+      ctx,
+      'Data',
+      [
+        { header: 'SUBGROUP', width: 90, align: 'right' },
+        { header: 'X\u0304', width: 120, align: 'right' },
+        { header: 'RANGE', width: ctx.pageWidth - ctx.margin * 2 - 210, align: 'right' },
+      ],
+      subgroups.map((_, i) => [String(i + 1), niceNum(result.xbarVals[i], 3), niceNum(result.rangeVals[i], 3)]),
+      {
+        cellColors: subgroups.map((_, i) => [
+          null,
+          violatedIndices.has(i) ? REPORT_COLORS.warn : null,
+          null,
+        ]),
+      }
+    );
+
+    if (cpkVal !== null && (result.LSL !== null || result.USL !== null)) {
+      criteriaReferenceTable(ctx);
+    }
+
+    finalizeReport(ctx);
+    ctx.pdf.save('xbar-r-chart.pdf');
   }
 
   const dangerText: React.CSSProperties = { fontSize: 13, color: c.danger, marginTop: 8 };
@@ -498,7 +542,7 @@ export default function XbarRChartPage() {
         </div>
 
         {/* ── Results ─────────────────────────────────────────────────── */}
-        {result && xChartGeom && rChartGeom && subgroups && (
+        {result && subgroups && (
           <>
             <div style={s.card}>
               <div style={s.sectionTitle}>{messages.resultsTitle}</div>
@@ -515,54 +559,116 @@ export default function XbarRChartPage() {
             {/* ── X-bar chart ─────────────────────────────────────────── */}
             <div style={s.chartWrap}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 10 }}>{messages.chartXTitle}</h3>
-              <svg width="100%" viewBox={`0 0 ${CHART_W} ${CHART_H}`} role="img" aria-label={messages.chartXTitle}>
-                <line x1={PAD.left} y1={xChartGeom.yFor(result.cl_x)} x2={CHART_W - PAD.right} y2={xChartGeom.yFor(result.cl_x)} stroke={c.muted} strokeDasharray="5 3" />
-                <line x1={PAD.left} y1={xChartGeom.yFor(result.ucl_x)} x2={CHART_W - PAD.right} y2={xChartGeom.yFor(result.ucl_x)} stroke={c.danger} strokeDasharray="3 3" opacity={0.7} />
-                <line x1={PAD.left} y1={xChartGeom.yFor(result.lcl_x)} x2={CHART_W - PAD.right} y2={xChartGeom.yFor(result.lcl_x)} stroke={c.danger} strokeDasharray="3 3" opacity={0.7} />
-                <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={CHART_H - PAD.bottom} stroke={c.border} />
-                <line x1={PAD.left} y1={CHART_H - PAD.bottom} x2={CHART_W - PAD.right} y2={CHART_H - PAD.bottom} stroke={c.border} />
-                <polyline
-                  fill="none"
-                  stroke={c.line}
-                  strokeWidth={1.5}
-                  points={result.xbarVals.map((v, i) => `${xChartGeom.xFor(i)},${xChartGeom.yFor(v)}`).join(' ')}
-                />
-                {result.xbarVals.map((v, i) => (
-                  <circle
-                    key={i}
-                    cx={xChartGeom.xFor(i)}
-                    cy={xChartGeom.yFor(v)}
-                    r={4}
-                    fill={violatedIndices.has(i) ? c.danger : c.accent}
-                  />
-                ))}
-              </svg>
+              <Chart
+                ref={xChartRef}
+                type="line"
+                data={{
+                  labels: result.xbarVals.map((_, i) => String(i + 1)),
+                  datasets: [
+                    {
+                      label: 'X\u0304',
+                      data: result.xbarVals,
+                      borderColor: c.line,
+                      backgroundColor: c.accent,
+                      pointBackgroundColor: result.xbarVals.map((_, i) => (violatedIndices.has(i) ? c.danger : c.accent)),
+                      pointRadius: 4,
+                      borderWidth: 1.5,
+                      tension: 0,
+                    },
+                    {
+                      label: 'CL',
+                      data: result.xbarVals.map(() => result.cl_x),
+                      borderColor: c.muted,
+                      borderDash: [5, 3],
+                      pointRadius: 0,
+                      borderWidth: 1,
+                    },
+                    {
+                      label: 'UCL',
+                      data: result.xbarVals.map(() => result.ucl_x),
+                      borderColor: c.danger,
+                      borderDash: [3, 3],
+                      pointRadius: 0,
+                      borderWidth: 1,
+                    },
+                    {
+                      label: 'LCL',
+                      data: result.xbarVals.map(() => result.lcl_x),
+                      borderColor: c.danger,
+                      borderDash: [3, 3],
+                      pointRadius: 0,
+                      borderWidth: 1,
+                    },
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  animation: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { title: { display: true, text: 'Subgroup' }, grid: { color: c.border } },
+                    y: { grid: { color: c.border } },
+                  },
+                }}
+              />
             </div>
 
             {/* ── R chart ─────────────────────────────────────────────── */}
             <div style={s.chartWrap}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 10 }}>{messages.chartRTitle}</h3>
-              <svg width="100%" viewBox={`0 0 ${CHART_W} ${CHART_H}`} role="img" aria-label={messages.chartRTitle}>
-                <line x1={PAD.left} y1={rChartGeom.yFor(result.cl_r)} x2={CHART_W - PAD.right} y2={rChartGeom.yFor(result.cl_r)} stroke={c.muted} strokeDasharray="5 3" />
-                <line x1={PAD.left} y1={rChartGeom.yFor(result.ucl_r)} x2={CHART_W - PAD.right} y2={rChartGeom.yFor(result.ucl_r)} stroke={c.danger} strokeDasharray="3 3" opacity={0.7} />
-                {result.lcl_r > 0 && (
-                  <line x1={PAD.left} y1={rChartGeom.yFor(result.lcl_r)} x2={CHART_W - PAD.right} y2={rChartGeom.yFor(result.lcl_r)} stroke={c.danger} strokeDasharray="3 3" opacity={0.7} />
-                )}
-                <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={CHART_H - PAD.bottom} stroke={c.border} />
-                <line x1={PAD.left} y1={CHART_H - PAD.bottom} x2={CHART_W - PAD.right} y2={CHART_H - PAD.bottom} stroke={c.border} />
-                <polyline
-                  fill="none"
-                  stroke={c.line}
-                  strokeWidth={1.5}
-                  points={result.rangeVals
-                    .map((v, i) => (v !== null ? `${rChartGeom.xFor(i)},${rChartGeom.yFor(v)}` : null))
-                    .filter(Boolean)
-                    .join(' ')}
-                />
-                {result.rangeVals.map((v, i) =>
-                  v !== null ? <circle key={i} cx={rChartGeom.xFor(i)} cy={rChartGeom.yFor(v)} r={4} fill={c.accent} /> : null
-                )}
-              </svg>
+              <Chart
+                ref={rChartRef}
+                type="line"
+                data={{
+                  labels: result.rangeVals.map((_, i) => String(i + 1)),
+                  datasets: [
+                    {
+                      label: 'R',
+                      data: result.rangeVals,
+                      borderColor: c.line,
+                      backgroundColor: c.accent,
+                      pointRadius: 4,
+                      borderWidth: 1.5,
+                      tension: 0,
+                    },
+                    {
+                      label: 'CL',
+                      data: result.rangeVals.map(() => result.cl_r),
+                      borderColor: c.muted,
+                      borderDash: [5, 3],
+                      pointRadius: 0,
+                      borderWidth: 1,
+                    },
+                    {
+                      label: 'UCL',
+                      data: result.rangeVals.map(() => result.ucl_r),
+                      borderColor: c.danger,
+                      borderDash: [3, 3],
+                      pointRadius: 0,
+                      borderWidth: 1,
+                    },
+                    ...(result.lcl_r > 0
+                      ? [{
+                          label: 'LCL',
+                          data: result.rangeVals.map(() => result.lcl_r),
+                          borderColor: c.danger,
+                          borderDash: [3, 3] as [number, number],
+                          pointRadius: 0,
+                          borderWidth: 1,
+                        }]
+                      : []),
+                  ],
+                }}
+                options={{
+                  responsive: true,
+                  animation: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { title: { display: true, text: 'Subgroup' }, grid: { color: c.border } },
+                    y: { grid: { color: c.border } },
+                  },
+                }}
+              />
             </div>
 
             {/* ── Violations ──────────────────────────────────────────── */}
@@ -610,6 +716,72 @@ export default function XbarRChartPage() {
                 {messages.dataAdequacyNote(result.dataAdequacy.label, result.dataAdequacy.n)}
               </p>
             </div>
+
+            {/* ── Capability Histogram ────────────────────────────────── */}
+            {histogramData && (
+              <div style={s.chartWrap}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 4 }}>{messages.histogramTitle}</h3>
+                <p style={{ fontSize: 12, color: c.muted, marginBottom: 10 }}>
+                  Overall sigma ({niceNum(result.sdOverall)}) and Within sigma ({niceNum(result.sigma)}) are both shown against the raw measurement distribution.
+                </p>
+                <Chart
+                  ref={histChartRef}
+                  type="bar"
+                  data={{
+                    labels: histogramData.binLabels.map((v) => niceNum(v, 3)),
+                    datasets: [
+                      {
+                        type: 'bar' as const,
+                        label: 'Frequency',
+                        data: histogramData.binCounts,
+                        backgroundColor: c.accent + '80',
+                        borderColor: c.accent,
+                        borderWidth: 1,
+                        order: 2,
+                      },
+                      {
+                        type: 'line' as const,
+                        label: 'Overall sigma',
+                        data: histogramData.curveX.map((x, i) => ({ x, y: histogramData.overallCurve[i] })),
+                        borderColor: c.text,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        order: 1,
+                        xAxisID: 'xCurve',
+                      },
+                      {
+                        type: 'line' as const,
+                        label: 'Within sigma',
+                        data: histogramData.curveX.map((x, i) => ({ x, y: histogramData.withinCurve[i] })),
+                        borderColor: c.line,
+                        borderDash: [6, 4],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.3,
+                        order: 1,
+                        xAxisID: 'xCurve',
+                      },
+                    ],
+                  }}
+                  options={{
+                    responsive: true,
+                    animation: false,
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: {
+                      x: { title: { display: true, text: 'Measurement value' }, grid: { color: c.border } },
+                      xCurve: {
+                        type: 'linear',
+                        display: false,
+                        min: histogramData.curveX[0],
+                        max: histogramData.curveX[histogramData.curveX.length - 1],
+                      },
+                      y: { title: { display: true, text: 'Frequency' }, grid: { color: c.border }, beginAtZero: true },
+                    },
+                  }}
+                />
+              </div>
+            )}
 
             {/* ── Export & Save ─────────────────────────────────────────── */}
             <div style={s.card}>

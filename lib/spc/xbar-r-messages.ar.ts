@@ -28,6 +28,7 @@ export const xbarRMessagesAr: XbarRMessages = {
   resultsTitle: 'نتائج مخطط Xbar-R',
   chartXTitle: 'مخطط X̄ (متوسط المجموعة الفرعية)',
   chartRTitle: 'مخطط R (المدى)',
+  histogramTitle: 'هيستوجرام القدرة (الكلي مقابل ضمن المجموعات)',
   metricGrandMean: 'المتوسط العام (X̿)',
   metricSigma: 'σ (مجمّعة ضمن المجموعات الفرعية)',
   metricUCL: 'الحد الأعلى للضبط (UCL)',
