@@ -224,7 +224,7 @@ export default function XbarRChartPage() {
 
   const xChartRef = useRef<ChartJSInstance<'line'>>(null);
   const rChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
-  const histChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
+  const histChartRef = useRef<ChartJSInstance<'bar' | 'line', { x: number; y: number }[]>>(null);
 
   const violatedIndices = useMemo(() => {
     if (!result) return new Set<number>();
@@ -759,12 +759,11 @@ export default function XbarRChartPage() {
                     ref={histChartRef}
                     type="bar"
                     data={{
-                      labels: histogramData.binLabels.map((v) => niceNum(v, 3)),
                       datasets: [
                         {
                           type: 'bar' as const,
                           label: 'Frequency',
-                          data: histogramData.binCounts,
+                          data: histogramData.binLabels.map((x, i) => ({ x, y: histogramData.binCounts[i] })),
                           backgroundColor: c.accent + '80',
                           borderColor: c.accent,
                           borderWidth: 1,
@@ -779,7 +778,6 @@ export default function XbarRChartPage() {
                           pointRadius: 0,
                           tension: 0.3,
                           order: 1,
-                          xAxisID: 'xCurve',
                         },
                         {
                           type: 'line' as const,
@@ -791,7 +789,6 @@ export default function XbarRChartPage() {
                           pointRadius: 0,
                           tension: 0.3,
                           order: 1,
-                          xAxisID: 'xCurve',
                         },
                         ...(result.LSL !== null
                           ? [{
@@ -804,7 +801,6 @@ export default function XbarRChartPage() {
                               pointRadius: 0,
                               tension: 0,
                               order: 0,
-                              xAxisID: 'xCurve',
                             }]
                           : []),
                         ...(result.USL !== null
@@ -818,7 +814,6 @@ export default function XbarRChartPage() {
                               pointRadius: 0,
                               tension: 0,
                               order: 0,
-                              xAxisID: 'xCurve',
                             }]
                           : []),
                       ],
@@ -836,10 +831,11 @@ export default function XbarRChartPage() {
                         },
                       },
                       scales: {
-                        x: { title: { display: true, text: 'Measurement value', color: c.muted }, ticks: { color: c.muted }, grid: { color: c.border } },
-                        xCurve: {
+                        x: {
                           type: 'linear',
-                          display: false,
+                          title: { display: true, text: 'Measurement value', color: c.muted },
+                          ticks: { color: c.muted, callback: (v) => niceNum(Number(v), 3) },
+                          grid: { color: c.border },
                           min: histogramData.axisMin,
                           max: histogramData.axisMax,
                         },
