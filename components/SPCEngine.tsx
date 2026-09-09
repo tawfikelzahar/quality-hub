@@ -316,7 +316,7 @@ export default function SPCEngine() {
   // Chart refs — needed to export each chart as an image
   const iChartRef = useRef<ChartJSInstance<'line'>>(null)
   const rChartRef = useRef<ChartJSInstance<'line'>>(null)
-  const distChartRef = useRef<ChartJSInstance<'scatter'>>(null)
+  const distChartRef = useRef<ChartJSInstance<'bar' | 'line', { x: number; y: number }[]>>(null)
   const ecdfChartRef = useRef<ChartJSInstance<'scatter'>>(null)
   const attrChartRef = useRef<ChartJSInstance<'line'>>(null)
 
@@ -737,7 +737,7 @@ export default function SPCEngine() {
   }
 
   // ── Export: charts as PNG ────────────────────────────────────────────────
-  const downloadChartImage = (chart: ChartJSInstance<'line'> | ChartJSInstance<'scatter'> | null, filename: string): boolean => {
+  const downloadChartImage = (chart: { toBase64Image: (type?: string, quality?: number) => string } | null, filename: string): boolean => {
     if (!chart) return false
     const url = chart.toBase64Image('image/png', 1)
     const a = document.createElement('a')
@@ -1160,43 +1160,79 @@ export default function SPCEngine() {
   )
 
   // Distribution vs. Specification Limits — mirrors createDistChart()
-  function buildDistChart(vals: number[], mu: number, sigma: number, lsl: number | null, usl: number | null) {
-    const dataMin = Math.min(...vals, lsl ?? Infinity, usl ?? Infinity) - 3 * sigma
-    const dataMax = Math.max(...vals, lsl ?? -Infinity, usl ?? -Infinity) + 3 * sigma
-    const steps = 120
-    const dx = (dataMax - dataMin) / steps
-    const xs = Array.from({ length: steps + 1 }, (_, i) => dataMin + i * dx)
-    const ys = xs.map(x => normalPDF(x, mu, sigma))
-    const yMax = Math.max(...ys)
+  // Capability Histogram: raw-data histogram + Overall/Within normal curves + spec limits.
+  // Replaces the previous single-curve "Distribution vs. Spec" chart with the more
+  // rigorous Overall-vs-Within comparison (mirrors the Xbar-R/S/I-MR capability histogram).
+  function buildDistChart(vals: number[], mu: number, sigmaOverall: number, sigmaWithin: number, lsl: number | null, usl: number | null) {
+    const n = vals.length
+    const min = Math.min(...vals)
+    const max = Math.max(...vals)
+    const range = max - min || 1
+    const binCount = Math.max(5, Math.min(20, Math.round(1 + Math.log2(n))))
+    const binWidth = range / binCount
+    const binEdges = Array.from({ length: binCount + 1 }, (_, i) => min + i * binWidth)
+    const binCounts = new Array(binCount).fill(0)
+    vals.forEach((v) => {
+      let idx = Math.floor((v - min) / binWidth)
+      if (idx >= binCount) idx = binCount - 1
+      if (idx < 0) idx = 0
+      binCounts[idx]++
+    })
+    const binCenters = binEdges.slice(0, -1).map((edge) => edge + binWidth / 2)
+
+    const specVals = [lsl, usl].filter((v): v is number => v !== null)
+    const rangeMin = Math.min(min, ...specVals)
+    const rangeMax = Math.max(max, ...specVals)
+    const fullRange = rangeMax - rangeMin || 1
+    const curvePad = fullRange * 0.15
+    const axisMin = rangeMin - curvePad
+    const axisMax = rangeMax + curvePad
+
+    const curveN = 80
+    const curveX = Array.from({ length: curveN }, (_, i) => axisMin + ((axisMax - axisMin) * i) / (curveN - 1))
+    const overallCurve = curveX.map((x) => normalPDF(x, mu, sigmaOverall) * n * binWidth)
+    const withinCurve = curveX.map((x) => normalPDF(x, mu, sigmaWithin) * n * binWidth)
+    const chartMaxY = Math.max(...binCounts, ...overallCurve, ...withinCurve) * 1.08
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datasets: any[] = [
       {
-        label: 'Distribution',
-        data: xs.map((x, i) => ({ x, y: ys[i] })),
+        type: 'bar',
+        label: 'Frequency',
+        data: binCenters.map((x, i) => ({ x, y: binCounts[i] })),
+        backgroundColor: `${c.accent}80`,
         borderColor: c.accent,
-        backgroundColor: `${c.accent}33`,
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: 'origin',
-        tension: 0.4,
-        showLine: true,
+        borderWidth: 1,
+        order: 2,
       },
       {
-        label: 'μ',
-        data: [{ x: mu, y: 0 }, { x: mu, y: yMax * 1.05 }],
-        borderColor: c.muted,
-        borderWidth: 1.5,
-        borderDash: [3, 2],
+        type: 'line',
+        label: 'Overall sigma',
+        data: curveX.map((x, i) => ({ x, y: overallCurve[i] })),
+        borderColor: c.text,
+        borderWidth: 2,
         pointRadius: 0,
-        fill: false,
-        showLine: true,
+        tension: 0.3,
+        order: 1,
+      },
+      {
+        type: 'line',
+        label: 'Within sigma',
+        data: curveX.map((x, i) => ({ x, y: withinCurve[i] })),
+        borderColor: c.line,
+        borderDash: [6, 4],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3,
+        order: 1,
       },
     ]
     if (lsl !== null)
-      datasets.push({ label: 'LSL', data: [{ x: lsl, y: 0 }, { x: lsl, y: yMax * 1.1 }], borderColor: c.danger, borderWidth: 2, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
+      datasets.push({ type: 'line', label: 'LSL', data: [{ x: lsl, y: 0 }, { x: lsl, y: chartMaxY }], borderColor: c.danger, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, tension: 0, order: 0 })
     if (usl !== null)
-      datasets.push({ label: 'USL', data: [{ x: usl, y: 0 }, { x: usl, y: yMax * 1.1 }], borderColor: c.danger, borderWidth: 2, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
-    return { datasets }
+      datasets.push({ type: 'line', label: 'USL', data: [{ x: usl, y: 0 }, { x: usl, y: chartMaxY }], borderColor: c.danger, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, tension: 0, order: 0 })
+
+    return { datasets, axisMin, axisMax }
   }
 
   // Empirical CDF vs. Normal CDF — mirrors createECDFChart()
@@ -1230,6 +1266,29 @@ export default function SPCEngine() {
   const violatedX = varResult ? violatedSet(varResult.violations_x) : new Set<number>()
   const violatedR = varResult ? violatedSet(varResult.violations_r) : new Set<number>()
   const violatedAttr = attrResult ? violatedSet(attrResult.violations) : new Set<number>()
+
+  const distChartBuild = useMemo(() => {
+    if (!varResult || submittedVals.length === 0) return null
+    return buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.sigma, varResult.LSL, varResult.USL)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [varResult, submittedVals, c])
+
+  const distChartData = useMemo(
+    () => (distChartBuild ? { datasets: distChartBuild.datasets } : { datasets: [] }),
+    [distChartBuild]
+  )
+
+  const distChartOptions = useMemo(() => {
+    const base = linearChartOptions(false)
+    if (!distChartBuild) return base
+    return {
+      ...base,
+      scales: {
+        ...base.scales,
+        x: { ...base.scales.x, min: distChartBuild.axisMin, max: distChartBuild.axisMax },
+      },
+    }
+  }, [distChartBuild, linearChartOptions])
 
   const rangeVals = varResult ? varResult.rangeVals.map(v => v ?? 0) : []
   const rangeLabels = varResult ? varResult.labels.slice(1) : []
@@ -1772,9 +1831,9 @@ export default function SPCEngine() {
                       <div className="qh-chart-inner" style={s.chartInner}>
                         <Chart
                           ref={distChartRef}
-                          type="scatter"
-                          data={buildDistChart(submittedVals, varResult.mu, varResult.sdOverall, varResult.LSL, varResult.USL)}
-                          options={linearChartOptions(false)}
+                          type="bar"
+                          data={distChartData}
+                          options={distChartOptions}
                         />
                       </div>
                     </div>
