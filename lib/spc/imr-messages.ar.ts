@@ -26,6 +26,7 @@ export const imrMessagesAr: ImrMessages = {
   resultsTitle: 'نتائج مخطط I-MR',
   chartITitle: 'مخطط الأفراد (I)',
   chartMRTitle: 'مخطط مدى التحرك (MR)',
+  histogramTitle: 'هيستوجرام القدرة (الكلي مقابل ضمن المجموعات)',
   metricMean: 'المتوسط (X̄)',
   metricSigma: 'σ (من MR̄/1.128)',
   metricUCL: 'الحد الأعلى للضبط (UCL)',

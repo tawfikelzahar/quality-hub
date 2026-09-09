@@ -22,6 +22,7 @@ export interface ImrMessages {
   resultsTitle: string
   chartITitle: string
   chartMRTitle: string
+  histogramTitle: string
   metricMean: string
   metricSigma: string
   metricUCL: string
@@ -78,6 +79,7 @@ export const messages: ImrMessages = {
   resultsTitle: 'I-MR Chart Results',
   chartITitle: 'Individuals (I) Chart',
   chartMRTitle: 'Moving Range (MR) Chart',
+  histogramTitle: 'Capability Histogram (Overall vs. Within)',
   metricMean: 'Mean (X̄)',
   metricSigma: 'σ (from MR̄/1.128)',
   metricUCL: 'UCL',
