@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import jsPDF from 'jspdf';
 import {
   runSimpleLinearRegression,
   validateData,
@@ -20,6 +19,14 @@ import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
+import {
+  createReport as createPdfReport,
+  twoColumnTables,
+  dataTable,
+  calloutBox,
+  finalizeReport,
+  type KVRow,
+} from '@/lib/pdf/reportDesign';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Chart geometry — plain inline SVG, matching the ICMSF/AQL "draw it
@@ -388,100 +395,80 @@ export default function RegressionPage() {
   function exportPDF() {
     if (!isPro) { goToPricing('regression', 'pdf'); return }
     if (!result) return;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;
-    let y = margin;
 
-    pdf.setFontSize(18);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(messages.pdfReportTitle, margin, y);
-    y += 18;
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100);
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y);
-    y += 16;
-    pdf.setTextColor(0);
-    pdf.setFontSize(11);
-    pdf.text(`Y = ${niceNum(result.intercept)} + ${niceNum(result.slope)} · X`, margin, y);
-    y += 14;
-    pdf.text(`R² = ${niceNum(result.r2)}   R²(adj) = ${niceNum(result.r2Adj)}   S = ${niceNum(result.se)}   N = ${result.n}`, margin, y);
-    y += 24;
+    const ctx = createPdfReport(messages.pdfReportTitle, 'regression');
 
-    // Coefficient table
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Coefficients', margin, y);
-    y += 8;
-    const coefColX = [margin, margin + 100, margin + 180, margin + 260, margin + 340];
-    const rowHeight = 18;
-    pdf.setFillColor(230, 230, 230);
-    pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-    pdf.setFontSize(9);
-    ['Term', 'Coef', 'SE Coef', 'T-Value', 'P-Value'].forEach((h, i) => pdf.text(h, coefColX[i] + 4, y + 13));
-    y += rowHeight;
-    pdf.setFont('helvetica', 'normal');
-    result.coefficients.forEach((row) => {
-      const cells = [row.term, niceNum(row.coef), niceNum(row.se), niceNum(row.tStat), formatP(row.pValue)];
-      cells.forEach((v, i) => pdf.text(v, coefColX[i] + 4, y + 13));
-      y += rowHeight;
-    });
-    y += 16;
+    calloutBox(ctx, `Y = ${niceNum(result.intercept)} + ${niceNum(result.slope)} \u00b7 X`, 'info');
 
-    // ANOVA table
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Analysis of Variance', margin, y);
-    y += 8;
-    const anovaColX = [margin, margin + 110, margin + 160, margin + 230, margin + 300, margin + 370];
-    pdf.setFillColor(230, 230, 230);
-    pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-    pdf.setFontSize(9);
-    ['Source', 'DF', 'Seq SS', 'Adj MS', 'F', 'P'].forEach((h, i) => pdf.text(h, anovaColX[i] + 4, y + 13));
-    y += rowHeight;
-    pdf.setFont('helvetica', 'normal');
-    result.anova.forEach((row) => {
-      const cells = [
-        row.source, String(row.df), niceNum(row.seqSS),
+    const fitRows: KVRow[] = [
+      ['R\u00b2', niceNum(result.r2)],
+      ['R\u00b2 (adj)', niceNum(result.r2Adj)],
+      ['S', niceNum(result.se)],
+      ['N', String(result.n)],
+    ];
+    const eqRows: KVRow[] = [
+      ['Intercept', niceNum(result.intercept)],
+      ['Slope', niceNum(result.slope)],
+    ];
+    twoColumnTables(ctx, 'Model Fit', fitRows, 'Regression Equation', eqRows);
+
+    dataTable(
+      ctx,
+      'Coefficients',
+      [
+        { header: 'TERM', width: 100 },
+        { header: 'COEF', width: 90, align: 'right' },
+        { header: 'SE COEF', width: 90, align: 'right' },
+        { header: 'T-VALUE', width: 90, align: 'right' },
+        { header: 'P-VALUE', width: ctx.pageWidth - ctx.margin * 2 - 370, align: 'right' },
+      ],
+      result.coefficients.map((row) => [row.term, niceNum(row.coef), niceNum(row.se), niceNum(row.tStat), formatP(row.pValue)])
+    );
+
+    dataTable(
+      ctx,
+      'Analysis of Variance',
+      [
+        { header: 'SOURCE', width: 100 },
+        { header: 'DF', width: 50, align: 'right' },
+        { header: 'SEQ SS', width: 90, align: 'right' },
+        { header: 'ADJ MS', width: 90, align: 'right' },
+        { header: 'F', width: 70, align: 'right' },
+        { header: 'P', width: ctx.pageWidth - ctx.margin * 2 - 400, align: 'right' },
+      ],
+      result.anova.map((row) => [
+        row.source,
+        String(row.df),
+        niceNum(row.seqSS),
         Number.isNaN(row.adjMS) ? '' : niceNum(row.adjMS),
         row.fStat === null ? '' : niceNum(row.fStat),
         row.pValue === null ? '' : formatP(row.pValue),
-      ];
-      cells.forEach((v, i) => pdf.text(v, anovaColX[i] + 4, y + 13));
-      y += rowHeight;
-    });
-    y += 16;
+      ])
+    );
 
-    // Residuals table (paginated)
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(12);
-    pdf.text('Fitted Values & Residuals', margin, y);
-    y += 8;
-    const resColX = [margin, margin + 40, margin + 130, margin + 220, margin + 310, margin + 400];
-    const drawResHeader = () => {
-      pdf.setFillColor(230, 230, 230);
-      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      ['#', 'X', 'Y', 'Fitted', 'Residual', 'Std Resid'].forEach((h, i) => pdf.text(h, resColX[i] + 4, y + 13));
-      y += rowHeight;
-    };
-    drawResHeader();
-    pdf.setFont('helvetica', 'normal');
-    result.residuals.forEach((r) => {
-      if (y + rowHeight > pageHeight - margin) {
-        pdf.addPage();
-        y = margin;
-        drawResHeader();
-      }
-      const cells = [String(r.index + 1), niceNum(r.x, 3), niceNum(r.y, 3), niceNum(r.fitted, 3), niceNum(r.residual, 3), niceNum(r.standardizedResidual, 3)];
-      cells.forEach((v, i) => pdf.text(v, resColX[i] + 4, y + 13));
-      y += rowHeight;
-    });
+    dataTable(
+      ctx,
+      'Fitted Values & Residuals',
+      [
+        { header: '#', width: 40, align: 'right' },
+        { header: 'X', width: 90, align: 'right' },
+        { header: 'Y', width: 90, align: 'right' },
+        { header: 'FITTED', width: 90, align: 'right' },
+        { header: 'RESIDUAL', width: 90, align: 'right' },
+        { header: 'STD RESID', width: ctx.pageWidth - ctx.margin * 2 - 400, align: 'right' },
+      ],
+      result.residuals.map((r) => [
+        String(r.index + 1),
+        niceNum(r.x, 3),
+        niceNum(r.y, 3),
+        niceNum(r.fitted, 3),
+        niceNum(r.residual, 3),
+        niceNum(r.standardizedResidual, 3),
+      ])
+    );
 
-    pdf.save('simple-linear-regression.pdf');
+    finalizeReport(ctx);
+    ctx.pdf.save('simple-linear-regression.pdf');
   }
 
   const dangerText: React.CSSProperties = { fontSize: 13, color: c.danger, marginTop: 8 };

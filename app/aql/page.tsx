@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import jsPDF from 'jspdf';
 import {
   AQL_VALUES,
   DEFAULT_DEFECT_CLASSES,
@@ -24,6 +23,11 @@ import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
+import {
+  createReport as createPdfReport,
+  dataTable,
+  finalizeReport,
+} from '@/lib/pdf/reportDesign';
 
 const LEVELS: InspectionLevel[] = ['S1', 'S2', 'S3', 'S4', 'I', 'II', 'III'];
 const TYPES: InspectionType[] = ['Normal', 'Tightened', 'Reduced'];
@@ -291,51 +295,40 @@ export default function AQLPage() {
   function exportPDF() {
     if (!isPro) { goToPricing('aql', 'pdf'); return }
     const flat = flattenResults(results, messages);
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 40;
-    let y = margin;
 
-    pdf.setFontSize(18);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(messages.pdfReportTitle, margin, y);
-    y += 10;
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(100);
-    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, y + 12);
-    y += 34;
+    const ctx = createPdfReport(messages.pdfReportTitle, 'aql');
 
-    const colX = [margin, margin + 90, margin + 160, margin + 210, margin + 270, margin + 360, margin + 400, margin + 440];
-    const rowHeight = 20;
+    dataTable(
+      ctx,
+      'Sampling Plan',
+      [
+        { header: 'STAGE', width: 70 },
+        { header: 'LOT SIZE', width: 55, align: 'right' },
+        { header: 'LEVEL', width: 40, align: 'center' },
+        { header: 'CODE', width: 35, align: 'center' },
+        { header: 'DEFECT CLASS', width: 80 },
+        { header: 'AQL%', width: 35, align: 'right' },
+        { header: 'SAMPLE', width: 45, align: 'right' },
+        { header: 'AC', width: 25, align: 'right' },
+        { header: 'RE', width: 25, align: 'right' },
+        { header: 'NOTE', width: ctx.pageWidth - ctx.margin * 2 - 410 },
+      ],
+      flat.map((r) => [
+        r.stage,
+        String(r.lotSize),
+        r.level,
+        r.codeLetter,
+        r.defectClass,
+        String(r.aql),
+        String(r.sampleSize),
+        String(r.ac),
+        String(r.re),
+        r.note,
+      ])
+    );
 
-    const drawHeader = () => {
-      pdf.setFillColor(230, 230, 230);
-      pdf.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8);
-      pdf.setTextColor(0);
-      const headers = ['Stage', 'Lot Size', 'Level', 'Code Letter', 'Defect Class', 'AQL%', 'Ac', 'Re'];
-      headers.forEach((h, i) => pdf.text(h, colX[i] + 4, y + 14));
-      y += rowHeight;
-    };
-
-    drawHeader();
-    pdf.setFont('helvetica', 'normal');
-    flat.forEach((r) => {
-      if (y + rowHeight > pageHeight - margin) {
-        pdf.addPage();
-        y = margin;
-        drawHeader();
-      }
-      pdf.setTextColor(0);
-      const cells = [r.stage, String(r.lotSize), r.level, r.codeLetter, r.defectClass, String(r.aql), String(r.ac), String(r.re)];
-      cells.forEach((v, i) => pdf.text(v.slice(0, 18), colX[i] + 4, y + 14));
-      y += rowHeight;
-    });
-
-    pdf.save('aql-sampling-plan.pdf');
+    finalizeReport(ctx);
+    ctx.pdf.save('aql-sampling-plan.pdf');
   }
 
   const warningText: React.CSSProperties = { fontSize: 12, color: c.amber, marginTop: 2 };
