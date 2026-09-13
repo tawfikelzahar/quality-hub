@@ -599,33 +599,54 @@ export default function SPCEngine() {
         title: undefined,
         headers: [
           { header: 'Chart', key: 'chart', align: 'left', width: 22 },
-          { header: 'CL', key: 'cl', align: 'right' },
-          { header: 'UCL', key: 'ucl', align: 'right' },
-          { header: 'LCL', key: 'lcl', align: 'right' },
+          { header: 'CL', key: 'cl', align: 'right', numFmt: '0.0000' },
+          { header: 'UCL', key: 'ucl', align: 'right', numFmt: '0.0000' },
+          { header: 'LCL', key: 'lcl', align: 'right', numFmt: '0.0000' },
         ],
         rows: [
-          [chartWord, fmt(varResult.cl_x, 4), fmt(varResult.ucl_x, 4), fmt(varResult.lcl_x, 4)],
-          [clWord, fmt(varResult.cl_r, 4), fmt(varResult.ucl_r, 4), fmt(Math.max(0, varResult.lcl_r), 4)],
+          { chart: chartWord, cl: varResult.cl_x, ucl: varResult.ucl_x, lcl: varResult.lcl_x },
+          { chart: clWord, cl: varResult.cl_r, ucl: varResult.ucl_r, lcl: Math.max(0, varResult.lcl_r) },
         ],
       })
 
+      // ── Control charts as images (Chart.js canvas → PNG, same source as the
+      // "Download Chart Image" buttons) — gives the Excel report the same
+      // visual the person sees on screen, not just the numbers. ──
+      overview.sectionHeading('Control Charts')
+      if (iChartRef.current) {
+        await overview.image(iChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
+      }
+      if (rChartRef.current) {
+        await overview.image(rChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
+      }
+
       if (hasSpecLimits) {
-        overview.sectionHeading('Specification Limits & PPM')
+        overview.sectionHeading('Specification Limits & Capability')
         overview.table({
           headers: [
             { header: 'Metric', key: 'metric', align: 'left', width: 26 },
-            { header: 'Value', key: 'value', align: 'right' },
+            { header: 'Value', key: 'value', align: 'right', numFmt: '0.0000' },
           ],
           rows: [
-            ['LSL', varResult.LSL ?? '—'],
-            ['USL', varResult.USL ?? '—'],
-            ['Cpm', fmt(varResult.Cpm, 3)],
-            ['Z-bench (Short-term)', fmt(varResult.Z_bench_st, 3)],
-            ['Z-bench (Long-term)', fmt(varResult.Z_bench_lt, 3)],
-            ['PPM Above USL (Short-term)', varResult.ppmD_st ? Math.round(varResult.ppmD_st.above) : '—'],
-            ['PPM Below LSL (Short-term)', varResult.ppmD_st ? Math.round(varResult.ppmD_st.below) : '—'],
-            ['PPM Above USL (Long-term)', varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.above) : '—'],
-            ['PPM Below LSL (Long-term)', varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.below) : '—'],
+            { metric: 'LSL', value: varResult.LSL ?? '—' },
+            { metric: 'USL', value: varResult.USL ?? '—' },
+            { metric: 'Cpm', value: varResult.Cpm ?? '—' },
+            { metric: 'Z-bench (Short-term)', value: varResult.Z_bench_st ?? '—' },
+            { metric: 'Z-bench (Long-term)', value: varResult.Z_bench_lt ?? '—' },
+          ],
+        })
+
+        overview.sectionHeading('Defect Rate (PPM)')
+        overview.table({
+          headers: [
+            { header: 'Metric', key: 'metric', align: 'left', width: 30 },
+            { header: 'PPM', key: 'ppm', align: 'right', numFmt: '#,##0' },
+          ],
+          rows: [
+            { metric: 'Above USL (Short-term)', ppm: varResult.ppmD_st ? Math.round(varResult.ppmD_st.above) : '—' },
+            { metric: 'Below LSL (Short-term)', ppm: varResult.ppmD_st ? Math.round(varResult.ppmD_st.below) : '—' },
+            { metric: 'Above USL (Long-term)', ppm: varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.above) : '—' },
+            { metric: 'Below LSL (Long-term)', ppm: varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.below) : '—' },
           ],
         })
       }
@@ -697,7 +718,21 @@ export default function SPCEngine() {
         r.vals.forEach((v, j) => { row[`x${j}`] = v === '' ? '' : parseFloat(v) })
         return row
       })
-      dataSheet.table({ headers: cols, rows })
+      // Flag any subgroup containing a value outside LSL/USL — makes
+      // out-of-spec readings visible at a glance in the raw data sheet,
+      // matching the "danger" styling already used for Nelson violations.
+      const rowTones = hasSpecLimits
+        ? varRows.map(r =>
+            r.vals.some(v => {
+              if (v === '') return false
+              const n = parseFloat(v)
+              return (varResult?.LSL != null && n < varResult.LSL) || (varResult?.USL != null && n > varResult.USL)
+            })
+              ? ('danger' as const)
+              : undefined
+          )
+        : undefined
+      dataSheet.table({ headers: cols, rows, rowTones })
     } else {
       const needsN = attrType === 'p' || attrType === 'u'
       const cols: TableColumn[] = [
