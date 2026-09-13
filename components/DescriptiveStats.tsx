@@ -123,23 +123,23 @@ export default function DescriptiveStats() {
     overview.table({
       headers: [
         { header: 'Statistic', key: 'k', align: 'left', width: 22 },
-        { header: 'Value', key: 'v', align: 'right' },
+        { header: 'Value', key: 'v', align: 'right', numFmt: '0.0000' },
       ],
       rows: [
-        ['N', result.n],
-        ['Mean', fmt(result.mean)],
-        ['StDev', fmt(result.stdev)],
-        ['Variance', fmt(result.variance)],
-        ['CV (%)', result.cv !== null ? fmt(result.cv) : '—'],
-        ['Skewness', result.skewness !== null ? fmt(result.skewness) : '—'],
-        ['Kurtosis', result.kurtosis !== null ? fmt(result.kurtosis) : '—'],
-        ['Minimum', fmt(result.min)],
-        ['Q1', fmt(result.q1)],
-        ['Median', fmt(result.median)],
-        ['Q3', fmt(result.q3)],
-        ['Maximum', fmt(result.max)],
-        ['IQR', fmt(result.iqr)],
-        ['Range', fmt(result.range)],
+        { k: 'N', v: result.n },
+        { k: 'Mean', v: result.mean },
+        { k: 'StDev', v: result.stdev },
+        { k: 'Variance', v: result.variance },
+        { k: 'CV (%)', v: result.cv !== null ? result.cv : '—' },
+        { k: 'Skewness', v: result.skewness !== null ? result.skewness : '—' },
+        { k: 'Kurtosis', v: result.kurtosis !== null ? result.kurtosis : '—' },
+        { k: 'Minimum', v: result.min },
+        { k: 'Q1', v: result.q1 },
+        { k: 'Median', v: result.median },
+        { k: 'Q3', v: result.q3 },
+        { k: 'Maximum', v: result.max },
+        { k: 'IQR', v: result.iqr },
+        { k: 'Range', v: result.range },
       ],
     })
 
@@ -148,13 +148,13 @@ export default function DescriptiveStats() {
       overview.table({
         headers: [
           { header: 'Statistic', key: 'k', align: 'left', width: 20 },
-          { header: 'Lower', key: 'lo', align: 'right' },
-          { header: 'Upper', key: 'hi', align: 'right' },
+          { header: 'Lower', key: 'lo', align: 'right', numFmt: '0.0000' },
+          { header: 'Upper', key: 'hi', align: 'right', numFmt: '0.0000' },
         ],
         rows: [
-          ...(result.ciMean ? [['Mean', fmt(result.ciMean.lower), fmt(result.ciMean.upper)]] : []),
-          ...(result.ciMedian ? [['Median', fmt(result.ciMedian.lower), fmt(result.ciMedian.upper)]] : []),
-          ...(result.ciStdev ? [['StDev', fmt(result.ciStdev.lower), fmt(result.ciStdev.upper)]] : []),
+          ...(result.ciMean ? [{ k: 'Mean', lo: result.ciMean.lower, hi: result.ciMean.upper }] : []),
+          ...(result.ciMedian ? [{ k: 'Median', lo: result.ciMedian.lower, hi: result.ciMedian.upper }] : []),
+          ...(result.ciStdev ? [{ k: 'StDev', lo: result.ciStdev.lower, hi: result.ciStdev.upper }] : []),
         ],
       })
     }
@@ -165,12 +165,12 @@ export default function DescriptiveStats() {
       overview.table({
         headers: [
           { header: 'Statistic', key: 'k', align: 'left', width: 22 },
-          { header: 'Value', key: 'v', align: 'right' },
+          { header: 'Value', key: 'v', align: 'left' },
         ],
         rows: [
-          ['A² (adjusted)', fmt3(ad.statistic)],
-          ['p-value', fmt3(ad.pValue)],
-          ['Conclusion', ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'],
+          { k: 'A² (adjusted)', v: fmt3(ad.statistic) },
+          { k: 'p-value', v: fmt3(ad.pValue) },
+          { k: 'Conclusion', v: ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)' },
         ],
         rowTones: [undefined, undefined, ad.normalAtAlpha05 ? 'good' : 'warning'],
       })
@@ -181,17 +181,17 @@ export default function DescriptiveStats() {
     overview.table({
       headers: [
         { header: 'Statistic', key: 'k', align: 'left', width: 22 },
-        { header: 'Value', key: 'v', align: 'right' },
+        { header: 'Value', key: 'v', align: 'left' },
       ],
       rows: [
-        ['Min', fmt(bp.min)],
-        ['Q1', fmt(bp.q1)],
-        ['Median', fmt(bp.median)],
-        ['Q3', fmt(bp.q3)],
-        ['Max', fmt(bp.max)],
-        ['Lower Whisker', fmt(bp.lowerWhisker)],
-        ['Upper Whisker', fmt(bp.upperWhisker)],
-        ['Outliers', bp.outliers.length > 0 ? bp.outliers.map(v => fmt(v)).join(', ') : 'None'],
+        { k: 'Min', v: fmt(bp.min) },
+        { k: 'Q1', v: fmt(bp.q1) },
+        { k: 'Median', v: fmt(bp.median) },
+        { k: 'Q3', v: fmt(bp.q3) },
+        { k: 'Max', v: fmt(bp.max) },
+        { k: 'Lower Whisker', v: fmt(bp.lowerWhisker) },
+        { k: 'Upper Whisker', v: fmt(bp.upperWhisker) },
+        { k: 'Outliers', v: bp.outliers.length > 0 ? bp.outliers.map(v => fmt(v)).join(', ') : 'None' },
       ],
       rowTones: bp.outliers.length > 0 ? [undefined, undefined, undefined, undefined, undefined, undefined, undefined, 'warning'] : undefined,
     })
@@ -203,11 +203,11 @@ export default function DescriptiveStats() {
       histSheet.titleBand('Histogram Bins', `${result.histogram.length} bins`)
       histSheet.table({
         headers: [
-          { header: 'Bin Start', key: 'x0', align: 'right' },
-          { header: 'Bin End', key: 'x1', align: 'right' },
-          { header: 'Count', key: 'count', align: 'right' },
+          { header: 'Bin Start', key: 'x0', align: 'right', numFmt: '0.0000' },
+          { header: 'Bin End', key: 'x1', align: 'right', numFmt: '0.0000' },
+          { header: 'Count', key: 'count', align: 'right', numFmt: '#,##0' },
         ],
-        rows: result.histogram.map(b => [fmt(b.x0), fmt(b.x1), b.count]),
+        rows: result.histogram.map(b => ({ x0: b.x0, x1: b.x1, count: b.count })),
       })
       histSheet.freezeHeader(2)
     }
@@ -221,7 +221,7 @@ export default function DescriptiveStats() {
           { header: '#', key: 'i', align: 'center', width: 8 },
           { header: 'Value', key: 'v', align: 'right', numFmt: '0.0000' },
         ],
-        rows: values.map((v, i) => [i + 1, v]),
+        rows: values.map((v, i) => ({ i: i + 1, v })),
       })
       rawSheet.freezeHeader(2)
     }

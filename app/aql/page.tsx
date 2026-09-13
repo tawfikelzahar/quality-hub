@@ -213,21 +213,22 @@ export default function AQLPage() {
     overview.table({
       headers: [
         { header: 'Stage', key: 'stage', align: 'left', width: 18 },
-        { header: 'Lot Size', key: 'lotSize', align: 'right' },
+        { header: 'Lot Size', key: 'lotSize', align: 'right', numFmt: '#,##0' },
         { header: 'Level', key: 'level', align: 'center' },
         { header: 'Inspection Type', key: 'inspectionType', align: 'center', width: 16 },
         { header: 'Code Letter', key: 'codeLetter', align: 'center' },
         { header: 'Defect Class', key: 'defectClass', align: 'left', width: 18 },
-        { header: 'AQL %', key: 'aql', align: 'right' },
-        { header: 'Sample (n)', key: 'sampleSize', align: 'right' },
+        { header: 'AQL %', key: 'aql', align: 'right', numFmt: '0.00' },
+        { header: 'Sample (n)', key: 'sampleSize', align: 'right', numFmt: '#,##0' },
         { header: 'Ac', key: 'ac', align: 'center' },
         { header: 'Re', key: 're', align: 'center' },
         { header: 'Note', key: 'note', align: 'left', width: 34 },
       ],
-      rows: flat.map(r => [
-        r.stage, r.lotSize, r.level, r.inspectionType, r.codeLetter,
-        r.defectClass, r.aql, r.sampleSize, r.ac, r.re, r.note,
-      ]),
+      rows: flat.map(r => ({
+        stage: r.stage, lotSize: r.lotSize, level: r.level, inspectionType: r.inspectionType,
+        codeLetter: r.codeLetter, defectClass: r.defectClass, aql: r.aql,
+        sampleSize: r.sampleSize, ac: r.ac, re: r.re, note: r.note,
+      })),
       rowTones: flat.map(r => r.note ? 'warning' : undefined),
     });
     overview.freezeHeader(2);

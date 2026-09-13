@@ -265,43 +265,56 @@ export default function MultiRegressionPage() {
     overview.table({
       headers: [
         { header: 'Term', key: 'term', align: 'left', width: 16 },
-        { header: 'Coef', key: 'coef', align: 'right' },
-        { header: 'SE Coef', key: 'se', align: 'right' },
-        { header: 'T-Value', key: 't', align: 'right' },
-        { header: 'P-Value', key: 'p', align: 'right' },
-        { header: 'VIF', key: 'vif', align: 'right' },
+        { header: 'Coef', key: 'coef', align: 'right', numFmt: '0.0000' },
+        { header: 'SE Coef', key: 'se', align: 'right', numFmt: '0.0000' },
+        { header: 'T-Value', key: 't', align: 'right', numFmt: '0.0000' },
+        { header: 'P-Value', key: 'p', align: 'left' },
+        { header: 'VIF', key: 'vif', align: 'right', numFmt: '0.00' },
       ],
-      rows: result.coefficients.map((row) => [
-        row.term, niceNum(row.coef), niceNum(row.se), niceNum(row.tStat), formatP(row.pValue),
-        row.vif === null ? '' : niceNum(row.vif, 2),
-      ]),
+      rows: result.coefficients.map((row) => ({
+        term: row.term, coef: row.coef, se: row.se, t: row.tStat, p: formatP(row.pValue),
+        vif: row.vif === null ? '' : row.vif,
+      })),
+      // VIF > 10 is the conventional multicollinearity warning threshold;
+      // p < 0.05 highlights significant terms.
+      rowTones: result.coefficients.map((row) => {
+        if (row.vif !== null && row.vif > 10) return 'danger' as const
+        if (row.pValue < 0.05) return 'good' as const
+        return undefined
+      }),
     });
 
     overview.sectionHeading('Analysis of Variance');
     overview.table({
       headers: [
         { header: 'Source', key: 'source', align: 'left', width: 18 },
-        { header: 'DF', key: 'df', align: 'right' },
-        { header: 'Seq SS', key: 'ss', align: 'right' },
-        { header: 'Adj MS', key: 'ms', align: 'right' },
-        { header: 'F-Value', key: 'f', align: 'right' },
-        { header: 'P-Value', key: 'p', align: 'right' },
+        { header: 'DF', key: 'df', align: 'right', numFmt: '0' },
+        { header: 'Seq SS', key: 'ss', align: 'right', numFmt: '0.0000' },
+        { header: 'Adj MS', key: 'ms', align: 'right', numFmt: '0.0000' },
+        { header: 'F-Value', key: 'f', align: 'right', numFmt: '0.0000' },
+        { header: 'P-Value', key: 'p', align: 'left' },
       ],
-      rows: result.anova.map((row) => [
-        row.source, row.df, niceNum(row.seqSS), Number.isNaN(row.adjMS) ? '' : niceNum(row.adjMS),
-        row.fStat === null ? '' : niceNum(row.fStat), row.pValue === null ? '' : formatP(row.pValue),
-      ]),
+      rows: result.anova.map((row) => ({
+        source: row.source, df: row.df, ss: row.seqSS,
+        ms: Number.isNaN(row.adjMS) ? '' : row.adjMS,
+        f: row.fStat === null ? '' : row.fStat,
+        p: row.pValue === null ? '' : formatP(row.pValue),
+      })),
+      rowTones: result.anova.map((row) => row.pValue !== null && row.pValue < 0.05 ? 'good' as const : undefined),
     });
 
     overview.sectionHeading('Model Summary');
     overview.table({
-      headers: ['Metric', 'Value'],
+      headers: [
+        { header: 'Metric', key: 'metric', align: 'left', width: 26 },
+        { header: 'Value', key: 'value', align: 'right', numFmt: '0.0000' },
+      ],
       rows: [
-        ['R²', niceNum(result.r2)],
-        ['R² (adj)', niceNum(result.r2Adj)],
-        ['S (Residual SE)', niceNum(result.se)],
-        ['Durbin-Watson', niceNum(result.durbinWatson)],
-        ['Anderson-Darling A*', niceNum(result.andersonDarling.statistic)],
+        { metric: 'R²', value: result.r2 },
+        { metric: 'R² (adj)', value: result.r2Adj },
+        { metric: 'S (Residual SE)', value: result.se },
+        { metric: 'Durbin-Watson', value: result.durbinWatson },
+        { metric: 'Anderson-Darling A*', value: result.andersonDarling.statistic },
       ],
     });
 
@@ -310,16 +323,18 @@ export default function MultiRegressionPage() {
     dataSheet.table({
       headers: [
         { header: '#', key: 'i', align: 'right' },
-        ...predictorNames.map((name) => ({ header: name, key: name, align: 'right' as const })),
-        { header: 'Y', key: 'y', align: 'right' },
-        { header: 'Fitted', key: 'fit', align: 'right' },
-        { header: 'Residual', key: 'res', align: 'right' },
-        { header: 'Std Residual', key: 'sres', align: 'right' },
+        ...predictorNames.map((name) => ({ header: name, key: name, align: 'right' as const, numFmt: '0.0000' })),
+        { header: 'Y', key: 'y', align: 'right', numFmt: '0.0000' },
+        { header: 'Fitted', key: 'fit', align: 'right', numFmt: '0.0000' },
+        { header: 'Residual', key: 'res', align: 'right', numFmt: '0.0000' },
+        { header: 'Std Residual', key: 'sres', align: 'right', numFmt: '0.0000' },
       ],
-      rows: result.residuals.map((r, i) => [
-        r.index + 1, ...dataRows![i].x.map((v) => niceNum(v, 3)),
-        niceNum(r.y, 3), niceNum(r.fitted, 3), niceNum(r.residual, 3), niceNum(r.standardizedResidual, 3),
-      ]),
+      rows: result.residuals.map((r, i) => {
+        const row: Record<string, string | number> = { i: r.index + 1, y: r.y, fit: r.fitted, res: r.residual, sres: r.standardizedResidual }
+        predictorNames.forEach((name, j) => { row[name] = dataRows![i].x[j] })
+        return row
+      }),
+      rowTones: result.residuals.map((r) => Math.abs(r.standardizedResidual) > 2 ? 'warning' as const : undefined),
       zebra: true,
     });
     dataSheet.freezeHeader(2);

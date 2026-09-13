@@ -379,11 +379,14 @@ export default function IcmsfPage() {
 
     sheet.sectionHeading('Case Selection');
     sheet.table({
-      headers: ['Field', 'Value'],
+      headers: [
+        { header: 'Field', key: 'field', align: 'left', width: 28 },
+        { header: 'Value', key: 'value', align: 'left' },
+      ],
       rows: [
-        ['Test Method Type', TEST_TYPE_REPORT_LABEL[testType]],
-        ['Degree of Health Hazard', messagesEn.hazardLevels[hazardLevel]],
-        ['Conditions after Sampling', messagesEn.conditionEffects[conditionEffect]],
+        { field: 'Test Method Type', value: TEST_TYPE_REPORT_LABEL[testType] },
+        { field: 'Degree of Health Hazard', value: messagesEn.hazardLevels[hazardLevel] },
+        { field: 'Conditions after Sampling', value: messagesEn.conditionEffects[conditionEffect] },
       ],
       zebra: false,
     });
@@ -396,15 +399,22 @@ export default function IcmsfPage() {
       { label: 'c', value: resolvedCase.c, tone: 'neutral' },
     ]);
     sheet.table({
-      headers: ['Case', 'Plan Class', 'n', 'c', 'm', 'M'],
-      rows: [[
-        resolvedCase.case,
-        `${resolvedCase.planClass}-class`,
-        resolvedCase.n,
-        resolvedCase.c,
-        limits.m ?? '—',
-        resolvedCase.planClass === 3 ? (limits.M ?? '—') : 'N/A (2-class plan)',
-      ]],
+      headers: [
+        { header: 'Case', key: 'case', align: 'left', width: 12 },
+        { header: 'Plan Class', key: 'planClass', align: 'left', width: 14 },
+        { header: 'n', key: 'n', align: 'right', numFmt: '#,##0' },
+        { header: 'c', key: 'c', align: 'right', numFmt: '#,##0' },
+        { header: 'm', key: 'm', align: 'right' },
+        { header: 'M', key: 'M', align: 'left' },
+      ],
+      rows: [{
+        case: resolvedCase.case,
+        planClass: `${resolvedCase.planClass}-class`,
+        n: resolvedCase.n,
+        c: resolvedCase.c,
+        m: limits.m ?? '—',
+        M: resolvedCase.planClass === 3 ? (limits.M ?? '—') : 'N/A (2-class plan)',
+      }],
     });
     sheet.note(
       resolvedCase.planClass === 2
@@ -416,10 +426,13 @@ export default function IcmsfPage() {
     if (plan.ocCurveAvailable && ocCurve) {
       sheet.sectionHeading('Operating Characteristic (OC) Curve');
       sheet.table({
-        headers: ['True % Defective', 'Probability of Acceptance (%)'],
+        headers: [
+          { header: 'True % Defective', key: 'pct', align: 'right', numFmt: '0"%"' },
+          { header: 'Probability of Acceptance (%)', key: 'pa', align: 'right', numFmt: '0.0' },
+        ],
         rows: ocCurve
           .filter((_, i) => i % 5 === 0)
-          .map((pt) => [`${Math.round(pt.p * 100)}%`, Math.round(pt.pa * 1000) / 10]),
+          .map((pt) => ({ pct: Math.round(pt.p * 100), pa: Math.round(pt.pa * 1000) / 10 })),
       });
       if (riskCheckPa !== null) {
         sheet.note(
@@ -433,17 +446,23 @@ export default function IcmsfPage() {
         sheet.sectionHeading('Additional Risk Analysis (Three-class OC Curve — Supplementary)');
         sheet.note(messagesEn.threeClassRiskAnalysisIntro, 'neutral');
         sheet.table({
-          headers: ['Field', 'Value'],
+          headers: [
+            { header: 'Field', key: 'field', align: 'left', width: 28 },
+            { header: 'Value', key: 'value', align: 'left' },
+          ],
           rows: [
-            [messagesEn.sdConcentrationLabel, String(threeClassInput.sd)],
+            { field: messagesEn.sdConcentrationLabel, value: String(threeClassInput.sd) },
           ],
           zebra: false,
         });
         sheet.table({
-          headers: ['Mean (log10)', 'P(accept) %'],
+          headers: [
+            { header: 'Mean (log10)', key: 'mean', align: 'right', numFmt: '0.00' },
+            { header: 'P(accept) %', key: 'pAccept', align: 'right', numFmt: '0.0' },
+          ],
           rows: threeClassCurve
             .filter((_, i) => i % 5 === 0)
-            .map((pt) => [pt.logMean.toFixed(2), Math.round(pt.pAccept * 1000) / 10]),
+            .map((pt) => ({ mean: pt.logMean, pAccept: Math.round(pt.pAccept * 1000) / 10 })),
         });
         sheet.note(
           `At a lot mean concentration of ${threeClassPointValue.toFixed(2)} (log10), this plan accepts the lot ${Math.round(threeClassPoint.pAccept * 1000) / 10}% of the time.`,

@@ -217,46 +217,60 @@ export default function DoePage() {
 
     overview.sectionHeading('Effects & Contribution');
     overview.table({
-      headers: ['Term', 'Effect', 'Contrast', 'SS', '% Contribution'],
-      rows: result.effects.map((e) => [
-        e.term,
-        niceNum(e.effect, 3),
-        niceNum(e.contrast, 3),
-        niceNum(e.ss, 3),
-        niceNum((e.ss / result.sst) * 100, 1),
-      ]),
+      headers: [
+        { header: 'Term', key: 'term', align: 'left', width: 20 },
+        { header: 'Effect', key: 'effect', align: 'right', numFmt: '0.0000' },
+        { header: 'Contrast', key: 'contrast', align: 'right', numFmt: '0.0000' },
+        { header: 'SS', key: 'ss', align: 'right', numFmt: '0.0000' },
+        { header: '% Contribution', key: 'pctContrib', align: 'right', numFmt: '0.0' },
+      ],
+      rows: result.effects.map((e) => ({
+        term: e.term, effect: e.effect, contrast: e.contrast, ss: e.ss,
+        pctContrib: (e.ss / result.sst) * 100,
+      })),
+      // Highlight the effects driving the largest share of variation —
+      // conventionally anything above ~20% contribution is worth a second look.
+      rowTones: result.effects.map((e) => (e.ss / result.sst) * 100 >= 20 ? 'accent' as const : undefined),
     });
 
     overview.sectionHeading('Analysis of Variance');
     overview.table({
-      headers: ['Source', 'DF', 'SS', 'MS', 'F-Value', 'P-Value'],
-      rows: result.anova.map((a) => [
-        a.source,
-        a.df,
-        niceNum(a.ss, 3),
-        Number.isFinite(a.ms) ? niceNum(a.ms, 3) : '—',
-        a.fStat !== null ? niceNum(a.fStat, 3) : '—',
-        a.pValue !== null ? niceNum(a.pValue, 4) : '—',
-      ]),
+      headers: [
+        { header: 'Source', key: 'source', align: 'left', width: 20 },
+        { header: 'DF', key: 'df', align: 'right', numFmt: '0' },
+        { header: 'SS', key: 'ss', align: 'right', numFmt: '0.0000' },
+        { header: 'MS', key: 'ms', align: 'right', numFmt: '0.0000' },
+        { header: 'F-Value', key: 'f', align: 'right', numFmt: '0.0000' },
+        { header: 'P-Value', key: 'p', align: 'right', numFmt: '0.0000' },
+      ],
+      rows: result.anova.map((a) => ({
+        source: a.source, df: a.df, ss: a.ss,
+        ms: Number.isFinite(a.ms) ? a.ms : '—',
+        f: a.fStat !== null ? a.fStat : '—',
+        p: a.pValue !== null ? a.pValue : '—',
+      })),
+      // p < 0.05 is the standard significance threshold in a DOE ANOVA table.
+      rowTones: result.anova.map((a) => a.pValue !== null && a.pValue < 0.05 ? 'good' as const : undefined),
     });
 
     const dataSheet = report.addSheet('Design Matrix');
     dataSheet.sectionHeading('Runs & Responses');
     dataSheet.table({
       headers: [
-        { header: 'Run Order', key: 'run', align: 'right' },
-        { header: 'Std Order', key: 'std', align: 'right' },
-        { header: 'Rep', key: 'rep', align: 'right' },
-        ...factors.map((f) => ({ header: f.name, key: f.name, align: 'right' as const })),
-        { header: 'Response', key: 'resp', align: 'right' },
+        { header: 'Run Order', key: 'run', align: 'right', numFmt: '0' },
+        { header: 'Std Order', key: 'std', align: 'right', numFmt: '0' },
+        { header: 'Rep', key: 'rep', align: 'right', numFmt: '0' },
+        ...factors.map((f) => ({ header: f.name, key: f.name, align: 'right' as const, numFmt: '0.0000' })),
+        { header: 'Response', key: 'resp', align: 'right', numFmt: '0.0000' },
       ],
-      rows: designRows.map((row) => [
-        row.runOrder,
-        row.standardOrder,
-        row.replicate,
-        ...factors.map((f) => niceNum(row.actual[f.name], 3)),
-        responseMap[`${row.standardOrder}-${row.replicate}`] ?? '',
-      ]),
+      rows: designRows.map((row) => {
+        const r: Record<string, string | number> = {
+          run: row.runOrder, std: row.standardOrder, rep: row.replicate,
+          resp: responseMap[`${row.standardOrder}-${row.replicate}`] ?? '',
+        }
+        factors.forEach((f) => { r[f.name] = row.actual[f.name] })
+        return r
+      }),
       zebra: true,
     });
     dataSheet.freezeHeader(2);

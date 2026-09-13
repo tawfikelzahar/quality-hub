@@ -273,33 +273,71 @@ export default function XbarSChartPage() {
 
     overview.sectionHeading('Control Limits');
     overview.table({
-      headers: ['Chart', 'CL', 'UCL', 'LCL'],
+      headers: [
+        { header: 'Chart', key: 'chart', align: 'left', width: 24 },
+        { header: 'CL', key: 'cl', align: 'right', numFmt: '0.0000' },
+        { header: 'UCL', key: 'ucl', align: 'right', numFmt: '0.0000' },
+        { header: 'LCL', key: 'lcl', align: 'right', numFmt: '0.0000' },
+      ],
       rows: [
-        ['X̄ (Subgroup Average)', niceNum(result.cl_x), niceNum(result.ucl_x), niceNum(result.lcl_x)],
-        ['S (Std Dev)', niceNum(result.cl_r), niceNum(result.ucl_r), niceNum(result.lcl_r)],
+        { chart: 'X̄ (Subgroup Average)', cl: result.cl_x, ucl: result.ucl_x, lcl: result.lcl_x },
+        { chart: 'S (Std Dev)', cl: result.cl_r, ucl: result.ucl_r, lcl: result.lcl_r },
       ],
     });
+
+    // ── Control chart images (same Chart.js canvases used on screen and
+    // in the PDF export, via toBase64Image) ──
+    overview.sectionHeading('Control Charts');
+    if (xChartRef.current) {
+      await overview.image(xChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
+    }
+    if (rChartRef.current) {
+      await overview.image(rChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
+    }
 
     if (result.Cp !== null || result.Ppk !== null) {
       overview.sectionHeading('Process Capability');
       overview.table({
-        headers: ['Metric', 'Value'],
+        headers: [
+          { header: 'Metric', key: 'metric', align: 'left', width: 26 },
+          { header: 'Value', key: 'value', align: 'right', numFmt: '0.0000' },
+        ],
         rows: [
-          ['Cp', niceNum(result.Cp)],
-          ['Cpk', niceNum(result.Cpk)],
-          ['Pp', niceNum(result.Pp)],
-          ['Ppk', niceNum(result.Ppk)],
-          ['Sigma Level (Z.Bench, ST)', niceNum(result.sigLvl_st)],
-          ['Total PPM (ST)', result.ppmD_st ? niceNum(result.ppmD_st.total, 1) : '—'],
+          { metric: 'Cp', value: result.Cp ?? '—' },
+          { metric: 'Cpk', value: result.Cpk ?? '—' },
+          { metric: 'Pp', value: result.Pp ?? '—' },
+          { metric: 'Ppk', value: result.Ppk ?? '—' },
+          { metric: 'Sigma Level (Z.Bench, ST)', value: result.sigLvl_st ?? '—' },
         ],
       });
+
+      overview.sectionHeading('Defect Rate (PPM)');
+      overview.table({
+        headers: [
+          { header: 'Metric', key: 'metric', align: 'left', width: 26 },
+          { header: 'PPM', key: 'ppm', align: 'right', numFmt: '#,##0.0' },
+        ],
+        rows: [
+          { metric: 'Total PPM (Short-term)', ppm: result.ppmD_st ? result.ppmD_st.total : '—' },
+        ],
+      });
+
+      if (histChartRef.current) {
+        overview.sectionHeading('Capability Histogram');
+        await overview.image(histChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
+      }
     }
 
     if (result.violations_x.length > 0) {
       overview.sectionHeading('Rule Violations');
       overview.table({
-        headers: ['Rule', 'Description', 'Points'],
-        rows: result.violations_x.map((v) => [`#${v.rule}`, v.label, v.points.join('–')]),
+        headers: [
+          { header: 'Rule', key: 'rule', align: 'left', width: 10 },
+          { header: 'Description', key: 'desc', align: 'left', width: 40 },
+          { header: 'Points', key: 'points', align: 'left' },
+        ],
+        rows: result.violations_x.map((v) => ({ rule: `#${v.rule}`, desc: v.label, points: v.points.join('–') })),
+        rowTones: result.violations_x.map(() => 'warning' as const),
       });
     }
 
@@ -308,13 +346,15 @@ export default function XbarSChartPage() {
     dataSheet.table({
       headers: [
         { header: 'Subgroup', key: 'sg', align: 'right' },
-        ...subgroups[0].map((_, i) => ({ header: `Value ${i + 1}`, key: `v${i}`, align: 'right' as const })),
-        { header: 'X̄', key: 'xbar', align: 'right' },
-        { header: 'StdDev', key: 'sdev', align: 'right' },
+        ...subgroups[0].map((_, i) => ({ header: `Value ${i + 1}`, key: `v${i}`, align: 'right' as const, numFmt: '0.0000' })),
+        { header: 'X̄', key: 'xbar', align: 'right', numFmt: '0.0000' },
+        { header: 'StdDev', key: 'sdev', align: 'right', numFmt: '0.0000' },
       ],
-      rows: subgroups.map((row, i) => [
-        i + 1, ...row.map((v) => niceNum(v, 3)), niceNum(result.xbarVals[i], 3), niceNum(result.rangeVals[i], 3),
-      ]),
+      rows: subgroups.map((row, i) => {
+        const r: Record<string, string | number> = { sg: i + 1, xbar: result.xbarVals[i], sdev: result.rangeVals[i] ?? '' }
+        row.forEach((v, j) => { r[`v${j}`] = v })
+        return r
+      }),
       zebra: true,
     });
     dataSheet.freezeHeader(2);
