@@ -346,20 +346,20 @@ export default function StabilityStudy() {
     overview.table({
       headers: [
         { header: 'Batch', key: 'batch', align: 'left', width: 18 },
-        { header: 'Slope', key: 'slope', align: 'right' },
-        { header: 'Intercept', key: 'intercept', align: 'right' },
-        { header: 'R²', key: 'r2', align: 'right' },
-        { header: 'Shelf Life (months)', key: 'sl', align: 'right' },
+        { header: 'Slope', key: 'slope', align: 'right', numFmt: '0.00000' },
+        { header: 'Intercept', key: 'intercept', align: 'right', numFmt: '0.00000' },
+        { header: 'R²', key: 'r2', align: 'right', numFmt: '0.0000' },
+        { header: 'Shelf Life (months)', key: 'sl', align: 'right', numFmt: '0.0' },
         { header: 'Extrapolated', key: 'extrap', align: 'center' },
       ],
-      rows: analysis.individual.map(r => [
-        r.batch.name,
-        r.reg ? fmt(r.reg.slope, 5) : '—',
-        r.reg ? fmt(r.reg.intercept, 5) : '—',
-        r.reg ? fmt(r.reg.r2, 4) : '—',
-        r.shelfLife !== null ? fmt(r.shelfLife, 1) : 'not reached',
-        r.extrapolated ? 'Yes' : 'No',
-      ]),
+      rows: analysis.individual.map(r => ({
+        batch: r.batch.name,
+        slope: r.reg ? r.reg.slope : '—',
+        intercept: r.reg ? r.reg.intercept : '—',
+        r2: r.reg ? r.reg.r2 : '—',
+        sl: r.shelfLife !== null ? r.shelfLife : 'not reached',
+        extrap: r.extrapolated ? 'Yes' : 'No',
+      })),
       rowTones: analysis.individual.map(r => r.extrapolated ? 'warning' : undefined),
     })
 
@@ -367,6 +367,15 @@ export default function StabilityStudy() {
       `Recommended shelf life: ${analysis.recommended !== null ? fmt(analysis.recommended, 1) + ' months' : 'n/a'}. Basis: ${analysis.basis}.`,
       analysis.recommended !== null ? 'good' : 'warning'
     )
+
+    // ── Regression/trend chart image (same canvas as PNG/PDF export) —
+    // the shelf-life projection is inherently visual, so the chart adds
+    // real value alongside the per-batch numbers above. ──
+    overview.sectionHeading('Stability Trend Chart')
+    if (chartRef.current) {
+      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 9 })
+    }
+
     overview.freezeHeader(2)
 
     // ── Sheet 2: Raw Data ──
@@ -374,10 +383,14 @@ export default function StabilityStudy() {
     dataSheet.titleBand('Raw Data', 'Time-series measurements per batch')
     dataSheet.table({
       headers: [
-        { header: 'Time (months)', key: 'time', align: 'center', width: 16 },
-        ...batchNames.map(name => ({ header: name, key: name, align: 'right' as const })),
+        { header: 'Time (months)', key: 'time', align: 'center', width: 16, numFmt: '0.0' },
+        ...batchNames.map(name => ({ header: name, key: name, align: 'right' as const, numFmt: '0.0000' })),
       ],
-      rows: timePoints.map((tm, tIdx) => [tm, ...batchNames.map((_, bIdx) => values[tIdx][bIdx] ?? '')]),
+      rows: timePoints.map((tm, tIdx) => {
+        const row: Record<string, string | number> = { time: tm }
+        batchNames.forEach((name, bIdx) => { row[name] = values[tIdx][bIdx] ?? '' })
+        return row
+      }),
     })
     dataSheet.freezeHeader(2)
 

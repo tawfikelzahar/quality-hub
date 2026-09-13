@@ -293,22 +293,35 @@ export default function DPMOCalculator() {
     overview.table({
       headers: [
         { header: 'Process', key: 'process', align: 'left', width: 22 },
-        { header: 'Units', key: 'units', align: 'right' },
-        { header: 'Opportunities/Unit', key: 'opp', align: 'right' },
-        { header: 'Defects', key: 'defects', align: 'right' },
-        { header: 'DPO', key: 'dpo', align: 'right' },
-        { header: 'DPMO', key: 'dpmo', align: 'right' },
-        { header: 'Yield %', key: 'yield', align: 'right' },
-        { header: 'Sigma Level', key: 'sigma', align: 'right' },
+        { header: 'Units', key: 'units', align: 'right', numFmt: '#,##0' },
+        { header: 'Opportunities/Unit', key: 'opp', align: 'right', numFmt: '#,##0' },
+        { header: 'Defects', key: 'defects', align: 'right', numFmt: '#,##0' },
+        { header: 'DPO', key: 'dpo', align: 'right', numFmt: '0.000000' },
+        { header: 'DPMO', key: 'dpmo', align: 'right', numFmt: '#,##0' },
+        { header: 'Yield %', key: 'yield', align: 'right', numFmt: '0.00"%"' },
+        { header: 'Sigma Level', key: 'sigma', align: 'right', numFmt: '0.00' },
         { header: 'Rating', key: 'rating', align: 'left', width: 20 },
       ],
-      rows: results.map(r => [
-        r.name, r.units, r.opportunities, r.defects,
-        r.dpo.toFixed(6), Math.round(r.dpmo), `${r.yieldPct.toFixed(2)}%`, r.sigma.toFixed(2),
-        sigmaBand(r.sigma).label,
-      ]),
+      rows: results.map(r => ({
+        process: r.name,
+        units: r.units,
+        opp: r.opportunities,
+        defects: r.defects,
+        dpo: r.dpo,
+        dpmo: Math.round(r.dpmo),
+        yield: r.yieldPct,
+        sigma: r.sigma,
+        rating: sigmaBand(r.sigma).label,
+      })),
       rowTones: results.map(r => bandTone(r.sigma)),
     })
+
+    // ── Sigma level chart image (same canvas as PNG/PDF export) ──
+    overview.sectionHeading('Sigma Level by Process')
+    if (chartRef.current) {
+      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
+    }
+
     overview.freezeHeader(2)
 
     await report.download('dpmo-analysis.xlsx')

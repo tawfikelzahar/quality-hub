@@ -257,19 +257,28 @@ export default function ParetoChart() {
     overview.table({
       headers: [
         { header: 'Category', key: 'category', align: 'left', width: 26 },
-        { header: 'Count', key: 'count', align: 'right' },
-        { header: 'Percent of Total', key: 'pct', align: 'right' },
-        { header: 'Cumulative Percent', key: 'cum', align: 'right' },
+        { header: 'Count', key: 'count', align: 'right', numFmt: '#,##0' },
+        { header: 'Percent of Total', key: 'pct', align: 'right', numFmt: '0"%"' },
+        { header: 'Cumulative Percent', key: 'cum', align: 'right', numFmt: '0"%"' },
         { header: 'Status', key: 'status', align: 'center', width: 16 },
       ],
-      rows: sorted.map((r, i) => [
-        r.label, r.value,
-        `${total > 0 ? Math.round((r.value / total) * 100) : 0}%`,
-        `${cumulative[i]}%`,
-        i < vitalFew ? 'Vital Few' : 'Useful Many',
-      ]),
+      rows: sorted.map((r, i) => ({
+        category: r.label,
+        count: r.value,
+        pct: total > 0 ? Math.round((r.value / total) * 100) : 0,
+        cum: cumulative[i],
+        status: i < vitalFew ? 'Vital Few' : 'Useful Many',
+      })),
       rowTones: sorted.map((_, i) => i < vitalFew ? 'accent' : undefined),
     })
+
+    // ── Pareto chart image (bars + cumulative line, same canvas as
+    // PNG/PDF export) — the 80/20 shape is the whole point of this tool. ──
+    overview.sectionHeading('Pareto Chart')
+    if (chartRef.current) {
+      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
+    }
+
     overview.freezeHeader(2)
 
     await report.download('pareto-data.xlsx')

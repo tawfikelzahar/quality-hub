@@ -280,24 +280,30 @@ export default function OEECalculator() {
     overview.table({
       headers: [
         { header: 'Metric', key: 'metric', align: 'left', width: 26 },
-        { header: 'Value (%)', key: 'value', align: 'right' },
+        { header: 'Value (%)', key: 'value', align: 'right', numFmt: '0.00' },
       ],
       rows: [
-        ['OEE (Overall)', result.oee.toFixed(2)],
-        ['Availability', result.availability.toFixed(2)],
-        ['Performance', result.performanceCapped.toFixed(2)],
-        ['Quality (First Pass Yield)', result.quality.toFixed(2)],
+        { metric: 'OEE (Overall)', value: result.oee },
+        { metric: 'Availability', value: result.availability },
+        { metric: 'Performance', value: result.performanceCapped },
+        { metric: 'Quality (First Pass Yield)', value: result.quality },
       ],
     })
+
+    // ── OEE / Six Big Losses chart image (same canvas as PNG/PDF export) ──
+    overview.sectionHeading('Six Big Losses Breakdown (Chart)')
+    if (chartRef.current) {
+      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
+    }
 
     overview.sectionHeading('Six Big Losses')
     overview.table({
       headers: [
         { header: 'Loss Category', key: 'cat', align: 'left', width: 22 },
         { header: 'Description', key: 'desc', align: 'left', width: 36 },
-        { header: 'Value (%)', key: 'value', align: 'right' },
+        { header: 'Value (%)', key: 'value', align: 'right', numFmt: '0.00' },
       ],
-      rows: lossData.map(l => [t(l.labelKey), t(l.subKey), l.value.toFixed(2)]),
+      rows: lossData.map(l => ({ cat: t(l.labelKey), desc: t(l.subKey), value: l.value })),
       rowTones: lossData.map(l => l.value >= 15 ? 'danger' : l.value >= 5 ? 'warning' : undefined),
     })
 
@@ -305,14 +311,14 @@ export default function OEECalculator() {
     overview.table({
       headers: [
         { header: 'Metric', key: 'metric', align: 'left', width: 22 },
-        { header: 'Your Value (%)', key: 'yours', align: 'right' },
-        { header: 'World-Class (%)', key: 'wc', align: 'right' },
-        { header: 'Gap (%)', key: 'gap', align: 'right' },
+        { header: 'Your Value (%)', key: 'yours', align: 'right', numFmt: '0.00' },
+        { header: 'World-Class (%)', key: 'wc', align: 'right', numFmt: '0.00' },
+        { header: 'Gap (%)', key: 'gap', align: 'right', numFmt: '+0.00;-0.00' },
       ],
       rows: BENCH.map(b => {
         const yours = result[b.key]
         const gap = yours - b.wc
-        return [t(b.labelKey), yours.toFixed(2), b.wc, `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}`]
+        return { metric: t(b.labelKey), yours, wc: b.wc, gap }
       }),
       rowTones: BENCH.map(b => (result[b.key] - b.wc) >= 0 ? 'good' : 'warning'),
     })

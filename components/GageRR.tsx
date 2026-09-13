@@ -501,6 +501,15 @@ export default function GageRR() {
     if (result.method === 'anova' && result.significanceNote) {
       overview.note(result.significanceNote, 'neutral')
     }
+
+    // ── Variance contribution chart image (same canvas as the PNG export
+    // button and the PDF report) — lets the reader see the %GRR breakdown
+    // without leaving the spreadsheet. ──
+    overview.sectionHeading('Variation by Source')
+    if (contribChartRef.current) {
+      await overview.image(contribChartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
+    }
+
     overview.freezeHeader(2)
 
     // ── Sheet 2: Raw Data ──
