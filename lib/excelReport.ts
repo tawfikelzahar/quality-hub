@@ -20,7 +20,19 @@
 //   const sheet = report.addSheet('Summary')
 //   sheet.kpiRow([{ label: 'Cpk', value: '1.33', tone: 'good' }, ...])
 //   sheet.table({ headers: [...], rows: [...] })
+//   await sheet.charts([
+//     { ref: iChartRef, title: 'Control Chart' },
+//     { ref: distChartRef, title: 'Capability Histogram' },
+//   ])
 //   await report.download('spc-report.xlsx')
+//
+// Chart embedding: route every chart through `sheet.charts([...])` rather
+// than calling `chart.toBase64Image()` + `sheet.image()` per ref. Pass the
+// SAME list of chart refs used for the PDF's `addChartImage()` calls, so a
+// tool's Excel and PDF exports always cover the same set of charts — if a
+// new chart is added to the PDF, add it to this list too and Excel picks it
+// up for free. `charts()` silently skips any ref that's null (unmounted),
+// so it's safe to list every chart the tool *could* show.
 // ─────────────────────────────────────────────────────────────────────────
 
 import ExcelJS from 'exceljs'
@@ -323,6 +335,33 @@ class ReportSheet {
       ext: { width: widthPx, height: heightPx },
     })
     this.cursor += Math.ceil(heightPx / 20) + 1
+    return this
+  }
+
+  /**
+   * Embed every chart in a list of Chart.js refs, in order, each under its
+   * own section heading. Skips any ref that is null/unmounted (e.g. a chart
+   * that only renders in attribute mode, or a histogram that only appears
+   * once spec limits are set) so callers can pass every chart the tool has
+   * without guarding each one individually.
+   *
+   * This is the single place that turns a Chart.js instance into an Excel
+   * image — every tool should route through here instead of calling
+   * `chart.toBase64Image()` + `sheet.image()` by hand, so a new tool's Excel
+   * export is one call instead of a repeated if/await block per chart, and
+   * PDF/Excel chart coverage can be kept in sync by comparing the ref list
+   * passed here against the one passed to `addChartImage` for the PDF.
+   */
+  async charts(
+    items: { ref: { current: { toBase64Image: (type?: string, quality?: number) => string } | null } | null; title: string }[],
+    opts: { widthCm?: number; heightCm?: number } = {}
+  ) {
+    for (const item of items) {
+      const chart = item.ref?.current
+      if (!chart) continue
+      this.sectionHeading(item.title)
+      await this.image(chart.toBase64Image('image/png', 1), opts)
+    }
     return this
   }
 

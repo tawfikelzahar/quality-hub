@@ -285,15 +285,15 @@ export default function XbarRChartPage() {
       ],
     });
 
-    // ── Control chart images (same Chart.js canvases used on screen and
-    // in the PDF export, via toBase64Image) ──
-    overview.sectionHeading('Control Charts');
-    if (xChartRef.current) {
-      await overview.image(xChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
-    }
-    if (rChartRef.current) {
-      await overview.image(rChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
-    }
+    // ── Control chart images, via the shared charts() helper — same
+    // Chart.js canvases used on screen and in the PDF export. ──
+    await overview.charts(
+      [
+        { ref: xChartRef, title: 'X̄ (Subgroup Average) Chart' },
+        { ref: rChartRef, title: 'R (Range) Chart' },
+      ],
+      { widthCm: 17, heightCm: 8 }
+    );
 
     if (result.Cp !== null || result.Ppk !== null) {
       overview.sectionHeading('Process Capability');
@@ -322,10 +322,7 @@ export default function XbarRChartPage() {
         ],
       });
 
-      if (histChartRef.current) {
-        overview.sectionHeading('Capability Histogram');
-        await overview.image(histChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
-      }
+      await overview.charts([{ ref: histChartRef, title: 'Capability Histogram' }], { widthCm: 17, heightCm: 8 });
     }
 
     if (result.violations_x.length > 0) {

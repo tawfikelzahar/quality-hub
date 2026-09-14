@@ -609,16 +609,15 @@ export default function SPCEngine() {
         ],
       })
 
-      // ── Control charts as images (Chart.js canvas → PNG, same source as the
-      // "Download Chart Image" buttons) — gives the Excel report the same
-      // visual the person sees on screen, not just the numbers. ──
-      overview.sectionHeading('Control Charts')
-      if (iChartRef.current) {
-        await overview.image(iChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
-      }
-      if (rChartRef.current) {
-        await overview.image(rChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
-      }
+      // ── Control charts as images, via the shared charts() helper — same
+      // Chart.js canvases used on screen and in the PDF export. ──
+      await overview.charts(
+        [
+          { ref: iChartRef, title: chartWord === 'X̄' ? 'X̄ Chart' : 'Individuals (I) Chart' },
+          { ref: rChartRef, title: `${clWord} Chart` },
+        ],
+        { widthCm: 17, heightCm: 8 }
+      )
 
       if (hasSpecLimits) {
         overview.sectionHeading('Specification Limits & Capability')
@@ -649,6 +648,10 @@ export default function SPCEngine() {
             { metric: 'Below LSL (Long-term)', ppm: varResult.ppmD_lt ? Math.round(varResult.ppmD_lt.below) : '—' },
           ],
         })
+
+        // Capability Histogram was already in the PDF export (addChartImage)
+        // but missing from Excel — this closes that gap.
+        await overview.charts([{ ref: distChartRef, title: 'Capability Histogram' }], { widthCm: 17, heightCm: 8 })
       }
 
       overview.sectionHeading('Normality Test (Anderson-Darling)')
@@ -672,6 +675,10 @@ export default function SPCEngine() {
           : 'Sample size is sufficient for the reported statistics.'),
         varResult.dataAdequacy.tier === 'low' ? 'warning' : 'good'
       )
+
+      // Empirical CDF vs. Normal was already in the PDF export but missing
+      // from Excel — this closes that gap alongside the histogram above.
+      await overview.charts([{ ref: ecdfChartRef, title: 'Empirical CDF vs. Normal' }], { widthCm: 17, heightCm: 8 })
     } else if (attrResult) {
       overview.sectionHeading('Process Summary')
       overview.kpiRow([
@@ -697,6 +704,10 @@ export default function SPCEngine() {
         `Data adequacy: ${attrResult.dataAdequacy.label} (n = ${attrResult.dataAdequacy.n}).`,
         attrResult.dataAdequacy.tier === 'low' ? 'warning' : 'good'
       )
+
+      // Attribute chart was already in the PDF export (addChartImage) but
+      // missing from Excel entirely — this closes that gap.
+      await overview.charts([{ ref: attrChartRef, title: attrResult.chartLabel }], { widthCm: 17, heightCm: 8 })
     }
     overview.freezeHeader(2)
 

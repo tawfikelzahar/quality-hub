@@ -270,15 +270,15 @@ export default function ImrChartPage() {
       ],
     });
 
-    // ── Control chart images (same Chart.js canvases used on screen and
-    // in the PDF export, via toBase64Image) ──
-    overview.sectionHeading('Control Charts');
-    if (iChartRef.current) {
-      await overview.image(iChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
-    }
-    if (mrChartRef.current) {
-      await overview.image(mrChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
-    }
+    // ── Control chart images, via the shared charts() helper — same
+    // Chart.js canvases used on screen and in the PDF export. ──
+    await overview.charts(
+      [
+        { ref: iChartRef, title: 'Individuals (I) Chart' },
+        { ref: mrChartRef, title: 'Moving Range (MR) Chart' },
+      ],
+      { widthCm: 17, heightCm: 8 }
+    );
 
     if (result.Cp !== null || result.Ppk !== null) {
       overview.sectionHeading('Process Capability');
@@ -307,10 +307,7 @@ export default function ImrChartPage() {
         ],
       });
 
-      if (histChartRef.current) {
-        overview.sectionHeading('Capability Histogram');
-        await overview.image(histChartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 });
-      }
+      await overview.charts([{ ref: histChartRef, title: 'Capability Histogram' }], { widthCm: 17, heightCm: 8 });
     }
 
     if (result.violations_x.length > 0) {
