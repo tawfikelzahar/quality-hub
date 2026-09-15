@@ -246,6 +246,17 @@ export default function DescriptiveStats() {
     setError(null)
   }
 
+  // Shared x-axis bounds so the box plot lines up exactly under the
+  // histogram above it — Chart.js auto-scales each chart independently
+  // otherwise, which left the box plot's own [min,max] domain much
+  // narrower than the histogram's and made it look tiny and off to one side.
+  const axisBounds = useMemo(() => {
+    if (!result) return null
+    const span = (result.max - result.min) || 1
+    const pad = span * 0.05
+    return { min: result.min - pad, max: result.max + pad }
+  }, [result])
+
   const histogramData = result
     ? {
         labels: result.histogram.map((b) => `${fmt(b.x0, 2)}–${fmt(b.x1, 2)}`),
@@ -271,7 +282,7 @@ export default function DescriptiveStats() {
     if (!result) return null
     const bp = result.boxPlot
     const span = (result.max - result.min) || 1
-    const medianHalfWidth = span * 0.004 // thin marker, independent of IQR width
+    const medianHalfWidth = span * 0.006 // thin marker, independent of IQR width
     return {
       labels: [''],
       datasets: [
@@ -281,8 +292,8 @@ export default function DescriptiveStats() {
           data: [[bp.lowerWhisker, bp.upperWhisker]],
           backgroundColor: 'transparent',
           borderColor: c.muted,
-          borderWidth: 1,
-          barThickness: 2,
+          borderWidth: 1.5,
+          barThickness: 3,
           order: 2,
         },
         {
@@ -291,8 +302,8 @@ export default function DescriptiveStats() {
           data: [[bp.q1, bp.q3]],
           backgroundColor: `${c.accent}30`,
           borderColor: c.accent,
-          borderWidth: 1.5,
-          barThickness: 60,
+          borderWidth: 2,
+          barThickness: 44,
           order: 1,
         },
         {
@@ -302,7 +313,7 @@ export default function DescriptiveStats() {
           backgroundColor: c.amber,
           borderColor: c.amber,
           borderWidth: 0,
-          barThickness: 60,
+          barThickness: 44,
           order: 0,
         },
         {
@@ -325,14 +336,20 @@ export default function DescriptiveStats() {
       maintainAspectRatio: false,
       animation: false as const,
       devicePixelRatio: 2,
+      layout: { padding: { left: 8, right: 8 } },
       plugins: { legend: { display: false } },
       scales: {
-        x: { grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+        x: {
+          min: axisBounds?.min,
+          max: axisBounds?.max,
+          grid: { color: c.grid },
+          ticks: { color: c.muted, font: { size: 10 } },
+        },
         y: { grid: { display: false }, ticks: { display: false } },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any),
-    [c]
+    [c, axisBounds]
   )
 
   return (
