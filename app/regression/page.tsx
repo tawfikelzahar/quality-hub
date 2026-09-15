@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import 'chart.js/auto';
+import { Chart } from 'react-chartjs-2';
+import type { Chart as ChartJSInstance } from 'chart.js';
 import {
   runSimpleLinearRegression,
   validateData,
@@ -24,25 +27,19 @@ import {
   twoColumnTables,
   dataTable,
   calloutBox,
+  addChartImage,
+  addChartImagePair,
   finalizeReport,
   type KVRow,
 } from '@/lib/pdf/reportDesign';
 
-// ─────────────────────────────────────────────────────────────────────────
-// Chart geometry — plain inline SVG, matching the ICMSF/AQL "draw it
-// directly" convention (no charting-library dependency for this tool).
-// ─────────────────────────────────────────────────────────────────────────
-const CHART_W = 640;
-const CHART_H = 320;
-const PAD = { top: 16, right: 20, bottom: 40, left: 56 };
-const PLOT_W = CHART_W - PAD.left - PAD.right;
-const PLOT_H = CHART_H - PAD.top - PAD.bottom;
-
-const SMALL_CHART_W = 300;
-const SMALL_CHART_H = 220;
-const SPAD = { top: 12, right: 14, bottom: 32, left: 44 };
-const SPLOT_W = SMALL_CHART_W - SPAD.left - SPAD.right;
-const SPLOT_H = SMALL_CHART_H - SPAD.top - SPAD.bottom;
+// Chart.js datasets here mix 'scatter'/'line'/'bar' types per chart (points
+// + a fitted-line, or bars + nothing else) — react-chartjs-2's ChartData
+// generic can't express that union cleanly, so each chart's data is typed
+// loosely here and passed to <Chart> as-is (same relaxation the SPC Engine
+// charts use for their mixed bar/line capability histograms).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MixedChartData = any
 
 const EXAMPLE_CSV = `Temperature,Strength
 120,48.2
@@ -97,6 +94,13 @@ export default function RegressionPage() {
   const [predictX, setPredictX] = useState('');
   const [loadedProjectName, setLoadedProjectName] = useState('');
   const [loadError, setLoadError] = useState('');
+
+  // Chart.js canvases used on screen and in the Excel/PDF exports.
+  const scatterChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null);
+  const residFitsChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null);
+  const residOrderChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null);
+  const residHistChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null);
+  const residNormalChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null);
 
   // ── Load a saved project from the dashboard (?id=...) ────────────────
   useEffect(() => {
@@ -202,48 +206,145 @@ export default function RegressionPage() {
     return predictAt(result, xNew, tCrit);
   }, [result, predictX]);
 
-  // ── Scatter + fitted-line chart geometry ──────────────────────────────
-  const scatterGeometry = useMemo(() => {
+  // ── Shared Chart.js options (linear numeric x-axis, small footprint) ──
+  const smallChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false as const,
+      devicePixelRatio: 2,
+      parsing: false as const,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { type: 'linear' as const, ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
+        y: { ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any),
+    [c]
+  );
+
+  // ── Fitted line plot: scatter of points + fitted-line dataset ─────────
+  const scatterChartData: MixedChartData | null = useMemo(() => {
     if (!result) return null;
     const xs = result.residuals.map((r) => r.x);
-    const ys = result.residuals.map((r) => r.y);
     const xMin = Math.min(...xs);
     const xMax = Math.max(...xs);
-    const yMin = Math.min(...ys);
-    const yMax = Math.max(...ys);
     const xPad = (xMax - xMin || 1) * 0.08;
-    const yPad = (yMax - yMin || 1) * 0.12;
-    const xLo = xMin - xPad;
-    const xHi = xMax + xPad;
-    const yLo = yMin - yPad;
-    const yHi = yMax + yPad;
-
-    const xFor = (x: number) => PAD.left + ((x - xLo) / (xHi - xLo)) * PLOT_W;
-    const yFor = (y: number) => PAD.top + (1 - (y - yLo) / (yHi - yLo)) * PLOT_H;
-
-    const lineX1 = xLo;
-    const lineX2 = xHi;
+    const lineX1 = xMin - xPad;
+    const lineX2 = xMax + xPad;
     const lineY1 = result.intercept + result.slope * lineX1;
     const lineY2 = result.intercept + result.slope * lineX2;
 
-    return { xFor, yFor, xLo, xHi, yLo, yHi, lineX1, lineX2, lineY1, lineY2 };
-  }, [result]);
+    return {
+      datasets: [
+        {
+          type: 'scatter',
+          label: 'Data',
+          data: result.residuals.map((r) => ({ x: r.x, y: r.y })),
+          backgroundColor: c.accent,
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Fitted line',
+          data: [{ x: lineX1, y: lineY1 }, { x: lineX2, y: lineY2 }],
+          borderColor: c.line,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0,
+          order: 0,
+        },
+      ],
+    };
+  }, [result, c]);
 
-  function smallChartGeom(xs: number[], ys: number[]) {
-    const xMin = Math.min(...xs);
-    const xMax = Math.max(...xs);
-    const yMin = Math.min(...ys);
-    const yMax = Math.max(...ys);
-    const xPad = (xMax - xMin || 1) * 0.1;
-    const yPad = (yMax - yMin || 1) * 0.15;
-    const xLo = xMin - xPad;
-    const xHi = xMax + xPad;
-    const yLo = yMin - yPad;
-    const yHi = yMax + yPad;
-    const xFor = (x: number) => SPAD.left + ((x - xLo) / (xHi - xLo || 1)) * SPLOT_W;
-    const yFor = (y: number) => SPAD.top + (1 - (y - yLo) / (yHi - yLo || 1)) * SPLOT_H;
-    return { xFor, yFor, xLo, xHi, yLo, yHi };
-  }
+  const scatterChartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false as const,
+      devicePixelRatio: 2,
+      parsing: false as const,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { type: 'linear' as const, title: { display: true, text: xCol, color: c.muted }, ticks: { color: c.muted, font: { size: 10 } }, grid: { color: c.grid } },
+        y: { title: { display: true, text: yCol, color: c.muted }, ticks: { color: c.muted, font: { size: 10 } }, grid: { color: c.grid } },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any),
+    [c, xCol, yCol]
+  );
+
+  // ── Residuals vs Fitted ────────────────────────────────────────────────
+  const residFitsChartData: MixedChartData | null = useMemo(() => {
+    if (!result) return null;
+    return {
+      datasets: [
+        { type: 'scatter', label: 'Residual', data: result.residuals.map((r) => ({ x: r.fitted, y: r.residual })), backgroundColor: c.accent, pointRadius: 3 },
+      ],
+    };
+  }, [result, c]);
+
+  // ── Residuals vs Order ─────────────────────────────────────────────────
+  const residOrderChartData: MixedChartData | null = useMemo(() => {
+    if (!result) return null;
+    return {
+      datasets: [
+        {
+          type: 'line',
+          label: 'Residual',
+          data: result.residuals.map((r) => ({ x: r.index + 1, y: r.residual })),
+          borderColor: c.line,
+          borderWidth: 1,
+          pointBackgroundColor: c.accent,
+          pointBorderColor: c.accent,
+          pointRadius: 3,
+          tension: 0,
+        },
+      ],
+    };
+  }, [result, c]);
+
+  // ── Histogram of residuals ─────────────────────────────────────────────
+  const residHistChartData: MixedChartData | null = useMemo(() => {
+    if (!result) return null;
+    const resids = result.residuals.map((r) => r.residual);
+    const minR = Math.min(...resids);
+    const maxR = Math.max(...resids);
+    const binCount = Math.max(4, Math.min(9, Math.round(Math.sqrt(resids.length))));
+    const binWidth = (maxR - minR || 1) / binCount;
+    const bins = new Array(binCount).fill(0);
+    resids.forEach((r) => {
+      const idx = Math.min(binCount - 1, Math.floor((r - minR) / binWidth));
+      bins[Math.max(0, idx)] += 1;
+    });
+    const binCenters = bins.map((_, i) => minR + (i + 0.5) * binWidth);
+    return {
+      datasets: [
+        { type: 'bar', label: 'Frequency', data: binCenters.map((x, i) => ({ x, y: bins[i] })), backgroundColor: c.bar, borderRadius: 2, barPercentage: 1.0, categoryPercentage: 0.95 },
+      ],
+    };
+  }, [result, c]);
+
+  // ── Normal probability plot of standardized residuals ──────────────────
+  const residNormalChartData: MixedChartData | null = useMemo(() => {
+    if (!result) return null;
+    const sorted = [...result.residuals].sort((a, b) => a.standardizedResidual - b.standardizedResidual);
+    const n = sorted.length;
+    const points = sorted.map((r, i) => {
+      const pp = (i + 0.5) / n;
+      const z = Math.sqrt(2) * inverseErf(2 * pp - 1);
+      return { x: z, y: r.standardizedResidual };
+    });
+    return {
+      datasets: [
+        { type: 'scatter', label: 'Std residual', data: points, backgroundColor: c.accent, pointRadius: 3 },
+      ],
+    };
+  }, [result, c]);
 
   // ── Export: CSV ─────────────────────────────────────────────────────
   function exportCSV() {
@@ -345,6 +446,15 @@ export default function RegressionPage() {
       zebra: true,
     });
     dataSheet.freezeHeader(2);
+
+    const chartSheet = report.addSheet('Charts');
+    await chartSheet.charts([
+      { ref: scatterChartRef, title: messages.scatterTitle },
+      { ref: residFitsChartRef, title: messages.residPlotVsFits },
+      { ref: residOrderChartRef, title: messages.residPlotVsOrder },
+      { ref: residHistChartRef, title: messages.residPlotHistogram },
+      { ref: residNormalChartRef, title: messages.residPlotNormal },
+    ]);
 
     await report.download('simple-linear-regression.xlsx');
   }
@@ -477,6 +587,20 @@ export default function RegressionPage() {
       ])
     );
 
+    addChartImage(ctx, scatterChartRef.current, messages.scatterTitle);
+    addChartImagePair(
+      ctx,
+      messages.residualPlotsTitle,
+      { chart: residFitsChartRef.current, title: messages.residPlotVsFits },
+      { chart: residOrderChartRef.current, title: messages.residPlotVsOrder }
+    );
+    addChartImagePair(
+      ctx,
+      '',
+      { chart: residHistChartRef.current, title: messages.residPlotHistogram },
+      { chart: residNormalChartRef.current, title: messages.residPlotNormal }
+    );
+
     finalizeReport(ctx);
     ctx.pdf.save('simple-linear-regression.pdf');
   }
@@ -564,7 +688,7 @@ export default function RegressionPage() {
         </div>
 
         {/* ── Results ─────────────────────────────────────────────────── */}
-        {result && scatterGeometry && (
+        {result && scatterChartData && (
           <>
             <div style={s.card}>
               <div style={s.sectionTitle}>{messages.resultsTitle}</div>
@@ -644,34 +768,9 @@ export default function RegressionPage() {
             {/* ── Fitted line plot ─────────────────────────────────────── */}
             <div style={s.chartWrap}>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 10 }}>{messages.scatterTitle}</h3>
-              <svg width="100%" viewBox={`0 0 ${CHART_W} ${CHART_H}`} role="img" aria-label={messages.scatterTitle}>
-                {/* axes */}
-                <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={CHART_H - PAD.bottom} stroke={c.border} strokeWidth={1} />
-                <line x1={PAD.left} y1={CHART_H - PAD.bottom} x2={CHART_W - PAD.right} y2={CHART_H - PAD.bottom} stroke={c.border} strokeWidth={1} />
-                {/* fitted line */}
-                <line
-                  x1={scatterGeometry.xFor(scatterGeometry.lineX1)}
-                  y1={scatterGeometry.yFor(scatterGeometry.lineY1)}
-                  x2={scatterGeometry.xFor(scatterGeometry.lineX2)}
-                  y2={scatterGeometry.yFor(scatterGeometry.lineY2)}
-                  stroke={c.line}
-                  strokeWidth={2}
-                />
-                {/* points */}
-                {result.residuals.map((r) => (
-                  <circle
-                    key={r.index}
-                    cx={scatterGeometry.xFor(r.x)}
-                    cy={scatterGeometry.yFor(r.y)}
-                    r={4}
-                    fill={c.accent}
-                    fillOpacity={0.85}
-                  />
-                ))}
-                {/* axis labels */}
-                <text x={CHART_W / 2} y={CHART_H - 6} textAnchor="middle" fontSize={11} fill={c.muted}>{xCol}</text>
-                <text x={12} y={CHART_H / 2} textAnchor="middle" fontSize={11} fill={c.muted} transform={`rotate(-90 12 ${CHART_H / 2})`}>{yCol}</text>
-              </svg>
+              <div style={s.chartInner}>
+                <Chart ref={scatterChartRef} type="scatter" data={scatterChartData} options={scatterChartOptions} />
+              </div>
             </div>
 
             {/* ── Residual diagnostic plots ────────────────────────────── */}
@@ -679,110 +778,36 @@ export default function RegressionPage() {
               <h3 style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 10 }}>{messages.residualPlotsTitle}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
                 {/* Residuals vs Fitted */}
-                {(() => {
-                  const fits = result.residuals.map((r) => r.fitted);
-                  const resids = result.residuals.map((r) => r.residual);
-                  const g = smallChartGeom(fits, resids);
-                  const zeroY = g.yFor(0);
-                  return (
-                    <div style={s.chartWrap}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotVsFits}</p>
-                      <svg width="100%" viewBox={`0 0 ${SMALL_CHART_W} ${SMALL_CHART_H}`} role="img" aria-label={messages.residPlotVsFits}>
-                        <line x1={SPAD.left} y1={zeroY} x2={SMALL_CHART_W - SPAD.right} y2={zeroY} stroke={c.border} strokeDasharray="4 3" />
-                        <line x1={SPAD.left} y1={SPAD.top} x2={SPAD.left} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        <line x1={SPAD.left} y1={SMALL_CHART_H - SPAD.bottom} x2={SMALL_CHART_W - SPAD.right} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        {result.residuals.map((r) => (
-                          <circle key={r.index} cx={g.xFor(r.fitted)} cy={g.yFor(r.residual)} r={3} fill={c.accent} fillOpacity={0.85} />
-                        ))}
-                      </svg>
-                    </div>
-                  );
-                })()}
+                <div style={s.chartWrap}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotVsFits}</p>
+                  <div style={{ height: 220, position: 'relative' }}>
+                    <Chart ref={residFitsChartRef} type="scatter" data={residFitsChartData} options={smallChartOptions} />
+                  </div>
+                </div>
 
                 {/* Residuals vs Order */}
-                {(() => {
-                  const order = result.residuals.map((r) => r.index + 1);
-                  const resids = result.residuals.map((r) => r.residual);
-                  const g = smallChartGeom(order, resids);
-                  const zeroY = g.yFor(0);
-                  return (
-                    <div style={s.chartWrap}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotVsOrder}</p>
-                      <svg width="100%" viewBox={`0 0 ${SMALL_CHART_W} ${SMALL_CHART_H}`} role="img" aria-label={messages.residPlotVsOrder}>
-                        <line x1={SPAD.left} y1={zeroY} x2={SMALL_CHART_W - SPAD.right} y2={zeroY} stroke={c.border} strokeDasharray="4 3" />
-                        <line x1={SPAD.left} y1={SPAD.top} x2={SPAD.left} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        <line x1={SPAD.left} y1={SMALL_CHART_H - SPAD.bottom} x2={SMALL_CHART_W - SPAD.right} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        <polyline
-                          fill="none"
-                          stroke={c.line}
-                          strokeWidth={1}
-                          opacity={0.5}
-                          points={result.residuals.map((r) => `${g.xFor(r.index + 1)},${g.yFor(r.residual)}`).join(' ')}
-                        />
-                        {result.residuals.map((r) => (
-                          <circle key={r.index} cx={g.xFor(r.index + 1)} cy={g.yFor(r.residual)} r={3} fill={c.accent} fillOpacity={0.85} />
-                        ))}
-                      </svg>
-                    </div>
-                  );
-                })()}
+                <div style={s.chartWrap}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotVsOrder}</p>
+                  <div style={{ height: 220, position: 'relative' }}>
+                    <Chart ref={residOrderChartRef} type="line" data={residOrderChartData} options={smallChartOptions} />
+                  </div>
+                </div>
 
                 {/* Histogram of residuals */}
-                {(() => {
-                  const resids = result.residuals.map((r) => r.residual);
-                  const minR = Math.min(...resids);
-                  const maxR = Math.max(...resids);
-                  const binCount = Math.max(4, Math.min(9, Math.round(Math.sqrt(resids.length))));
-                  const binWidth = (maxR - minR || 1) / binCount;
-                  const bins = new Array(binCount).fill(0);
-                  resids.forEach((r) => {
-                    const idx = Math.min(binCount - 1, Math.floor((r - minR) / binWidth));
-                    bins[Math.max(0, idx)] += 1;
-                  });
-                  const maxCount = Math.max(...bins, 1);
-                  const barW = SPLOT_W / binCount;
-                  return (
-                    <div style={s.chartWrap}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotHistogram}</p>
-                      <svg width="100%" viewBox={`0 0 ${SMALL_CHART_W} ${SMALL_CHART_H}`} role="img" aria-label={messages.residPlotHistogram}>
-                        <line x1={SPAD.left} y1={SPAD.top} x2={SPAD.left} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        <line x1={SPAD.left} y1={SMALL_CHART_H - SPAD.bottom} x2={SMALL_CHART_W - SPAD.right} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        {bins.map((count, i) => {
-                          const h = (count / maxCount) * SPLOT_H;
-                          const x = SPAD.left + i * barW;
-                          const y = SMALL_CHART_H - SPAD.bottom - h;
-                          return <rect key={i} x={x + 1} y={y} width={Math.max(barW - 2, 1)} height={h} fill={c.bar} />;
-                        })}
-                      </svg>
-                    </div>
-                  );
-                })()}
+                <div style={s.chartWrap}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotHistogram}</p>
+                  <div style={{ height: 220, position: 'relative' }}>
+                    <Chart ref={residHistChartRef} type="bar" data={residHistChartData} options={smallChartOptions} />
+                  </div>
+                </div>
 
                 {/* Normal probability plot of standardized residuals */}
-                {(() => {
-                  const sorted = [...result.residuals].sort((a, b) => a.standardizedResidual - b.standardizedResidual);
-                  const n = sorted.length;
-                  const points = sorted.map((r, i) => {
-                    const pp = (i + 0.5) / n; // plotting position
-                    const z = Math.sqrt(2) * inverseErf(2 * pp - 1);
-                    return { z, resid: r.standardizedResidual };
-                  });
-                  const zs = points.map((p) => p.z);
-                  const rs = points.map((p) => p.resid);
-                  const g = smallChartGeom(zs, rs);
-                  return (
-                    <div style={s.chartWrap}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotNormal}</p>
-                      <svg width="100%" viewBox={`0 0 ${SMALL_CHART_W} ${SMALL_CHART_H}`} role="img" aria-label={messages.residPlotNormal}>
-                        <line x1={SPAD.left} y1={SPAD.top} x2={SPAD.left} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        <line x1={SPAD.left} y1={SMALL_CHART_H - SPAD.bottom} x2={SMALL_CHART_W - SPAD.right} y2={SMALL_CHART_H - SPAD.bottom} stroke={c.border} />
-                        {points.map((p, i) => (
-                          <circle key={i} cx={g.xFor(p.z)} cy={g.yFor(p.resid)} r={3} fill={c.accent} fillOpacity={0.85} />
-                        ))}
-                      </svg>
-                    </div>
-                  );
-                })()}
+                <div style={s.chartWrap}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: c.text, marginBottom: 6 }}>{messages.residPlotNormal}</p>
+                  <div style={{ height: 220, position: 'relative' }}>
+                    <Chart ref={residNormalChartRef} type="scatter" data={residNormalChartData} options={smallChartOptions} />
+                  </div>
+                </div>
               </div>
 
               <p style={{ fontSize: 12, color: c.muted, marginTop: 14 }}>

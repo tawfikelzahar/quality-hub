@@ -285,6 +285,7 @@ export const translations = {
     ds_empty_state:
       'Paste or upload your measurement data, then hit Calculate to see the full statistical breakdown, histogram, and box plot.',
     ds_histogram_boxplot: '📊 Histogram + Box Plot',
+    ds_boxplot_title: 'Box Plot',
     ds_ad_test_name: 'Anderson-Darling Normality Test',
     ds_ad_normal: 'p ≥ 0.05 — no significant evidence against normality (α = 0.05).',
     ds_ad_not_normal: 'p < 0.05 — data significantly deviates from a normal distribution (α = 0.05).',
@@ -1041,6 +1042,7 @@ export const translations = {
     ds_empty_state:
       'الصق بياناتك أو ارفعها، ثم اضغط "احسب" لرؤية التحليل الإحصائي الكامل، والهيستوجرام، ومخطط الصندوق.',
     ds_histogram_boxplot: '📊 الهيستوجرام ومخطط الصندوق',
+    ds_boxplot_title: 'مخطط الصندوق',
     ds_ad_test_name: 'اختبار Anderson-Darling للتوزيع الطبيعي',
     ds_ad_normal: '⁦p ≥ 0.05⁩ — لا يوجد دليل معنوي ضد التوزيع الطبيعي ⁦(α = 0.05)⁩.',
     ds_ad_not_normal: '⁦p < 0.05⁩ — البيانات تنحرف بشكل معنوي عن التوزيع الطبيعي ⁦(α = 0.05)⁩.',

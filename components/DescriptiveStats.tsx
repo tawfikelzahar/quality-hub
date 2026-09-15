@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useCallback, type CSSProperties } from 'react'
+import { useState, useCallback, useMemo, useRef, type CSSProperties } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
+import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
 import { createReport, nowStamp } from '@/lib/excelReport'
 
-type PaletteColors = (typeof COLORS)[keyof typeof COLORS]
 import Nav from '@/components/Nav'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToPricing } from '@/lib/exportGate'
@@ -45,6 +45,10 @@ export default function DescriptiveStats() {
   const [result, setResult] = useState<DescriptiveResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Chart.js canvases used on screen and in the Excel export.
+  const histogramChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
+  const boxPlotChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
 
   const values = parseValues(rawText)
 
@@ -212,7 +216,14 @@ export default function DescriptiveStats() {
       histSheet.freezeHeader(2)
     }
 
-    // ── Sheet 3: Raw Data ──
+    // ── Sheet 3: Charts ──
+    const chartSheet = report.addSheet('Charts')
+    await chartSheet.charts([
+      { ref: histogramChartRef, title: t('ds_histogram_boxplot') },
+      { ref: boxPlotChartRef, title: t('ds_boxplot_title') },
+    ])
+
+    // ── Sheet 4: Raw Data ──
     if (values.length > 0) {
       const rawSheet = report.addSheet('Raw Data')
       rawSheet.titleBand('Raw Data', `${values.length} values`)
@@ -227,7 +238,7 @@ export default function DescriptiveStats() {
     }
 
     await report.download('descriptive-statistics.xlsx')
-  }, [result, isPro, values])
+  }, [result, isPro, values, t])
 
   const clearAll = () => {
     setRawText('')
@@ -250,6 +261,79 @@ export default function DescriptiveStats() {
         ],
       }
     : null
+
+  // ── Box plot as a Chart.js floating-bar chart: one horizontal bar for
+  // the box (Q1→Q3, using Chart.js's native [min, max] floating-bar data),
+  // a whisker line dataset for the min/max extent, and a scatter dataset
+  // for outliers. No box-plot plugin needed — Chart.js v4 bars natively
+  // support a two-value [low, high] range per bar. ─────────────────────
+  const boxPlotData = useMemo(() => {
+    if (!result) return null
+    const bp = result.boxPlot
+    const span = (result.max - result.min) || 1
+    const medianHalfWidth = span * 0.004 // thin marker, independent of IQR width
+    return {
+      labels: [''],
+      datasets: [
+        {
+          type: 'bar' as const,
+          label: 'Whisker',
+          data: [[bp.lowerWhisker, bp.upperWhisker]],
+          backgroundColor: 'transparent',
+          borderColor: c.muted,
+          borderWidth: 1,
+          barThickness: 2,
+          order: 2,
+        },
+        {
+          type: 'bar' as const,
+          label: 'IQR (Q1–Q3)',
+          data: [[bp.q1, bp.q3]],
+          backgroundColor: `${c.accent}30`,
+          borderColor: c.accent,
+          borderWidth: 1.5,
+          barThickness: 60,
+          order: 1,
+        },
+        {
+          type: 'bar' as const,
+          label: 'Median',
+          data: [[bp.median - medianHalfWidth, bp.median + medianHalfWidth]],
+          backgroundColor: c.amber,
+          borderColor: c.amber,
+          borderWidth: 0,
+          barThickness: 60,
+          order: 0,
+        },
+        {
+          type: 'scatter' as const,
+          label: 'Outliers',
+          data: bp.outliers.map((o) => ({ x: o, y: 0 })),
+          backgroundColor: c.danger,
+          pointRadius: 4,
+          order: 0,
+        },
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }, [result, c])
+
+  const boxPlotOptions = useMemo(
+    () => ({
+      indexAxis: 'y' as const,
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false as const,
+      devicePixelRatio: 2,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+        y: { grid: { display: false }, ticks: { display: false } },
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any),
+    [c]
+  )
 
   return (
     <div style={s.page}>
@@ -335,6 +419,7 @@ export default function DescriptiveStats() {
                 <div style={{ ...(s.chartInner as CSSProperties), height: 280 }}>
                   {histogramData && (
                     <Chart
+                      ref={histogramChartRef}
                       type="bar"
                       data={histogramData}
                       options={{
@@ -349,7 +434,11 @@ export default function DescriptiveStats() {
                     />
                   )}
                 </div>
-                <BoxPlotSVG box={result.boxPlot} min={result.min} max={result.max} colors={c} />
+                {boxPlotData && (
+                  <div style={{ height: 90, position: 'relative', marginTop: 12 }}>
+                    <Chart ref={boxPlotChartRef} type="bar" data={boxPlotData} options={boxPlotOptions} />
+                  </div>
+                )}
               </div>
 
               {/* Anderson-Darling Normality Test — free */}
@@ -440,56 +529,7 @@ function StatRow({ label, value, th, td }: { label: string; value: string; th: C
   )
 }
 
-// ── Box plot rendered as a lightweight inline SVG (no chart library has a
-// well-supported box-plot type for Chart.js v4 without an extra plugin
-// dependency, so this keeps the tool dependency-free). ──────────────────
-function BoxPlotSVG({
-  box,
-  min,
-  max,
-  colors,
-}: {
-  box: DescriptiveResult['boxPlot']
-  min: number
-  max: number
-  colors: PaletteColors
-}) {
-  const width = 100 // percent-based viewBox, scales with container
-  const pad = 4
-  const span = max - min || 1
-  const scale = (v: number) => pad + ((v - min) / span) * (width - 2 * pad)
-
-  const boxX0 = scale(box.q1)
-  const boxX1 = scale(box.q3)
-  const medianX = scale(box.median)
-  const lowerWX = scale(box.lowerWhisker)
-  const upperWX = scale(box.upperWhisker)
-
-  return (
-    <div style={{ marginTop: 12 }}>
-      <svg viewBox="0 0 100 36" width="100%" height="70" preserveAspectRatio="none">
-        {/* whisker line */}
-        <line x1={lowerWX} y1={18} x2={upperWX} y2={18} stroke={colors.muted} strokeWidth={0.4} />
-        {/* whisker caps */}
-        <line x1={lowerWX} y1={10} x2={lowerWX} y2={26} stroke={colors.muted} strokeWidth={0.4} />
-        <line x1={upperWX} y1={10} x2={upperWX} y2={26} stroke={colors.muted} strokeWidth={0.4} />
-        {/* box */}
-        <rect
-          x={boxX0}
-          y={8}
-          width={Math.max(boxX1 - boxX0, 0.5)}
-          height={20}
-          fill={`${colors.accent}30`}
-          stroke={colors.accent}
-          strokeWidth={0.5}
-        />
-        {/* median line */}
-        <line x1={medianX} y1={8} x2={medianX} y2={28} stroke={colors.amber} strokeWidth={0.8} />
-        {/* outliers */}
-        {box.outliers.map((o, i) => (
-          <circle key={i} cx={scale(o)} cy={18} r={0.8} fill={colors.danger} />
-        ))}
-      </svg>
-    </div>
-  )
-}
+// ── Box plot rendered as a Chart.js floating-bar chart (see boxPlotData
+// above): a whisker bar, an IQR box, a thin median bar, and an outlier
+// scatter overlay. Chart.js v4 supports two-value [low, high] bar ranges
+// natively, so no external box-plot plugin is needed. ──────────────────
