@@ -274,23 +274,25 @@ export default function DescriptiveStats() {
     : null
 
   // ── Box plot as one Chart.js horizontal bar chart: a single bar dataset
-  // for the IQR box (Q1→Q3, using Chart.js's native [min, max] floating-bar
+  // for the IQR box (Q1→Q3, using Chart.js's native array-pair floating-bar
   // data), a line dataset for the whisker span, a scatter dataset styled
   // as a vertical tick for the median, and a scatter dataset for outliers.
-  // Multiple overlapping bar datasets on one category fight for lane space
-  // (even with a shared stack id and matching thickness), so only the IQR
-  // box is a bar — everything else is a line/point pinned to y:0 on the
-  // same linear x-axis, which draws through the bar's row without
-  // competing for it. No box-plot plugin needed. ────────────────────────
+  // Verified directly against the Chart.js source (not just visually):
+  // with indexAxis 'y', the bar's floating-range data MUST be a plain
+  // [low, high] array keyed to a category label — the {x:[low,high], y}
+  // object form silently parses to null and collapses the axis. The other
+  // datasets are pinned to that same category label (not y:0) so every
+  // dataset lands on the identical row regardless of dataset type. ──────
   const boxPlotData = useMemo(() => {
     if (!result) return null
     const bp = result.boxPlot
     return {
+      labels: ['row'],
       datasets: [
         {
           type: 'bar' as const,
           label: 'IQR (Q1–Q3)',
-          data: [{ x: [bp.q1, bp.q3], y: 0 }],
+          data: [[bp.q1, bp.q3]],
           backgroundColor: `${c.accent}30`,
           borderColor: c.accent,
           borderWidth: 2,
@@ -300,7 +302,7 @@ export default function DescriptiveStats() {
         {
           type: 'line' as const,
           label: 'Whisker',
-          data: [{ x: bp.lowerWhisker, y: 0 }, { x: bp.upperWhisker, y: 0 }],
+          data: [{ x: bp.lowerWhisker, y: 'row' }, { x: bp.upperWhisker, y: 'row' }],
           borderColor: c.muted,
           borderWidth: 1.5,
           pointRadius: 0,
@@ -310,7 +312,7 @@ export default function DescriptiveStats() {
         {
           type: 'scatter' as const,
           label: 'Median',
-          data: [{ x: bp.median, y: 0 }],
+          data: [{ x: bp.median, y: 'row' }],
           pointStyle: 'line',
           rotation: 90,
           pointRadius: 20,
@@ -321,7 +323,7 @@ export default function DescriptiveStats() {
         {
           type: 'scatter' as const,
           label: 'Outliers',
-          data: bp.outliers.map((o) => ({ x: o, y: 0 })),
+          data: bp.outliers.map((o) => ({ x: o, y: 'row' })),
           backgroundColor: c.danger,
           pointRadius: 4,
           order: 0,
@@ -333,6 +335,7 @@ export default function DescriptiveStats() {
 
   const boxPlotOptions = useMemo(
     () => ({
+      indexAxis: 'y' as const,
       responsive: true,
       maintainAspectRatio: false,
       animation: false as const,
@@ -341,12 +344,13 @@ export default function DescriptiveStats() {
       plugins: { legend: { display: false } },
       scales: {
         x: {
+          type: 'linear' as const,
           min: axisBounds?.min,
           max: axisBounds?.max,
           grid: { color: c.grid },
           ticks: { color: c.muted, font: { size: 10 } },
         },
-        y: { min: -1, max: 1, grid: { display: false }, ticks: { display: false } },
+        y: { grid: { display: false }, ticks: { display: false } },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any),
