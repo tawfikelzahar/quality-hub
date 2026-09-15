@@ -277,12 +277,16 @@ export default function DescriptiveStats() {
   // the box (Q1→Q3, using Chart.js's native [min, max] floating-bar data),
   // a whisker line dataset for the min/max extent, and a scatter dataset
   // for outliers. No box-plot plugin needed — Chart.js v4 bars natively
-  // support a two-value [low, high] range per bar. ─────────────────────
+  // support a two-value [low, high] range per bar. All three bar datasets
+  // share one stack id AND the same barThickness so Chart.js overlays them
+  // on one row — mismatched thicknesses (even with a shared stack) make it
+  // lay bars out in separate lanes instead of centered on top of each other.
   const boxPlotData = useMemo(() => {
     if (!result) return null
     const bp = result.boxPlot
     const span = (result.max - result.min) || 1
     const medianHalfWidth = span * 0.006 // thin marker, independent of IQR width
+    const barThickness = 44
     return {
       labels: [''],
       datasets: [
@@ -293,7 +297,8 @@ export default function DescriptiveStats() {
           backgroundColor: 'transparent',
           borderColor: c.muted,
           borderWidth: 1.5,
-          barThickness: 3,
+          barThickness,
+          stack: 'box',
           order: 2,
         },
         {
@@ -303,7 +308,8 @@ export default function DescriptiveStats() {
           backgroundColor: `${c.accent}30`,
           borderColor: c.accent,
           borderWidth: 2,
-          barThickness: 44,
+          barThickness,
+          stack: 'box',
           order: 1,
         },
         {
@@ -313,7 +319,8 @@ export default function DescriptiveStats() {
           backgroundColor: c.amber,
           borderColor: c.amber,
           borderWidth: 0,
-          barThickness: 44,
+          barThickness,
+          stack: 'box',
           order: 0,
         },
         {
