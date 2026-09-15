@@ -48,7 +48,7 @@ export default function DescriptiveStats() {
 
   // Chart.js canvases used on screen and in the Excel export.
   const histogramChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
-  const boxPlotChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
+  const boxPlotChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null)
 
   const values = parseValues(rawText)
 
@@ -273,54 +273,49 @@ export default function DescriptiveStats() {
       }
     : null
 
-  // ── Box plot as a Chart.js floating-bar chart: one horizontal bar for
-  // the box (Q1→Q3, using Chart.js's native [min, max] floating-bar data),
-  // a whisker line dataset for the min/max extent, and a scatter dataset
-  // for outliers. No box-plot plugin needed — Chart.js v4 bars natively
-  // support a two-value [low, high] range per bar. All three bar datasets
-  // share one stack id AND the same barThickness so Chart.js overlays them
-  // on one row — mismatched thicknesses (even with a shared stack) make it
-  // lay bars out in separate lanes instead of centered on top of each other.
+  // ── Box plot as one Chart.js horizontal bar chart: a single bar dataset
+  // for the IQR box (Q1→Q3, using Chart.js's native [min, max] floating-bar
+  // data), a line dataset for the whisker span, a scatter dataset styled
+  // as a vertical tick for the median, and a scatter dataset for outliers.
+  // Multiple overlapping bar datasets on one category fight for lane space
+  // (even with a shared stack id and matching thickness), so only the IQR
+  // box is a bar — everything else is a line/point pinned to y:0 on the
+  // same linear x-axis, which draws through the bar's row without
+  // competing for it. No box-plot plugin needed. ────────────────────────
   const boxPlotData = useMemo(() => {
     if (!result) return null
     const bp = result.boxPlot
-    const span = (result.max - result.min) || 1
-    const medianHalfWidth = span * 0.006 // thin marker, independent of IQR width
-    const barThickness = 44
     return {
-      labels: [''],
       datasets: [
         {
           type: 'bar' as const,
-          label: 'Whisker',
-          data: [[bp.lowerWhisker, bp.upperWhisker]],
-          backgroundColor: 'transparent',
-          borderColor: c.muted,
-          borderWidth: 1.5,
-          barThickness,
-          stack: 'box',
-          order: 2,
-        },
-        {
-          type: 'bar' as const,
           label: 'IQR (Q1–Q3)',
-          data: [[bp.q1, bp.q3]],
+          data: [{ x: [bp.q1, bp.q3], y: 0 }],
           backgroundColor: `${c.accent}30`,
           borderColor: c.accent,
           borderWidth: 2,
-          barThickness,
-          stack: 'box',
+          barThickness: 40,
+          order: 2,
+        },
+        {
+          type: 'line' as const,
+          label: 'Whisker',
+          data: [{ x: bp.lowerWhisker, y: 0 }, { x: bp.upperWhisker, y: 0 }],
+          borderColor: c.muted,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
           order: 1,
         },
         {
-          type: 'bar' as const,
+          type: 'scatter' as const,
           label: 'Median',
-          data: [[bp.median - medianHalfWidth, bp.median + medianHalfWidth]],
-          backgroundColor: c.amber,
+          data: [{ x: bp.median, y: 0 }],
+          pointStyle: 'line',
+          rotation: 90,
+          pointRadius: 20,
           borderColor: c.amber,
-          borderWidth: 0,
-          barThickness,
-          stack: 'box',
+          borderWidth: 3,
           order: 0,
         },
         {
@@ -338,7 +333,6 @@ export default function DescriptiveStats() {
 
   const boxPlotOptions = useMemo(
     () => ({
-      indexAxis: 'y' as const,
       responsive: true,
       maintainAspectRatio: false,
       animation: false as const,
@@ -352,7 +346,7 @@ export default function DescriptiveStats() {
           grid: { color: c.grid },
           ticks: { color: c.muted, font: { size: 10 } },
         },
-        y: { grid: { display: false }, ticks: { display: false } },
+        y: { min: -1, max: 1, grid: { display: false }, ticks: { display: false } },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any),
@@ -460,6 +454,7 @@ export default function DescriptiveStats() {
                 </div>
                 {boxPlotData && (
                   <div style={{ height: 90, position: 'relative', marginTop: 12 }}>
+                    {/* Mixed chart: bar (IQR) + line (whisker) + scatter (median/outliers), same relaxation used on the Regression pages */}
                     <Chart ref={boxPlotChartRef} type="bar" data={boxPlotData} options={boxPlotOptions} />
                   </div>
                 )}
