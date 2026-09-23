@@ -1,16 +1,24 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef, type CSSProperties } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect, type CSSProperties } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import * as XLSX from 'xlsx'
 import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
 import { createReport, nowStamp } from '@/lib/excelReport'
+import {
+  createReport as createPdfReport,
+  dataTable,
+  calloutBox,
+  addChartImage,
+  finalizeReport,
+} from '@/lib/pdf/reportDesign'
 
 import Nav from '@/components/Nav'
+import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
-import { goToPricing } from '@/lib/exportGate'
+import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
 
@@ -35,7 +43,7 @@ function fmt3(v: number | null | undefined): string {
 }
 
 export default function DescriptiveStats() {
-  const { isPro } = useSubscription()
+  const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t } = useLanguage()
   const c = COLORS[theme]
@@ -45,12 +53,46 @@ export default function DescriptiveStats() {
   const [result, setResult] = useState<DescriptiveResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
+  const [loadError, setLoadError] = useState('')
 
-  // Chart.js canvases used on screen and in the Excel export.
+  // Chart.js canvases used on screen and in the Excel/PDF exports.
   const histogramChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
   const boxPlotChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null)
 
   const values = parseValues(rawText)
+
+  // ── Load a saved project from the dashboard (?id=...) ─────────────────
+  // Only the raw input is restored (input_data.values) — the stats are
+  // recomputed via the normal calculate flow, same as every other tool's
+  // loader (never trusts a saved `results` blob over a fresh calculation).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then(async ({ analysis }) => {
+        const data = analysis.input_data as { values: number[] }
+        const loadedValues = data.values
+        setRawText(loadedValues.join('\n'))
+        setLoadedProjectName(analysis.name as string)
+        if (loadedValues.length < 2) return
+        setLoading(true)
+        try {
+          const res = await fetch('/api/descriptive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ values: loadedValues }),
+          })
+          const json = await res.json()
+          if (res.ok) setResult(json as DescriptiveResult)
+        } finally {
+          setLoading(false)
+        }
+      })
+      .catch(() => setLoadError(t('ds_load_error')))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleCalculate = useCallback(async () => {
     setError(null)
@@ -240,6 +282,136 @@ export default function DescriptiveStats() {
     await report.download('descriptive-statistics.xlsx')
   }, [result, isPro, values, t])
 
+  // ── Export: CSV ─────────────────────────────────────────────────────
+  const handleExportCSV = useCallback(() => {
+    if (!isLoggedIn) { goToLogin('descriptive-stats', 'csv'); return }
+    if (!result) return
+    const header = '#,Value\n'
+    const body = values.map((v, i) => `${i + 1},${v}`).join('\n')
+    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'descriptive-statistics.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [isLoggedIn, result, values])
+
+  // ── Export: PNG (summary card, same style as Regression's PNG export) ─
+  const handleExportPNG = useCallback(() => {
+    if (!isLoggedIn) { goToLogin('descriptive-stats', 'png'); return }
+    if (!result) return
+    const rows: [string, string][] = [
+      ['N', String(result.n)],
+      ['Mean', fmt(result.mean)],
+      ['StDev', fmt(result.stdev)],
+      ['Median', fmt(result.median)],
+      ['Min', fmt(result.min)],
+      ['Q1', fmt(result.q1)],
+      ['Q3', fmt(result.q3)],
+      ['Max', fmt(result.max)],
+      ['Range', fmt(result.range)],
+      ['IQR', fmt(result.iqr)],
+    ]
+    const width = 520
+    const rowH = 26
+    const height = 110 + rowH * rows.length + 20
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    ctx.fillStyle = '#0a0f1e'
+    ctx.fillRect(0, 0, width, height)
+    ctx.fillStyle = '#e2e8f0'
+    ctx.font = 'bold 20px system-ui, sans-serif'
+    ctx.fillText(t('ds_pdf_report_title'), 16, 34)
+    ctx.fillStyle = '#6b89b4'
+    ctx.font = '12px system-ui, sans-serif'
+    ctx.fillText(`Generated: ${new Date().toLocaleDateString()}`, 16, 54)
+    ctx.fillText(`N = ${result.n}`, 16, 74)
+
+    let y = 96
+    ctx.fillStyle = '#1e2d40'
+    ctx.fillRect(16, y, width - 32, rowH)
+    ctx.fillStyle = '#e2e8f0'
+    ctx.font = 'bold 12px system-ui, sans-serif'
+    ctx.fillText('STATISTIC', 24, y + 17)
+    ctx.fillText('VALUE', width - 140, y + 17)
+    y += rowH
+
+    rows.forEach(([label, value], i) => {
+      ctx.fillStyle = i % 2 === 0 ? '#111a2c' : '#0a0f1e'
+      ctx.fillRect(16, y, width - 32, rowH)
+      ctx.fillStyle = '#cbd5e1'
+      ctx.font = '12px system-ui, sans-serif'
+      ctx.fillText(label, 24, y + 17)
+      ctx.fillText(value, width - 140, y + 17)
+      y += rowH
+    })
+
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'descriptive-statistics.png'
+      a.click()
+      URL.revokeObjectURL(url)
+    })
+  }, [isLoggedIn, result, t])
+
+  // ── Export: PDF ─────────────────────────────────────────────────────
+  const handleExportPDF = useCallback(() => {
+    if (!isPro) { goToPricing('descriptive-stats', 'pdf'); return }
+    if (!result) return
+
+    const ctx = createPdfReport(t('ds_pdf_report_title'), 'descriptive-stats')
+
+    calloutBox(ctx, `N = ${result.n}   Mean = ${fmt(result.mean)}   StDev = ${fmt(result.stdev)}`, 'info')
+
+    dataTable(
+      ctx,
+      'Full Statistics',
+      [
+        { header: 'STATISTIC', width: 160 },
+        { header: 'VALUE', width: ctx.pageWidth - ctx.margin * 2 - 160, align: 'right' },
+      ],
+      [
+        ['N', String(result.n)],
+        ['Mean', fmt(result.mean)],
+        ['StDev', fmt(result.stdev)],
+        ['Variance', fmt(result.variance)],
+        ['CV (%)', result.cv !== null ? fmt(result.cv, 2) : '—'],
+        ['Skewness', result.skewness !== null ? fmt(result.skewness) : '—'],
+        ['Kurtosis', result.kurtosis !== null ? fmt(result.kurtosis) : '—'],
+        ['Minimum', fmt(result.min)],
+        ['Q1', fmt(result.q1)],
+        ['Median', fmt(result.median)],
+        ['Q3', fmt(result.q3)],
+        ['Maximum', fmt(result.max)],
+        ['IQR', fmt(result.iqr)],
+        ['Range', fmt(result.range)],
+      ]
+    )
+
+    if (result.andersonDarling) {
+      const ad = result.andersonDarling
+      calloutBox(
+        ctx,
+        `Anderson-Darling: A² = ${fmt3(ad.statistic)}   p-value = ${fmt3(ad.pValue)}   ${ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'}`,
+        ad.normalAtAlpha05 ? 'good' : 'warn'
+      )
+    }
+
+    addChartImage(ctx, histogramChartRef.current, t('ds_histogram_boxplot'))
+    addChartImage(ctx, boxPlotChartRef.current, t('ds_boxplot_title'))
+
+    finalizeReport(ctx)
+    ctx.pdf.save('descriptive-statistics.pdf')
+  }, [isPro, result, t])
+
   const clearAll = () => {
     setRawText('')
     setResult(null)
@@ -362,6 +534,19 @@ export default function DescriptiveStats() {
       {/* Nav */}
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_descriptive" />
 
+      {loadedProjectName && (
+        <div className="qh-main" style={{ paddingBottom: 0 }}>
+          <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px', margin: '0 20px' }}>
+            {t('ds_loaded_project')} {loadedProjectName}
+          </div>
+        </div>
+      )}
+      {loadError && (
+        <div className="qh-main" style={{ paddingBottom: 0 }}>
+          <div style={{ fontSize: 13, color: c.danger, margin: '8px 20px 0' }}>{loadError}</div>
+        </div>
+      )}
+
       <div className="qh-body" style={s.body}>
         {/* Left Panel — input */}
         <div className="qh-left" style={s.left}>
@@ -417,12 +602,6 @@ export default function DescriptiveStats() {
               </div>
             )}
           </div>
-
-          {result && (
-            <button style={s.exportBtn} onClick={handleExportExcel}>
-              {isPro ? t('ds_export_excel') : t('ds_export_excel_pro')}
-            </button>
-          )}
         </div>
 
         {/* Right Panel — results */}
@@ -534,6 +713,33 @@ export default function DescriptiveStats() {
                     />
                   </tbody>
                 </table>
+              </div>
+
+              {/* ── Export & Save ─────────────────────────────────────── */}
+              <div style={s.card}>
+                <div style={s.sectionTitle}>{t('ds_export_section_title')}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+                  <button style={s.exportBtn} onClick={handleExportCSV}>
+                    {isLoggedIn ? '📄' : '🔒'} {t('ds_export_csv')}
+                  </button>
+                  <button style={s.exportBtn} onClick={handleExportExcel}>
+                    {isPro ? t('ds_export_excel') : t('ds_export_excel_pro')}
+                  </button>
+                  <button style={s.exportBtn} onClick={handleExportPNG}>
+                    {isLoggedIn ? '🖼️' : '🔒'} {t('ds_export_png')}
+                  </button>
+                  <button style={s.exportBtn} onClick={handleExportPDF}>
+                    {isPro ? `📕 ${t('ds_export_pdf')}` : `🔒 ${t('ds_export_pdf_pro')}`}
+                  </button>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <SaveAnalysisButton
+                    theme={theme}
+                    tool="descriptive_stats"
+                    defaultName={`${t('ds_pdf_report_title')} — ${new Date().toLocaleDateString('en-US')}`}
+                    getPayload={() => (!result ? null : { input_data: { values }, results: result })}
+                  />
+                </div>
               </div>
             </>
           )}
