@@ -22,6 +22,8 @@ import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
+import { useGridImport, GRID_IMPORT_ACCEPT } from '@/lib/gridImport';
+import { SheetPicker, PasteToast } from '@/components/GridImportControls';
 import {
   createReport as createPdfReport,
   twoColumnTables,
@@ -60,8 +62,14 @@ function parseCsv(text: string): { headers: string[]; rows: string[][] } {
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
   if (lines.length === 0) return { headers: [], rows: [] };
-  const headers = lines[0].split(',').map((h) => h.trim());
-  const rows = lines.slice(1).map((l) => l.split(',').map((v) => v.trim()));
+  // Excel/Sheets copy onto the clipboard as tab-separated; a typed or
+  // uploaded .csv is comma-separated. Detect per line so both work.
+  const splitLine = (l: string) => {
+    const delimiter = l.includes('\t') ? '\t' : ',';
+    return l.split(delimiter).map((v) => v.trim());
+  };
+  const headers = splitLine(lines[0]);
+  const rows = lines.slice(1).map(splitLine);
   return { headers, rows };
 }
 
@@ -121,17 +129,18 @@ export default function RegressionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result ?? '');
+  // Paste (anywhere on the page) and file upload (.csv/.xlsx/.xls) both fill
+  // csvText and immediately read the columns — Regression needs the header
+  // row for X/Y column names, so keepHeaderRow keeps the first row intact
+  // instead of treating it as data to strip.
+  const gridImport = useGridImport({
+    keepHeaderRow: true,
+    onGrid: grid => {
+      const text = grid.map((row) => row.join(',')).join('\n');
       setCsvText(text);
       readColumns(text);
-    };
-    reader.readAsText(file);
-  }
+    },
+  });
 
   function readColumns(text?: string) {
     const { headers: h, rows } = parseCsv(text ?? csvText);
@@ -637,8 +646,25 @@ export default function RegressionPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <div>
               <div style={s.label}>{messages.csvUploadLabel}</div>
-              <input type="file" accept=".csv" onChange={handleFileUpload} style={s.input} />
+              <input
+                type="file"
+                accept={GRID_IMPORT_ACCEPT}
+                onChange={gridImport.handleFilePicked}
+                style={s.input}
+              />
               <p style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>{messages.csvUploadHint}</p>
+              {gridImport.fileError && (
+                <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{gridImport.fileError}</p>
+              )}
+              <SheetPicker
+                sheetNames={gridImport.sheetNames}
+                activeSheet={gridImport.activeSheet}
+                onSelect={gridImport.selectSheet}
+                accentColor={c.accent}
+                textColor={c.text}
+                mutedColor={c.muted}
+                borderColor={c.border}
+              />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
               <button style={s.addBtn} onClick={loadExample}>{messages.loadExampleButton}</button>
@@ -653,6 +679,9 @@ export default function RegressionPage() {
 
           <div style={{ marginTop: 12 }}>
             <div style={s.label}>{messages.pasteLabel}</div>
+            <p style={{ fontSize: 11, color: c.muted, marginBottom: 4 }}>
+              Tip: you can also paste (Ctrl+V) anywhere on this page — include the header row.
+            </p>
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
@@ -886,6 +915,7 @@ export default function RegressionPage() {
 
         <p style={{ fontSize: 11, color: c.muted, opacity: 0.7 }}>{messages.footerNote}</p>
       </div>
+      <PasteToast show={gridImport.pasteToast} />
     </div>
   );
 }

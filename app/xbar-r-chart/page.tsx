@@ -17,6 +17,8 @@ import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
+import { useGridImport, GRID_IMPORT_ACCEPT } from '@/lib/gridImport';
+import { SheetPicker, PasteToast } from '@/components/GridImportControls';
 import {
   createReport as createPdfReport,
   classifyCapability,
@@ -44,9 +46,12 @@ const EXAMPLE_SUBGROUPS: number[][] = [
 
 function parseSubgroupRows(text: string): number[][] {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0);
-  return lines.map((line) =>
-    line.split(',').map((v) => Number(v.trim())).filter((v) => Number.isFinite(v))
-  );
+  return lines.map((line) => {
+    // Excel/Sheets copy onto the clipboard as tab-separated; a typed or
+    // uploaded .csv is comma-separated. Detect per line so both work.
+    const delimiter = line.includes('\t') ? '\t' : ',';
+    return line.split(delimiter).map((v) => Number(v.trim())).filter((v) => Number.isFinite(v));
+  });
 }
 
 function niceNum(n: number | null | undefined, digits = 4): string {
@@ -149,13 +154,13 @@ export default function XbarRChartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setCsvText(String(reader.result ?? ''));
-    reader.readAsText(file);
-  }
+  // Paste (anywhere on the page) and file upload (.csv/.xlsx/.xls) both just
+  // fill csvText, exactly like typing or pasting into the textarea by hand —
+  // Calculate still has to be pressed, same as before, so spec limits typed
+  // above aren't silently skipped.
+  const gridImport = useGridImport({
+    onGrid: grid => setCsvText(grid.map(row => row.join(', ')).join('\n')),
+  });
 
   function loadExample() {
     setCsvText(EXAMPLE_SUBGROUPS.map((row) => row.join(', ')).join('\n'));
@@ -542,8 +547,25 @@ export default function XbarRChartPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <div>
               <div style={s.label}>{messages.csvUploadLabel}</div>
-              <input type="file" accept=".csv" onChange={handleFileUpload} style={s.input} />
+              <input
+                type="file"
+                accept={GRID_IMPORT_ACCEPT}
+                onChange={gridImport.handleFilePicked}
+                style={s.input}
+              />
               <p style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>{messages.csvUploadHint}</p>
+              {gridImport.fileError && (
+                <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{gridImport.fileError}</p>
+              )}
+              <SheetPicker
+                sheetNames={gridImport.sheetNames}
+                activeSheet={gridImport.activeSheet}
+                onSelect={gridImport.selectSheet}
+                accentColor={c.accent}
+                textColor={c.text}
+                mutedColor={c.muted}
+                borderColor={c.border}
+              />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
               <button style={s.addBtn} onClick={loadExample}>{messages.loadExampleButton}</button>
@@ -553,6 +575,9 @@ export default function XbarRChartPage() {
 
           <div style={{ marginTop: 12 }}>
             <div style={s.label}>{messages.pasteLabel}</div>
+            <p style={{ fontSize: 11, color: c.muted, marginBottom: 4 }}>
+              Tip: you can also paste (Ctrl+V) anywhere on this page.
+            </p>
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
@@ -919,6 +944,7 @@ export default function XbarRChartPage() {
 
         <p style={{ fontSize: 11, color: c.muted, opacity: 0.7 }}>{messages.footerNote}</p>
       </div>
+      <PasteToast show={gridImport.pasteToast} label="✓ Data pasted — click Calculate" />
     </div>
   );
 }

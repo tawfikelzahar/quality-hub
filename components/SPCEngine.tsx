@@ -11,6 +11,8 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
+import { useGridImport } from '@/lib/gridImport'
+import { SheetPicker } from '@/components/GridImportControls'
 import {
   createReport as createPdfReport,
   classifyCapability,
@@ -272,6 +274,31 @@ function parseAttributePaste(text: string, attrType: AttrType): AttrRow[] {
   return rows
 }
 
+// Same row-building rules as the paste parsers above, applied to a grid
+// that came from an uploaded .csv/.xlsx/.xls file instead of the clipboard —
+// keeps file-upload and Ctrl+V behaving identically.
+function variableRowsFromGrid(grid: string[][], n: number): VarRow[] {
+  const rows: VarRow[] = []
+  for (const cells of grid) {
+    const parts = cells.filter(p => p !== '' && !isNaN(parseFloat(p)))
+    if (parts.length > 0) rows.push({ id: generateId(), vals: resizeVals(parts, n) })
+  }
+  return rows
+}
+
+function attributeRowsFromGrid(grid: string[][], attrType: AttrType): AttrRow[] {
+  const rows: AttrRow[] = []
+  const needsN = attrType === 'p' || attrType === 'u'
+  for (const parts of grid) {
+    if (needsN && parts.length >= 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+      rows.push({ id: generateId(), n: parts[0], defects: parts[1] })
+    } else if (!needsN && parts.length >= 1 && !isNaN(parseFloat(parts[0]))) {
+      rows.push({ id: generateId(), n: '', defects: parts[0] })
+    }
+  }
+  return rows
+}
+
 export default function SPCEngine() {
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -378,6 +405,21 @@ export default function SPCEngine() {
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
   }, [dataType, N, attrType])
+
+  // ── File upload (.csv / .xlsx / .xls) — paste above already handles Ctrl+V,
+  // so this hook is used for the upload button only.
+  const gridImport = useGridImport({
+    enablePasteListener: false,
+    onGrid: grid => {
+      if (dataType === 'variable') {
+        const parsed = variableRowsFromGrid(grid, N)
+        if (parsed.length > 0) setVarRows(parsed)
+      } else {
+        const parsed = attributeRowsFromGrid(grid, attrType)
+        if (parsed.length > 0) setAttrRows(parsed)
+      }
+    },
+  })
 
   // ── Load a saved project from the dashboard (?id=...) ──────────────────
   useEffect(() => {
@@ -1583,6 +1625,15 @@ export default function SPCEngine() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 {dataEntryOpen && <div style={{ fontSize: 11, color: c.muted }}>{t('spc_paste_hint')}</div>}
+                {dataEntryOpen && (
+                  <button
+                    onClick={gridImport.openFilePicker}
+                    style={{ ...s.exportBtn, padding: '4px 10px', fontSize: 11 }}
+                  >
+                    📂 Upload file
+                  </button>
+                )}
+                <gridImport.FileInput />
                 <button
                   onClick={() => setDataEntryOpen(o => !o)}
                   style={{ ...s.exportBtn, padding: '4px 10px', fontSize: 11 }}
@@ -1591,6 +1642,21 @@ export default function SPCEngine() {
                 </button>
               </div>
             </div>
+
+            {dataEntryOpen && gridImport.fileError && (
+              <div style={{ color: '#ef4444', fontSize: 11, marginBottom: 8 }}>{gridImport.fileError}</div>
+            )}
+            {dataEntryOpen && (
+              <SheetPicker
+                sheetNames={gridImport.sheetNames}
+                activeSheet={gridImport.activeSheet}
+                onSelect={gridImport.selectSheet}
+                accentColor={c.accent}
+                textColor={c.text}
+                mutedColor={c.muted}
+                borderColor={c.border}
+              />
+            )}
 
             {dataEntryOpen && (dataType === 'variable' ? (
               <>

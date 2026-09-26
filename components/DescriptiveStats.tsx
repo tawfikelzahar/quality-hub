@@ -4,8 +4,9 @@ import { useState, useCallback, useMemo, useRef, useEffect, type CSSProperties }
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import * as XLSX from 'xlsx'
 import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
+import { useGridImport } from '@/lib/gridImport'
+import { SheetPicker, PasteToast } from '@/components/GridImportControls'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import {
   createReport as createPdfReport,
@@ -121,28 +122,20 @@ export default function DescriptiveStats() {
     }
   }, [values, t])
 
-  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (evt) => {
-      const data = evt.target?.result
-      try {
-        const workbook = XLSX.read(data, { type: 'binary' })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const json: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
-        const nums = json
-          .flat()
-          .map((v) => (typeof v === 'number' ? v : parseFloat(String(v))))
-          .filter((v) => Number.isFinite(v))
-        setRawText(nums.join('\n'))
-      } catch {
-        setError(t('ds_err_file_read'))
-      }
-    }
-    reader.readAsBinaryString(file)
-    e.target.value = ''
-  }, [t])
+  // Grid → flat numeric list: Descriptive only ever needs one column of
+  // values, so every cell across every row/column of a paste or upload is
+  // flattened and filtered down to numbers — the header row and any blank
+  // rows are already stripped by useGridImport before onGrid runs.
+  const gridImport = useGridImport({
+    onGrid: grid => {
+      const nums = grid
+        .flat()
+        .map(v => parseFloat(v))
+        .filter(v => Number.isFinite(v))
+      if (nums.length > 0) setRawText(nums.join('\n'))
+    },
+    onError: msg => setError(msg),
+  })
 
   const handleExportExcel = useCallback(async () => {
     if (!isPro) { goToPricing('descriptive-stats', 'excel'); return }
@@ -561,11 +554,30 @@ export default function DescriptiveStats() {
             <div style={{ fontSize: 11, color: c.muted, marginTop: 6 }}>
               {values.length} {values.length === 1 ? t('ds_valid_value') : t('ds_valid_values')} {t('ds_detected')}
             </div>
+            <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
+              Tip: you can also paste (Ctrl+V) anywhere on this page.
+            </div>
 
-            <label style={{ ...(s.addBtn as CSSProperties), display: 'block', textAlign: 'center', marginTop: 10, cursor: 'pointer' }}>
+            <button
+              type="button"
+              onClick={gridImport.openFilePicker}
+              style={{ ...(s.addBtn as CSSProperties), display: 'block', width: '100%', textAlign: 'center', marginTop: 10, cursor: 'pointer' }}
+            >
               {t('ds_upload_csv')}
-              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileUpload} style={{ display: 'none' }} />
-            </label>
+            </button>
+            <gridImport.FileInput />
+            {gridImport.fileError && (
+              <div style={{ color: '#ef4444', fontSize: 11, marginTop: 6 }}>{gridImport.fileError}</div>
+            )}
+            <SheetPicker
+              sheetNames={gridImport.sheetNames}
+              activeSheet={gridImport.activeSheet}
+              onSelect={gridImport.selectSheet}
+              accentColor={c.accent}
+              textColor={c.text}
+              mutedColor={c.muted}
+              borderColor={c.border}
+            />
 
             <button
               style={{
@@ -745,6 +757,7 @@ export default function DescriptiveStats() {
           )}
         </div>
       </div>
+      <PasteToast show={gridImport.pasteToast} />
     </div>
   )
 }

@@ -19,6 +19,8 @@ import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
+import { useGridImport, GRID_IMPORT_ACCEPT } from '@/lib/gridImport';
+import { SheetPicker, PasteToast } from '@/components/GridImportControls';
 import {
   createReport as createPdfReport,
   classifyCapability,
@@ -140,13 +142,12 @@ export default function ImrChartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setCsvText(String(reader.result ?? ''));
-    reader.readAsText(file);
-  }
+  // I-MR is single-column, so every cell across a paste/upload grid is
+  // flattened into one value per line — same staging behavior as before
+  // (csvText), Calculate still has to be pressed.
+  const gridImport = useGridImport({
+    onGrid: grid => setCsvText(grid.flat().join('\n')),
+  });
 
   function loadExample() {
     setCsvText(EXAMPLE_DATA.join('\n'));
@@ -530,8 +531,25 @@ export default function ImrChartPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
             <div>
               <div style={s.label}>{messages.csvUploadLabel}</div>
-              <input type="file" accept=".csv" onChange={handleFileUpload} style={s.input} />
+              <input
+                type="file"
+                accept={GRID_IMPORT_ACCEPT}
+                onChange={gridImport.handleFilePicked}
+                style={s.input}
+              />
               <p style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>{messages.csvUploadHint}</p>
+              {gridImport.fileError && (
+                <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{gridImport.fileError}</p>
+              )}
+              <SheetPicker
+                sheetNames={gridImport.sheetNames}
+                activeSheet={gridImport.activeSheet}
+                onSelect={gridImport.selectSheet}
+                accentColor={c.accent}
+                textColor={c.text}
+                mutedColor={c.muted}
+                borderColor={c.border}
+              />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
               <button style={s.addBtn} onClick={loadExample}>{messages.loadExampleButton}</button>
@@ -541,6 +559,9 @@ export default function ImrChartPage() {
 
           <div style={{ marginTop: 12 }}>
             <div style={s.label}>{messages.pasteLabel}</div>
+            <p style={{ fontSize: 11, color: c.muted, marginBottom: 4 }}>
+              Tip: you can also paste (Ctrl+V) anywhere on this page.
+            </p>
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
@@ -893,6 +914,7 @@ export default function ImrChartPage() {
 
         <p style={{ fontSize: 11, color: c.muted, opacity: 0.7 }}>{messages.footerNote}</p>
       </div>
+      <PasteToast show={gridImport.pasteToast} label="✓ Data pasted — click Calculate" />
     </div>
   );
 }
