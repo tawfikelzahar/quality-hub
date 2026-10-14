@@ -2,8 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import 'chart.js/auto'
+import { Chart as ChartJSCore } from 'chart.js'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
+import { watermarkPlugin, WATERMARK_STRIP_HEIGHT } from '@/lib/watermarkPlugin'
+
+// Registered once at module load. Safe to call multiple times (Chart.js
+// no-ops on a duplicate id), but this keeps it to a single call site.
+ChartJSCore.register(watermarkPlugin)
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -591,7 +597,7 @@ export default function SPCEngine() {
   }
 
   // ── Export: Data + Stats as a professional Excel workbook ── (Pro only)
-  const exportExcel = async () => {
+  const runExportExcel = async () => {
     if (!isPro) { goToPricing('spc', 'excel'); return }
     const report = createReport({ toolName: 'SPC Engine' })
 
@@ -824,6 +830,8 @@ export default function SPCEngine() {
     await report.download('spc-report.xlsx')
   }
 
+  const exportExcel = () => withAllWatermarksDisabled(runExportExcel)
+
   // ── Export: charts as PNG ────────────────────────────────────────────────
   const downloadChartImage = (chart: { toBase64Image: (type?: string, quality?: number) => string } | null, filename: string): boolean => {
     if (!chart) return false
@@ -833,6 +841,39 @@ export default function SPCEngine() {
     a.download = filename
     a.click()
     return true
+  }
+
+  // Disables the watermark plugin on every chart currently in use, runs
+  // `fn` (the Pro PDF/Excel export, which reads each chart's canvas via
+  // toBase64Image()), then restores the watermark on all of them — even if
+  // `fn` throws. `chart.update('none')` skips Chart.js's animation loop so
+  // the on/off/on cycle stays synchronous and invisible to the user.
+  const withAllWatermarksDisabled = async <T,>(fn: () => T | Promise<T>): Promise<T> => {
+    const charts = [iChartRef.current, rChartRef.current, distChartRef.current, ecdfChartRef.current, attrChartRef.current]
+    const restoreFns: Array<() => void> = []
+
+    charts.forEach(chart => {
+      if (!chart) return
+      const opts = chart.options.plugins as Record<string, { enabled?: boolean }> | undefined
+      if (!opts?.watermark) return
+      const padding = chart.options.layout?.padding as { bottom?: number } | undefined
+      const previousEnabled = opts.watermark.enabled
+      const previousBottom = padding?.bottom
+      opts.watermark.enabled = false
+      if (padding) padding.bottom = 0
+      chart.update('none')
+      restoreFns.push(() => {
+        opts.watermark!.enabled = previousEnabled ?? true
+        if (padding) padding.bottom = previousBottom
+        chart.update('none')
+      })
+    })
+
+    try {
+      return await fn()
+    } finally {
+      restoreFns.forEach(restore => restore())
+    }
   }
 
   const exportPNG = () => {
@@ -848,7 +889,7 @@ export default function SPCEngine() {
   }
 
   // ── Export: full report as PDF ── (Pro only)
-  const exportPDF = () => {
+  const runExportPDF = () => {
     if (!isPro) { goToPricing('spc', 'pdf'); return }
     if (!result) {
       setErrorMsg(t('spc_err_no_report'))
@@ -1145,6 +1186,8 @@ export default function SPCEngine() {
     ctx.pdf.save('spc-report.pdf')
   }
 
+  const exportPDF = () => withAllWatermarksDisabled(runExportPDF)
+
   // ── Chart builders ──────────────────────────────────────────────────────
   const lineChartOptions = useMemo(
     () => ({
@@ -1163,7 +1206,14 @@ export default function SPCEngine() {
           bodyColor: c.muted,
           padding: 10,
         },
+        // Diagonal tiled "qualityhub.tools" + bottom strip, baked directly
+        // into the canvas pixels. Covers the live on-screen view and the
+        // free PNG export (same canvas, same toBase64Image() call).
+        // Disabled on the chart instance (not removed) just before a Pro
+        // PDF/Excel export reads the canvas — see exportPDF / exportExcel.
+        watermark: { density: 'normal', enabled: true },
       },
+      layout: { padding: { bottom: WATERMARK_STRIP_HEIGHT } },
       scales: {
         x: {
           ticks: { color: c.muted, font: { size: 11 } },
@@ -1220,7 +1270,13 @@ export default function SPCEngine() {
           bodyColor: c.muted,
           padding: 10,
         },
+        // Lighter density than the control charts: this options object is
+        // shared by the Distribution/Capability Histogram and ECDF charts,
+        // both visually denser (bars / step curve), so a lighter tile keeps
+        // the watermark from competing with the data.
+        watermark: { density: 'light', enabled: true },
       },
+      layout: { padding: { bottom: WATERMARK_STRIP_HEIGHT } },
       scales: {
         x: {
           type: 'linear',
