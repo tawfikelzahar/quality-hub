@@ -2,14 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import 'chart.js/auto'
-import { Chart as ChartJSCore } from 'chart.js'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
-import { watermarkPlugin, WATERMARK_STRIP_HEIGHT } from '@/lib/watermarkPlugin'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 
 // Registered once at module load. Safe to call multiple times (Chart.js
 // no-ops on a duplicate id), but this keeps it to a single call site.
-ChartJSCore.register(watermarkPlugin)
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
@@ -843,49 +841,27 @@ export default function SPCEngine() {
     return true
   }
 
-  // Disables the watermark plugin on every chart currently in use, runs
-  // `fn` (the Pro PDF/Excel export, which reads each chart's canvas via
-  // toBase64Image()), then restores the watermark on all of them — even if
-  // `fn` throws. `chart.update('none')` skips Chart.js's animation loop so
-  // the on/off/on cycle stays synchronous and invisible to the user.
-  const withAllWatermarksDisabled = async <T,>(fn: () => T | Promise<T>): Promise<T> => {
-    const charts = [iChartRef.current, rChartRef.current, distChartRef.current, ecdfChartRef.current, attrChartRef.current]
-    const restoreFns: Array<() => void> = []
-
-    charts.forEach(chart => {
-      if (!chart) return
-      const opts = chart.options.plugins as Record<string, { enabled?: boolean }> | undefined
-      if (!opts?.watermark) return
-      const padding = chart.options.layout?.padding as { bottom?: number } | undefined
-      const previousEnabled = opts.watermark.enabled
-      const previousBottom = padding?.bottom
-      opts.watermark.enabled = false
-      if (padding) padding.bottom = 0
-      chart.update('none')
-      restoreFns.push(() => {
-        opts.watermark!.enabled = previousEnabled ?? true
-        if (padding) padding.bottom = previousBottom
-        chart.update('none')
-      })
-    })
-
-    try {
-      return await fn()
-    } finally {
-      restoreFns.forEach(restore => restore())
-    }
-  }
+  // Every chart this page can render — passed to withWatermarksDisabled()
+  // so Pro exports (PDF / Excel / PNG) read clean canvases. Null refs are skipped.
+  const withAllWatermarksDisabled = <T,>(fn: () => T | Promise<T>) =>
+    withWatermarksDisabled(
+      [iChartRef.current, rChartRef.current, distChartRef.current, ecdfChartRef.current, attrChartRef.current],
+      fn
+    )
 
   const exportPNG = () => {
     if (!isLoggedIn) { goToLogin('spc', 'png'); return }
-    const exportedAny = [
+    const run = () => [
       downloadChartImage(iChartRef.current, 'spc-control-chart.png'),
       downloadChartImage(rChartRef.current, 'spc-range-chart.png'),
       downloadChartImage(distChartRef.current, 'spc-distribution-chart.png'),
       downloadChartImage(ecdfChartRef.current, 'spc-ecdf-chart.png'),
       downloadChartImage(attrChartRef.current, 'spc-attribute-chart.png'),
     ].some(Boolean)
-    if (!exportedAny) setErrorMsg(t('spc_err_no_charts'))
+    // Free accounts get the watermarked canvas; Pro accounts get clean images.
+    Promise.resolve(isPro ? withAllWatermarksDisabled(run) : run()).then(exportedAny => {
+      if (!exportedAny) setErrorMsg(t('spc_err_no_charts'))
+    })
   }
 
   // ── Export: full report as PDF ── (Pro only)
@@ -1211,9 +1187,9 @@ export default function SPCEngine() {
         // free PNG export (same canvas, same toBase64Image() call).
         // Disabled on the chart instance (not removed) just before a Pro
         // PDF/Excel export reads the canvas — see exportPDF / exportExcel.
-        watermark: { density: 'normal', enabled: true },
+        watermark: watermarkOptions('normal'),
       },
-      layout: { padding: { bottom: WATERMARK_STRIP_HEIGHT } },
+      layout: watermarkLayout(),
       scales: {
         x: {
           ticks: { color: c.muted, font: { size: 11 } },
@@ -1274,9 +1250,9 @@ export default function SPCEngine() {
         // shared by the Distribution/Capability Histogram and ECDF charts,
         // both visually denser (bars / step curve), so a lighter tile keeps
         // the watermark from competing with the data.
-        watermark: { density: 'light', enabled: true },
+        watermark: watermarkOptions('light'),
       },
-      layout: { padding: { bottom: WATERMARK_STRIP_HEIGHT } },
+      layout: watermarkLayout(),
       scales: {
         x: {
           type: 'linear',

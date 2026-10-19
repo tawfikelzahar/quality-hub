@@ -21,6 +21,7 @@ import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
 import { useGridImport, GRID_IMPORT_ACCEPT } from '@/lib/gridImport';
 import { SheetPicker, PasteToast } from '@/components/GridImportControls';
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers';
 import {
   createReport as createPdfReport,
   classifyCapability,
@@ -248,7 +249,7 @@ export default function ImrChartPage() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  async function exportExcel() {
+  async function runExportExcel() {
     if (!isPro) { goToPricing('imr', 'excel'); return }
     if (!result) return;
 
@@ -396,7 +397,7 @@ export default function ImrChartPage() {
   }
 
   // ── Export: PDF ─────────────────────────────────────────────────────
-  function exportPDF() {
+  function runExportPDF() {
     if (!isPro) { goToPricing('imr', 'pdf'); return }
     if (!result) return;
 
@@ -493,6 +494,11 @@ export default function ImrChartPage() {
     finalizeReport(ctx);
     ctx.pdf.save('imr-chart.pdf');
   }
+
+  // Pro exports read each chart canvas via toBase64Image(); the watermark
+  // (kept on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => withWatermarksDisabled([iChartRef.current, mrChartRef.current, histChartRef.current], runExportExcel);
+  const exportPDF = () => withWatermarksDisabled([iChartRef.current, mrChartRef.current, histChartRef.current], runExportPDF);
 
   const dangerText: React.CSSProperties = { fontSize: 13, color: c.danger, marginTop: 8 };
 
@@ -659,7 +665,9 @@ export default function ImrChartPage() {
                     maintainAspectRatio: false,
                     animation: false,
                     devicePixelRatio: 2,
+                    layout: watermarkLayout(),
                     plugins: {
+                      watermark: watermarkOptions('normal'),
                       legend: {
                         display: true,
                         labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item) => item.text === 'I' },
@@ -716,7 +724,9 @@ export default function ImrChartPage() {
                     maintainAspectRatio: false,
                     animation: false,
                     devicePixelRatio: 2,
+                    layout: watermarkLayout(),
                     plugins: {
+                      watermark: watermarkOptions('normal'),
                       legend: {
                         display: true,
                         labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item) => item.text === 'MR' },
@@ -855,7 +865,9 @@ export default function ImrChartPage() {
                       maintainAspectRatio: false,
                       animation: false,
                       devicePixelRatio: 2,
+                      layout: watermarkLayout(),
                       plugins: {
+                        watermark: watermarkOptions('light'),
                         legend: {
                           display: true,
                           position: 'top',
