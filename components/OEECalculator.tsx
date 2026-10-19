@@ -9,6 +9,7 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
@@ -192,12 +193,20 @@ export default function OEECalculator() {
     ],
   }
 
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
+  const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
+  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartOptions: any = {
     indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
+    layout: watermarkLayout(),
     plugins: {
+      watermark: watermarkOptions('light'),
       legend: { display: false },
       tooltip: {
         backgroundColor: c.surface,
@@ -256,7 +265,7 @@ export default function OEECalculator() {
     URL.revokeObjectURL(url)
   }
 
-  const exportExcel = async () => {
+  const runExportExcel = async () => {
     if (!isPro) { goToPricing('oee', 'excel'); return }
     if (!result || !cls) return
     const report = createReport({ toolName: 'OEE Calculator' })
@@ -329,7 +338,7 @@ export default function OEECalculator() {
     await report.download('oee-analysis.xlsx')
   }
 
-  const exportPNG = () => {
+  const runExportPNG = () => {
     if (!isLoggedIn) { goToLogin('oee', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
@@ -340,7 +349,7 @@ export default function OEECalculator() {
     a.click()
   }
 
-  const exportPDF = () => {
+  const runExportPDF = () => {
     if (!isPro) { goToPricing('oee', 'pdf'); return }
     if (!result || !cls) return
 

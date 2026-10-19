@@ -10,6 +10,7 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
@@ -266,7 +267,7 @@ export default function DPMOCalculator() {
     URL.revokeObjectURL(url)
   }
 
-  const exportExcel = async () => {
+  const runExportExcel = async () => {
     if (!isPro) { goToPricing('dpmo', 'excel'); return }
     const report = createReport({ toolName: 'DPMO Calculator' })
     const bandTone = (sigma: number): Tone => sigma >= 5 ? 'good' : sigma >= 3 ? 'warning' : 'danger'
@@ -327,7 +328,7 @@ export default function DPMOCalculator() {
     await report.download('dpmo-analysis.xlsx')
   }
 
-  const exportPNG = () => {
+  const runExportPNG = () => {
     if (!isLoggedIn) { goToLogin('dpmo', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
@@ -338,7 +339,7 @@ export default function DPMOCalculator() {
     a.click()
   }
 
-  const exportPDF = () => {
+  const runExportPDF = () => {
     if (!isPro) { goToPricing('dpmo', 'pdf'); return }
     const chart = chartRef.current
     if (!chart) return
@@ -402,11 +403,19 @@ export default function DPMOCalculator() {
     ],
   }
 
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
+  const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
+  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
+    layout: watermarkLayout(),
     plugins: {
+      watermark: watermarkOptions('light'),
       legend: { display: false },
       tooltip: {
         backgroundColor: c.surface,

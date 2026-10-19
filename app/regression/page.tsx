@@ -20,6 +20,7 @@ import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
 import { useGridImport, GRID_IMPORT_ACCEPT } from '@/lib/gridImport';
@@ -223,7 +224,8 @@ export default function RegressionPage() {
       animation: false as const,
       devicePixelRatio: 2,
       parsing: false as const,
-      plugins: { legend: { display: false } },
+      layout: watermarkLayout(),
+      plugins: { legend: { display: false }, watermark: watermarkOptions('light') },
       scales: {
         x: { type: 'linear' as const, ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
         y: { ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
@@ -277,7 +279,8 @@ export default function RegressionPage() {
       animation: false as const,
       devicePixelRatio: 2,
       parsing: false as const,
-      plugins: { legend: { display: false } },
+      layout: watermarkLayout(),
+      plugins: { legend: { display: false }, watermark: watermarkOptions('normal') },
       scales: {
         x: { type: 'linear' as const, title: { display: true, text: xCol, color: c.muted }, ticks: { color: c.muted, font: { size: 10 } }, grid: { color: c.grid } },
         y: { title: { display: true, text: yCol, color: c.muted }, ticks: { color: c.muted, font: { size: 10 } }, grid: { color: c.grid } },
@@ -355,6 +358,11 @@ export default function RegressionPage() {
     };
   }, [result, c]);
 
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([scatterChartRef.current, residFitsChartRef.current, residOrderChartRef.current, residHistChartRef.current, residNormalChartRef.current], runExportExcel) : runExportExcel());
+  const exportPDF = () => (isPro ? withWatermarksDisabled([scatterChartRef.current, residFitsChartRef.current, residOrderChartRef.current, residHistChartRef.current, residNormalChartRef.current], runExportPDF) : runExportPDF());
+
   // ── Export: CSV ─────────────────────────────────────────────────────
   function exportCSV() {
     if (!isLoggedIn) { goToLogin('regression', 'csv'); return }
@@ -373,7 +381,7 @@ export default function RegressionPage() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  async function exportExcel() {
+  async function runExportExcel() {
     if (!isPro) { goToPricing('regression', 'excel'); return }
     if (!result) return;
 
@@ -521,7 +529,7 @@ export default function RegressionPage() {
   }
 
   // ── Export: PDF ─────────────────────────────────────────────────────
-  function exportPDF() {
+  function runExportPDF() {
     if (!isPro) { goToPricing('regression', 'pdf'); return }
     if (!result) return;
 

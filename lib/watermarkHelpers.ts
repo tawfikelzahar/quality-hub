@@ -43,33 +43,42 @@ type AnyChart = ChartJSCore<any, any, any>
  * reads each canvas via toBase64Image()), then switches it back on — even if
  * `fn` throws. `chart.update('none')` skips animation so the off/on cycle is
  * synchronous and invisible. Null refs (unmounted charts) are skipped.
+ *
+ * Several charts on one page often share a single options object (e.g. the
+ * I-Chart and MR-Chart in SPC Engine). So the original values are snapshotted
+ * per *object*, before anything is mutated — otherwise the second chart would
+ * record the already-disabled state and the watermark would stay off on screen
+ * after the export.
  */
 export async function withWatermarksDisabled<T>(
   charts: Array<AnyChart | null | undefined>,
   fn: () => T | Promise<T>,
 ): Promise<T> {
-  const restoreFns: Array<() => void> = []
-
-  charts.forEach((chart) => {
-    if (!chart) return
-    const plugins = chart.options.plugins as Record<string, { enabled?: boolean }> | undefined
-    if (!plugins?.watermark) return
-    const padding = chart.options.layout?.padding as { bottom?: number } | undefined
-    const previousEnabled = plugins.watermark.enabled
-    const previousBottom = padding?.bottom
-    plugins.watermark.enabled = false
-    if (padding) padding.bottom = 0
-    chart.update('none')
-    restoreFns.push(() => {
-      plugins.watermark.enabled = previousEnabled ?? true
-      if (padding) padding.bottom = previousBottom
-      chart.update('none')
-    })
+  const active = charts.filter((chart): chart is AnyChart => {
+    const plugins = chart?.options.plugins as Record<string, unknown> | undefined
+    return Boolean(plugins?.watermark)
   })
+
+  const watermarkStates = new Map<{ enabled?: boolean }, boolean | undefined>()
+  const paddingStates = new Map<{ bottom?: number }, number | undefined>()
+  active.forEach((chart) => {
+    const wm = (chart.options.plugins as Record<string, { enabled?: boolean }>).watermark
+    if (!watermarkStates.has(wm)) watermarkStates.set(wm, wm.enabled)
+    const padding = chart.options.layout?.padding
+    if (padding && typeof padding === 'object' && !paddingStates.has(padding)) {
+      paddingStates.set(padding as { bottom?: number }, (padding as { bottom?: number }).bottom)
+    }
+  })
+
+  watermarkStates.forEach((_, wm) => { wm.enabled = false })
+  paddingStates.forEach((_, padding) => { padding.bottom = 0 })
+  active.forEach((chart) => chart.update('none'))
 
   try {
     return await fn()
   } finally {
-    restoreFns.forEach((restore) => restore())
+    watermarkStates.forEach((enabled, wm) => { wm.enabled = enabled ?? true })
+    paddingStates.forEach((bottom, padding) => { padding.bottom = bottom })
+    active.forEach((chart) => chart.update('none'))
   }
 }

@@ -20,6 +20,7 @@ import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
 import { useGridImport, GRID_IMPORT_ACCEPT } from '@/lib/gridImport';
@@ -251,7 +252,8 @@ export default function MultiRegressionPage() {
       animation: false as const,
       devicePixelRatio: 2,
       parsing: false as const,
-      plugins: { legend: { display: false } },
+      layout: watermarkLayout(),
+      plugins: { legend: { display: false }, watermark: watermarkOptions('light') },
       scales: {
         x: { type: 'linear' as const, ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
         y: { ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
@@ -329,6 +331,11 @@ export default function MultiRegressionPage() {
     };
   }, [result, c]);
 
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([residFitsChartRef.current, residOrderChartRef.current, residHistChartRef.current, residNormalChartRef.current], runExportExcel) : runExportExcel());
+  const exportPDF = () => (isPro ? withWatermarksDisabled([residFitsChartRef.current, residOrderChartRef.current, residHistChartRef.current, residNormalChartRef.current], runExportPDF) : runExportPDF());
+
   // ── Export: CSV ─────────────────────────────────────────────────────
   function exportCSV() {
     if (!isLoggedIn) { goToLogin('multiregression', 'csv'); return }
@@ -350,7 +357,7 @@ export default function MultiRegressionPage() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  async function exportExcel() {
+  async function runExportExcel() {
     if (!isPro) { goToPricing('multiregression', 'excel'); return }
     if (!result) return;
 
@@ -506,7 +513,7 @@ export default function MultiRegressionPage() {
   }
 
   // ── Export: PDF ─────────────────────────────────────────────────────
-  function exportPDF() {
+  function runExportPDF() {
     if (!isPro) { goToPricing('multiregression', 'pdf'); return }
     if (!result) return;
 

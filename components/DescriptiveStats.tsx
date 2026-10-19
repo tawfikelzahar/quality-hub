@@ -20,6 +20,7 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
 
@@ -137,7 +138,7 @@ export default function DescriptiveStats() {
     onError: msg => setError(msg),
   })
 
-  const handleExportExcel = useCallback(async () => {
+  const runExportExcel = useCallback(async () => {
     if (!isPro) { goToPricing('descriptive-stats', 'excel'); return }
     if (!result) return
     const report = createReport({ toolName: 'Descriptive Statistics' })
@@ -356,7 +357,7 @@ export default function DescriptiveStats() {
   }, [isLoggedIn, result, t])
 
   // ── Export: PDF ─────────────────────────────────────────────────────
-  const handleExportPDF = useCallback(() => {
+  const runExportPDF = useCallback(() => {
     if (!isPro) { goToPricing('descriptive-stats', 'pdf'); return }
     if (!result) return
 
@@ -404,6 +405,11 @@ export default function DescriptiveStats() {
     finalizeReport(ctx)
     ctx.pdf.save('descriptive-statistics.pdf')
   }, [isPro, result, t])
+
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const handleExportExcel = () => (isPro ? withWatermarksDisabled([histogramChartRef.current, boxPlotChartRef.current], runExportExcel) : runExportExcel())
+  const handleExportPDF = () => (isPro ? withWatermarksDisabled([histogramChartRef.current, boxPlotChartRef.current], runExportPDF) : runExportPDF())
 
   const clearAll = () => {
     setRawText('')
@@ -638,7 +644,8 @@ export default function DescriptiveStats() {
                       options={{
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
+                        layout: watermarkLayout(),
+                        plugins: { legend: { display: false }, watermark: watermarkOptions('light') },
                         scales: {
                           x: { grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
                           y: { grid: { color: c.grid }, ticks: { color: c.muted }, beginAtZero: true },

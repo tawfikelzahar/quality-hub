@@ -10,6 +10,7 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import {
@@ -235,7 +236,7 @@ export default function ParetoChart() {
   }
 
   // ── Export: Data as Excel ── (Pro only)
-  const exportExcel = async () => {
+  const runExportExcel = async () => {
     if (!isPro) { goToPricing('pareto', 'excel'); return }
     const report = createReport({ toolName: 'Pareto Chart' })
 
@@ -285,7 +286,7 @@ export default function ParetoChart() {
   }
 
   // ── Export: Chart as PNG ── (free — requires a login so we capture an email)
-  const exportPNG = () => {
+  const runExportPNG = () => {
     if (!isLoggedIn) { goToLogin('pareto', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
@@ -297,7 +298,7 @@ export default function ParetoChart() {
   }
 
  // ── Export: Chart + Table as PDF ── (Pro only)
-  const exportPDF = () => {
+  const runExportPDF = () => {
     if (!isPro) { goToPricing('pareto', 'pdf'); return }
     const chart = chartRef.current
     if (!chart) return
@@ -369,12 +370,20 @@ export default function ParetoChart() {
     ],
   }
 
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
+  const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
+  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chartOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
+    layout: watermarkLayout(),
     plugins: {
+      watermark: watermarkOptions('light'),
       legend: {
         labels: {
           color: c.text,

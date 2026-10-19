@@ -9,6 +9,7 @@ import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import {
   type BatchData,
@@ -255,11 +256,19 @@ export default function StabilityStudy() {
     ],
   }
 
+  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
+  const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
+  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     animation: false as const,
+    layout: watermarkLayout(),
     plugins: {
+      watermark: watermarkOptions('normal'),
       legend: { position: 'bottom' as const, labels: { color: c.text, font: { size: 11 }, boxWidth: 12 } },
     },
     scales: {
@@ -314,7 +323,7 @@ export default function StabilityStudy() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  const exportExcel = async () => {
+  const runExportExcel = async () => {
     if (!isPro) { goToPricing('stability', 'excel'); return }
     const report = createReport({ toolName: 'Stability Study' })
 
@@ -398,7 +407,7 @@ export default function StabilityStudy() {
   }
 
   // ── Export: PNG ──────────────────────────────────────────────────────
-  const exportPNG = () => {
+  const runExportPNG = () => {
     if (!isLoggedIn) { goToLogin('stability', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
@@ -408,7 +417,7 @@ export default function StabilityStudy() {
   }
 
   // ── Export: PDF ──────────────────────────────────────────────────────
-  const exportPDF = () => {
+  const runExportPDF = () => {
     if (!isPro) { goToPricing('stability', 'pdf'); return }
     const chart = chartRef.current
 
