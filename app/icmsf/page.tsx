@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import 'chart.js/auto';
+import { Chart } from 'react-chartjs-2';
 import {
   CONDITION_EFFECT_ORDER,
   TEST_TYPE_ORDER,
@@ -27,6 +29,8 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
+import { watermarkOptions, watermarkLayout } from '@/lib/watermarkHelpers';
+import { WATERMARK_STRIP_HEIGHT } from '@/lib/watermarkPlugin';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport as createExcelReport, nowStamp } from '@/lib/excelReport';
 import {
@@ -43,16 +47,10 @@ import {
   type ReportContext,
 } from '@/lib/pdf/reportDesign';
 
-// ─────────────────────────────────────────────────────────────────────────
-// Chart geometry — plain inline SVG (no charting library dependency),
-// matching the project's existing "draw it directly" approach used for
-// the AQL tool's PNG/PDF exports.
-// ─────────────────────────────────────────────────────────────────────────
-const CHART_W = 640;
+// On-screen OC curves are Chart.js line charts (same watermark + theming as
+// every other tool). The PDF export still draws them as vectors with jsPDF
+// primitives — see drawOcCurvePdf() / drawThreeClassOcCurvePdf() below.
 const CHART_H = 300;
-const PAD = { top: 16, right: 20, bottom: 40, left: 48 };
-const PLOT_W = CHART_W - PAD.left - PAD.right;
-const PLOT_H = CHART_H - PAD.top - PAD.bottom;
 
 // Short label for PDF/Excel table cells — messagesEn.testTypes[] is the full
 // explanatory paragraph meant for the Step 0 selector UI; dropping that
@@ -64,13 +62,6 @@ const TEST_TYPE_REPORT_LABEL: Record<TestType, string> = {
   qualitative: 'Qualitative — Presence/Absence',
   quantitative: 'Quantitative — Enumeration',
 };
-
-function xForP(p: number) {
-  return PAD.left + p * PLOT_W;
-}
-function yForPa(pa: number) {
-  return PAD.top + (1 - pa) * PLOT_H;
-}
 
 export default function IcmsfPage() {
   const [theme, setTheme] = usePersistedTheme();
@@ -171,23 +162,103 @@ export default function IcmsfPage() {
     return threeClassAcceptanceAt(threeClassInput, threeClassPointValue);
   }, [threeClassInput, threeClassPointValue]);
 
-  const threeClassLinePath = useMemo(() => {
-    if (!threeClassCurve || !threeClassInput) return '';
+  // Shared Chart.js options for both OC curves: linear x/y, y in % (0–100).
+  const ocChartOptions = useMemo(
+    () => (xTitle: string, xMin: number, xMax: number, xTick: (v: number) => string) => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false as const,
+      devicePixelRatio: 2,
+      parsing: false as const,
+      layout: watermarkLayout(),
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+        watermark: watermarkOptions('normal'),
+      },
+      scales: {
+        x: {
+          type: 'linear' as const,
+          min: xMin,
+          max: xMax,
+          ticks: { color: c.muted, font: { size: 10 }, stepSize: (xMax - xMin) / 4, callback: (v: string | number) => xTick(Number(v)) },
+          grid: { display: false },
+          title: { display: true, text: xTitle, color: c.muted, font: { size: 11 } },
+        },
+        y: {
+          min: 0,
+          max: 100,
+          ticks: { color: c.muted, font: { size: 10 }, stepSize: 25, callback: (v: string | number) => `${v}%` },
+          grid: { color: c.grid },
+          title: { display: true, text: messages.ocCurveYAxisLabel, color: c.muted, font: { size: 11 } },
+        },
+      },
+    }),
+    [c, messages],
+  );
+
+  const markerStroke = theme === 'dark' ? '#000' : '#fff';
+
+  const ocChart = useMemo(() => {
+    if (!ocCurve) return null;
+    return {
+      data: {
+        datasets: [
+          {
+            type: 'line' as const,
+            data: ocCurve.map((pt) => ({ x: pt.p * 100, y: pt.pa * 100 })),
+            borderColor: c.accent,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            tension: 0,
+          },
+          ...(riskCheckPa !== null
+            ? [{
+                type: 'scatter' as const,
+                data: [{ x: riskCheckP, y: riskCheckPa * 100 }],
+                backgroundColor: c.amber,
+                borderColor: markerStroke,
+                borderWidth: 1.5,
+                pointRadius: 5,
+              }]
+            : []),
+        ],
+      },
+      options: ocChartOptions(messages.ocCurveXAxisLabel, 0, 100, (v) => `${Math.round(v)}%`),
+    };
+  }, [ocCurve, riskCheckP, riskCheckPa, c, markerStroke, ocChartOptions, messages]);
+
+  // x-axis spans log10 mean from (m - 3) to (M + 1), same window as before.
+  const threeClassChart = useMemo(() => {
+    if (!threeClassCurve || !threeClassInput) return null;
     const min = threeClassInput.m - 3;
     const max = threeClassInput.M + 1;
-    const range = max - min || 1;
-    const xForLogMean = (lm: number) => PAD.left + ((lm - min) / range) * PLOT_W;
-    return threeClassCurve
-      .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xForLogMean(pt.logMean).toFixed(1)} ${yForPa(pt.pAccept).toFixed(1)}`)
-      .join(' ');
-  }, [threeClassCurve, threeClassInput]);
-
-  const linePath = useMemo(() => {
-    if (!ocCurve) return '';
-    return ocCurve
-      .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${xForP(pt.p).toFixed(1)} ${yForPa(pt.pa).toFixed(1)}`)
-      .join(' ');
-  }, [ocCurve]);
+    return {
+      data: {
+        datasets: [
+          {
+            type: 'line' as const,
+            data: threeClassCurve.map((pt) => ({ x: pt.logMean, y: pt.pAccept * 100 })),
+            borderColor: c.accent,
+            borderWidth: 2.5,
+            pointRadius: 0,
+            tension: 0,
+          },
+          ...(threeClassPoint
+            ? [{
+                type: 'scatter' as const,
+                data: [{ x: threeClassPointValue, y: threeClassPoint.pAccept * 100 }],
+                backgroundColor: c.amber,
+                borderColor: markerStroke,
+                borderWidth: 1.5,
+                pointRadius: 5,
+              }]
+            : []),
+        ],
+      },
+      options: ocChartOptions(messages.threeClassOcCurveXAxisLabel, min, max, (v) => v.toFixed(1)),
+    };
+  }, [threeClassCurve, threeClassInput, threeClassPoint, threeClassPointValue, c, markerStroke, ocChartOptions, messages]);
 
   function csvRow(): string {
     if (!plan) return '';
@@ -825,82 +896,16 @@ export default function IcmsfPage() {
                             </p>
                           </div>
 
-                          {threeClassCurve && (
-                            <svg
-                              width="100%"
-                              viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-                              role="img"
-                              aria-label={messages.threeClassRiskAnalysisTitle}
-                              style={{ marginTop: 16 }}
-                            >
-                              {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
-                                <g key={frac}>
-                                  <line
-                                    x1={PAD.left}
-                                    x2={CHART_W - PAD.right}
-                                    y1={yForPa(frac)}
-                                    y2={yForPa(frac)}
-                                    stroke={c.grid}
-                                    strokeWidth={1}
-                                  />
-                                  <text x={PAD.left - 8} y={yForPa(frac) + 4} fontSize={10} fill={c.muted} textAnchor="end">
-                                    {Math.round(frac * 100)}%
-                                  </text>
-                                </g>
-                              ))}
-                              {(() => {
-                                const min = threeClassInput.m - 3;
-                                const max = threeClassInput.M + 1;
-                                const range = max - min || 1;
-                                const xForLogMean = (lm: number) => PAD.left + ((lm - min) / range) * PLOT_W;
-                                return [0, 0.25, 0.5, 0.75, 1].map((frac) => {
-                                  const val = min + frac * range;
-                                  return (
-                                    <text
-                                      key={`x-${frac}`}
-                                      x={xForLogMean(val)}
-                                      y={CHART_H - PAD.bottom + 18}
-                                      fontSize={10}
-                                      fill={c.muted}
-                                      textAnchor="middle"
-                                    >
-                                      {val.toFixed(1)}
-                                    </text>
-                                  );
-                                });
-                              })()}
-                              <text x={PAD.left + PLOT_W / 2} y={CHART_H - 4} fontSize={11} fill={c.muted} textAnchor="middle">
-                                {messages.threeClassOcCurveXAxisLabel}
-                              </text>
-                              <text
-                                x={-(PAD.top + PLOT_H / 2)}
-                                y={14}
-                                fontSize={11}
-                                fill={c.muted}
-                                textAnchor="middle"
-                                transform="rotate(-90)"
-                              >
-                                {messages.ocCurveYAxisLabel}
-                              </text>
-
-                              <path d={threeClassLinePath} fill="none" stroke={c.accent} strokeWidth={2.5} />
-
-                              {threeClassPoint && (
-                                <circle
-                                  cx={
-                                    PAD.left +
-                                    ((threeClassPointValue - (threeClassInput.m - 3)) /
-                                      (threeClassInput.M + 1 - (threeClassInput.m - 3) || 1)) *
-                                      PLOT_W
-                                  }
-                                  cy={yForPa(threeClassPoint.pAccept)}
-                                  r={5}
-                                  fill={c.amber}
-                                  stroke={theme === 'dark' ? '#000' : '#fff'}
-                                  strokeWidth={1.5}
-                                />
-                              )}
-                            </svg>
+                          {threeClassChart && (
+                            <div style={{ position: 'relative', height: CHART_H + WATERMARK_STRIP_HEIGHT, marginTop: 16 }}>
+                              <Chart
+                                type="line"
+                                data={threeClassChart.data}
+                                options={threeClassChart.options}
+                                aria-label={messages.threeClassRiskAnalysisTitle}
+                                role="img"
+                              />
+                            </div>
                           )}
 
                           {threeClassPoint && (
@@ -962,65 +967,11 @@ export default function IcmsfPage() {
 
             {plan.ocCurveAvailable && ocCurve && (
               <>
-                <svg width="100%" viewBox={`0 0 ${CHART_W} ${CHART_H}`} role="img" aria-label={messages.ocCurveTitle}>
-                  {/* Y gridlines + labels (0%, 25%, 50%, 75%, 100%) */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
-                    <g key={frac}>
-                      <line
-                        x1={PAD.left}
-                        x2={CHART_W - PAD.right}
-                        y1={yForPa(frac)}
-                        y2={yForPa(frac)}
-                        stroke={c.grid}
-                        strokeWidth={1}
-                      />
-                      <text x={PAD.left - 8} y={yForPa(frac) + 4} fontSize={10} fill={c.muted} textAnchor="end">
-                        {Math.round(frac * 100)}%
-                      </text>
-                    </g>
-                  ))}
-                  {/* X gridlines + labels */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
-                    <g key={`x-${frac}`}>
-                      <text x={xForP(frac)} y={CHART_H - PAD.bottom + 18} fontSize={10} fill={c.muted} textAnchor="middle">
-                        {Math.round(frac * 100)}%
-                      </text>
-                    </g>
-                  ))}
-                  <text
-                    x={PAD.left + PLOT_W / 2}
-                    y={CHART_H - 4}
-                    fontSize={11}
-                    fill={c.muted}
-                    textAnchor="middle"
-                  >
-                    {messages.ocCurveXAxisLabel}
-                  </text>
-                  <text
-                    x={-(PAD.top + PLOT_H / 2)}
-                    y={14}
-                    fontSize={11}
-                    fill={c.muted}
-                    textAnchor="middle"
-                    transform="rotate(-90)"
-                  >
-                    {messages.ocCurveYAxisLabel}
-                  </text>
-
-                  <path d={linePath} fill="none" stroke={c.accent} strokeWidth={2.5} />
-
-                  {/* Risk-check marker */}
-                  {riskCheckPa !== null && (
-                    <circle
-                      cx={xForP(riskCheckP / 100)}
-                      cy={yForPa(riskCheckPa)}
-                      r={5}
-                      fill={c.amber}
-                      stroke={theme === 'dark' ? '#000' : '#fff'}
-                      strokeWidth={1.5}
-                    />
-                  )}
-                </svg>
+                {ocChart && (
+                  <div style={{ position: 'relative', height: CHART_H + WATERMARK_STRIP_HEIGHT }}>
+                    <Chart type="line" data={ocChart.data} options={ocChart.options} aria-label={messages.ocCurveTitle} role="img" />
+                  </div>
+                )}
 
                 {/* Consumer-risk calculator */}
                 <div

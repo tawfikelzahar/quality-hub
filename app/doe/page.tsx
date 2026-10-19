@@ -1,6 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import 'chart.js/auto';
+import { Chart } from 'react-chartjs-2';
+import type { Chart as ChartJSInstance, Plugin, TooltipItem } from 'chart.js';
 import {
   runFullFactorial,
   buildDesignMatrix,
@@ -19,11 +22,14 @@ import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers';
+import { WATERMARK_STRIP_HEIGHT } from '@/lib/watermarkPlugin';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport as createExcelReport, nowStamp } from '@/lib/excelReport';
 import {
   createReport as createPdfReport,
   classificationBanner,
+  addChartImage,
   twoColumnTables,
   calloutBox,
   interpretationBox,
@@ -33,7 +39,6 @@ import {
   type KVRow,
 } from '@/lib/pdf/reportDesign';
 
-const CHART_W = 640;
 const CHART_H = 260;
 
 const EXAMPLE_FACTORS: FactorDef[] = [
@@ -70,6 +75,7 @@ export default function DoePage() {
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
   const { isPro, isLoggedIn } = useSubscription();
+  const paretoChartRef = useRef<ChartJSInstance<'bar'> | null>(null);
 
   const [step, setStep] = useState<Step>('setup');
   const [numFactors, setNumFactors] = useState(3);
@@ -180,6 +186,63 @@ export default function DoePage() {
     return { bars, maxAbs };
   }, [result]);
 
+  // Horizontal bar chart of |effect|, largest first (result.effects is
+  // already sorted). Same look as the former inline SVG: term label on the
+  // left, value printed at the end of each bar.
+  const paretoChart = useMemo(() => {
+    if (!paretoGeom) return null;
+    const valueLabels: Plugin<'bar'> = {
+      id: 'doeEffectValueLabels',
+      afterDatasetsDraw(chart) {
+        const meta = chart.getDatasetMeta(0);
+        const { ctx } = chart;
+        ctx.save();
+        ctx.fillStyle = c.muted;
+        ctx.font = '11px system-ui, sans-serif';
+        ctx.textBaseline = 'middle';
+        meta.data.forEach((bar, i) => {
+          ctx.fillText(niceNum(paretoGeom.bars[i].abs, 3), bar.x + 8, bar.y);
+        });
+        ctx.restore();
+      },
+    };
+    const data = {
+      labels: paretoGeom.bars.map((b) => b.term),
+      datasets: [{
+        data: paretoGeom.bars.map((b) => b.abs),
+        backgroundColor: c.bar,
+        borderRadius: 3,
+        barThickness: 20,
+      }],
+    };
+    const options = {
+      indexAxis: 'y' as const,
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false as const,
+      devicePixelRatio: 2,
+      layout: watermarkLayout(),
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (item: TooltipItem<'bar'>) => ` |Effect| = ${niceNum(item.parsed.x ?? 0, 3)}` } },
+        watermark: watermarkOptions('light'),
+      },
+      scales: {
+        // ~18% headroom so the printed value at the end of the longest bar fits
+        // (grace keeps the axis ending on a round tick).
+        x: { beginAtZero: true, grace: '18%', grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+        y: { grid: { display: false }, ticks: { color: c.text, font: { size: 12 } } },
+      },
+    };
+    const height = Math.max(CHART_H, paretoGeom.bars.length * 32 + 40) + WATERMARK_STRIP_HEIGHT;
+    return { data, options, plugins: [valueLabels], height };
+  }, [paretoGeom, c]);
+
+  // Pro exports read the chart canvas via toBase64Image(); the watermark (kept
+  // on the live view for everyone) is switched off just for that call.
+  const exportExcel = () => (isPro ? withWatermarksDisabled([paretoChartRef.current], runExportExcel) : runExportExcel());
+  const exportPDF = () => (isPro ? withWatermarksDisabled([paretoChartRef.current], runExportPDF) : runExportPDF());
+
   // ── Export: CSV ──────────────────────────────────────────────────────
   function exportCSV() {
     if (!isLoggedIn) { goToLogin('doe', 'csv'); return }
@@ -203,7 +266,7 @@ export default function DoePage() {
   }
 
   // ── Export: Excel ────────────────────────────────────────────────────
-  async function exportExcel() {
+  async function runExportExcel() {
     if (!isPro) { goToPricing('doe', 'excel'); return }
     if (!result || !designRows) return;
 
@@ -214,6 +277,14 @@ export default function DoePage() {
       `Factors = ${result.k}   |   Runs = ${result.totalRuns}   |   R² = ${niceNum(result.r2 * 100, 1)}%`
     );
     overview.metaStrip([['Generated on', nowStamp()]]);
+
+    const paretoCanvas = paretoChartRef.current;
+    if (paretoCanvas) {
+      await overview.charts([{ ref: paretoChartRef, title: 'Pareto of Effects' }], {
+        widthCm: 16,
+        heightCm: 16 * (paretoCanvas.height / paretoCanvas.width),
+      });
+    }
 
     overview.sectionHeading('Effects & Contribution');
     overview.table({
@@ -330,7 +401,7 @@ export default function DoePage() {
   }
 
   // ── Export: PDF ─────────────────────────────────────────────────────
-  function exportPDF() {
+  function runExportPDF() {
     if (!isPro) { goToPricing('doe', 'pdf'); return }
     if (!result || !designRows) return;
 
@@ -372,6 +443,8 @@ export default function DoePage() {
         : messages.noReplicationNote,
       hasReplication ? 'info' : 'warn'
     );
+
+    addChartImage(ctx, paretoChartRef.current, 'Pareto of Effects');
 
     dataTable(
       ctx,
@@ -642,20 +715,11 @@ export default function DoePage() {
               {paretoGeom && (
                 <div style={s.chartWrap}>
                   <div style={s.sectionTitle}>{messages.paretoTitle}</div>
-                  <svg width="100%" viewBox={`0 0 ${CHART_W} ${Math.max(CHART_H, paretoGeom.bars.length * 32 + 40)}`}>
-                    {paretoGeom.bars.map((b, i) => {
-                      const barMaxW = CHART_W - 160;
-                      const w = (b.abs / paretoGeom.maxAbs) * barMaxW;
-                      const yPos = 20 + i * 32;
-                      return (
-                        <g key={b.term}>
-                          <text x={8} y={yPos + 15} fontSize={12} fill={c.text}>{b.term}</text>
-                          <rect x={100} y={yPos} width={Math.max(w, 1)} height={20} fill={c.bar} rx={3} />
-                          <text x={100 + w + 8} y={yPos + 15} fontSize={11} fill={c.muted}>{niceNum(b.abs, 3)}</text>
-                        </g>
-                      );
-                    })}
-                  </svg>
+                  {paretoChart && (
+                    <div style={{ position: 'relative', height: paretoChart.height }}>
+                      <Chart ref={paretoChartRef} type="bar" data={paretoChart.data} options={paretoChart.options} plugins={paretoChart.plugins} />
+                    </div>
+                  )}
                 </div>
               )}
 
