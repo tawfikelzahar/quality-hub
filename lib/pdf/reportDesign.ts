@@ -754,7 +754,9 @@ export function addChartImage(ctx: ReportContext, chart: EmbeddableChart | null,
   sectionHeading(ctx, title, imgHeight)
   const { pdf } = ctx
   const imgData = chart.toBase64Image('image/png', 1)
-  pdf.addImage(imgData, 'PNG', margin, ctx.y, imgWidth, imgHeight)
+  // 'FAST' = lossless deflate. Without it jsPDF stores raw pixels: a single
+  // retina chart was ~5 MB uncompressed vs ~25 KB compressed, same render.
+  pdf.addImage(imgData, 'PNG', margin, ctx.y, imgWidth, imgHeight, undefined, 'FAST')
   ctx.y += imgHeight + 20
 }
 
@@ -790,7 +792,7 @@ export function addChartImagePair(
     drawText(pdf, item.title, x, ctx.y)
     const h = (item.chart.height / item.chart.width) * colW
     const imgData = item.chart.toBase64Image('image/png', 1)
-    pdf.addImage(imgData, 'PNG', x, ctx.y + 8, colW, h)
+    pdf.addImage(imgData, 'PNG', x, ctx.y + 8, colW, h, undefined, 'FAST')
   }
 
   drawOne(left, margin)

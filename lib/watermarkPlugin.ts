@@ -52,7 +52,10 @@ const DENSITY_CONFIG: Record<WatermarkDensity, { opacity: number; minFont: numbe
 export const watermarkPlugin: Plugin = {
   id: 'watermark',
   afterDraw(chart: Chart, _args: unknown, opts: WatermarkOptions) {
-    if (opts?.enabled === false) return
+    // Opt-in: the plugin is registered globally, so it must stay off on any
+    // chart that didn't ask for it (otherwise the strip covers that chart's
+    // x-axis labels — e.g. the Descriptive Stats box plot, Gage R&R).
+    if (opts?.enabled !== true) return
 
     const { ctx, chartArea, width, height } = chart
     if (!chartArea) return

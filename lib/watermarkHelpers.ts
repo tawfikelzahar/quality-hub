@@ -39,29 +39,42 @@ export function watermarkLayout() {
 type AnyChart = ChartJSCore<any, any, any>
 
 /**
- * Switches the watermark off on every given chart, runs `fn` (an export that
- * reads each canvas via toBase64Image()), then switches it back on — even if
- * `fn` throws. `chart.update('none')` skips animation so the off/on cycle is
- * synchronous and invisible. Null refs (unmounted charts) are skipped.
+ * CSS width every chart is redrawn at while an export reads it. The on-screen
+ * width depends on the viewer's monitor (≈1500px on a wide desktop, ≈350px on
+ * a phone), so without this the same report came out with microscopic labels
+ * on one machine and cramped ones on another. ~820px scales onto an A4 page
+ * width at roughly 0.6×, keeping 11px chart labels readable in the PDF.
+ */
+export const EXPORT_CHART_WIDTH = 820
+/** Export pixel ratio, so a low-DPI laptop produces the same crisp images as a retina screen. */
+const EXPORT_PIXEL_RATIO = 2
+
+/**
+ * Prepares charts for a Pro export, runs `fn` (which reads each canvas via
+ * toBase64Image()), then restores everything — even if `fn` throws:
+ *   1. watermark off and its bottom strip padding removed (watermarked charts),
+ *   2. every chart redrawn at EXPORT_CHART_WIDTH × its current height, at 2× pixel ratio.
+ * `update('none')` / `resize()` skip animation, so the swap is synchronous.
+ * Null refs (unmounted charts) are skipped.
  *
  * Several charts on one page often share a single options object (e.g. the
- * I-Chart and MR-Chart in SPC Engine). So the original values are snapshotted
+ * I-Chart and MR-Chart in SPC Engine). So original values are snapshotted
  * per *object*, before anything is mutated — otherwise the second chart would
- * record the already-disabled state and the watermark would stay off on screen
- * after the export.
+ * record the already-changed state and never get restored.
  */
 export async function withWatermarksDisabled<T>(
   charts: Array<AnyChart | null | undefined>,
   fn: () => T | Promise<T>,
 ): Promise<T> {
-  const active = charts.filter((chart): chart is AnyChart => {
-    const plugins = chart?.options.plugins as Record<string, unknown> | undefined
-    return Boolean(plugins?.watermark)
+  const all = charts.filter((chart): chart is AnyChart => Boolean(chart))
+  const watermarked = all.filter((chart) => {
+    const plugins = chart.options.plugins as Record<string, { enabled?: boolean }> | undefined
+    return plugins?.watermark?.enabled === true
   })
 
   const watermarkStates = new Map<{ enabled?: boolean }, boolean | undefined>()
   const paddingStates = new Map<{ bottom?: number }, number | undefined>()
-  active.forEach((chart) => {
+  watermarked.forEach((chart) => {
     const wm = (chart.options.plugins as Record<string, { enabled?: boolean }>).watermark
     if (!watermarkStates.has(wm)) watermarkStates.set(wm, wm.enabled)
     const padding = chart.options.layout?.padding
@@ -69,16 +82,34 @@ export async function withWatermarksDisabled<T>(
       paddingStates.set(padding as { bottom?: number }, (padding as { bottom?: number }).bottom)
     }
   })
+  // Option writes land on chart.config.options, which charts may share.
+  const ratioStates = new Map<{ devicePixelRatio?: number }, number | undefined>()
+  all.forEach((chart) => {
+    const opts = chart.config.options as { devicePixelRatio?: number }
+    if (!ratioStates.has(opts)) ratioStates.set(opts, opts.devicePixelRatio)
+  })
+  const heights = new Map(all.map((chart) => [chart, chart.height] as const))
 
   watermarkStates.forEach((_, wm) => { wm.enabled = false })
   paddingStates.forEach((_, padding) => { padding.bottom = 0 })
-  active.forEach((chart) => chart.update('none'))
+  ratioStates.forEach((_, opts) => { opts.devicePixelRatio = EXPORT_PIXEL_RATIO })
+  all.forEach((chart) => {
+    chart.update('none')
+    chart.resize(EXPORT_CHART_WIDTH, heights.get(chart))
+  })
 
   try {
     return await fn()
   } finally {
-    watermarkStates.forEach((enabled, wm) => { wm.enabled = enabled ?? true })
+    watermarkStates.forEach((enabled, wm) => { wm.enabled = enabled })
     paddingStates.forEach((bottom, padding) => { padding.bottom = bottom })
-    active.forEach((chart) => chart.update('none'))
+    ratioStates.forEach((ratio, opts) => {
+      if (ratio === undefined) delete opts.devicePixelRatio
+      else opts.devicePixelRatio = ratio
+    })
+    all.forEach((chart) => {
+      chart.update('none')
+      chart.resize() // back to the container's size
+    })
   }
 }
