@@ -108,10 +108,28 @@ function joinSentences(...s: string[]): string {
   return s.filter(Boolean).join(' ')
 }
 
-function unstableAction(signals: RuleSignal[]): string {
+// A point beyond the limits on the X / I chart also drags the centre line
+// and inflates the overall standard deviation, so it can be the real cause
+// of other signals (e.g. Rule 2 on the remaining points) and of a rejected
+// normality test. Tell the engineer to deal with it first.
+export function outlierNote(signals: RuleSignal[], normal: boolean): string {
+  if (!signals.some(s => s.rule === 1 && !s.dispersionChart)) return ''
+  const others = signals.some(s => !(s.rule === 1 && !s.dispersionChart))
+  const effects = [others ? 'other rule signals' : '', normal ? '' : 'the rejected normality test'].filter(Boolean)
+  return joinSentences(
+    'Investigate the point(s) beyond the control limits first.',
+    effects.length
+      ? `An extreme value also shifts the centre line and inflates the standard deviation, so it may be what triggered ${effects.join(' and ')}.`
+      : '',
+    'If an assignable cause is found and corrected, exclude those points and recalculate.'
+  )
+}
+
+function unstableAction(signals: RuleSignal[], normal: boolean): string {
   return joinSentences(
     'Do not rely on capability indices yet — the process is not in statistical control.',
     describeSignals(signals),
+    outlierNote(signals, normal),
     'Remove the special causes, then repeat the study on stable data.'
   )
 }
@@ -228,7 +246,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
 
   let action: string
   if (!stable) {
-    action = unstableAction(signals)
+    action = unstableAction(signals, normal)
     tone = 'bad'
   } else {
     action = core
@@ -279,7 +297,11 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
       : 'The process'
     const stability = stable
       ? `${subject} shows no special-cause signals over the study period and appears to be in statistical control.`
-      : `${subject} shows ${signals.length} special-cause signal(s) and is not in statistical control. ${describeSignals(signals)}`
+      : joinSentences(
+          `${subject} shows ${signals.length} special-cause signal(s) and is not in statistical control.`,
+          describeSignals(signals),
+          outlierNote(signals, input.normal)
+        )
     const capNote = input.attribute
       ? ''
       : 'Capability cannot be assessed because no specification limits were provided — add the LSL and/or USL to evaluate Cp/Cpk.'

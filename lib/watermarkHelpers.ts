@@ -42,10 +42,11 @@ type AnyChart = ChartJSCore<any, any, any>
  * CSS width every chart is redrawn at while an export reads it. The on-screen
  * width depends on the viewer's monitor (≈1500px on a wide desktop, ≈350px on
  * a phone), so without this the same report came out with microscopic labels
- * on one machine and cramped ones on another. ~820px scales onto an A4 page
- * width at roughly 0.6×, keeping 11px chart labels readable in the PDF.
+ * on one machine and cramped ones on another. 700px scales onto the A4 page
+ * width (515 pt) at ~0.74×, so 10-11px chart labels print at ~7.5-8 pt.
+ * (820px printed them at ~6.5 pt full width and ~3 pt in side-by-side pairs.)
  */
-export const EXPORT_CHART_WIDTH = 820
+export const EXPORT_CHART_WIDTH = 700
 /** Export pixel ratio, so a low-DPI laptop produces the same crisp images as a retina screen. */
 const EXPORT_PIXEL_RATIO = 2
 

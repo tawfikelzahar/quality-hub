@@ -42,6 +42,7 @@ import {
   finalizeReport,
   sectionHeading,
   sanitizePdfText,
+  PDF_FONT,
   REPORT_COLORS,
   type KVRow,
   type ReportContext,
@@ -337,7 +338,7 @@ export default function IcmsfPage() {
     const xForP = (p: number) => plotLeft + p * plotW;
     const yForPa = (pa: number) => plotBottom - pa * plotH;
 
-    pdf.setFont('helvetica', 'normal');
+    pdf.setFont(PDF_FONT, 'normal');
     pdf.setFontSize(7.5);
     [0, 0.25, 0.5, 0.75, 1].forEach((frac) => {
       const y = yForPa(frac);
@@ -403,7 +404,7 @@ export default function IcmsfPage() {
     const xForLogMean = (lm: number) => plotLeft + ((lm - min) / range) * plotW;
     const yFor = (pa: number) => plotBottom - pa * plotH;
 
-    pdf.setFont('helvetica', 'normal');
+    pdf.setFont(PDF_FONT, 'normal');
     pdf.setFontSize(7.5);
     [0, 0.25, 0.5, 0.75, 1].forEach((frac) => {
       const y = yFor(frac);
