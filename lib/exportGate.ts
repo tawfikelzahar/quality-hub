@@ -10,7 +10,7 @@
 // is a much stronger signal than a page view.
 // ─────────────────────────────────────────────────────────────────────────
 
-type GateFeature = 'csv' | 'png' | 'excel' | 'pdf'
+type GateFeature = 'csv' | 'png' | 'excel' | 'pdf' | 'ai'
 
 function trackGateEvent(eventName: 'signup_wall_hit' | 'pro_wall_hit', tool: string, feature: GateFeature) {
   if (typeof window === 'undefined') return

@@ -13,6 +13,8 @@ import { xbarRMessagesAr } from '@/lib/spc/xbar-r-messages.ar';
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
+import AIInsightCard from '@/components/AIInsightCard';
+import type { RuleCount, VariableChartSummary } from '@/lib/ai/insight';
 import { useSubscription } from '@/lib/useSubscription';
 import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
@@ -249,6 +251,47 @@ export default function XbarRChartPage() {
     if (!result || !subgroups) return null;
     return buildCapabilityHistogram(subgroups.flat(), result.mu, result.sdOverall, result.sigma, result.LSL, result.USL);
   }, [result, subgroups]);
+
+  // ── AI Insights: numbers-only summary sent to /api/ai-insight ───────
+  function ruleCounts(list: VariableChartResult['violations_x']): RuleCount[] {
+    return list.map((v) => ({
+      rule: v.rule,
+      points: v.points.length === 2 && v.rule !== 1 ? v.points[1] - v.points[0] + 1 : v.points.length,
+    }));
+  }
+
+  function buildAISummary(): VariableChartSummary | null {
+    if (!result || !subgroups) return null;
+    return {
+      subgroups: subgroups.length,
+      subgroupSize,
+      mean: result.mu,
+      sigmaWithin: result.sigma,
+      sigmaOverall: result.sdOverall,
+      min: result.min,
+      max: result.max,
+      LSL: result.LSL,
+      USL: result.USL,
+      target: appliedLimits.target,
+      clX: result.cl_x,
+      uclX: result.ucl_x,
+      lclX: result.lcl_x,
+      clR: result.cl_r,
+      uclR: result.ucl_r,
+      Cp: result.Cp,
+      Cpk: result.Cpk,
+      Pp: result.Pp,
+      Ppk: result.Ppk,
+      Cpm: result.Cpm,
+      ppmWithin: result.ppmD_st ? result.ppmD_st.total : null,
+      ppmOverall: result.ppmD_lt ? result.ppmD_lt.total : null,
+      normalityP: result.ad ? result.ad.p : null,
+      isNormal: result.isNormal,
+      dataAdequacy: result.dataAdequacy.tier,
+      xRules: ruleCounts(result.violations_x),
+      rRules: ruleCounts(result.violations_r),
+    };
+  }
 
   // ── Export: CSV ─────────────────────────────────────────────────────
   function exportCSV() {
@@ -920,6 +963,16 @@ export default function XbarRChartPage() {
                 </div>
               </div>
             )}
+
+            {/* ── AI Insights (Pro) ───────────────────────────────────────── */}
+            <AIInsightCard
+              theme={theme}
+              tool="xbar_r"
+              isPro={isPro}
+              isLoggedIn={isLoggedIn}
+              getSummary={buildAISummary}
+              resultKey={result}
+            />
 
             {/* ── Export & Save ─────────────────────────────────────────── */}
             <div style={s.card}>
