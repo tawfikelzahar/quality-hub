@@ -54,6 +54,8 @@ export interface CapabilityDiagnosis {
   basis: 'within' | 'overall'
   rows: DiagnosisRow[]
   recommendedAction: string
+  /** first sentence of the capability action — used in the page-1 summary */
+  headline: string
   tone: Tone
 }
 
@@ -273,7 +275,8 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
   const recommendedAction = joinSentences(action, stable ? normalityNote : '', sampleSizeNote(n, adequacyTier))
   if (stable && tone === 'good' && adequacyTier === 'low') tone = 'warn'
 
-  return { basis, rows, recommendedAction, tone }
+  const headline = core.split(/(?<=\.)\s/)[0]
+  return { basis, rows, recommendedAction, headline, tone }
 }
 
 // ── Study conclusion ────────────────────────────────────────────────────
@@ -300,9 +303,10 @@ export interface StudyConclusion {
 }
 
 export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
-  const { classLabel, indexName, indexValue, signals, n, adequacyTier } = input
+  const { classLabel, indexName, indexValue, signals } = input
   const stable = signals.length === 0
-  const sizeNote = sampleSizeNote(n, adequacyTier, input.attribute ? 'subgroups' : 'readings')
+  // The sample-size caveat is NOT repeated here: it is already in the page-1
+  // summary, the data-adequacy box and the Recommended Action.
 
   // ── stability-only: attribute charts or no spec limits ──
   if (classLabel === null || indexName === null || indexValue === null) {
@@ -320,8 +324,8 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
       ? ''
       : 'Capability cannot be assessed because no specification limits were provided — add the LSL and/or USL to evaluate Cp/Cpk.'
     return {
-      text: joinSentences(stability, capNote, sizeNote),
-      tone: !stable ? 'warn' : adequacyTier === 'low' ? 'warn' : 'good',
+      text: joinSentences(stability, capNote),
+      tone: !stable ? 'warn' : 'good',
     }
   }
 
@@ -341,7 +345,46 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
     'Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.'
 
   const base: Tone = indexValue >= CAPABLE ? 'good' : indexValue >= 1 ? 'warn' : 'bad'
-  const tone: Tone = base === 'good' && (!stable || adequacyTier === 'low') ? 'warn' : base
+  const tone: Tone = base === 'good' && !stable ? 'warn' : base
 
-  return { text: joinSentences(basis, ppm, stability, sizeNote, closing), tone }
+  return { text: joinSentences(basis, ppm, stability, closing), tone }
+}
+
+// ── Page-1 summary ──────────────────────────────────────────────────────
+export interface SummaryInput {
+  signals: RuleSignal[]
+  /** e.g. "CAPABLE PROCESS (Cpk 1.970)"; null when capability is not assessed */
+  capabilityText: string | null
+  /** first sentence of the capability action, when a diagnosis exists */
+  headline: string | null
+  /** true when there are no spec limits on a variable chart */
+  noSpecs: boolean
+  n: number
+  adequacyTier: AdequacyTier
+  unit: 'readings' | 'subgroups'
+}
+
+export function buildExecutiveSummary(input: SummaryInput): { rows: Array<[string, string]>; tone: Tone } {
+  const stable = input.signals.length === 0
+  const rows: Array<[string, string]> = []
+  rows.push([
+    'Stability',
+    stable
+      ? 'In statistical control — no Nelson rule signals.'
+      : `Not in statistical control — ${input.signals.length} special-cause signal(s); see Nelson Rule Violations.`,
+  ])
+  if (input.capabilityText) rows.push(['Capability', input.capabilityText])
+  else if (input.noSpecs) rows.push(['Capability', 'Not assessed — no specification limits were provided.'])
+
+  const action = !stable
+    ? 'Find and remove the special causes before relying on capability (see Recommended Action).'
+    : input.headline ?? (input.noSpecs ? 'Add the LSL and/or USL to evaluate capability.' : 'Continue routine monitoring and control.')
+  rows.push(['Action', action])
+
+  if (input.adequacyTier === 'low') {
+    rows.push(['Data', `Only ${input.n} ${input.unit} — preliminary; confirm with at least 30 ${input.unit}.`])
+  } else if (input.adequacyTier === 'moderate') {
+    rows.push(['Data', `${input.n} ${input.unit} — moderate confidence; confirm with about 100 for high-stakes decisions.`])
+  }
+  return { rows, tone: 'info' }
 }

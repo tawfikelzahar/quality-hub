@@ -327,6 +327,40 @@ export function calloutBox(ctx: ReportContext, text: string, tone: CalloutTone =
  * text (e.g. "Study Conclusion"). Wraps to as many lines as needed and
  * paginates automatically.
  */
+/**
+ * Short labelled summary on page 1 (e.g. Stability / Capability / Action /
+ * Data), so a manager or customer gets the answer without reading to the
+ * last page. Labels in bold on the left, wrapped text on the right.
+ */
+export function summaryBox(ctx: ReportContext, title: string, rows: Array<[string, string]>, tone: CalloutTone = 'info') {
+  if (rows.length === 0) return
+  const { pdf, margin, pageWidth } = ctx
+  const { color, bg } = TONE_COLORS[tone]
+  const labelW = 78
+  const textW = pageWidth - margin * 2 - 13 - labelW - 12
+  const lineH = 13
+  pdf.setFont(PDF_FONT, 'normal')
+  pdf.setFontSize(9.5)
+  const wrapped = rows.map(([, text]) => pdf.splitTextToSize(sanitizePdfText(text), textW) as string[])
+  const h = wrapped.reduce((sum, l) => sum + l.length * lineH + 4, 0) + 14
+  sectionHeading(ctx, title, h + 10)
+  setFill(pdf, bg)
+  pdf.rect(margin, ctx.y, pageWidth - margin * 2, h, 'F')
+  setFill(pdf, color)
+  pdf.rect(margin, ctx.y, 3, h, 'F')
+  let y = ctx.y + 17
+  rows.forEach(([label], i) => {
+    pdf.setFont(PDF_FONT, 'bold')
+    pdf.setFontSize(9.5)
+    setText(pdf, REPORT_COLORS.ink)
+    drawText(pdf, label, margin + 13, y)
+    pdf.setFont(PDF_FONT, 'normal')
+    wrapped[i].forEach((line, li) => drawText(pdf, line, margin + 13 + labelW, y + li * lineH))
+    y += wrapped[i].length * lineH + 4
+  })
+  ctx.y += h + 18
+}
+
 export function interpretationBox(ctx: ReportContext, title: string, text: string, tone: CalloutTone = 'info') {
   const { pdf, margin, pageWidth } = ctx
   const { color, bg } = TONE_COLORS[tone]

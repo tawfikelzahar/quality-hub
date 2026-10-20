@@ -47,6 +47,14 @@ type AnyChart = ChartJSCore<any, any, any>
  * (820px printed them at ~6.5 pt full width and ~3 pt in side-by-side pairs.)
  */
 export const EXPORT_CHART_WIDTH = 700
+/**
+ * Export height = on-screen height × this factor (never below
+ * EXPORT_MIN_HEIGHT). Full-width report charts were tall enough to leave
+ * a chart alone on a page; 75% keeps label sizes unchanged (labels depend on
+ * the width) while fitting two charts plus their tables on fewer pages.
+ */
+const EXPORT_HEIGHT_SCALE = 0.75
+const EXPORT_MIN_HEIGHT = 200
 /** Export pixel ratio, so a low-DPI laptop produces the same crisp images as a retina screen. */
 const EXPORT_PIXEL_RATIO = 2
 
@@ -54,7 +62,7 @@ const EXPORT_PIXEL_RATIO = 2
  * Prepares charts for a Pro export, runs `fn` (which reads each canvas via
  * toBase64Image()), then restores everything — even if `fn` throws:
  *   1. watermark off and its bottom strip padding removed (watermarked charts),
- *   2. every chart redrawn at EXPORT_CHART_WIDTH × its current height, at 2× pixel ratio.
+ *   2. every chart redrawn at EXPORT_CHART_WIDTH × 75% of its current height, at 2× pixel ratio.
  * `update('none')` / `resize()` skip animation, so the swap is synchronous.
  * Null refs (unmounted charts) are skipped.
  *
@@ -96,7 +104,8 @@ export async function withWatermarksDisabled<T>(
   ratioStates.forEach((_, opts) => { opts.devicePixelRatio = EXPORT_PIXEL_RATIO })
   all.forEach((chart) => {
     chart.update('none')
-    chart.resize(EXPORT_CHART_WIDTH, heights.get(chart))
+    const h = heights.get(chart) ?? chart.height
+    chart.resize(EXPORT_CHART_WIDTH, Math.max(EXPORT_MIN_HEIGHT, Math.round(h * EXPORT_HEIGHT_SCALE)))
   })
 
   try {

@@ -26,6 +26,7 @@ import {
   capabilityGauge,
   capabilityComparisonPlot,
   interpretationBox,
+  summaryBox,
   calloutBox,
   criteriaReferenceTable,
   addChartImage,
@@ -37,6 +38,7 @@ import {
 import {
   buildCapabilityDiagnosis,
   buildStudyConclusion,
+  buildExecutiveSummary,
   type RuleSignal,
   type Tone,
 } from '@/lib/spc/reportInterpretation'
@@ -868,6 +870,42 @@ export default function SPCEngine() {
     ]
     const cls = varResult && hasSpecLimits ? classifyCapability(pkVal) : null
 
+    // Interpretation is computed once up front: the page-1 summary and the
+    // detailed sections later in the report must say the same thing.
+    const diagnosis = varResult && cls
+      ? buildCapabilityDiagnosis({
+          LSL: varResult.LSL,
+          USL: varResult.USL,
+          target: targetNum,
+          center: varResult.cl_x,
+          mu: varResult.mu,
+          sigmaWithin: varResult.sigma,
+          sdOverall: varResult.sdOverall,
+          normal: varResult.Cpk !== null,
+          signals: ruleSignals,
+          n: varResult.n,
+          adequacyTier: varResult.dataAdequacy.tier,
+        })
+      : null
+    const usingCpkInConclusion = !!varResult && varResult.Cpk !== null
+    const conclusion = varResult || attrResult
+      ? buildStudyConclusion({
+          classLabel: cls ? cls.label : null,
+          indexName: cls && varResult ? (usingCpkInConclusion ? 'Cpk' : 'Ppk') : null,
+          indexValue: cls ? pkVal : null,
+          ppk: varResult ? varResult.Ppk : null,
+          ppmOverall: varResult?.ppmD_lt ? varResult.ppmD_lt.total : null,
+          yieldText: varResult?.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null,
+          normal: varResult ? varResult.isNormal : true,
+          signals: ruleSignals,
+          n: varResult ? varResult.n : attrResult!.dataAdequacy.n,
+          adequacyTier: (varResult ?? attrResult)!.dataAdequacy.tier,
+          attribute: attrResult
+            ? { chartLabel: attrResult.chartLabel, metricText: `${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}` }
+            : null,
+        })
+      : null
+
     if (cls) {
       classificationBanner(ctx, cls)
     } else if (varResult) {
@@ -876,6 +914,24 @@ export default function SPCEngine() {
         'No specification limits were provided — capability indices (Cp/Cpk/Pp/Ppk) are not applicable. Statistical control and stability are assessed below instead.',
         'info'
       )
+    }
+
+    const adequacyInfo = (varResult ?? attrResult)?.dataAdequacy
+    if (adequacyInfo && conclusion) {
+      const summary = buildExecutiveSummary({
+        signals: ruleSignals,
+        capabilityText: cls && pkVal !== null
+          ? `${cls.label} (${usingCpkInConclusion ? 'Cpk' : 'Ppk'} ${fmt(pkVal)})`
+          : attrResult
+          ? `${attrResult.chartLabel}: ${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}`
+          : null,
+        headline: diagnosis ? diagnosis.headline : null,
+        noSpecs: !!varResult && !hasSpecLimits,
+        n: adequacyInfo.n,
+        adequacyTier: adequacyInfo.tier,
+        unit: attrResult ? 'subgroups' : 'readings',
+      })
+      summaryBox(ctx, 'Summary', summary.rows, conclusion.tone)
     }
 
     if (varResult) {
@@ -913,7 +969,7 @@ export default function SPCEngine() {
             : varResult.dataAdequacy.tier === 'moderate'
             ? 'Sample size gives moderate confidence — consider collecting more data before high-stakes decisions.'
             : 'Sample size is sufficient for the reported statistics.'),
-        varResult.dataAdequacy.tier === 'low' ? 'bad' : varResult.dataAdequacy.tier === 'moderate' ? 'warn' : 'good'
+        varResult.dataAdequacy.tier === 'adequate' ? 'good' : 'warn'
       )
 
       if (cls && pkVal !== null) {
@@ -1066,19 +1122,6 @@ export default function SPCEngine() {
           'info'
         )
 
-        const diagnosis = buildCapabilityDiagnosis({
-          LSL: varResult.LSL,
-          USL: varResult.USL,
-          target: targetNum,
-          center: varResult.cl_x,
-          mu: varResult.mu,
-          sigmaWithin: varResult.sigma,
-          sdOverall: varResult.sdOverall,
-          normal: varResult.Cpk !== null,
-          signals: ruleSignals,
-          n: varResult.n,
-          adequacyTier: varResult.dataAdequacy.tier,
-        })
         if (diagnosis) {
           dataTable(
             ctx,
@@ -1124,23 +1167,7 @@ export default function SPCEngine() {
       )
     }
 
-    if (varResult || attrResult) {
-      const usingCpkInConclusion = !!varResult && varResult.Cpk !== null
-      const conclusion = buildStudyConclusion({
-        classLabel: cls ? cls.label : null,
-        indexName: cls && varResult ? (usingCpkInConclusion ? 'Cpk' : 'Ppk') : null,
-        indexValue: cls ? pkVal : null,
-        ppk: varResult ? varResult.Ppk : null,
-        ppmOverall: varResult?.ppmD_lt ? varResult.ppmD_lt.total : null,
-        yieldText: varResult?.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null,
-        normal: varResult ? varResult.isNormal : true,
-        signals: ruleSignals,
-        n: varResult ? varResult.n : attrResult!.dataAdequacy.n,
-        adequacyTier: (varResult ?? attrResult)!.dataAdequacy.tier,
-        attribute: attrResult
-          ? { chartLabel: attrResult.chartLabel, metricText: `${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}` }
-          : null,
-      })
+    if (conclusion) {
       interpretationBox(ctx, 'Study Conclusion', conclusion.text, conclusion.tone)
       if (cls) criteriaReferenceTable(ctx)
     }
