@@ -1385,8 +1385,11 @@ export default function SPCEngine() {
   }, [distChartBuild, linearChartOptions])
 
   const rangeVals = varResult ? varResult.rangeVals.map(v => v ?? 0) : []
-  const rangeLabels = varResult ? varResult.labels.slice(1) : []
-  const rangeValsTrimmed = rangeVals.slice(1)
+  // Only the moving-range chart starts at observation 2; an R chart has a
+  // range for every subgroup, including the first.
+  const isMovingRange = varResult?.N === 1
+  const rangeLabels = varResult ? (isMovingRange ? varResult.labels.slice(1) : varResult.labels) : []
+  const rangeValsTrimmed = isMovingRange ? rangeVals.slice(1) : rangeVals
 
   const allViolations = [
     ...(varResult?.violations_x.map(v => ({ ...v, chart: t('spc_chart_xbar_indiv') })) ?? []),

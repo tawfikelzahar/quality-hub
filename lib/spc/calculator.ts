@@ -338,9 +338,17 @@ export function runVariableChartAnalysis({
     lcl_r = C.D3 * rBar
   }
 
-  const violations_x = nelsonRules(xbarVals, cl_x, sigma)
+  // Zones use the sigma of the plotted statistic (one third of centre-to-limit):
+  // sigma for I, sigma/sqrt(n) for X-bar, d3*sigma for R/MR (Montgomery).
+  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3)
   const rangeValsClean = rangeVals.filter((v): v is number => v !== null)
-  const violations_r = rangeValsClean.length > 2 ? nelsonRules(rangeValsClean, cl_r, cl_r * 0.5) : []
+  // R / MR: tests 1-4 only (Minitab practice); MR #1 is observation 2.
+  const mrOffset = N === 1 ? 1 : 0
+  const violations_r = rangeValsClean.length > 2
+    ? nelsonRules(rangeValsClean, cl_r, (ucl_r - cl_r) / 3)
+        .filter((v) => v.rule <= 4)
+        .map((v) => ({ ...v, points: v.points.map((p) => p + mrOffset) }))
+    : []
 
   let Cp = null, Cpk = null, Pp = null, Ppk = null
   if (LSL !== null && USL !== null) {
@@ -438,9 +446,12 @@ export function runXbarSAnalysis({
   const sp = Math.sqrt(totalSS / totalDF)
   const sigma = sp / c4func(totalDF + 1)
 
-  const violations_x = nelsonRules(xbarVals, cl_x, sigma)
+  // Zones from the plotted limits: sigma/sqrt(n) for X-bar; S chart tests 1-4 only.
+  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3)
   const sValsClean = sVals.filter((v): v is number => v !== null)
-  const violations_r = sValsClean.length > 2 ? nelsonRules(sValsClean, cl_r, cl_r * 0.5) : []
+  const violations_r = sValsClean.length > 2
+    ? nelsonRules(sValsClean, cl_r, (ucl_r - cl_r) / 3).filter((v) => v.rule <= 4)
+    : []
 
   let Cp = null, Cpk = null, Pp = null, Ppk = null
   if (LSL !== null && USL !== null) {

@@ -174,9 +174,20 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
     sigma = sp / c4_val; cl_x = mean(xbarVals); ucl_x = cl_x + C.A2 * rBar; lcl_x = cl_x - C.A2 * rBar
     cl_r = rBar; ucl_r = C.D4 * rBar; lcl_r = C.D3 * rBar
   }
-  const violations_x = nelsonRules(xbarVals, cl_x, sigma)
+  // Zones use the sigma of the plotted statistic, i.e. one third of the
+  // distance from the centre line to the plotted limit: sigma for the I chart,
+  // sigma/sqrt(n) for the X-bar chart, d3*sigma for R/MR (Montgomery).
+  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3)
   const rangeValsClean = (rangeVals.filter(v => v !== null)) as number[]
-  const violations_r = rangeValsClean.length > 2 ? nelsonRules(rangeValsClean, cl_r, cl_r * 0.5) : []
+  // R / MR charts: tests 1-4 only (Minitab practice — zone tests 5-8 assume a
+  // symmetric distribution). MR #1 belongs to observation 2, so shift MR
+  // point numbers by one to match the chart's x-axis labels.
+  const mrOffset = N === 1 ? 1 : 0
+  const violations_r = rangeValsClean.length > 2
+    ? nelsonRules(rangeValsClean, cl_r, (ucl_r - cl_r) / 3)
+        .filter(v => v.rule <= 4)
+        .map(v => ({ ...v, points: v.points.map(p => p + mrOffset) }))
+    : []
   let Cp = null, Cpk = null, Pp = null, Ppk = null
   if (LSL !== null && USL !== null) {
     const range = USL - LSL
@@ -245,7 +256,8 @@ function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention }: {
     dpm = uBar * 1e6; metric = uBar; metricLabel = 'ū (Avg Defects/Unit)'; chartLabel = 'u-Chart'
     sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, uBar)), conv)
   }
-  const violations = nelsonRules(pts, clVal, (ucl - clVal) / 3)
+  // Attribute charts: tests 1-4 only (Minitab practice).
+  const violations = nelsonRules(pts, clVal, (ucl - clVal) / 3).filter(v => v.rule <= 4)
   return { pts, clVal, ucl, lcl, labels: pts.map((_, i) => i + 1), chartLabel, dpm, sigmaLvl, metric, metricLabel, violations, dataAdequacy: dataAdequacy(data.length) }
 }
 
