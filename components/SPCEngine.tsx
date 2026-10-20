@@ -34,6 +34,12 @@ import {
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign'
+import {
+  buildCapabilityDiagnosis,
+  buildStudyConclusion,
+  type RuleSignal,
+  type Tone,
+} from '@/lib/spc/reportInterpretation'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -156,41 +162,9 @@ function formatYieldPct(ppmTotal: number | null): string {
   return yieldPct >= 99.9995 ? `${yieldPct.toFixed(5)}%` : `${yieldPct.toFixed(3)}%`
 }
 
-// Capability diagnosis — separates "how much spread" (Cp) from "how well
-// centered" (gap between the two one-sided Cpk components) so the report
-// can point at the actual lever to pull instead of a single label.
-interface CapabilityDiagnosis {
-  spreadOk: boolean
-  centeringOk: boolean
-  nearerLimit: 'LSL' | 'USL' | null
-  recommendedAction: string
-}
-
-function buildCapabilityDiagnosis(v: VariableResult, stable: boolean): CapabilityDiagnosis | null {
-  if (v.LSL === null || v.USL === null || v.Cp === null || v.Cpk === null || v.sigma <= 0) return null
-
-  const cpkLower = (v.mu - v.LSL) / (3 * v.sigma)
-  const cpkUpper = (v.USL - v.mu) / (3 * v.sigma)
-  const nearerLimit: 'LSL' | 'USL' = cpkLower <= cpkUpper ? 'LSL' : 'USL'
-  const spreadOk = v.Cp >= 1.33
-  const centeringOk = Math.abs(cpkUpper - cpkLower) < 0.1
-
-  let recommendedAction: string
-  if (!stable) {
-    recommendedAction =
-      'Do not rely on capability indices alone — investigate special-cause variation and confirm the process is in statistical control before acting on Cp/Cpk/Pp/Ppk.'
-  } else if (!spreadOk && !centeringOk) {
-    recommendedAction = `Both variation reduction and improved centering are needed. The process mean sits closer to the ${nearerLimit}; reducing overall variation alone will not be sufficient.`
-  } else if (!spreadOk) {
-    recommendedAction =
-      'Prioritize reducing process variation — the specification width limits achievable capability even under perfect centering.'
-  } else if (!centeringOk) {
-    recommendedAction = `Prioritize centering the process away from the ${nearerLimit}; variation is already acceptable relative to the specification width.`
-  } else {
-    recommendedAction = 'Process capability is acceptable. Continue routine monitoring and control.'
-  }
-
-  return { spreadOk, centeringOk, nearerLimit, recommendedAction }
+// Maps an interpretation tone to the report's text color for table cells.
+function toneColor(tone: Tone) {
+  return tone === 'good' ? REPORT_COLORS.good : tone === 'bad' ? REPORT_COLORS.bad : tone === 'warn' ? REPORT_COLORS.warn : null
 }
 
 // Capability verdict — mirrors capabilityClass/capabilityLabel from spc-tool.html
@@ -873,6 +847,12 @@ export default function SPCEngine() {
     }
 
     const ctx = createPdfReport('SPC Analysis Report', 'spc')
+    const targetNum = target !== '' && isFinite(parseFloat(target)) ? parseFloat(target) : null
+    const ruleSignals: RuleSignal[] = [
+      ...(varResult?.violations_x.map(v => ({ rule: v.rule, dispersionChart: false })) ?? []),
+      ...(varResult?.violations_r.map(v => ({ rule: v.rule, dispersionChart: true })) ?? []),
+      ...(attrResult?.violations.map(v => ({ rule: v.rule, dispersionChart: false })) ?? []),
+    ]
     const cls = varResult && hasSpecLimits ? classifyCapability(pkVal) : null
 
     if (cls) {
@@ -1073,7 +1053,19 @@ export default function SPCEngine() {
           'info'
         )
 
-        const diagnosis = buildCapabilityDiagnosis(varResult, allViolations.length === 0)
+        const diagnosis = buildCapabilityDiagnosis({
+          LSL: varResult.LSL,
+          USL: varResult.USL,
+          target: targetNum,
+          center: varResult.cl_x,
+          mu: varResult.mu,
+          sigmaWithin: varResult.sigma,
+          sdOverall: varResult.sdOverall,
+          normal: varResult.Cpk !== null,
+          signals: ruleSignals,
+          n: varResult.n,
+          adequacyTier: varResult.dataAdequacy.tier,
+        })
         if (diagnosis) {
           dataTable(
             ctx,
@@ -1083,35 +1075,10 @@ export default function SPCEngine() {
               { header: 'RESULT', width: 150 },
               { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 300 },
             ],
-            [
-              [
-                'Process Spread',
-                `Cp = ${fmt(varResult.Cp)}`,
-                diagnosis.spreadOk
-                  ? 'Spread is acceptable relative to specification width.'
-                  : 'Spread is limited relative to specification width — variation reduction is needed.',
-              ],
-              [
-                'Process Centering',
-                diagnosis.nearerLimit ? `Closer to ${diagnosis.nearerLimit}` : '—',
-                diagnosis.centeringOk
-                  ? 'Process is reasonably centered between specification limits.'
-                  : `Process mean is closer to the ${diagnosis.nearerLimit} than to the opposite limit — this is the main driver of the lower index.`,
-              ],
-            ],
-            {
-              cellColors: [
-                [null, null, diagnosis.spreadOk ? REPORT_COLORS.good : REPORT_COLORS.warn],
-                [null, null, diagnosis.centeringOk ? REPORT_COLORS.good : REPORT_COLORS.warn],
-              ],
-            }
+            diagnosis.rows.map(r => [r.dimension, r.result, r.assessment]),
+            { cellColors: diagnosis.rows.map(r => [null, null, toneColor(r.tone)]) }
           )
-          interpretationBox(
-            ctx,
-            'Recommended Action',
-            diagnosis.recommendedAction,
-            allViolations.length > 0 ? 'bad' : diagnosis.spreadOk && diagnosis.centeringOk ? 'good' : 'warn'
-          )
+          interpretationBox(ctx, 'Recommended Action', diagnosis.recommendedAction, diagnosis.tone)
         }
       }
     } else if (attrResult) {
@@ -1144,18 +1111,25 @@ export default function SPCEngine() {
       )
     }
 
-    if (cls && varResult) {
-      const yieldStr = varResult.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null
-      const tone = pkVal === null ? 'info' : pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
-      const usingCpkInConclusion = varResult.Cpk !== null
-      const basisSentence = usingCpkInConclusion
-        ? `The process is classified as ${cls.label} based on Cpk, the primary capability index for this analysis, since the normality assumption was not rejected. Cpk is ${fmt(varResult.Cpk)} and Ppk is ${fmt(varResult.Ppk)}.`
-        : `The process is classified as ${cls.label} based on Ppk, the primary performance indicator for this analysis. Because the normality assumption was rejected, Cpk is not reported. Ppk is ${fmt(varResult.Ppk)}.`
-      const conclusion = `${basisSentence}${
-        yieldStr ? ` The estimated overall nonconformance rate is ${varResult.ppmD_lt!.total.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}.` : ''
-      } Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
-      interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
-      criteriaReferenceTable(ctx)
+    if (varResult || attrResult) {
+      const usingCpkInConclusion = !!varResult && varResult.Cpk !== null
+      const conclusion = buildStudyConclusion({
+        classLabel: cls ? cls.label : null,
+        indexName: cls && varResult ? (usingCpkInConclusion ? 'Cpk' : 'Ppk') : null,
+        indexValue: cls ? pkVal : null,
+        ppk: varResult ? varResult.Ppk : null,
+        ppmOverall: varResult?.ppmD_lt ? varResult.ppmD_lt.total : null,
+        yieldText: varResult?.ppmD_lt ? formatYieldPct(varResult.ppmD_lt.total) : null,
+        normal: varResult ? varResult.isNormal : true,
+        signals: ruleSignals,
+        n: varResult ? varResult.n : attrResult!.dataAdequacy.n,
+        adequacyTier: (varResult ?? attrResult)!.dataAdequacy.tier,
+        attribute: attrResult
+          ? { chartLabel: attrResult.chartLabel, metricText: `${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}` }
+          : null,
+      })
+      interpretationBox(ctx, 'Study Conclusion', conclusion.text, conclusion.tone)
+      if (cls) criteriaReferenceTable(ctx)
     }
 
     finalizeReport(ctx)
