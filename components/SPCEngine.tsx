@@ -158,8 +158,21 @@ function fmt(n: number | null | undefined, digits = 3): string {
 // 3-decimal precision, switch to 5 decimals so the true shortfall shows.
 function formatYieldPct(ppmTotal: number | null): string {
   if (ppmTotal === null || !isFinite(ppmTotal)) return '—'
+  // Below 0.1 PPM the yield would print as "100.00000%" — no real process
+  // is defect-free, so say what we actually know.
+  if (ppmTotal < PPM_FLOOR) return '> 99.99999%'
   const yieldPct = 100 - ppmTotal / 10000
   return yieldPct >= 99.9995 ? `${yieldPct.toFixed(5)}%` : `${yieldPct.toFixed(3)}%`
+}
+
+// PPM for report tables. A normal-tail estimate is never exactly zero, so
+// tiny values print as "< 0.1" instead of a misleading "0.0"; a side with no
+// specification limit has no defect estimate at all ("—").
+const PPM_FLOOR = 0.05
+function fmtPpm(ppm: number, hasLimit = true): string {
+  if (!hasLimit) return '—'
+  if (!isFinite(ppm)) return '—'
+  return ppm < PPM_FLOOR ? '< 0.1' : ppm.toFixed(1)
 }
 
 // Maps an interpretation tone to the report's text color for table cells.
@@ -1019,13 +1032,13 @@ export default function SPCEngine() {
             ['StDev', fmt(varResult.sigma)],
             ['Cp', fmt(varResult.Cp)],
             ['Cpk', fmt(varResult.Cpk)],
-            ['PPM', varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(1) : '—'],
+            ['PPM', varResult.ppmD_st ? fmtPpm(varResult.ppmD_st.total) : '—'],
           ],
           overallStats: [
             ['StDev', fmt(varResult.sdOverall)],
             ['Pp', fmt(varResult.Pp)],
             ['Ppk', fmt(varResult.Ppk)],
-            ['PPM', varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(1) : '—'],
+            ['PPM', varResult.ppmD_lt ? fmtPpm(varResult.ppmD_lt.total) : '—'],
           ],
         })
 
@@ -1037,12 +1050,12 @@ export default function SPCEngine() {
             { header: 'VALUE', width: ctx.pageWidth - ctx.margin * 2 - 260 },
           ],
           [
-            ['Within - Below LSL', varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(1) : '—'],
-            ['Within - Above USL', varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(1) : '—'],
-            ['Within - Total PPM', varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(1) : '—'],
-            ['Overall - Below LSL', varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(1) : '—'],
-            ['Overall - Above USL', varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(1) : '—'],
-            ['Overall - Total PPM', varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(1) : '—'],
+            ['Within - Below LSL', varResult.ppmD_st ? fmtPpm(varResult.ppmD_st.below, varResult.LSL !== null) : '—'],
+            ['Within - Above USL', varResult.ppmD_st ? fmtPpm(varResult.ppmD_st.above, varResult.USL !== null) : '—'],
+            ['Within - Total PPM', varResult.ppmD_st ? fmtPpm(varResult.ppmD_st.total) : '—'],
+            ['Overall - Below LSL', varResult.ppmD_lt ? fmtPpm(varResult.ppmD_lt.below, varResult.LSL !== null) : '—'],
+            ['Overall - Above USL', varResult.ppmD_lt ? fmtPpm(varResult.ppmD_lt.above, varResult.USL !== null) : '—'],
+            ['Overall - Total PPM', varResult.ppmD_lt ? fmtPpm(varResult.ppmD_lt.total) : '—'],
             ['Estimated Yield (Overall)', formatYieldPct(varResult.ppmD_lt ? varResult.ppmD_lt.total : null)],
           ]
         )

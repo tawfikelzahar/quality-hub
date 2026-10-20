@@ -470,10 +470,30 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
   const { pdf, margin } = ctx
   const baseRowH = 18
   const lineH = 11
+  const cellPadding = 12
+
+  // Measure the whole table first. A short table (up to ~60% of a page) is
+  // kept together: if it does not fit below the current position it starts
+  // on the next page instead of leaving 2-3 orphan rows behind. Long data
+  // tables still flow across pages with a repeated header.
+  const measure = (text: string, width: number, bold: boolean) => {
+    pdf.setFont(PDF_FONT, bold ? 'bold' : 'normal')
+    pdf.setFontSize(8.5)
+    return (pdf.splitTextToSize(sanitizePdfText(text), width - cellPadding) as string[]).length
+  }
+  const headerH = Math.max(baseRowH, Math.max(...columns.map(c => measure(c.header, c.width, true))) * lineH + 7)
+  const bodyH = rows.reduce((sum, row, i) => {
+    const maxLines = Math.max(...row.map((cell, j) => measure(cell, columns[j].width, !!options?.cellColors?.[i]?.[j])))
+    return sum + Math.max(baseRowH, maxLines * lineH + 7)
+  }, 0)
+  const usablePage = ctx.pageHeight - ctx.margin * 2 - 26
+  const keepTogether = headerH + bodyH <= usablePage * 0.6
+  const reserve = keepTogether ? headerH + bodyH : baseRowH * 2
+
   if (title) {
-    sectionHeading(ctx, title, baseRowH * 2)
+    sectionHeading(ctx, title, reserve)
   } else {
-    ensureSpace(ctx, baseRowH * 2)
+    ensureSpace(ctx, reserve)
   }
 
   const totalWidth = columns.reduce((sum, c) => sum + c.width, 0)

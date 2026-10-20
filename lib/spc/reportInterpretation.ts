@@ -165,6 +165,11 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
     const centeringOk = Math.abs((kUpper as number) - (kLower as number)) < CENTERING_TOLERANCE
     const nearer: 'LSL' | 'USL' = (kLower as number) <= (kUpper as number) ? 'LSL' : 'USL'
     const tolUsed = (6 * s) / (USL - LSL)
+    // Capability index (Cpk or Ppk). When it already meets the benchmark, an
+    // off-centre mean is information, not a priority — otherwise a CAPABLE
+    // report would contradict itself with "Prioritize centering".
+    const capable = minK >= CAPABLE
+    const offset = Math.abs(c - (LSL + USL) / 2)
 
     rows.push({
       dimension: 'Process Spread',
@@ -179,8 +184,10 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
       result: centeringOk ? 'Centered' : `Closer to ${nearer}`,
       assessment: centeringOk
         ? 'Process is reasonably centered between the specification limits.'
-        : `Mean is ${f(Math.abs(c - (LSL + USL) / 2))} from mid-specification, toward the ${nearer} — this is a main driver of the lower ${idxName}.`,
-      tone: centeringOk ? 'good' : 'warn',
+        : capable
+        ? `Mean is ${f(offset)} from mid-specification, toward the ${nearer}. Capability is still acceptable; centering would add further margin.`
+        : `Mean is ${f(offset)} from mid-specification, toward the ${nearer} — this is a main driver of the lower ${idxName}.`,
+      tone: centeringOk ? 'good' : capable ? 'info' : 'warn',
     })
 
     const centerTo = target !== null ? `toward the target (${f(target)})` : `away from the ${nearer}`
@@ -193,12 +200,19 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
     } else if (!spreadOk) {
       core = `Prioritize reducing process variation — the specification width limits achievable capability even with perfect centering (${spreadName} ${f(spread)} < ${CAPABLE}).`
       tone = 'warn'
+    } else if (capable) {
+      core = centeringOk
+        ? 'Process capability is acceptable. Continue routine monitoring and control.'
+        : `Process capability is acceptable. Continue routine monitoring and control; moving the mean ${centerTo} would add further margin.`
+      tone = 'good'
     } else if (!centeringOk) {
       core = `Prioritize centering — move the mean ${centerTo}. Variation is already acceptable relative to the specification width.`
       tone = 'warn'
     } else {
-      core = 'Process capability is acceptable. Continue routine monitoring and control.'
-      tone = 'good'
+      // Spread and centering each pass on their own, yet the index is just
+      // under the benchmark (e.g. Cp 1.35 with a small offset → Cpk 1.30).
+      core = `${idxName} ${f(minK)} is just below ${CAPABLE}: reduce variation slightly and keep the mean centered to gain margin.`
+      tone = 'warn'
     }
   } else {
     // ── one-sided ──
@@ -318,7 +332,7 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
       : `The process is classified as ${classLabel} based on Ppk, the primary performance indicator for this analysis. ${input.normal ? '' : 'Because the normality assumption was rejected, Cpk is not reported. '}Ppk is ${f(indexValue)}.`
   const ppm =
     input.ppmOverall !== null && input.yieldText
-      ? `The estimated overall nonconformance rate is ${input.ppmOverall.toFixed(1)} PPM, corresponding to an estimated yield of ${input.yieldText}.`
+      ? `The estimated overall nonconformance rate is ${input.ppmOverall < 0.05 ? 'below 0.1 PPM' : `${input.ppmOverall.toFixed(1)} PPM`}, corresponding to an estimated yield of ${input.yieldText}.`
       : ''
   const stability = stable
     ? ''
