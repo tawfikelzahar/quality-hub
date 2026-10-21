@@ -14,12 +14,8 @@
 // server round-trip for what is pure arithmetic.
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface NelsonViolation {
-  rule: number
-  label: string
-  points: number[]
-  desc: string
-}
+import { nelsonRules, offsetViolations, testsFor, DEFAULT_TEST_SET, type NelsonViolation, type TestSet } from './nelson'
+export type { NelsonViolation, TestSet } from './nelson'
 
 export interface AndersonDarlingResult {
   A2: number
@@ -123,90 +119,6 @@ function andersonDarling(data: number[]): AndersonDarlingResult | null {
   return { A2: A2raw, A2adj: A2, p, normal: p >= 0.05 }
 }
 
-// Nelson Rules 1-8 (Western Electric derivative), identical to the SPC
-// API route's nelsonRules — same rule numbering, thresholds, and run lengths.
-function nelsonRules(points: number[], cl: number, sigma: number): NelsonViolation[] {
-  const n = points.length
-  const violations: NelsonViolation[] = []
-  const z = points.map((p) => (p - cl) / sigma)
-
-  const r1pts: number[] = []
-  z.forEach((v, i) => { if (Math.abs(v) > 3) r1pts.push(i + 1) })
-  if (r1pts.length > 0) violations.push({ rule: 1, label: 'Beyond 3σ', points: r1pts, desc: 'Point(s) beyond control limits.' })
-
-  for (let i = 8; i < n; i++) {
-    const run = z.slice(i - 8, i + 1)
-    if (run.every((v) => v > 0) || run.every((v) => v < 0)) {
-      violations.push({ rule: 2, label: '9 in a row — one side', points: [i - 7, i + 1], desc: 'Process shift detected.' })
-      break
-    }
-  }
-
-  for (let i = 5; i < n; i++) {
-    const run = points.slice(i - 5, i + 1)
-    let inc = true, dec = true
-    for (let j = 1; j < run.length; j++) {
-      if (run[j] <= run[j - 1]) inc = false
-      if (run[j] >= run[j - 1]) dec = false
-    }
-    if (inc || dec) {
-      violations.push({ rule: 3, label: '6 in a row — trend', points: [i - 4, i + 1], desc: 'Systematic trend detected.' })
-      break
-    }
-  }
-
-  for (let i = 2; i < n; i++) {
-    const run = z.slice(i - 2, i + 1)
-    if (run.filter((v) => v > 2).length >= 2 || run.filter((v) => v < -2).length >= 2) {
-      violations.push({ rule: 5, label: '2 of 3 beyond 2σ', points: [i - 1, i + 1], desc: 'Large shift possible.' })
-      break
-    }
-  }
-
-  for (let i = 4; i < n; i++) {
-    const run = z.slice(i - 4, i + 1)
-    if (run.filter((v) => v > 1).length >= 4 || run.filter((v) => v < -1).length >= 4) {
-      violations.push({ rule: 6, label: '4 of 5 beyond 1σ', points: [i - 3, i + 1], desc: 'Moderate shift.' })
-      break
-    }
-  }
-
-  // Rule 4 — 14 points in a row alternating up and down (systematic variation).
-  for (let i = 13; i < n; i++) {
-    const run = points.slice(i - 13, i + 1)
-    let alternating = true
-    for (let j = 2; j < run.length; j++) {
-      const prevDiff = run[j - 1] - run[j - 2]
-      const curDiff = run[j] - run[j - 1]
-      if (curDiff === 0 || prevDiff === 0 || curDiff * prevDiff >= 0) { alternating = false; break }
-    }
-    if (alternating) {
-      violations.push({ rule: 4, label: '14 in a row alternating', points: [i - 12, i + 1], desc: 'Systematic alternating pattern — possible over-adjustment or two interleaved sources.' })
-      break
-    }
-  }
-
-  // Rule 7 — 15 points in a row within 1σ of the centerline (stratification).
-  for (let i = 14; i < n; i++) {
-    const run = z.slice(i - 14, i + 1)
-    if (run.every((v) => Math.abs(v) < 1)) {
-      violations.push({ rule: 7, label: '15 in a row within 1σ', points: [i - 13, i + 1], desc: 'Stratification — variation smaller than expected, check for mixed subgroups or miscalculated limits.' })
-      break
-    }
-  }
-
-  // Rule 8 — 8 points in a row beyond 1σ on either side, none within 1σ (mixture).
-  for (let i = 7; i < n; i++) {
-    const run = z.slice(i - 7, i + 1)
-    if (run.every((v) => Math.abs(v) > 1)) {
-      violations.push({ rule: 8, label: '8 in a row beyond 1σ (mixture)', points: [i - 6, i + 1], desc: 'Mixture — possible two overlapping distributions or sources.' })
-      break
-    }
-  }
-
-  return violations
-}
-
 // Data Adequacy — practical guideline (not a statistical law) for how much
 // confidence to place in a Capability/Stability read given the sample size.
 function dataAdequacy(nIndividual: number): DataAdequacy {
@@ -284,7 +196,7 @@ export function validateVariableData(data: number[][]): VariableChartError | nul
  * outputs, same formulas — but computed entirely in the browser.
  */
 export function runVariableChartAnalysis({
-  data, N, LSL, USL, target, sigmaConvention, lastN,
+  data, N, LSL, USL, target, sigmaConvention, lastN, testSet = DEFAULT_TEST_SET,
 }: {
   data: number[][]
   N: number
@@ -293,6 +205,8 @@ export function runVariableChartAnalysis({
   target: number | null
   sigmaConvention: string
   lastN?: number
+  /** which tests for special causes to run — see lib/spc/nelson.ts */
+  testSet?: TestSet
 }): VariableChartResult {
   const filteredData = lastN ? data.slice(-Math.min(lastN, data.length)) : data
   const allVals = filteredData.flat()
@@ -341,14 +255,11 @@ export function runVariableChartAnalysis({
 
   // Zones use the sigma of the plotted statistic (one third of centre-to-limit):
   // sigma for I, sigma/sqrt(n) for X-bar, d3*sigma for R/MR (Montgomery).
-  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3)
+  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3, testsFor(N === 1 ? 'individuals' : 'xbar', testSet))
   const rangeValsClean = rangeVals.filter((v): v is number => v !== null)
-  // R / MR: tests 1-4 only (Minitab practice); MR #1 is observation 2.
-  const mrOffset = N === 1 ? 1 : 0
+  // MR #1 is observation 2, so MR point numbers shift by one.
   const violations_r = rangeValsClean.length > 2
-    ? nelsonRules(rangeValsClean, cl_r, (ucl_r - cl_r) / 3)
-        .filter((v) => v.rule <= 4)
-        .map((v) => ({ ...v, points: v.points.map((p) => p + mrOffset) }))
+    ? offsetViolations(nelsonRules(rangeValsClean, cl_r, (ucl_r - cl_r) / 3, testsFor('dispersion', testSet)), N === 1 ? 1 : 0)
     : []
 
   let Cp = null, Cpk = null, Pp = null, Ppk = null
@@ -402,7 +313,7 @@ export function runVariableChartAnalysis({
 // ─────────────────────────────────────────────────────────────────────────
 
 export function runXbarSAnalysis({
-  data, N, LSL, USL, target, sigmaConvention, lastN,
+  data, N, LSL, USL, target, sigmaConvention, lastN, testSet = DEFAULT_TEST_SET,
 }: {
   data: number[][]
   N: number
@@ -411,6 +322,8 @@ export function runXbarSAnalysis({
   target: number | null
   sigmaConvention: string
   lastN?: number
+  /** which tests for special causes to run — see lib/spc/nelson.ts */
+  testSet?: TestSet
 }): VariableChartResult {
   const filteredData = lastN ? data.slice(-Math.min(lastN, data.length)) : data
   const allVals = filteredData.flat()
@@ -448,10 +361,10 @@ export function runXbarSAnalysis({
   const sigma = sp / c4func(totalDF + 1)
 
   // Zones from the plotted limits: sigma/sqrt(n) for X-bar; S chart tests 1-4 only.
-  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3)
+  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3, testsFor('xbar', testSet))
   const sValsClean = sVals.filter((v): v is number => v !== null)
   const violations_r = sValsClean.length > 2
-    ? nelsonRules(sValsClean, cl_r, (ucl_r - cl_r) / 3).filter((v) => v.rule <= 4)
+    ? nelsonRules(sValsClean, cl_r, (ucl_r - cl_r) / 3, testsFor('dispersion', testSet))
     : []
 
   let Cp = null, Cpk = null, Pp = null, Ppk = null

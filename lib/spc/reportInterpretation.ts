@@ -127,12 +127,15 @@ export function outlierNote(signals: RuleSignal[], normal: boolean): string {
   )
 }
 
-function unstableAction(signals: RuleSignal[], normal: boolean): string {
+// Minitab Assistant style: capability is still reported when special-cause
+// signals are present, with a caution that the estimates may not be reliable
+// until the signals are investigated — rather than withholding the result.
+function stabilityCaution(signals: RuleSignal[], normal: boolean): string {
   return joinSentences(
-    'Do not rely on capability indices yet — the process is not in statistical control.',
+    'Special-cause signals were found, so these capability estimates may not be reliable until the causes are investigated.',
     describeSignals(signals),
     outlierNote(signals, normal),
-    'Remove the special causes, then repeat the study on stable data.'
+    'Remove the causes you find, then repeat the study on stable data.'
   )
 }
 
@@ -265,8 +268,8 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
 
   let action: string
   if (!stable) {
-    action = unstableAction(signals, normal)
-    tone = 'bad'
+    action = joinSentences(core, stabilityCaution(signals, normal))
+    if (tone === 'good') tone = 'warn'
   } else {
     action = core
   }
@@ -275,7 +278,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
     ? ''
     : `Normality was rejected, so this diagnosis uses overall variation (${spreadName}/${idxName}); confirm with a distribution fit or transformation before final decisions.`
 
-  const recommendedAction = joinSentences(action, stable ? normalityNote : '', sampleSizeNote(n, adequacyTier))
+  const recommendedAction = joinSentences(action, normalityNote, sampleSizeNote(n, adequacyTier))
   if (stable && tone === 'good' && adequacyTier === 'low') tone = 'warn'
 
   const headline = core.split(/(?<=\.)\s/)[0]
@@ -319,7 +322,7 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
     const stability = stable
       ? `${subject} shows no special-cause signals over the study period and appears to be in statistical control.`
       : joinSentences(
-          `${subject} shows ${signals.length} special-cause signal(s) and is not in statistical control.`,
+          `${subject} shows ${signals.length} special-cause signal(s) — investigate them before treating the process as stable.`,
           describeSignals(signals),
           outlierNote(signals, input.normal)
         )
@@ -343,7 +346,7 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
       : ''
   const stability = stable
     ? ''
-    : `The process is not in statistical control (${signals.length} special-cause signal(s)), so this classification describes the study period only and cannot be used to predict future performance.`
+    : `Special-cause signals were detected (${signals.length}), so the process may not be stable: this classification describes the study period and may not predict future performance.`
   const closing =
     'Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.'
 
@@ -374,14 +377,13 @@ export function buildExecutiveSummary(input: SummaryInput): { rows: Array<[strin
     'Stability',
     stable
       ? 'In statistical control — no Nelson rule signals.'
-      : `Not in statistical control — ${input.signals.length} special-cause signal(s); see Nelson Rule Violations.`,
+      : `Special-cause signals detected (${input.signals.length}) — investigate before relying on capability; see Nelson Rule Violations.`,
   ])
   if (input.capabilityText) rows.push(['Capability', input.capabilityText])
   else if (input.noSpecs) rows.push(['Capability', 'Not assessed — no specification limits were provided.'])
 
-  const action = !stable
-    ? 'Find and remove the special causes before relying on capability (see Recommended Action).'
-    : input.headline ?? (input.noSpecs ? 'Add the LSL and/or USL to evaluate capability.' : 'Continue routine monitoring and control.')
+  const base = input.headline ?? (input.noSpecs ? 'Add the LSL and/or USL to evaluate capability.' : 'Continue routine monitoring and control.')
+  const action = stable ? base : `Investigate the special-cause signals first (see Recommended Action). ${base}`
   rows.push(['Action', action])
 
   if (input.adequacyTier === 'low') {

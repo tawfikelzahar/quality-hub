@@ -16,6 +16,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
 import { useGridImport } from '@/lib/gridImport'
+import { DEFAULT_TEST_SET, describeTestSet, type TestSet } from '@/lib/spc/nelson'
 import { SheetPicker } from '@/components/GridImportControls'
 import {
   createReport as createPdfReport,
@@ -109,6 +110,7 @@ interface VariableResult {
   LSL: number | null
   USL: number | null
   dataAdequacy: DataAdequacy
+  testSet?: TestSet
 }
 
 interface AttributeResult {
@@ -125,6 +127,7 @@ interface AttributeResult {
   metricLabel: string
   violations: Violation[]
   dataAdequacy: DataAdequacy
+  testSet?: TestSet
 }
 
 type ApiResult = VariableResult | AttributeResult
@@ -228,6 +231,13 @@ function expandViolationPoints(v: Violation): number[] {
   return out
 }
 
+// "51–60" for a run, "6, 12" for test-1 points — compact, as in Minitab.
+function violationPointsText(v: Violation): string {
+  if (v.rule === 1) return v.points.join(', ')
+  const [a, b] = v.points
+  return a === b ? String(a) : `${a}–${b}`
+}
+
 function violatedSet(violations: Violation[]): Set<number> {
   const s = new Set<number>()
   violations.forEach(v => expandViolationPoints(v).forEach(p => s.add(p)))
@@ -319,6 +329,9 @@ export default function SPCEngine() {
   const [target, setTarget] = useState('')
   const [lastN, setLastN] = useState('')
   const [sigmaConvention, setSigmaConvention] = useState<SigmaConvention>('direct')
+  // Tests for special causes: Minitab Assistant defaults unless the user
+  // opts into all eight Nelson tests (lib/spc/nelson.ts).
+  const [testSet, setTestSet] = useState<TestSet>(DEFAULT_TEST_SET)
   const [displayMode, setDisplayMode] = useState<DisplayMode>('both')
 
   const [loading, setLoading] = useState(false)
@@ -431,6 +444,7 @@ export default function SPCEngine() {
           USL: string
           target: string
           sigmaConvention: SigmaConvention
+          testSet?: TestSet
         }
         setDataType(input.dataType)
         setVarRows(input.varRows)
@@ -441,6 +455,7 @@ export default function SPCEngine() {
         setUSL(input.USL)
         setTarget(input.target)
         setSigmaConvention(input.sigmaConvention)
+        setTestSet(input.testSet ?? DEFAULT_TEST_SET)
         if (input.dataType === 'variable' && input.varRows.length > 0) {
           setN(input.varRows[0].vals.length)
           setSubmittedVals(
@@ -485,6 +500,7 @@ export default function SPCEngine() {
           target: target !== '' ? parseFloat(target) : null,
           sigmaConvention,
           lastN: lastN !== '' ? parseInt(lastN, 10) : 0,
+          testSet,
         }
       } else {
         const needsN = attrType === 'p' || attrType === 'u'
@@ -504,6 +520,7 @@ export default function SPCEngine() {
           attrType,
           fixedN: fixedN !== '' ? parseInt(fixedN, 10) : 100,
           sigmaConvention,
+          testSet,
         }
       }
       const res = await fetch('/api/analyze', {
@@ -808,7 +825,7 @@ export default function SPCEngine() {
           { header: 'Description', key: 'desc', align: 'left', width: 44 },
           { header: 'Points', key: 'points', align: 'left', width: 22 },
         ],
-        rows: allViolations.map(v => [v.chart, v.rule, v.label, v.desc, expandViolationPoints(v).join(', ')]),
+        rows: allViolations.map(v => [v.chart, v.rule, v.label, v.desc, violationPointsText(v)]),
         rowTones: allViolations.map(() => 'danger'),
       })
       violSheet.freezeHeader(2)
@@ -936,13 +953,16 @@ export default function SPCEngine() {
 
     if (varResult) {
       const dataTypeLabel = varResult.N === 1 ? 'Individual measurements' : `Subgrouped measurements (n=${varResult.N})`
-      const withinMethod = varResult.N === 1 ? 'Average moving range / d2' : 'Average range / d2 (X̄-R)'
+      // Capability uses the pooled within-subgroup SD (unbiased with c4) for
+      // subgroups — the old label "Average range / d2" did not match the code.
+      const withinMethod = varResult.N === 1 ? 'Average moving range / d2' : 'Pooled standard deviation / c4'
 
       const studyRows: KVRow[] = [
         ['Data Type', dataTypeLabel],
         ['Observations', String(varResult.labels.length)],
         ['Subgroup Size', String(varResult.N)],
         ['Within Sigma Method', withinMethod],
+        ['Special-cause Tests', describeTestSet(varResult.testSet ?? DEFAULT_TEST_SET, varResult.N === 1 ? 'individuals' : 'xbar', varResult.N === 1 ? 'MR' : 'R')],
         ['LSL', varResult.LSL !== null ? fmt(varResult.LSL, 3) : '—'],
         ['Target', target !== '' ? fmt(parseFloat(target), 3) : '—'],
         ['USL', varResult.USL !== null ? fmt(varResult.USL, 3) : '—'],
@@ -1163,7 +1183,7 @@ export default function SPCEngine() {
           { header: 'CHART', width: 120 },
           { header: 'POINTS', width: ctx.pageWidth - ctx.margin * 2 - 340 },
         ],
-        allViolations.map(v => [String(v.rule), v.label, v.chart, expandViolationPoints(v).join(', ')])
+        allViolations.map(v => [String(v.rule), v.label, v.chart, violationPointsText(v)])
       )
     }
 
@@ -1566,6 +1586,14 @@ export default function SPCEngine() {
                       </select>
                     </div>
                     <div>
+                      <div style={s.label}>{t('spc_tests_label')}</div>
+                      <select style={s.select} value={testSet} onChange={e => setTestSet(e.target.value as TestSet)}>
+                        <option value="assistant">{t('spc_tests_assistant')}</option>
+                        <option value="all">{t('spc_tests_all')}</option>
+                      </select>
+                      <div style={{ fontSize: 11, color: c.muted, marginTop: 4, lineHeight: 1.5 }}>{t('spc_tests_help')}</div>
+                    </div>
+                    <div>
                       <div style={s.label}>{t('spc_display_show')}</div>
                       <select style={s.select} value={displayMode} onChange={e => setDisplayMode(e.target.value as DisplayMode)}>
                         <option value="both">{t('spc_show_both')}</option>
@@ -1603,6 +1631,13 @@ export default function SPCEngine() {
                 <select style={s.select} value={sigmaConvention} onChange={e => setSigmaConvention(e.target.value as SigmaConvention)}>
                   <option value="direct">{t('spc_conv_direct')}</option>
                   <option value="sixsigma">{t('spc_conv_sixsigma')}</option>
+                </select>
+              </div>
+              <div>
+                <div style={s.label}>{t('spc_tests_label')}</div>
+                <select style={s.select} value={testSet} onChange={e => setTestSet(e.target.value as TestSet)}>
+                  <option value="assistant">{t('spc_tests_assistant')}</option>
+                  <option value="all">{t('spc_tests_all')}</option>
                 </select>
               </div>
             </>
@@ -1650,6 +1685,7 @@ export default function SPCEngine() {
                           USL,
                           target,
                           sigmaConvention,
+                          testSet,
                         },
                         results: result,
                       }
@@ -1874,10 +1910,10 @@ export default function SPCEngine() {
               {hasSpecLimits ? (
                 <>
                   {allViolations.length > 0 && (
-                    <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'rgba(239,68,68,0.08)', border: '1px solid #ef444455' }}>
+                    <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b55' }}>
                       <div style={{ fontSize: 20 }}>⚠️</div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: '#ef4444' }}>{t('spc_capability_needs_stability_title')}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#f59e0b' }}>{t('spc_capability_needs_stability_title')}</div>
                         <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{t('spc_capability_needs_stability_note')}</div>
                       </div>
                     </div>
@@ -2077,7 +2113,10 @@ export default function SPCEngine() {
           {/* ── NELSON RULE VIOLATIONS ─────────────────────────────────── */}
           {result && (
             <div style={s.card}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_nelson_title')}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t('spc_nelson_title')}</div>
+              <div style={{ fontSize: 11, color: c.muted, marginBottom: 12 }}>
+                {t('spc_tests_label')}: {t((result.testSet ?? DEFAULT_TEST_SET) === 'all' ? 'spc_tests_all' : 'spc_tests_assistant')}
+              </div>
               {allViolations.length === 0 ? (
                 <div style={{ color: '#4ade80', fontSize: 13 }}>{t('spc_no_violations')}</div>
               ) : (
@@ -2088,6 +2127,7 @@ export default function SPCEngine() {
                       <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
                     </div>
                     <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>
+                    <div style={{ fontSize: 12, marginTop: 2 }}>{t('spc_viol_points').replace('{p}', violationPointsText(v))}</div>
                   </div>
                 ))
               )}

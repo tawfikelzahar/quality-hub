@@ -78,7 +78,7 @@ function int(v: unknown, min: number, max: number): number | null {
 function rules(v: unknown): RuleCount[] {
   if (!Array.isArray(v)) return []
   const out: RuleCount[] = []
-  for (const item of v.slice(0, 8)) {
+  for (const item of v.slice(0, 32)) { // several runs per rule are now reported
     if (!item || typeof item !== 'object') continue
     const r = item as Record<string, unknown>
     const rule = int(r.rule, 1, 8)
@@ -187,7 +187,8 @@ export function buildUserMessage(req: AIInsightRequest): string {
     `R chart: CL ${f(s.clR)}; UCL ${f(s.uclR)}`,
     `Nelson rule violations on Xbar chart: ${ruleLines(s.xRules)}`,
     `Nelson rule violations on R chart: ${ruleLines(s.rRules)}`,
-    `Statistical control (computed): ${inControl ? 'IN CONTROL — no rule violations' : 'NOT IN CONTROL — rule violations present'}`,
+    `Tests for special causes applied: Minitab Assistant defaults (Xbar chart tests 1, 2, 7; R chart test 1)`,
+    `Stability (computed): ${inControl ? 'NO SIGNALS — no special-cause signals detected' : 'SIGNALS PRESENT — special-cause signals detected; capability is reported with a caution'}`,
     `Cp ${f(s.Cp)}; Cpk ${f(s.Cpk)}; Pp ${f(s.Pp)}; Ppk ${f(s.Ppk)}; Cpm ${f(s.Cpm)}`,
     `Cp minus Cpk (centering gap): ${f(centeringGap, 3)}`,
     `Expected PPM out of spec: within ${f(s.ppmWithin, 6)}; overall ${f(s.ppmOverall, 6)}`,
@@ -203,7 +204,7 @@ export const SYSTEM_PROMPT = `You are a senior quality engineer specialised in s
 Rules:
 - Use ONLY the numbers given. Never invent values, causes that contradict the data, or extra statistics.
 - The capability verdict and the control status are computed by the application. Restate them exactly; never upgrade or downgrade them.
-- If the process is NOT in statistical control, say clearly that capability indices are not reliable yet and that stability comes first.
+- If special-cause signals are present, still state the capability verdict exactly as computed, then caution that the capability estimates may not be reliable until the signals are investigated, and make investigating the flagged points the first action.
 - Identify the main issue: centering (large Cp minus Cpk gap, mean far from target), excessive variation (low Cp), instability (rule violations, overall sigma much larger than within sigma), or non-normal data. Name the dominant one first.
 - Give 2 to 3 concrete, practical next actions a quality engineer can take (for example: investigate special causes at the flagged points, adjust process centering toward target, reduce common-cause variation, verify the measurement system with Gage R&R, collect more subgroups when data adequacy is low).
 - Match urgency to the verdict: calm for capable processes, clear warning for not capable ones.

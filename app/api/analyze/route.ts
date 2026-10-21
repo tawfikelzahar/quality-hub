@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { nelsonRules, offsetViolations, testsFor, isTestSet, DEFAULT_TEST_SET, type TestSet } from '@/lib/spc/nelson'
 
 function mean(arr: number[]) { return arr.reduce((a, b) => a + b, 0) / arr.length }
 function stdev(arr: number[], usePop = false) {
@@ -43,54 +44,6 @@ function andersonDarling(data: number[]) {
   else p = 1 - Math.exp(-13.436 + 101.14 * A2 - 223.73 * A2 * A2)
   p = Math.min(1, Math.max(0, p))
   return { A2: A2raw, A2adj: A2, p, normal: p >= 0.05 }
-}
-function nelsonRules(points: number[], cl: number, sigma: number) {
-  const n = points.length
-  const violations: { rule: number; label: string; points: number[]; desc: string }[] = []
-  const z = points.map(p => (p - cl) / sigma)
-  const r1pts: number[] = []
-  z.forEach((v, i) => { if (Math.abs(v) > 3) r1pts.push(i + 1) })
-  if (r1pts.length > 0) violations.push({ rule: 1, label: 'Beyond 3σ', points: r1pts, desc: 'Point(s) beyond control limits.' })
-  for (let i = 8; i < n; i++) {
-    const run = z.slice(i - 8, i + 1)
-    if (run.every(v => v > 0) || run.every(v => v < 0)) { violations.push({ rule: 2, label: '9 in a row — one side', points: [i - 7, i + 1], desc: 'Process shift detected.' }); break }
-  }
-  for (let i = 5; i < n; i++) {
-    const run = points.slice(i - 5, i + 1)
-    let inc = true, dec = true
-    for (let j = 1; j < run.length; j++) { if (run[j] <= run[j - 1]) inc = false; if (run[j] >= run[j - 1]) dec = false }
-    if (inc || dec) { violations.push({ rule: 3, label: '6 in a row — trend', points: [i - 4, i + 1], desc: 'Systematic trend detected.' }); break }
-  }
-  for (let i = 2; i < n; i++) {
-    const run = z.slice(i - 2, i + 1)
-    if (run.filter(v => v > 2).length >= 2 || run.filter(v => v < -2).length >= 2) { violations.push({ rule: 5, label: '2 of 3 beyond 2σ', points: [i - 1, i + 1], desc: 'Large shift possible.' }); break }
-  }
-  for (let i = 4; i < n; i++) {
-    const run = z.slice(i - 4, i + 1)
-    if (run.filter(v => v > 1).length >= 4 || run.filter(v => v < -1).length >= 4) { violations.push({ rule: 6, label: '4 of 5 beyond 1σ', points: [i - 3, i + 1], desc: 'Moderate shift.' }); break }
-  }
-  // Rule 4 — 14 points in a row alternating up and down (systematic variation).
-  for (let i = 13; i < n; i++) {
-    const run = points.slice(i - 13, i + 1)
-    let alternating = true
-    for (let j = 2; j < run.length; j++) {
-      const prevDiff = run[j - 1] - run[j - 2]
-      const curDiff = run[j] - run[j - 1]
-      if (curDiff === 0 || prevDiff === 0 || curDiff * prevDiff >= 0) { alternating = false; break }
-    }
-    if (alternating) { violations.push({ rule: 4, label: '14 in a row alternating', points: [i - 12, i + 1], desc: 'Systematic alternating pattern — possible over-adjustment or two interleaved sources.' }); break }
-  }
-  // Rule 7 — 15 points in a row within 1σ of the centerline (stratification).
-  for (let i = 14; i < n; i++) {
-    const run = z.slice(i - 14, i + 1)
-    if (run.every(v => Math.abs(v) < 1)) { violations.push({ rule: 7, label: '15 in a row within 1σ', points: [i - 13, i + 1], desc: 'Stratification — variation smaller than expected, check for mixed subgroups or miscalculated limits.' }); break }
-  }
-  // Rule 8 — 8 points in a row beyond 1σ on either side, none within 1σ (mixture).
-  for (let i = 7; i < n; i++) {
-    const run = z.slice(i - 7, i + 1)
-    if (run.every(v => Math.abs(v) > 1)) { violations.push({ rule: 8, label: '8 in a row beyond 1σ (mixture)', points: [i - 6, i + 1], desc: 'Mixture — possible two overlapping distributions or sources.' }); break }
-  }
-  return violations
 }
 // Data Adequacy — practical guideline (not a statistical law) for how much
 // confidence to place in a Capability/Stability read given the sample size.
@@ -146,9 +99,9 @@ function normInv(p: number): number {
   else{q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
 }
 
-function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
+function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSet }: {
   data: number[][]; N: number; LSL: number | null; USL: number | null;
-  target: number | null; sigmaConvention: string; lastN: number
+  target: number | null; sigmaConvention: string; lastN: number; testSet: TestSet
 }) {
   const filteredData = lastN ? data.slice(-Math.min(lastN, data.length)) : data
   const allVals = filteredData.flat()
@@ -178,16 +131,14 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
   // Zones use the sigma of the plotted statistic, i.e. one third of the
   // distance from the centre line to the plotted limit: sigma for the I chart,
   // sigma/sqrt(n) for the X-bar chart, d3*sigma for R/MR (Montgomery).
-  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3)
+  // Which tests run comes from the test set (lib/spc/nelson.ts): Minitab
+  // Assistant defaults unless the user picked "all Nelson tests".
+  const violations_x = nelsonRules(xbarVals, cl_x, (ucl_x - cl_x) / 3, testsFor(N === 1 ? 'individuals' : 'xbar', testSet))
   const rangeValsClean = (rangeVals.filter(v => v !== null)) as number[]
-  // R / MR charts: tests 1-4 only (Minitab practice — zone tests 5-8 assume a
-  // symmetric distribution). MR #1 belongs to observation 2, so shift MR
-  // point numbers by one to match the chart's x-axis labels.
-  const mrOffset = N === 1 ? 1 : 0
+  // MR #1 belongs to observation 2, so MR point numbers shift by one to match
+  // the chart's x-axis labels.
   const violations_r = rangeValsClean.length > 2
-    ? nelsonRules(rangeValsClean, cl_r, (ucl_r - cl_r) / 3)
-        .filter(v => v.rule <= 4)
-        .map(v => ({ ...v, points: v.points.map(p => p + mrOffset) }))
+    ? offsetViolations(nelsonRules(rangeValsClean, cl_r, (ucl_r - cl_r) / 3, testsFor('dispersion', testSet)), N === 1 ? 1 : 0)
     : []
   let Cp = null, Cpk = null, Pp = null, Ppk = null
   if (LSL !== null && USL !== null) {
@@ -228,8 +179,8 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN }: {
   }
 }
 
-function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention }: {
-  data: number[][]; attrType: string; fixedN: number; sigmaConvention: string
+function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention, testSet }: {
+  data: number[][]; attrType: string; fixedN: number; sigmaConvention: string; testSet: TestSet
 }) {
   if (!Array.isArray(data) || data.length < 5) throw new Error('At least 5 rows required.')
   const conv = sigmaConvention || 'direct'
@@ -257,8 +208,7 @@ function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention }: {
     dpm = uBar * 1e6; metric = uBar; metricLabel = 'ū (Avg Defects/Unit)'; chartLabel = 'u-Chart'
     sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, uBar)), conv)
   }
-  // Attribute charts: tests 1-4 only (Minitab practice).
-  const violations = nelsonRules(pts, clVal, (ucl - clVal) / 3).filter(v => v.rule <= 4)
+  const violations = nelsonRules(pts, clVal, (ucl - clVal) / 3, testsFor('attribute', testSet))
   return { pts, clVal, ucl, lcl, labels: pts.map((_, i) => i + 1), chartLabel, dpm, sigmaLvl, metric, metricLabel, violations, dataAdequacy: dataAdequacy(data.length) }
 }
 
@@ -270,15 +220,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     if (body.mode === 'attribute') {
       const { data, attrType, fixedN, sigmaConvention } = body
-      const result = runAttributeAnalysis({ data, attrType: attrType || 'p', fixedN: fixedN || 100, sigmaConvention })
-      return NextResponse.json({ mode: 'attribute', ...result })
+      const testSet: TestSet = isTestSet(body.testSet) ? body.testSet : DEFAULT_TEST_SET
+      const result = runAttributeAnalysis({ data, attrType: attrType || 'p', fixedN: fixedN || 100, sigmaConvention, testSet })
+      return NextResponse.json({ mode: 'attribute', testSet, ...result })
     }
     const { data, N, LSL, USL, target, sigmaConvention, lastN } = body
     if (!data || !Array.isArray(data) || data.length < 3) {
       return NextResponse.json({ error: 'Please provide at least 3 rows of valid data.' }, { status: 400 })
     }
-    const result = runAnalysis({ data, N: N || 1, LSL: LSL ?? null, USL: USL ?? null, target: target ?? null, sigmaConvention, lastN })
-    return NextResponse.json(result)
+    const testSet: TestSet = isTestSet(body.testSet) ? body.testSet : DEFAULT_TEST_SET
+    const result = runAnalysis({ data, N: N || 1, LSL: LSL ?? null, USL: USL ?? null, target: target ?? null, sigmaConvention, lastN, testSet })
+    return NextResponse.json({ ...result, testSet })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: 'Calculation error: ' + message }, { status: 500 })
