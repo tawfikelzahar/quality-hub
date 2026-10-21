@@ -114,7 +114,8 @@ function andersonDarling(data: number[]): AndersonDarlingResult | null {
   const A2raw = -n - S / n
   const A2 = A2raw * (1 + 0.75 / n + 2.25 / (n * n))
   let p: number
-  if (A2 >= 0.6) p = Math.exp(1.2937 - 5.709 * A2 + 0.0186 * A2 * A2)
+  if (A2 > 13) p = 0 // statsmodels normal_ad: p < 4.95e-31; the polynomial below turns back up past ~307
+  else if (A2 >= 0.6) p = Math.exp(1.2937 - 5.709 * A2 + 0.0186 * A2 * A2)
   else if (A2 >= 0.34) p = Math.exp(0.9177 - 4.279 * A2 - 1.38 * A2 * A2)
   else if (A2 >= 0.2) p = 1 - Math.exp(-8.318 + 42.796 * A2 - 59.938 * A2 * A2)
   else p = 1 - Math.exp(-13.436 + 101.14 * A2 - 223.73 * A2 * A2)

@@ -197,7 +197,10 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
       core = `The process mean (${f(c)}) is outside the specification — contain suspect product and correct the process setting immediately.`
       tone = 'bad'
     } else if (!spreadOk && !centeringOk) {
-      core = `Both variation reduction and better centering are needed. Move the mean ${centerTo}; reducing variation alone will not be sufficient.`
+      // Deliberately no claim that either lever alone is (in)sufficient — that
+      // depends on the numbers: centering alone can reach at most Cp, while
+      // variation reduction alone can reach any target. Both always help here.
+      core = `Both variation reduction and better centering would improve capability. Move the mean ${centerTo} and reduce process variation.`
       tone = 'warn'
     } else if (!spreadOk) {
       core = `Prioritize reducing process variation — the specification width limits achievable capability even with perfect centering (${spreadName} ${f(spread)} < ${CAPABLE}).`

@@ -513,7 +513,7 @@ export function buildSpcSamplePdf() {
     spreadOk && centeringOk
       ? 'Process capability is acceptable. Continue routine monitoring and control.'
       : !spreadOk && !centeringOk
-      ? `Both variation reduction and improved centering are needed. The process mean sits closer to the ${nearerLimit}; reducing overall variation alone will not be sufficient.`
+      ? `Both variation reduction and better centering would improve capability. The process mean sits closer to the ${nearerLimit}.`
       : !spreadOk
       ? 'Prioritize reducing process variation — the specification width limits achievable capability even under perfect centering.'
       : `Prioritize centering the process away from the ${nearerLimit}; variation is already acceptable relative to the specification width.`

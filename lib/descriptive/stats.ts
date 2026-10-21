@@ -271,7 +271,8 @@ function andersonDarlingTest(sorted: number[], m: number, s: number): AndersonDa
   const aStar = aSquared * (1 + 0.75 / n + 2.25 / (n * n))
 
   let p: number
-  if (aStar >= 0.6) {
+  if (aStar > 13) p = 0 // statsmodels normal_ad: p < 4.95e-31; the polynomial below turns back up past ~307
+  else if (aStar >= 0.6) {
     p = Math.exp(1.2937 - 5.709 * aStar + 0.0186 * aStar * aStar)
   } else if (aStar >= 0.34) {
     p = Math.exp(0.9177 - 4.279 * aStar - 1.38 * aStar * aStar)
