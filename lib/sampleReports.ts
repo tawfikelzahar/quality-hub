@@ -423,7 +423,7 @@ export function buildSpcSamplePdf() {
     ctx,
     usingCpk
       ? 'Cpk is used as the primary capability index because the normality assumption was not rejected.'
-      : 'Cpk is not reported because the normality assumption was rejected. Ppk is shown to provide a performance-based assessment using the overall variation observed in the study data.',
+      : 'Cpk is shown for reference, as Minitab reports it, but the normality assumption was rejected, so the verdict uses Ppk, the performance index based on the overall variation observed in the study data.',
     'info'
   )
 
@@ -467,7 +467,7 @@ export function buildSpcSamplePdf() {
       ['N', String(r.n)],
       ['Mean', fmt(r.xdbar, 3)],
       ['StDev', fmt(r.sigmaOverall, 4)],
-      ['AD (A²)', fmt(r.ad.A2adj, 3)],
+      ['AD (A²)', fmt(r.ad.A2, 3)],
       ['P-Value', fmt(r.ad.p, 3)],
       ['Conclusion', r.isNormal ? 'Fail to reject normality (p >= 0.05)' : 'Reject normality (p < 0.05)'],
     ],
@@ -479,7 +479,7 @@ export function buildSpcSamplePdf() {
     ctx,
     r.isNormal
       ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
-      : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cpk is therefore not reported in this analysis; Ppk is shown instead as a performance indicator based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
+      : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cp, Cpk, Pp and Ppk are reported as Minitab does, but all of them assume normality, so treat them as approximate; the verdict uses Ppk, based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
     r.isNormal ? 'good' : 'warn'
   )
 
@@ -555,7 +555,7 @@ export function buildSpcSamplePdf() {
   const tone = pkVal >= 1.33 ? 'good' : pkVal >= 1.0 ? 'warn' : 'bad'
   const basisSentence = usingCpk
     ? `The process is classified as ${cls.label} based on Cpk, the primary capability index for this analysis, since the normality assumption was not rejected. Cpk is ${fmt(r.cpk)} and Ppk is ${fmt(r.ppk)}.`
-    : `The process is classified as ${cls.label} based on Ppk, the primary performance indicator for this analysis. Because the normality assumption was rejected, Cpk is not reported. Ppk is ${fmt(r.ppk)}.`
+    : `The process is classified as ${cls.label} based on Ppk, the primary performance indicator for this analysis. Because the normality assumption was rejected, Cpk is shown for reference only. Ppk is ${fmt(r.ppk)}.`
   const conclusion = `${basisSentence} The estimated overall nonconformance rate is ${r.ppmTotal.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}. Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
   interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
   criteriaReferenceTable(ctx)
@@ -609,7 +609,7 @@ export async function buildSpcSampleExcel() {
       ['N', r.n],
       ['Mean', r.xdbar.toFixed(3)],
       ['StDev', r.sigmaOverall.toFixed(4)],
-      ['AD (A²)', r.ad.A2adj.toFixed(3)],
+      ['AD (A²)', r.ad.A2.toFixed(3)],
       ['P-Value', r.ad.p.toFixed(3)],
       ['Conclusion', r.isNormal ? 'Fail to reject normality (p >= 0.05)' : 'Reject normality (p < 0.05)'],
     ],

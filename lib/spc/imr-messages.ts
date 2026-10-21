@@ -99,8 +99,8 @@ export const messages: ImrMessages = {
   capabilityNeedsLimits: 'Enter a Lower and/or Upper Spec Limit above to see capability indices.',
   normalityNote: (pValue, normal) =>
     normal
-      ? `Anderson-Darling normality test: P = ${pValue}. Data is consistent with a normal distribution, so Cp/Cpk are reported.`
-      : `Anderson-Darling normality test: P = ${pValue}. Data departs from normality, so Cp/Cpk are withheld (Pp/Ppk, which don't assume normality, are still shown).`,
+      ? `Anderson-Darling normality test: ${pValue}. Data is consistent with a normal distribution.`
+      : `Anderson-Darling normality test: ${pValue}. Data departs from normality. Cp/Cpk and Pp/Ppk are still shown, as Minitab does, but all of them assume normal data, so treat them as approximate; the capability verdict uses Ppk.`,
   dataAdequacyNote: (label, n) => `${label} (N = ${n}). More data points give a more reliable capability read.`,
   exportSectionTitle: 'Export & Save',
   exportCsvButton: 'CSV',
@@ -109,7 +109,7 @@ export const messages: ImrMessages = {
   exportPdfButton: 'PDF',
   pdfReportTitle: 'I-MR Chart — Study Report',
   footerNote:
-    'Control limits use ±3σ from the centerline, with σ estimated as MR̄/1.128 (the standard Individuals chart convention). Control chart rules follow the Nelson Rules (1-8). Anderson-Darling normality uses the Stephens (1974) small-sample correction.',
+    'Control limits use ±3σ from the centerline, with σ estimated as MR̄/1.128 (the standard Individuals chart convention). Control chart rules follow the Nelson Rules (1-8). Anderson-Darling: AD is reported as in Minitab; its p-value uses the Stephens (1974) small-sample adjustment.',
   whatIsTitle: 'When to use an I-MR chart',
   whatIsBody:
     'Use an I-MR chart when you have one measurement per unit or per time period — no natural subgroups (for example, one batch reading per day, or a destructive test where only one sample is available). If your process produces several measurements per subgroup instead, use an Xbar-R or Xbar-S chart.',

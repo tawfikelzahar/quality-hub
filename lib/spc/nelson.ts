@@ -10,6 +10,16 @@
 // > 1σ either side). σ is the sigma of the PLOTTED statistic, i.e.
 // (UCL − CL) / 3, so test 1 always agrees with the drawn control limits.
 //
+// Counting conventions verified against Minitab 21 output (golden datasets,
+// Oct 2026):
+//   • Tests 3 and 4 count MOVES, not points: "6 points increasing" means six
+//     consecutive increases, i.e. a window of 7 points; "14 points
+//     alternating" means fourteen alternating moves after the first, i.e. 15
+//     points. (Minitab flags DS08 point 40 only, a 15-point alternating run.)
+//   • Tests 5 and 6 fail only at a point that is itself beyond 2σ / 1σ on the
+//     same side as the run (Minitab does not flag a point inside the zone even
+//     when the previous 4 of 5 were beyond it).
+//
 // Which tests run is a TEST SET:
 //   'assistant' (default) — Minitab Assistant (Variables Control Charts white
 //     paper): I chart 1, 2 · X̄ chart 1, 2, 7 · R / S / MR chart 1. Attribute
@@ -54,8 +64,8 @@ export function isTestSet(v: unknown): v is TestSet {
 const META: Record<number, { label: string; desc: string; window: number }> = {
   1: { label: 'Beyond 3σ', desc: 'Point(s) beyond control limits.', window: 1 },
   2: { label: '9 in a row — one side', desc: 'Process shift detected.', window: 9 },
-  3: { label: '6 in a row — trend', desc: 'Systematic trend detected.', window: 6 },
-  4: { label: '14 in a row alternating', desc: 'Systematic alternating pattern — possible over-adjustment or two interleaved sources.', window: 14 },
+  3: { label: '6 in a row — trend', desc: 'Systematic trend detected.', window: 7 },
+  4: { label: '14 in a row alternating', desc: 'Systematic alternating pattern — possible over-adjustment or two interleaved sources.', window: 15 },
   5: { label: '2 of 3 beyond 2σ', desc: 'Large shift possible.', window: 3 },
   6: { label: '4 of 5 beyond 1σ', desc: 'Moderate shift.', window: 5 },
   7: { label: '15 in a row within 1σ', desc: 'Stratification — variation smaller than expected, check for mixed subgroups or miscalculated limits.', window: 15 },
@@ -88,10 +98,14 @@ function failsAt(rule: number, i: number, points: number[], z: number[]): boolea
       }
       return true
     }
-    case 5:
-      return zs.filter(v => v > 2).length >= 2 || zs.filter(v => v < -2).length >= 2
-    case 6:
-      return zs.filter(v => v > 1).length >= 4 || zs.filter(v => v < -1).length >= 4
+    case 5: {
+      const last = zs[zs.length - 1]
+      return (last > 2 && zs.filter(v => v > 2).length >= 2) || (last < -2 && zs.filter(v => v < -2).length >= 2)
+    }
+    case 6: {
+      const last = zs[zs.length - 1]
+      return (last > 1 && zs.filter(v => v > 1).length >= 4) || (last < -1 && zs.filter(v => v < -1).length >= 4)
+    }
     case 7:
       return zs.every(v => Math.abs(v) < 1)
     case 8:

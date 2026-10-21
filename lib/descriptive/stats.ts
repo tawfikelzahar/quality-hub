@@ -5,6 +5,7 @@
 // implement the needed distribution functions locally so the tool stays
 // self-contained with no new npm dependency.
 // ─────────────────────────────────────────────────────────────────────────
+import { andersonDarlingNormal } from '../stats/normal'
 
 export interface HistogramBin {
   x0: number
@@ -130,17 +131,6 @@ function tCritical(confidence: number, df: number): number {
 
 // ── Standard normal CDF and inverse CDF ─────────────────────────────────
 
-/** Φ(z) — standard normal CDF via the erf approximation (Abramowitz & Stegun 7.1.26). */
-function normalCDF(z: number): number {
-  const sign = z < 0 ? -1 : 1
-  const x = Math.abs(z) / Math.SQRT2
-  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741
-  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911
-  const t = 1 / (1 + p * x)
-  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x)
-  return 0.5 * (1 + sign * y)
-}
-
 /** Inverse standard normal CDF (Acklam's algorithm) — same formulation as DPMOCalculator. */
 function normSInv(p: number): number {
   if (p <= 0) return -6
@@ -246,44 +236,15 @@ function buildBoxPlot(sorted: number[], q1: number, median: number, q3: number):
 }
 
 /**
- * Anderson-Darling normality test.
- * A² computed against the fitted normal(mean, stdev), then adjusted for
- * sample size (Stephens, 1974) and converted to an approximate p-value via
- * the standard piecewise formula (D'Agostino & Stephens, "Goodness-of-Fit
- * Techniques") — the same approximation used by most stats packages when
- * an exact table lookup isn't available.
+ * Anderson-Darling normality test — shared implementation in
+ * lib/stats/normal.ts. `statistic` is A² as Minitab displays it ("AD");
+ * the p-value is computed from the sample-size-adjusted A²*.
  */
-function andersonDarlingTest(sorted: number[], m: number, s: number): AndersonDarlingResult | null {
-  const n = sorted.length
-  if (n < 8 || s <= 0) return null // unreliable / undefined below ~8 points
-
-  const z = sorted.map((v) => (v - m) / s)
-  let sum = 0
-  for (let i = 0; i < n; i++) {
-    const cdfLow = normalCDF(z[i])
-    const cdfHigh = normalCDF(z[n - 1 - i])
-    // Clamp to avoid log(0) from floating-point saturation at the tails.
-    const lnLow = Math.log(Math.max(cdfLow, 1e-300))
-    const ln1MinusHigh = Math.log(Math.max(1 - cdfHigh, 1e-300))
-    sum += (2 * (i + 1) - 1) * (lnLow + ln1MinusHigh)
-  }
-  const aSquared = -n - sum / n
-  const aStar = aSquared * (1 + 0.75 / n + 2.25 / (n * n))
-
-  let p: number
-  if (aStar > 13) p = 0 // statsmodels normal_ad: p < 4.95e-31; the polynomial below turns back up past ~307
-  else if (aStar >= 0.6) {
-    p = Math.exp(1.2937 - 5.709 * aStar + 0.0186 * aStar * aStar)
-  } else if (aStar >= 0.34) {
-    p = Math.exp(0.9177 - 4.279 * aStar - 1.38 * aStar * aStar)
-  } else if (aStar >= 0.2) {
-    p = 1 - Math.exp(-8.318 + 42.796 * aStar - 59.938 * aStar * aStar)
-  } else {
-    p = 1 - Math.exp(-13.436 + 101.14 * aStar - 223.73 * aStar * aStar)
-  }
-  p = Math.min(1, Math.max(0, p))
-
-  return { statistic: aStar, pValue: p, normalAtAlpha05: p >= 0.05 }
+function andersonDarlingTest(sorted: number[], _m: number, s: number): AndersonDarlingResult | null {
+  if (sorted.length < 8 || s <= 0) return null
+  const r = andersonDarlingNormal(sorted)
+  if (!r) return null
+  return { statistic: r.A2, pValue: r.p, normalAtAlpha05: r.normal }
 }
 
 /** 95% CI for the median via the order-statistic (binomial) method. */

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { normCDF, normSF, normInv, andersonDarlingNormal } from '@/lib/stats/normal'
+import { rangeChartLimits } from '@/lib/spc/constants'
 import { nelsonRules, offsetViolations, testsFor, isTestSet, DEFAULT_TEST_SET, type TestSet } from '@/lib/spc/nelson'
 
 function mean(arr: number[]) { return arr.reduce((a, b) => a + b, 0) / arr.length }
@@ -7,44 +9,8 @@ function stdev(arr: number[], usePop = false) {
   const denom = usePop ? arr.length : arr.length - 1
   return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / denom)
 }
-// Standard normal CDF — Abramowitz & Stegun 7.1.26 approximation.
-// Kept byte-for-byte identical to lib/descriptive/stats.ts's normalCDF so
-// the SPC Engine and the Descriptive Statistics tool produce the exact
-// same Anderson-Darling result on the same data.
-function normCDF(z: number) {
-  const sign = z < 0 ? -1 : 1
-  const x = Math.abs(z) / Math.SQRT2
-  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741
-  const a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911
-  const t = 1 / (1 + p * x)
-  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x)
-  return 0.5 * (1 + sign * y)
-}
-// Anderson-Darling normality test — identical formulation (adjustment,
-// thresholds, clamping) to lib/descriptive/stats.ts's andersonDarlingTest.
-function andersonDarling(data: number[]) {
-  const n = data.length
-  if (n < 8) return null // matches the Descriptive Statistics tool's minimum
-  const mu = mean(data), sd = stdev(data)
-  if (sd === 0) return { A2: 0, A2adj: 0, p: 1, normal: true }
-  const sorted = [...data].sort((a, b) => a - b)
-  let S = 0
-  for (let i = 1; i <= n; i++) {
-    const z1 = normCDF((sorted[i - 1] - mu) / sd)
-    const z2 = normCDF((sorted[n - i] - mu) / sd)
-    S += (2 * i - 1) * (Math.log(Math.max(z1, 1e-300)) + Math.log(Math.max(1 - z2, 1e-300)))
-  }
-  const A2raw = -n - S / n
-  const A2 = A2raw * (1 + 0.75 / n + 2.25 / (n * n))
-  let p: number
-  if (A2 > 13) p = 0 // statsmodels normal_ad: p < 4.95e-31; the polynomial below turns back up past ~307
-  else if (A2 >= 0.6) p = Math.exp(1.2937 - 5.709 * A2 + 0.0186 * A2 * A2)
-  else if (A2 >= 0.34) p = Math.exp(0.9177 - 4.279 * A2 - 1.38 * A2 * A2)
-  else if (A2 >= 0.2) p = 1 - Math.exp(-8.318 + 42.796 * A2 - 59.938 * A2 * A2)
-  else p = 1 - Math.exp(-13.436 + 101.14 * A2 - 223.73 * A2 * A2)
-  p = Math.min(1, Math.max(0, p))
-  return { A2: A2raw, A2adj: A2, p, normal: p >= 0.05 }
-}
+// Normal CDF / inverse and Anderson-Darling: lib/stats/normal.ts (shared).
+const andersonDarling = andersonDarlingNormal
 // Data Adequacy — practical guideline (not a statistical law) for how much
 // confidence to place in a Capability/Stability read given the sample size.
 // Based on total INDIVIDUAL observations (not subgroup count): 30 individual
@@ -53,16 +19,6 @@ function dataAdequacy(nIndividual: number) {
   if (nIndividual < 30) return { n: nIndividual, tier: 'low' as const, label: 'Insufficient Data — Low Confidence' }
   if (nIndividual < 100) return { n: nIndividual, tier: 'moderate' as const, label: 'Limited Data — Moderate Confidence' }
   return { n: nIndividual, tier: 'adequate' as const, label: 'Adequate Data' }
-}
-const SPC_CONST: Record<number, { A2: number; D3: number; D4: number }> = {
-  2:{A2:1.880,D3:0,D4:3.267},3:{A2:1.023,D3:0,D4:2.574},4:{A2:0.729,D3:0,D4:2.282},
-  5:{A2:0.577,D3:0,D4:2.114},6:{A2:0.483,D3:0,D4:2.004},7:{A2:0.419,D3:0.076,D4:1.924},
-  8:{A2:0.373,D3:0.136,D4:1.864},9:{A2:0.337,D3:0.184,D4:1.816},10:{A2:0.308,D3:0.223,D4:1.777}
-}
-function getConst(n: number) {
-  const keys = Object.keys(SPC_CONST).map(Number).sort((a, b) => a - b)
-  for (const k of keys) if (k >= n) return SPC_CONST[k]
-  return SPC_CONST[10]
 }
 function lgamma(x: number): number {
   const g = 7
@@ -77,7 +33,7 @@ function c4func(m: number) {
   return Math.sqrt(2 / (m - 1)) * Math.exp(lgamma(m / 2) - lgamma((m - 1) / 2))
 }
 function ppmDetailed(mu: number, sigma: number, LSL: number | null, USL: number | null) {
-  const above = USL !== null ? (1 - normCDF((USL - mu) / sigma)) * 1e6 : 0
+  const above = USL !== null ? normSF((USL - mu) / sigma) * 1e6 : 0
   const below = LSL !== null ? normCDF((LSL - mu) / sigma) * 1e6 : 0
   return { above, below, total: above + below }
 }
@@ -87,18 +43,6 @@ function calcCpm(mu: number, sigma: number, LSL: number | null, USL: number | nu
   const tau = Math.sqrt(sigma ** 2 + (mu - target) ** 2)
   return (USL - LSL) / (6 * tau)
 }
-function normInv(p: number): number {
-  if (p <= 0) return -Infinity; if (p >= 1) return Infinity
-  const a=[-3.969683028665376e+01,2.209460984245205e+02,-2.759285104469687e+02,1.383577518672690e+02,-3.066479806614716e+01,2.506628277459239e+00]
-  const b=[-5.447609879822406e+01,1.615858368580409e+02,-1.556989798598866e+02,6.680131188771972e+01,-1.328068155288572e+01]
-  const c=[-7.784894002430293e-03,-3.223964580411365e-01,-2.400758277161838e+00,-2.549732539343734e+00,4.374664141464968e+00,2.938163982698783e+00]
-  const d=[7.784695709041462e-03,3.224671290700398e-01,2.445134137142996e+00,3.754408661907416e+00]
-  const p_lo=0.02425,p_hi=1-p_lo; let q,r
-  if(p<p_lo){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
-  else if(p<=p_hi){q=p-0.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)}
-  else{q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
-}
-
 function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSet }: {
   data: number[][]; N: number; LSL: number | null; USL: number | null;
   target: number | null; sigmaConvention: string; lastN: number; testSet: TestSet
@@ -116,17 +60,18 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSe
     const mrs: number[] = []
     for (let i = 1; i < xbarVals.length; i++) mrs.push(Math.abs(xbarVals[i] - xbarVals[i - 1]))
     rangeVals = [null, ...mrs]
-    const mrBar = mean(mrs); sigma = mrBar / 1.128; cl_x = mean(xbarVals)
-    ucl_x = cl_x + 3 * sigma; lcl_x = cl_x - 3 * sigma; cl_r = mrBar; ucl_r = 3.267 * mrBar; lcl_r = 0
+    const mrBar = mean(mrs)
+    ;({ sigma, cl_x, ucl_x, lcl_x, cl_r, ucl_r, lcl_r } = rangeChartLimits(mean(xbarVals), mrBar, 1))
   } else {
     xbarVals = filteredData.map(r => mean(r))
     rangeVals = filteredData.map(r => Math.max(...r) - Math.min(...r)) as number[]
     const rBar = mean(rangeVals as number[])
-    const C = getConst(N); const k_sub = filteredData.length
+    const k_sub = filteredData.length
     const totalSS = filteredData.reduce((acc, sg) => { const mu_sg = mean(sg); return acc + sg.reduce((s, x) => s + (x - mu_sg) ** 2, 0) }, 0)
     const totalDF = k_sub * (N - 1); const sp = Math.sqrt(totalSS / totalDF); const c4_val = c4func(totalDF + 1)
-    sigma = sp / c4_val; cl_x = mean(xbarVals); ucl_x = cl_x + C.A2 * rBar; lcl_x = cl_x - C.A2 * rBar
-    cl_r = rBar; ucl_r = C.D4 * rBar; lcl_r = C.D3 * rBar
+    // Chart limits: Minitab R̄ method; capability σ within: pooled SD / c4(df + 1)
+    ;({ cl_x, ucl_x, lcl_x, cl_r, ucl_r, lcl_r } = rangeChartLimits(mean(xbarVals), rBar, N))
+    sigma = sp / c4_val
   }
   // Zones use the sigma of the plotted statistic, i.e. one third of the
   // distance from the centre line to the plotted limit: sigma for the I chart,
@@ -143,13 +88,13 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSe
   let Cp = null, Cpk = null, Pp = null, Ppk = null
   if (LSL !== null && USL !== null) {
     const range = USL - LSL
-    if (isNormal) { Cp = range / (6 * sigma); Cpk = Math.min((USL - cl_x) / (3 * sigma), (cl_x - LSL) / (3 * sigma)) }
+    Cp = range / (6 * sigma); Cpk = Math.min((USL - cl_x) / (3 * sigma), (cl_x - LSL) / (3 * sigma))
     Pp = range / (6 * sdOverall); Ppk = Math.min((USL - mu) / (3 * sdOverall), (mu - LSL) / (3 * sdOverall))
   } else if (LSL !== null) {
-    if (isNormal) Cpk = (cl_x - LSL) / (3 * sigma)
+    Cpk = (cl_x - LSL) / (3 * sigma)
     Ppk = (mu - LSL) / (3 * sdOverall)
   } else if (USL !== null) {
-    if (isNormal) Cpk = (USL - cl_x) / (3 * sigma)
+    Cpk = (USL - cl_x) / (3 * sigma)
     Ppk = (USL - mu) / (3 * sdOverall)
   }
   const Cpm = calcCpm(mu, sdOverall, LSL, USL, target)
@@ -162,10 +107,10 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSe
   // the worse of the two one-sided Z's. This keeps Z-bench consistent with
   // the Total PPM already shown on the page (both are now derived from the
   // exact same combined probability).
-  const totalP_st = (Z_USL_st !== null ? 1 - normCDF(Z_USL_st) : 0) + (Z_LSL_st !== null ? 1 - normCDF(Z_LSL_st) : 0)
-  const totalP_lt = (Z_USL_lt !== null ? 1 - normCDF(Z_USL_lt) : 0) + (Z_LSL_lt !== null ? 1 - normCDF(Z_LSL_lt) : 0)
-  const Z_bench_st = (Z_USL_st !== null || Z_LSL_st !== null) ? normInv(1 - totalP_st) : null
-  const Z_bench_lt = (Z_USL_lt !== null || Z_LSL_lt !== null) ? normInv(1 - totalP_lt) : null
+  const totalP_st = (Z_USL_st !== null ? normSF(Z_USL_st) : 0) + (Z_LSL_st !== null ? normSF(Z_LSL_st) : 0)
+  const totalP_lt = (Z_USL_lt !== null ? normSF(Z_USL_lt) : 0) + (Z_LSL_lt !== null ? normSF(Z_LSL_lt) : 0)
+  const Z_bench_st = (Z_USL_st !== null || Z_LSL_st !== null) ? -normInv(totalP_st) : null
+  const Z_bench_lt = (Z_USL_lt !== null || Z_LSL_lt !== null) ? -normInv(totalP_lt) : null
   const sigLvl_st = Z_bench_st !== null ? Z_bench_st : null
   const sigLvl_lt = Z_bench_lt !== null ? zToSigmaLevel(Z_bench_lt, conv) : null
   const ppmD_st = (LSL !== null || USL !== null) ? ppmDetailed(cl_x, sigma, LSL, USL) : null

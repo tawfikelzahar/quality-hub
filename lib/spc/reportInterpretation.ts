@@ -339,7 +339,7 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
   const basis =
     indexName === 'Cpk'
       ? `The process is classified as ${classLabel} based on Cpk, the primary capability index for this analysis, since the normality assumption was not rejected. Cpk is ${f(indexValue)}${input.ppk !== null ? ` and Ppk is ${f(input.ppk)}` : ''}.`
-      : `The process is classified as ${classLabel} based on Ppk, the primary performance indicator for this analysis. ${input.normal ? '' : 'Because the normality assumption was rejected, Cpk is not reported. '}Ppk is ${f(indexValue)}.`
+      : `The process is classified as ${classLabel} based on Ppk, the primary performance indicator for this analysis. ${input.normal ? '' : 'Because the normality assumption was rejected, Cpk is shown for reference only. '}Ppk is ${f(indexValue)}.`
   const ppm =
     input.ppmOverall !== null && input.yieldText
       ? `The estimated overall nonconformance rate is ${input.ppmOverall < 0.05 ? 'below 0.1 PPM' : `${input.ppmOverall.toFixed(1)} PPM`}, corresponding to an estimated yield of ${input.yieldText}.`

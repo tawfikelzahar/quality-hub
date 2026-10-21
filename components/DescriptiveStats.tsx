@@ -23,6 +23,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
+import { formatPValue } from '@/lib/stats/normal'
 
 function parseValues(text: string): number[] {
   return text
@@ -208,8 +209,8 @@ export default function DescriptiveStats() {
           { header: 'Value', key: 'v', align: 'left' },
         ],
         rows: [
-          { k: 'A² (adjusted)', v: fmt3(ad.statistic) },
-          { k: 'p-value', v: fmt3(ad.pValue) },
+          { k: 'AD (A²)', v: fmt3(ad.statistic) },
+          { k: 'p-value', v: formatPValue(ad.pValue) },
           { k: 'Conclusion', v: ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)' },
         ],
         rowTones: [undefined, undefined, ad.normalAtAlpha05 ? 'good' : 'warning'],
@@ -394,7 +395,7 @@ export default function DescriptiveStats() {
       const ad = result.andersonDarling
       calloutBox(
         ctx,
-        `Anderson-Darling: A² = ${fmt3(ad.statistic)}   p-value = ${fmt3(ad.pValue)}   ${ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'}`,
+        `Anderson-Darling: A² = ${fmt3(ad.statistic)}   p-value = ${formatPValue(ad.pValue)}   ${ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'}`,
         ad.normalAtAlpha05 ? 'good' : 'warn'
       )
     }
@@ -675,7 +676,7 @@ export default function DescriptiveStats() {
                     {t('ds_ad_test_name')}
                   </div>
                   <div style={{ fontSize: 13, color: c.text }}>
-                    A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {fmt3(result.andersonDarling.pValue)}
+                    A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {formatPValue(result.andersonDarling.pValue)}
                   </div>
                   <div style={{ fontSize: 12, color: c.muted, marginTop: 6 }}>
                     {result.andersonDarling.normalAtAlpha05

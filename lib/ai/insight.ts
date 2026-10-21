@@ -168,8 +168,11 @@ function ruleLines(list: RuleCount[]): string {
 
 export function buildUserMessage(req: AIInsightRequest): string {
   const s = req.summary
-  const index = s.Cpk ?? s.Ppk
-  const indexName = s.Cpk !== null ? 'Cpk' : 'Ppk'
+  // Verdict index: Cpk for normal data, Ppk otherwise (Cp/Cpk are still
+  // reported for non-normal data, as Minitab does, but only as approximate).
+  const useCpk = s.isNormal && s.Cpk !== null
+  const index = useCpk ? s.Cpk : s.Ppk
+  const indexName = useCpk ? 'Cpk' : 'Ppk'
   const inControl = s.xRules.length === 0 && s.rRules.length === 0
   const centeringGap = s.Cp !== null && s.Cpk !== null ? s.Cp - s.Cpk : null
   const withinVsOverall =
@@ -192,7 +195,7 @@ export function buildUserMessage(req: AIInsightRequest): string {
     `Cp ${f(s.Cp)}; Cpk ${f(s.Cpk)}; Pp ${f(s.Pp)}; Ppk ${f(s.Ppk)}; Cpm ${f(s.Cpm)}`,
     `Cp minus Cpk (centering gap): ${f(centeringGap, 3)}`,
     `Expected PPM out of spec: within ${f(s.ppmWithin, 6)}; overall ${f(s.ppmOverall, 6)}`,
-    `Anderson-Darling normality p-value: ${f(s.normalityP, 3)} (${s.isNormal ? 'consistent with normal' : 'NOT normal at alpha 0.05'})`,
+    `Anderson-Darling normality p-value: ${s.normalityP !== null && s.normalityP < 0.005 ? '< 0.005' : f(s.normalityP, 3)} (${s.isNormal ? 'consistent with normal' : 'NOT normal at alpha 0.05 — Cp/Cpk/Pp/Ppk all assume normality and are approximate; verdict index is Ppk'})`,
     `Capability verdict (computed by the app, treat as fixed): ${indexName} → ${capabilityVerdict(index)}`,
     ``,
     `Write the interpretation in ${req.lang === 'ar' ? 'Modern Standard Arabic' : 'English'}.`,

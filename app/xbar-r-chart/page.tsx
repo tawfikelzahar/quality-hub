@@ -36,6 +36,7 @@ import {
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign';
+import { formatPEquals } from '@/lib/stats/normal'
 
 const EXAMPLE_SUBGROUPS: number[][] = [
   [9.86, 10.12, 9.82, 10.46], [9.91, 10.17, 10.28, 10.12], [10.21, 9.86, 10.49, 10.18],
@@ -493,14 +494,15 @@ export default function XbarRChartPage() {
     ];
     twoColumnTables(ctx, 'Control Limits', limitRows, 'Process Capability', capRows);
 
-    const cpkVal = result.Cpk ?? result.Ppk;
+    const useCpk = result.isNormal && result.Cpk !== null;
+    const cpkVal = useCpk ? result.Cpk : result.Ppk;
     if (cpkVal !== null && (result.LSL !== null || result.USL !== null)) {
       const cls = classifyCapability(cpkVal);
       classificationBanner(ctx, cls);
       capabilityGauge(ctx, {
         title: 'Capability Classification Gauge',
         value: cpkVal,
-        caption: `${result.Cpk !== null ? 'Cpk' : 'Ppk'} = ${niceNum(cpkVal)}`,
+        caption: `${useCpk ? 'Cpk' : 'Ppk'} = ${niceNum(cpkVal)}`,
       });
     }
 
@@ -854,7 +856,7 @@ export default function XbarRChartPage() {
               )}
               {result.ad && (
                 <p style={{ fontSize: 12, color: c.muted, marginTop: 14 }}>
-                  {messages.normalityNote(niceNum(result.ad.p, 3), result.ad.normal)}
+                  {messages.normalityNote(formatPEquals(result.ad.p), result.ad.normal)}
                 </p>
               )}
               <p style={{ fontSize: 12, color: c.muted, marginTop: 4 }}>

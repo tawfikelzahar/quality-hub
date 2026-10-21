@@ -43,6 +43,7 @@ import {
   type RuleSignal,
   type Tone,
 } from '@/lib/spc/reportInterpretation'
+import { formatPValue, formatPEquals } from '@/lib/stats/normal'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly
@@ -632,8 +633,8 @@ export default function SPCEngine() {
       if (hasSpecLimits) {
         overview.sectionHeading('Process Capability')
         overview.kpiRow([
-          { label: 'Cp', value: fmt(varResult.Cp, 2), sub: 'Potential', tone: varResult.Cp !== null ? (varResult.Cp >= 1.33 ? 'good' : varResult.Cp >= 1 ? 'warning' : 'danger') : 'neutral' },
-          { label: 'Cpk', value: fmt(varResult.Cpk, 2), sub: 'Actual', tone: varResult.Cpk !== null ? (varResult.Cpk >= 1.33 ? 'good' : varResult.Cpk >= 1 ? 'warning' : 'danger') : 'neutral' },
+          { label: 'Cp', value: fmt(varResult.Cp, 2), sub: varResult.isNormal ? 'Potential' : 'Approx. (non-normal)', tone: varResult.Cp !== null ? (varResult.Cp >= 1.33 ? 'good' : varResult.Cp >= 1 ? 'warning' : 'danger') : 'neutral' },
+          { label: 'Cpk', value: fmt(varResult.Cpk, 2), sub: varResult.isNormal ? 'Actual' : 'Approx. (non-normal)', tone: varResult.Cpk !== null ? (varResult.Cpk >= 1.33 ? 'good' : varResult.Cpk >= 1 ? 'warning' : 'danger') : 'neutral' },
           { label: 'Pp', value: fmt(varResult.Pp, 2), sub: 'Overall potential', tone: 'neutral' },
           { label: 'Ppk', value: fmt(varResult.Ppk, 2), sub: 'Overall actual', tone: 'neutral' },
         ])
@@ -713,8 +714,8 @@ export default function SPCEngine() {
           { header: 'Value', key: 'v', align: 'right' },
         ],
         rows: [
-          ['A² (adjusted)', fmt(varResult.ad?.A2adj ?? varResult.ad?.A2, 4)],
-          ['p-value', fmt(varResult.ad?.p, 4)],
+          ['AD (A²)', fmt(varResult.ad?.A2, 3)],
+          ['p-value', formatPValue(varResult.ad?.p)],
           ['Conclusion', varResult.isNormal ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'],
         ],
         rowTones: [undefined, undefined, varResult.isNormal ? 'good' : 'warning'],
@@ -898,13 +899,13 @@ export default function SPCEngine() {
           mu: varResult.mu,
           sigmaWithin: varResult.sigma,
           sdOverall: varResult.sdOverall,
-          normal: varResult.Cpk !== null,
+          normal: varResult.isNormal,
           signals: ruleSignals,
           n: varResult.n,
           adequacyTier: varResult.dataAdequacy.tier,
         })
       : null
-    const usingCpkInConclusion = !!varResult && varResult.Cpk !== null
+    const usingCpkInConclusion = !!varResult && varResult.isNormal && varResult.Cpk !== null
     const conclusion = varResult || attrResult
       ? buildStudyConclusion({
           classLabel: cls ? cls.label : null,
@@ -996,7 +997,7 @@ export default function SPCEngine() {
         const cpkCls = classifyCapability(varResult.Cpk)
         const ppkCls = classifyCapability(varResult.Ppk)
         const stable = allViolations.length === 0
-        const usingCpk = varResult.Cpk !== null
+        const usingCpk = varResult.isNormal && varResult.Cpk !== null
         const primaryLabel = usingCpk ? 'Primary Capability Index' : 'Primary Performance Indicator'
         dataTable(
           ctx,
@@ -1030,7 +1031,7 @@ export default function SPCEngine() {
           ctx,
           usingCpk
             ? 'Cpk is used as the primary capability index because the normality assumption was not rejected.'
-            : 'Cpk is not reported because the normality assumption was rejected. Ppk is shown to provide a performance-based assessment using the overall variation observed in the study data.',
+            : 'Cpk is shown for reference, as Minitab reports it, but the normality assumption was rejected, so the verdict uses Ppk, the performance index based on the overall variation observed in the study data.',
           'info'
         )
 
@@ -1067,8 +1068,8 @@ export default function SPCEngine() {
           ['N', String(varResult.n)],
           ['Mean', fmt(varResult.mu)],
           ['StDev', fmt(varResult.sdOverall)],
-          ['AD (A²)', fmt(varResult.ad?.A2adj ?? varResult.ad?.A2, 3)],
-          ['P-Value', fmt(varResult.ad?.p, 3)],
+          ['AD (A²)', fmt(varResult.ad?.A2, 3)],
+          ['P-Value', formatPValue(varResult.ad?.p)],
           ['Conclusion', varResult.isNormal ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'],
         ],
         {
@@ -1086,7 +1087,7 @@ export default function SPCEngine() {
         ctx,
         varResult.isNormal
           ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
-          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cpk is therefore not reported in this analysis; Ppk is shown instead as a performance indicator based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
+          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cp, Cpk, Pp and Ppk are reported as Minitab does, but all of them, and the PPM estimates, assume a normal distribution, so treat them as approximate. The capability verdict uses Ppk. Consider a distribution fit or transformation for a non-normal process.',
         varResult.isNormal ? 'good' : 'warn'
       )
 
@@ -1464,7 +1465,7 @@ export default function SPCEngine() {
   // Capability verdict prefers Cpk (short-term/within) and falls back to Ppk,
   // matching the legacy tool's `const pkVal = Cpk !== null ? Cpk : Ppk`
   const hasSpecLimits = !!(varResult && (varResult.LSL !== null || varResult.USL !== null))
-  const pkVal = varResult ? (varResult.Cpk !== null ? varResult.Cpk : varResult.Ppk) : null
+  const pkVal = varResult ? (varResult.isNormal && varResult.Cpk !== null ? varResult.Cpk : varResult.Ppk) : null
   const verdict = !hasSpecLimits || pkVal === null
     ? null
     : pkVal >= 1.33
@@ -1843,7 +1844,7 @@ export default function SPCEngine() {
                       {varResult.isNormal ? t('spc_normal') : t('spc_nonnormal')}
                     </div>
                     <div style={s.statLabel}>
-                      {t('spc_ad_label').replace('{p}', fmt(varResult.ad.p, 3))}
+                      {t('spc_ad_label').replace('{p}', formatPEquals(varResult.ad.p))}
                     </div>
                   </div>
                 ) : (
