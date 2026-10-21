@@ -86,8 +86,8 @@ check('DS04', { cl: '73.99909', ucl: '74.01150', lcl: '73.98668', rcl: '0.02152'
   oL: '0.04', oU: '0.01', oT: '0.05', wL: '0.05', wU: '0.02', wT: '0.07', AD: '0.412', p: '0.335' }, run('DS04'))
 {
   const x = run('DS05')
-  // R chart UCL: Minitab 0.4908, ours 0.49088 → 0.4909 (open item M7)
-  check('DS05', { cl: '12.0349', ucl: '12.1916', lcl: '11.8782', rcl: '0.2151', sdO: '0.128157', Pp: '1.43', Ppk: '1.39',
+  // Minitab stored values (Storage tab): σ 0.104478 · R UCL 0.490754
+  check('DS05', { cl: '12.0349', ucl: '12.1916', lcl: '11.8782', rcl: '0.2151', rucl: '0.490754', sdO: '0.128157', Pp: '1.43', Ppk: '1.39',
     oL: '14.98', oU: '5.18', oT: '20.16', AD: '0.672', p: '0.077' }, x)
   const f = fails(x.violations_x)
   // Minitab labels: 6@15,16,21,22,23,25 · 1@24

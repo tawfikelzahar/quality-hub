@@ -6,6 +6,10 @@
 // R̄ ± 3·d3(n)·σ̂ — instead of the rounded A2/D3/D4 shortcut table, which
 // put the 5th significant digit off (e.g. 74.01151 vs Minitab 74.01150).
 //
+// Exception: d3(4) = 0.8794. Minitab's published table shows 0.8798, but its
+// R chart uses 0.8794 — backed out of Minitab's stored limits for DS05
+// (σ 0.104478, R̄ 0.21512, UCL 0.490754), 21 Oct 2026.
+//
 // Values for n = 2–25 (d2, d3) and 26–50 (d2) are Minitab's table. d3 for
 // n = 26–50 was computed by numerical integration of the range distribution
 // (scipy, the same method that reproduces Minitab's d3 for n ≤ 25 to 4 dp).
@@ -20,7 +24,7 @@ const D2: Record<number, number> = {
 }
 
 const D3: Record<number, number> = {
-  2: 0.8525, 3: 0.8884, 4: 0.8798, 5: 0.8641, 6: 0.8480, 7: 0.8332, 8: 0.8198, 9: 0.8078, 10: 0.7971,
+  2: 0.8525, 3: 0.8884, 4: 0.8794, 5: 0.8641, 6: 0.8480, 7: 0.8332, 8: 0.8198, 9: 0.8078, 10: 0.7971,
   11: 0.7873, 12: 0.7785, 13: 0.7704, 14: 0.7630, 15: 0.7562, 16: 0.7499, 17: 0.7441, 18: 0.7386, 19: 0.7335, 20: 0.7287,
   21: 0.7242, 22: 0.7199, 23: 0.7159, 24: 0.7121, 25: 0.7084, 26: 0.7050, 27: 0.7017, 28: 0.6986, 29: 0.6955, 30: 0.6927,
   31: 0.6899, 32: 0.6872, 33: 0.6847, 34: 0.6822, 35: 0.6799, 36: 0.6776, 37: 0.6754, 38: 0.6732, 39: 0.6712, 40: 0.6692,
