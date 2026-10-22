@@ -42,6 +42,7 @@ import {
   type KVRow,
 } from '@/lib/pdf/reportDesign'
 import { createReport as createExcelReport, nowStamp, type Tone } from '@/lib/excelReport'
+import { SITE_SLUG } from './site'
 
 export type SampleToolId = 'gage-rr' | 'spc' | 'oee'
 
@@ -228,7 +229,7 @@ export function buildGageRRSamplePdf() {
   )
 
   finalizeReport(ctx)
-  ctx.pdf.save('quality-hub-sample-gage-rr-report.pdf')
+  ctx.pdf.save(`${SITE_SLUG}-sample-gage-rr-report.pdf`)
 }
 
 export async function buildGageRRSampleExcel() {
@@ -294,7 +295,7 @@ export async function buildGageRRSampleExcel() {
   })
   dataSheet.freezeHeader(2)
 
-  await report.download('quality-hub-sample-gage-rr-report.xlsx')
+  await report.download(`${SITE_SLUG}-sample-gage-rr-report.xlsx`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -561,7 +562,7 @@ export function buildSpcSamplePdf() {
   criteriaReferenceTable(ctx)
 
   finalizeReport(ctx)
-  ctx.pdf.save('quality-hub-sample-spc-report.pdf')
+  ctx.pdf.save(`${SITE_SLUG}-sample-spc-report.pdf`)
 }
 
 export async function buildSpcSampleExcel() {
@@ -634,7 +635,7 @@ export async function buildSpcSampleExcel() {
   })
   dataSheet.freezeHeader(2)
 
-  await report.download('quality-hub-sample-spc-report.xlsx')
+  await report.download(`${SITE_SLUG}-sample-spc-report.xlsx`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -776,7 +777,7 @@ export function buildOeeSamplePdf() {
   )
 
   finalizeReport(ctx)
-  ctx.pdf.save('quality-hub-sample-oee-report.pdf')
+  ctx.pdf.save(`${SITE_SLUG}-sample-oee-report.pdf`)
 }
 
 export async function buildOeeSampleExcel() {
@@ -851,7 +852,7 @@ export async function buildOeeSampleExcel() {
   overview.note(`Classification: ${OEE_CLASSIFICATION.label}`, classTone)
   overview.freezeHeader(2)
 
-  await report.download('quality-hub-sample-oee-report.xlsx')
+  await report.download(`${SITE_SLUG}-sample-oee-report.xlsx`)
 }
 
 // ─────────────────────────────────────────────────────────────────────────

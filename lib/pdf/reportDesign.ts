@@ -196,12 +196,12 @@ function drawHeader(ctx: ReportContext) {
   pdf.setFont(PDF_FONT, 'bold')
   pdf.setFontSize(14)
   setText(pdf, REPORT_COLORS.white)
-  drawText(pdf, 'Q', margin + markSize / 2, y + markSize / 2 + 5, { align: 'center' })
+  drawText(pdf, SITE.name.charAt(0).toUpperCase(), margin + markSize / 2, y + markSize / 2 + 5, { align: 'center' })
 
   // Wordmark + tagline
   pdf.setFontSize(13)
   setText(pdf, REPORT_COLORS.brand)
-  drawText(pdf, 'QUALITY HUB', margin + markSize + 8, y + 11)
+  drawText(pdf, SITE.name.toUpperCase(), margin + markSize + 8, y + 11)
   pdf.setFont(PDF_FONT, 'normal')
   pdf.setFontSize(7.5)
   setText(pdf, REPORT_COLORS.muted)

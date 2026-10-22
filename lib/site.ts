@@ -56,3 +56,6 @@ export function siteNameParts(): [string, string] {
   const i = SITE.name.lastIndexOf(' ')
   return i > 0 ? [SITE.name.slice(0, i), SITE.name.slice(i + 1)] : [SITE.name, '']
 }
+
+/** "mizan-quality" — the name as used in downloaded file names */
+export const SITE_SLUG = SITE.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
