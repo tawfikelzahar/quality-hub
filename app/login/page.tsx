@@ -132,8 +132,8 @@ export default function LoginPage() {
       {/* Logo + theme toggle */}
       <div style={{width:'100%',maxWidth:420,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:40}}>
         <Link href="/" style={{display:'flex',alignItems:'center',gap:10,textDecoration:'none',color:textColor,fontWeight:800,fontSize:18}}>
-          <div style={{width:38,height:38,background:BRAND_GRADIENT,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:BRAND_GRADIENT_TEXT_COLOR,fontWeight:900,fontSize:17}}>σ</div>
-          {SITE.name}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={dark ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{height:40,width:'auto',display:'block'}} />
         </Link>
         <button
           onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}

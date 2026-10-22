@@ -42,9 +42,9 @@ import { SITE } from '@/lib/site'
 // UI theme the person currently has selected, so exported files always
 // look the same) ────────────────────────────────────────────────────────
 export const BRAND = {
-  accent: '0FD4C8',      // teal
+  accent: 'B8944E',      // Mizan gold (logo balance)
   accent2: '00A896',     // teal-green (gradient partner)
-  navy: '0A0F1E',        // dark bg — used for the title band
+  navy: '0B1F3F',        // Mizan navy (logo ink) — title band and table headers
   navy2: '111827',       // surface
   amber: 'F59E0B',
   danger: 'EF4444',

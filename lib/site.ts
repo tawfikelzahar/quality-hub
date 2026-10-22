@@ -29,6 +29,18 @@ export const SITE = {
   /** Year shown in the copyright line */
   copyrightYear: 2026,
 
+  /** Logo files in public/brand (SVG). Swap the files to change the logo everywhere. */
+  logo: {
+    /** Navy + gold, for light backgrounds */
+    light: '/brand/logo.svg',
+    /** White + gold, for dark backgrounds */
+    dark: '/brand/logo-white.svg',
+    /** Square icon (A with the balance) */
+    icon: '/brand/icon.svg',
+  },
+  /** Link-preview image for WhatsApp, Facebook, LinkedIn (1200 x 630) */
+  ogImage: '/og-image.png',
+
   contact: {
     email: 'tawfik.elzahar1@gmail.com',
     /** WhatsApp number in international format, digits only */

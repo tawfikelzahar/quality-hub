@@ -219,6 +219,9 @@ button:focus-visible {
   .qh-landing-nav-right {
     gap: 8px !important;
   }
+  .qh-brand-logo {
+    height: 26px !important;
+  }
   .qh-input-grid {
     grid-template-columns: 1fr 1fr !important;
   }

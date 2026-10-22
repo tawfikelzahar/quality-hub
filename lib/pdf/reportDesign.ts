@@ -28,6 +28,7 @@
 import jsPDF from 'jspdf'
 import { ARIMO_REGULAR, ARIMO_BOLD } from './fonts/arimo'
 import { SITE } from '@/lib/site'
+import { BRAND_LOGO_PNG, BRAND_LOGO_ASPECT } from './brandLogo'
 
 /**
  * Font family embedded in every report (see ./fonts/arimo.ts). Use this
@@ -49,14 +50,14 @@ export type RGB = readonly [number, number, number]
 // ── Brand palette (PDF-safe: darker/denser than the on-screen dark-mode
 //    neon values, since these sit on white paper, not a dark card) ────────
 export const REPORT_COLORS = {
-  brand: [14, 116, 116] as RGB, // teal — matches COLORS.light.accent
-  brand2: [0, 168, 150] as RGB, // matches COLORS.*.accent2
+  brand: [11, 31, 63] as RGB, // Mizan navy #0B1F3F (logo ink)
+  brand2: [184, 148, 78] as RGB, // Mizan gold #B8944E (logo balance)
   brandDark: [6, 13, 26] as RGB,
   ink: [30, 41, 59] as RGB,
   muted: [100, 116, 139] as RGB,
   faint: [148, 163, 184] as RGB,
   border: [226, 232, 240] as RGB,
-  panelTint: [236, 248, 247] as RGB,
+  panelTint: [238, 242, 248] as RGB, // light navy tint
   headerFill: [240, 244, 248] as RGB,
   stripe: [248, 250, 252] as RGB,
   white: [255, 255, 255] as RGB,
@@ -189,23 +190,10 @@ function drawHeader(ctx: ReportContext) {
   const { pdf, margin } = ctx
   let y = ctx.y
 
-  // Logo mark: rounded teal square with a white "Q"
+  // Logo (public/brand/logo.svg, embedded as PNG — see lib/pdf/brandLogo.ts)
   const markSize = 24
-  setFill(pdf, REPORT_COLORS.brand)
-  pdf.roundedRect(margin, y, markSize, markSize, 5, 5, 'F')
-  pdf.setFont(PDF_FONT, 'bold')
-  pdf.setFontSize(14)
-  setText(pdf, REPORT_COLORS.white)
-  drawText(pdf, SITE.name.charAt(0).toUpperCase(), margin + markSize / 2, y + markSize / 2 + 5, { align: 'center' })
-
-  // Wordmark + tagline
-  pdf.setFontSize(13)
-  setText(pdf, REPORT_COLORS.brand)
-  drawText(pdf, SITE.name.toUpperCase(), margin + markSize + 8, y + 11)
-  pdf.setFont(PDF_FONT, 'normal')
-  pdf.setFontSize(7.5)
-  setText(pdf, REPORT_COLORS.muted)
-  drawText(pdf, 'Statistical Quality Engineering', margin + markSize + 8, y + 21)
+  const logoH = 30
+  pdf.addImage(BRAND_LOGO_PNG, 'PNG', margin, y - 4, logoH * BRAND_LOGO_ASPECT, logoH, 'brand-logo', 'FAST')
 
   // Meta block, right-aligned
   const now = new Date()
@@ -216,7 +204,7 @@ function drawHeader(ctx: ReportContext) {
   drawText(pdf, `Generated: ${generated}`, ctx.pageWidth - margin, y + 9, { align: 'right' })
   drawText(pdf, SITE.domain, ctx.pageWidth - margin, y + 20, { align: 'right' })
 
-  y += markSize + 20
+  y += markSize + 30
 
   // Report title
   pdf.setFont(PDF_FONT, 'bold')
@@ -225,10 +213,12 @@ function drawHeader(ctx: ReportContext) {
   drawText(pdf, ctx.reportTitle, margin, y)
   y += 12
 
-  // Brand rule
+  // Brand rule: navy, with a short gold lead (echoes the logo's balance)
   setDraw(pdf, REPORT_COLORS.brand)
   pdf.setLineWidth(2)
   pdf.line(margin, y, ctx.pageWidth - margin, y)
+  setDraw(pdf, REPORT_COLORS.brand2)
+  pdf.line(margin, y, margin + 56, y)
   y += 22
 
   ctx.y = y

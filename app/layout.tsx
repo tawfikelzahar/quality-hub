@@ -46,10 +46,12 @@ export const metadata: Metadata = {
     title: SITE_TITLE,
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
+    images: [{ url: SITE.ogImage, width: 1200, height: 630, alt: SITE_TITLE }],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE,
+    images: [SITE.ogImage],
     description: DEFAULT_DESCRIPTION,
   },
   robots: {

@@ -42,8 +42,8 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
     <nav className="qh-nav" style={s.nav}>
       <div className="qh-nav-left" style={s.navLeft}>
         <Link href="/" style={s.logo}>
-          <div style={s.logoIcon}>σ</div>
-          {SITE.name}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="qh-brand-logo" src={theme === 'dark' ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{ height: 34, width: 'auto', display: 'block', flexShrink: 0 }} />
         </Link>
         <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
         <span className="qh-breadcrumb" style={s.breadcrumb}>{t(breadcrumbKey)}</span>

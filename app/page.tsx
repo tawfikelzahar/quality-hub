@@ -7,7 +7,7 @@ import AuthStatus from '@/components/AuthStatus'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
-import { SITE, siteNameParts } from '@/lib/site'
+import { SITE } from '@/lib/site'
 
 interface ToolCardData {
   href: string | null // null = "coming soon", card is not a link
@@ -166,9 +166,9 @@ export default function Home() {
 
         {/* ── Nav ── */}
         <nav className="qh-landing-nav" style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'rgba(15,212,200,.07)':c.border}`}}>
-          <div style={{display:'flex',alignItems:'center',gap:11,fontWeight:800,fontSize:17}}>
-            <div style={{width:36,height:36,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:16}}>σ</div>
-            {SITE.name}
+          <div style={{display:'flex',alignItems:'center',flexShrink:0,marginInlineEnd:12}}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="qh-brand-logo" src={dark ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{height:38,width:'auto',display:'block'}} />
           </div>
           <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:24}}>
             <a href="#tools" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_tools')}</a>
@@ -180,9 +180,10 @@ export default function Home() {
             <LanguageToggle theme={theme} />
             <button
               onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-              style={{background:dark?'rgba(255,255,255,0.08)':c.surface2,border:`1px solid ${c.border}`,borderRadius:20,padding:'5px 14px',color:text,cursor:'pointer',fontSize:12,fontWeight:600}}
+              aria-label={dark ? 'Light' : 'Dark'}
+              style={{background:dark?'rgba(255,255,255,0.08)':c.surface2,border:`1px solid ${c.border}`,borderRadius:20,padding:'5px 14px',color:text,cursor:'pointer',fontSize:12,fontWeight:600,whiteSpace:'nowrap'}}
             >
-              {dark ? '☀️ Light' : '🌙 Dark'}
+              {dark ? '☀️' : '🌙'}<span className="qh-hide-small">{dark ? ' Light' : ' Dark'}</span>
             </button>
             <a href="/pricing" className="qh-hide-mobile" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:13,padding:'8px 20px',borderRadius:8,textDecoration:'none'}}>{t('nav_getpro')} →</a>
           </div>
@@ -302,12 +303,8 @@ export default function Home() {
         {/* ── Footer ── */}
         <footer className="qh-landing-footer" style={{position:'relative',zIndex:1,borderTop:`1px solid ${footerBorder}`,padding:'28px 48px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:16}}>
   <div style={{display:'flex',alignItems:'center',gap:10,fontWeight:700,fontSize:15}}>
-    <div style={{width:28,height:28,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:13}}>σ</div>
-    
-    {/* التعديل هنا: تجميع الكلمة وتحديد الاتجاه LTR */}
-    <span style={{ direction: 'ltr', display: 'inline-block' }}>
-      {siteNameParts()[0]}<span style={{color:'#0fd4c8'}}>{siteNameParts()[1]}</span>
-    </span>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src={dark ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{height:30,width:'auto',display:'block'}} />
 
     <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· {SITE.owner}</span>
   </div>
