@@ -199,7 +199,7 @@ export default function Home() {
 
           <h1 className="fu fu2" style={{fontSize:'clamp(42px,6.5vw,90px)',fontWeight:900,lineHeight:1.02,letterSpacing:-3,marginBottom:24,maxWidth:960}}>
             {t('hero_title_1')}<br/>
-            <span style={{background:dark?'linear-gradient(90deg,var(--qh-accent) 0%,var(--qh-gold) 100%)':'var(--qh-gold)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
+            <span style={{backgroundImage:dark?`linear-gradient(90deg, ${c.accent} 0%, ${c.gold} 100%)`:`linear-gradient(90deg, ${c.gold}, ${c.gold})`,backgroundColor:'transparent',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',color:c.gold}}>
               {t('hero_title_2')}
             </span>
           </h1>
