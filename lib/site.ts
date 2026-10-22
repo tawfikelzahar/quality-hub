@@ -13,7 +13,7 @@
 
 export const SITE = {
   /** Brand name shown in the header, titles, reports and texts */
-  name: 'Quality Hub',
+  name: 'Mizan Quality',
   /** Name under the app icon on a phone (keep it short) */
   shortName: 'Quality Hub',
   /** One-line description after the name in browser titles and link previews */
