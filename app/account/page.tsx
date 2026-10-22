@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { compressAvatar } from '@/lib/avatar'
+import ReportBrandingSettings from '@/components/ReportBrandingSettings'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 
@@ -331,6 +332,8 @@ export default function AccountPage() {
                 </div>
               )}
             </div>
+
+            <ReportBrandingSettings theme={theme} />
 
             {/* Plan card — extension point for future subscriptions (Lemon Squeezy) */}
             <div style={cardStyle}>

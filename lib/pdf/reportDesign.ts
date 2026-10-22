@@ -29,6 +29,7 @@ import jsPDF from 'jspdf'
 import { ARIMO_REGULAR, ARIMO_BOLD } from './fonts/arimo'
 import { SITE } from '@/lib/site'
 import { BRAND_LOGO_PNG, BRAND_LOGO_ASPECT } from './brandLogo'
+import { getReportBranding, preparedByLine, fitBox } from '@/lib/reportBranding'
 
 /**
  * Font family embedded in every report (see ./fonts/arimo.ts). Use this
@@ -190,10 +191,25 @@ function drawHeader(ctx: ReportContext) {
   const { pdf, margin } = ctx
   let y = ctx.y
 
-  // Logo (public/brand/logo.svg, embedded as PNG — see lib/pdf/brandLogo.ts)
+  const branding = getReportBranding()
   const markSize = 24
-  const logoH = 30
-  pdf.addImage(BRAND_LOGO_PNG, 'PNG', margin, y - 4, logoH * BRAND_LOGO_ASPECT, logoH, 'brand-logo', 'FAST')
+  if (branding && (branding.logoDataUrl || branding.company.trim())) {
+    // Client branding (Pro): the customer's company logo or name replaces ours
+    if (branding.logoDataUrl && branding.logoWidth > 0) {
+      const fmt = branding.logoDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG'
+      const box = fitBox(branding.logoWidth, branding.logoHeight, 150, 36)
+      pdf.addImage(branding.logoDataUrl, fmt, margin, y - 6 + (36 - box.h) / 2, box.w, box.h, 'client-logo', 'FAST')
+    } else {
+      pdf.setFont(PDF_FONT, 'bold')
+      pdf.setFontSize(14)
+      setText(pdf, REPORT_COLORS.brand)
+      drawText(pdf, branding.company.trim(), margin, y + 14)
+    }
+  } else {
+    // Logo (public/brand/logo.svg, embedded as PNG — see lib/pdf/brandLogo.ts)
+    const logoH = 30
+    pdf.addImage(BRAND_LOGO_PNG, 'PNG', margin, y - 4, logoH * BRAND_LOGO_ASPECT, logoH, 'brand-logo', 'FAST')
+  }
 
   // Meta block, right-aligned
   const now = new Date()
@@ -202,9 +218,13 @@ function drawHeader(ctx: ReportContext) {
   pdf.setFontSize(8.5)
   setText(pdf, REPORT_COLORS.muted)
   drawText(pdf, `Generated: ${generated}`, ctx.pageWidth - margin, y + 9, { align: 'right' })
-  drawText(pdf, SITE.domain, ctx.pageWidth - margin, y + 20, { align: 'right' })
+  if (branding && branding.company.trim() && branding.logoDataUrl) {
+    drawText(pdf, branding.company.trim(), ctx.pageWidth - margin, y + 20, { align: 'right' })
+  } else if (!branding) {
+    drawText(pdf, SITE.domain, ctx.pageWidth - margin, y + 20, { align: 'right' })
+  }
 
-  y += markSize + 30
+  y += markSize + (branding?.logoDataUrl ? 38 : 30)
 
   // Report title
   pdf.setFont(PDF_FONT, 'bold')
@@ -220,6 +240,15 @@ function drawHeader(ctx: ReportContext) {
   setDraw(pdf, REPORT_COLORS.brand2)
   pdf.line(margin, y, margin + 56, y)
   y += 22
+
+  // "Prepared by" line (client branding)
+  if (branding && preparedByLine(branding)) {
+    pdf.setFont(PDF_FONT, 'normal')
+    pdf.setFontSize(9)
+    setText(pdf, REPORT_COLORS.muted)
+    drawText(pdf, `Prepared by: ${preparedByLine(branding)}`, margin, y - 6)
+    y += 12
+  }
 
   ctx.y = y
 }
@@ -898,6 +927,8 @@ export function criteriaReferenceTable(
 
 /** Draws the footer (hairline + copyright + page numbers) on every page. Call once, right before pdf.save(). */
 export function finalizeReport(ctx: ReportContext) {
+  const branding = getReportBranding()
+  if (branding && branding.showSignatures) drawSignatureBlock(ctx, branding.preparedBy.trim())
   const { pdf, margin, pageWidth, pageHeight } = ctx
   const pageCount = pdf.getNumberOfPages()
   const year = new Date().getFullYear()
@@ -910,8 +941,42 @@ export function finalizeReport(ctx: ReportContext) {
     pdf.setFont(PDF_FONT, 'normal')
     pdf.setFontSize(7.5)
     setText(pdf, REPORT_COLORS.faint)
-    drawText(pdf, `© ${year} ${SITE.name} · ${SITE.domain}`, margin, fy + 13)
+    drawText(pdf, branding ? `Generated with ${SITE.name} · ${SITE.domain}` : `© ${year} ${SITE.name} · ${SITE.domain}`, margin, fy + 13)
     drawText(pdf, ctx.reportTitle, pageWidth / 2, fy + 13, { align: 'center' })
     drawText(pdf, `Page ${i} of ${pageCount}`, pageWidth - margin, fy + 13, { align: 'right' })
   }
+}
+
+/** "Prepared by / Approved by" sign-off at the end of a branded report. */
+function drawSignatureBlock(ctx: ReportContext, preparedBy: string) {
+  ensureSpace(ctx, 92)
+  const { pdf, margin, pageWidth } = ctx
+  const colW = (pageWidth - margin * 2 - 30) / 2
+  let y = ctx.y + 14
+  pdf.setFont(PDF_FONT, 'bold')
+  pdf.setFontSize(11)
+  setText(pdf, REPORT_COLORS.brandDark)
+  drawText(pdf, 'Sign-off', margin, y)
+  y += 24
+  const cols: [string, string][] = [['Prepared by', preparedBy], ['Approved by', '']]
+  cols.forEach(([label, name], i) => {
+    const x = margin + i * (colW + 30)
+    pdf.setFont(PDF_FONT, 'bold')
+    pdf.setFontSize(8.5)
+    setText(pdf, REPORT_COLORS.muted)
+    drawText(pdf, label.toUpperCase(), x, y)
+    pdf.setFont(PDF_FONT, 'normal')
+    pdf.setFontSize(10)
+    setText(pdf, REPORT_COLORS.ink)
+    if (name) drawText(pdf, name, x, y + 16)
+    setDraw(pdf, REPORT_COLORS.faint)
+    pdf.setLineWidth(0.6)
+    pdf.line(x, y + 40, x + colW * 0.62, y + 40)
+    pdf.line(x + colW * 0.7, y + 40, x + colW, y + 40)
+    pdf.setFontSize(7.5)
+    setText(pdf, REPORT_COLORS.faint)
+    drawText(pdf, 'Signature', x, y + 50)
+    drawText(pdf, 'Date', x + colW * 0.7, y + 50)
+  })
+  ctx.y = y + 62
 }

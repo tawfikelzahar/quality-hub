@@ -37,6 +37,7 @@
 
 import ExcelJS from 'exceljs'
 import { SITE } from '@/lib/site'
+import { getReportBranding, preparedByLine, fitBox } from '@/lib/reportBranding'
 
 // ── Brand palette (from lib/theme.ts COLORS.dark — used regardless of the
 // UI theme the person currently has selected, so exported files always
@@ -133,10 +134,22 @@ class ReportSheet {
   /** Branded title band — tool name + subtitle, dark background, spans full width. */
   titleBand(toolName: string, subtitle?: string, cols = 6) {
     this.bumpCol(cols)
+    const branding = getReportBranding()
+    // Client logo (Pro) on its own white row, so dark logos stay readable
+    if (branding?.logoDataUrl && branding.logoWidth > 0) {
+      const m = /^data:image\/(png|jpeg);base64,/.exec(branding.logoDataUrl)
+      if (m) {
+        const imageId = this.ws.workbook.addImage({ base64: branding.logoDataUrl, extension: m[1] === 'jpeg' ? 'jpeg' : 'png' })
+        const box = fitBox(branding.logoWidth, branding.logoHeight, 180, 48)
+        this.ws.getRow(this.cursor).height = 42
+        this.ws.addImage(imageId, { tl: { col: 0.1, row: this.cursor - 1 + 0.08 }, ext: { width: box.w, height: box.h } })
+        this.cursor++
+      }
+    }
     const row = this.ws.getRow(this.cursor)
     this.ws.mergeCells(this.cursor, 1, this.cursor, cols)
     const cell = row.getCell(1)
-    cell.value = `${SITE.name} — ${toolName}`
+    cell.value = `${branding?.company.trim() || SITE.name} — ${toolName}`
     cell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: argb(BRAND.textLight) } }
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND.navy) } }
     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
@@ -150,6 +163,16 @@ class ReportSheet {
       sub.font = { name: 'Calibri', size: 10.5, color: { argb: argb(BRAND.accent) } }
       sub.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND.navy) } }
       sub.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+      this.ws.getRow(this.cursor).height = 18
+      this.cursor++
+    }
+    if (branding && preparedByLine(branding)) {
+      this.ws.mergeCells(this.cursor, 1, this.cursor, cols)
+      const pb = this.ws.getRow(this.cursor).getCell(1)
+      pb.value = `Prepared by: ${preparedByLine(branding)}`
+      pb.font = { name: 'Calibri', size: 10, color: { argb: argb(BRAND.textLight) } }
+      pb.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND.navy) } }
+      pb.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
       this.ws.getRow(this.cursor).height = 18
       this.cursor++
     }

@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import ReportBrandingLoader from "@/components/ReportBrandingLoader";
 import { SITE, SITE_TITLE } from '@/lib/site'
 
 const geistSans = Geist({
@@ -109,6 +110,7 @@ export default function RootLayout({
           `}
         </Script>
         <ServiceWorkerRegister />
+        <ReportBrandingLoader />
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
