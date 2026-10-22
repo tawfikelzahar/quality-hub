@@ -190,7 +190,7 @@ export function buildUserMessage(req: AIInsightRequest): string {
     `R chart: CL ${f(s.clR)}; UCL ${f(s.uclR)}`,
     `Nelson rule violations on Xbar chart: ${ruleLines(s.xRules)}`,
     `Nelson rule violations on R chart: ${ruleLines(s.rRules)}`,
-    `Tests for special causes applied: Minitab Assistant defaults (Xbar chart tests 1, 2, 7; R chart test 1)`,
+    `Tests for special causes applied: Standard default tests (Xbar chart tests 1, 2, 7; R chart test 1)`,
     `Stability (computed): ${inControl ? 'NO SIGNALS — no special-cause signals detected' : 'SIGNALS PRESENT — special-cause signals detected; capability is reported with a caution'}`,
     `Cp ${f(s.Cp)}; Cpk ${f(s.Cpk)}; Pp ${f(s.Pp)}; Ppk ${f(s.Ppk)}; Cpm ${f(s.Cpm)}`,
     `Cp minus Cpk (centering gap): ${f(centeringGap, 3)}`,

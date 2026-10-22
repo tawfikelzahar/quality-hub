@@ -106,7 +106,7 @@ export const messages: XbarRMessages = {
   normalityNote: (pValue, normal) =>
     normal
       ? `Anderson-Darling normality test: ${pValue}. Data is consistent with a normal distribution.`
-      : `Anderson-Darling normality test: ${pValue}. Data departs from normality. Cp/Cpk and Pp/Ppk are still shown, as Minitab does, but all of them assume normal data, so treat them as approximate; the capability verdict uses Ppk.`,
+      : `Anderson-Darling normality test: ${pValue}. Data departs from normality. Cp/Cpk and Pp/Ppk are still shown, as standard statistical software does, but all of them assume normal data, so treat them as approximate; the capability verdict uses Ppk.`,
   dataAdequacyNote: (label, n) => `${label} (N = ${n} individual measurements). More subgroups give a more reliable capability read.`,
   exportSectionTitle: 'Export & Save',
   exportCsvButton: 'CSV',
@@ -115,7 +115,7 @@ export const messages: XbarRMessages = {
   exportPdfButton: 'PDF',
   pdfReportTitle: 'Xbar-R Chart — Study Report',
   footerNote:
-    'Control limits follow the Minitab R̄ method: σ = R̄/d2, X̄ limits = X̿ ± 3σ/√n, R limits = R̄ ± 3·d3·σ (Minitab d2/d3 unbiasing constants). Capability uses σ within = pooled standard deviation / c4 (the Minitab default). Control chart rules follow the Nelson Rules (1-8). Anderson-Darling: AD is reported as in Minitab; its p-value uses the Stephens (1974) small-sample adjustment.',
+    'Control limits follow the standard R̄ method: σ = R̄/d2, X̄ limits = X̿ ± 3σ/√n, R limits = R̄ ± 3·d3·σ (standard d2/d3 unbiasing constants). Capability uses σ within = pooled standard deviation / c4 (the standard default). Control chart rules follow the Nelson Rules (1-8). Anderson-Darling: AD is reported as in standard statistical software; its p-value uses the Stephens (1974) small-sample adjustment.',
   whatIsTitle: 'When to use an Xbar-R chart',
   whatIsBody:
     'Use an Xbar-R chart when your process naturally produces several measurements per subgroup (for example, 4-5 units sampled every hour, or 3 measurements per batch). It tracks both the subgroup average (X̄) and the within-subgroup spread (R). For a single measurement per unit with no natural subgroups, use an I-MR chart instead. For larger subgroups (n ≥ 10), consider an Xbar-S chart, which uses the standard deviation instead of the range.',

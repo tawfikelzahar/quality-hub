@@ -424,7 +424,7 @@ export function buildSpcSamplePdf() {
     ctx,
     usingCpk
       ? 'Cpk is used as the primary capability index because the normality assumption was not rejected.'
-      : 'Cpk is shown for reference, as Minitab reports it, but the normality assumption was rejected, so the verdict uses Ppk, the performance index based on the overall variation observed in the study data.',
+      : 'Cpk is shown for reference, as standard statistical software reports it, but the normality assumption was rejected, so the verdict uses Ppk, the performance index based on the overall variation observed in the study data.',
     'info'
   )
 
@@ -480,7 +480,7 @@ export function buildSpcSamplePdf() {
     ctx,
     r.isNormal
       ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
-      : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cp, Cpk, Pp and Ppk are reported as Minitab does, but all of them assume normality, so treat them as approximate; the verdict uses Ppk, based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
+      : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cp, Cpk, Pp and Ppk are reported as standard statistical software does, but all of them assume normality, so treat them as approximate; the verdict uses Ppk, based on overall variation. The PPM estimates below still assume a normal distribution and should be interpreted with caution — consider a distribution fit or transformation for a non-normal process.',
     r.isNormal ? 'good' : 'warn'
   )
 

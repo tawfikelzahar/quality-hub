@@ -1031,7 +1031,7 @@ export default function SPCEngine() {
           ctx,
           usingCpk
             ? 'Cpk is used as the primary capability index because the normality assumption was not rejected.'
-            : 'Cpk is shown for reference, as Minitab reports it, but the normality assumption was rejected, so the verdict uses Ppk, the performance index based on the overall variation observed in the study data.',
+            : 'Cpk is shown for reference, as standard statistical software reports it, but the normality assumption was rejected, so the verdict uses Ppk, the performance index based on the overall variation observed in the study data.',
           'info'
         )
 
@@ -1087,7 +1087,7 @@ export default function SPCEngine() {
         ctx,
         varResult.isNormal
           ? 'The normal distribution assumption is not rejected at the 0.05 level. Capability indices and PPM estimates in this report assume normality.'
-          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cp, Cpk, Pp and Ppk are reported as Minitab does, but all of them, and the PPM estimates, assume a normal distribution, so treat them as approximate. The capability verdict uses Ppk. Consider a distribution fit or transformation for a non-normal process.',
+          : 'The normal distribution assumption is rejected at the 0.05 level (p < 0.05). Cp, Cpk, Pp and Ppk are reported as standard statistical software does, but all of them, and the PPM estimates, assume a normal distribution, so treat them as approximate. The capability verdict uses Ppk. Consider a distribution fit or transformation for a non-normal process.',
         varResult.isNormal ? 'good' : 'warn'
       )
 
@@ -1466,13 +1466,15 @@ export default function SPCEngine() {
   // matching the legacy tool's `const pkVal = Cpk !== null ? Cpk : Ppk`
   const hasSpecLimits = !!(varResult && (varResult.LSL !== null || varResult.USL !== null))
   const pkVal = varResult ? (varResult.isNormal && varResult.Cpk !== null ? varResult.Cpk : varResult.Ppk) : null
+  const pkName = varResult?.isNormal && varResult.Cpk !== null ? 'Cpk' : 'Ppk'
+  const pkTag = (key: 'spc_capable' | 'spc_notcapable' | 'spc_marginal') => t(key).replace('{idx}', pkName).replace('{n}', fmt(pkVal, 2))
   const verdict = !hasSpecLimits || pkVal === null
     ? null
     : pkVal >= 1.33
-    ? { icon: '✅', color: 'var(--qh-good)', bg: 'color-mix(in srgb, var(--qh-good) 10%, transparent)', text: t('spc_capable'), sub: t('spc_capable_sub') }
+    ? { icon: '✅', color: 'var(--qh-good)', bg: 'color-mix(in srgb, var(--qh-good) 10%, transparent)', text: pkTag('spc_capable'), sub: t('spc_capable_sub') }
     : pkVal < 1.0
-    ? { icon: '❌', color: 'var(--qh-danger)', bg: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)', text: t('spc_notcapable').replace('{n}', fmt(varResult!.Ppk, 3)), sub: t('spc_notcapable_sub') }
-    : { icon: '⚠️', color: 'var(--qh-amber)', bg: 'color-mix(in srgb, var(--qh-amber) 10%, transparent)', text: t('spc_marginal'), sub: t('spc_marginal_sub') }
+    ? { icon: '❌', color: 'var(--qh-danger)', bg: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)', text: pkTag('spc_notcapable'), sub: t('spc_notcapable_sub') }
+    : { icon: '⚠️', color: 'var(--qh-amber)', bg: 'color-mix(in srgb, var(--qh-amber) 10%, transparent)', text: pkTag('spc_marginal'), sub: t('spc_marginal_sub') }
 
   const displaySigLvl = varResult ? varResult.sigLvl_st ?? varResult.sigLvl_lt : null
 
@@ -1985,7 +1987,7 @@ export default function SPCEngine() {
                   {(varResult.ppmD_st || varResult.ppmD_lt) && (
                     <div style={s.card}>
                       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_ppm_breakdown_title')}</div>
-                      <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
+                      <div className="qh-table-wrap qh-table-fit" style={{ overflowX: 'auto' }}>
                       <table style={s.table}>
                         <thead>
                           <tr><th style={s.th}>{t('spc_col_region')}</th><th style={s.th}>{t('spc_col_shortterm')}</th><th style={s.th}>{t('spc_col_longterm')}</th></tr>

@@ -197,8 +197,8 @@ function drawHeader(ctx: ReportContext) {
     // Client branding (Pro): the customer's company logo or name replaces ours
     if (branding.logoDataUrl && branding.logoWidth > 0) {
       const fmt = branding.logoDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG'
-      const box = fitBox(branding.logoWidth, branding.logoHeight, 150, 36)
-      pdf.addImage(branding.logoDataUrl, fmt, margin, y - 6 + (36 - box.h) / 2, box.w, box.h, 'client-logo', 'FAST')
+      const box = fitBox(branding.logoWidth, branding.logoHeight, 190, 48)
+      pdf.addImage(branding.logoDataUrl, fmt, margin, y - 8 + (48 - box.h) / 2, box.w, box.h, 'client-logo', 'FAST')
     } else {
       pdf.setFont(PDF_FONT, 'bold')
       pdf.setFontSize(14)
@@ -224,7 +224,7 @@ function drawHeader(ctx: ReportContext) {
     drawText(pdf, SITE.domain, ctx.pageWidth - margin, y + 20, { align: 'right' })
   }
 
-  y += markSize + (branding?.logoDataUrl ? 38 : 30)
+  y += markSize + (branding?.logoDataUrl ? 50 : 30)
 
   // Report title
   pdf.setFont(PDF_FONT, 'bold')

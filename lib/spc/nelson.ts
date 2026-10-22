@@ -163,10 +163,10 @@ export function offsetViolations(vs: NelsonViolation[], offset: number): NelsonV
   return vs.map(v => ({ ...v, points: v.points.map(p => p + offset), failedAt: v.failedAt.map(p => p + offset) }))
 }
 
-/** Short human description of a test set for reports, e.g. "Minitab Assistant (I: 1, 2 · MR: 1)". */
+/** Short human description of a test set for reports, e.g. "Standard default tests (I: 1, 2 · MR: 1)". */
 export function describeTestSet(set: TestSet, location: 'individuals' | 'xbar', dispersionName: string): string {
   const loc = location === 'individuals' ? 'I' : 'X-bar'
   const a = testsFor(location, set).join(', ')
   const d = testsFor('dispersion', set).join(', ')
-  return `${set === 'assistant' ? 'Minitab Assistant defaults' : 'All Nelson tests'} (${loc}: ${a} · ${dispersionName}: ${d})`
+  return `${set === 'assistant' ? 'Standard default tests' : 'All Nelson tests'} (${loc}: ${a} · ${dispersionName}: ${d})`
 }

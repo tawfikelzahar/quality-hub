@@ -141,6 +141,15 @@ button:focus-visible {
   .qh-table-wrap table {
     min-width: 560px;
   }
+  /* Short tables (2-3 columns) fit the phone width instead of scrolling */
+  .qh-table-fit table {
+    min-width: 0 !important;
+  }
+  .qh-table-fit th,
+  .qh-table-fit td {
+    padding: 8px 6px !important;
+    font-size: 12px !important;
+  }
 
   /* Export / action button rows */
   .qh-export-row {

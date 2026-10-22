@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 const SITE_URL = SITE.url;
 const SITE_NAME = SITE.name;
 const DEFAULT_DESCRIPTION =
-  "Statistical quality engineering tools online — SPC control charts, Pareto analysis, DPMO & Six Sigma calculations, AQL sampling plans (ISO 2859-1), Gage R&R (AIAG MSA), and capability studies. No Minitab license, no learning curve.";
+  "Statistical quality engineering tools online — SPC control charts, Pareto analysis, DPMO & Six Sigma calculations, AQL sampling plans (ISO 2859-1), Gage R&R (AIAG MSA), and capability studies. No software to install, no learning curve.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
