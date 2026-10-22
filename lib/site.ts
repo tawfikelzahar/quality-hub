@@ -15,14 +15,14 @@ export const SITE = {
   /** Brand name shown in the header, titles, reports and texts */
   name: 'Mizan Quality',
   /** Name under the app icon on a phone (keep it short) */
-  shortName: 'Quality Hub',
+  shortName: 'Mizan Quality',
   /** One-line description after the name in browser titles and link previews */
   tagline: 'Statistical Quality Engineering Tools Online',
 
   /** Public website address, without a trailing slash */
   url: process.env.NEXT_PUBLIC_SITE_URL || 'https://qualityhub-zeta.vercel.app',
   /** Short domain printed on chart watermarks and report footers */
-  domain: 'qualityhub.tools',
+  domain: 'mizanquality.com',
 
   /** Person behind the site (footer, About page, report author) */
   owner: 'Tawfik Elzahar',
