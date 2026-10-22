@@ -7,6 +7,7 @@ import AuthStatus from '@/components/AuthStatus'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
+import { SITE, siteNameParts } from '@/lib/site'
 
 interface ToolCardData {
   href: string | null // null = "coming soon", card is not a link
@@ -167,7 +168,7 @@ export default function Home() {
         <nav className="qh-landing-nav" style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'rgba(15,212,200,.07)':c.border}`}}>
           <div style={{display:'flex',alignItems:'center',gap:11,fontWeight:800,fontSize:17}}>
             <div style={{width:36,height:36,background:'linear-gradient(135deg,#0fd4c8,#00a896)',borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:'#060d1a',fontWeight:900,fontSize:16}}>σ</div>
-            Quality Tools
+            {SITE.name}
           </div>
           <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:24}}>
             <a href="#tools" className="nl qh-hide-mobile" style={{fontSize:14,color:navLinkColor,textDecoration:'none',fontWeight:500}}>{t('nav_tools')}</a>
@@ -305,17 +306,17 @@ export default function Home() {
     
     {/* التعديل هنا: تجميع الكلمة وتحديد الاتجاه LTR */}
     <span style={{ direction: 'ltr', display: 'inline-block' }}>
-      Quality<span style={{color:'#0fd4c8'}}>Tools</span>
+      {siteNameParts()[0]}<span style={{color:'#0fd4c8'}}>{siteNameParts()[1]}</span>
     </span>
 
-    <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· Tawfik Elzahar</span>
+    <span style={{color:footerMuted,fontWeight:400,fontSize:13}}>· {SITE.owner}</span>
   </div>
   <div style={{display:'flex',alignItems:'center',gap:20}}>
     <a href="/guide" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_guide')}</a>
     <a href="/sample-reports" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_sample_reports')}</a>
     <a href="/about" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_about')}</a>
     <a href="/contact" style={{fontSize:12,color:footerMuted,textDecoration:'none',fontWeight:500}}>{t('footer_contact')}</a>
-    <div style={{fontSize:12,color:footerMuted}}>© 2026 Tawfik Elzahar. {t('footer_rights')}</div>
+    <div style={{fontSize:12,color:footerMuted}}>© {SITE.copyrightYear} {SITE.owner}. {t('footer_rights')}</div>
   </div>
 </footer>
       </main>

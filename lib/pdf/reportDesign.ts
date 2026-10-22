@@ -27,6 +27,7 @@
 
 import jsPDF from 'jspdf'
 import { ARIMO_REGULAR, ARIMO_BOLD } from './fonts/arimo'
+import { SITE } from '@/lib/site'
 
 /**
  * Font family embedded in every report (see ./fonts/arimo.ts). Use this
@@ -213,7 +214,7 @@ function drawHeader(ctx: ReportContext) {
   pdf.setFontSize(8.5)
   setText(pdf, REPORT_COLORS.muted)
   drawText(pdf, `Generated: ${generated}`, ctx.pageWidth - margin, y + 9, { align: 'right' })
-  drawText(pdf, 'qualityhub.tools', ctx.pageWidth - margin, y + 20, { align: 'right' })
+  drawText(pdf, SITE.domain, ctx.pageWidth - margin, y + 20, { align: 'right' })
 
   y += markSize + 20
 
@@ -919,7 +920,7 @@ export function finalizeReport(ctx: ReportContext) {
     pdf.setFont(PDF_FONT, 'normal')
     pdf.setFontSize(7.5)
     setText(pdf, REPORT_COLORS.faint)
-    drawText(pdf, `© ${year} Quality Hub · qualityhub.tools`, margin, fy + 13)
+    drawText(pdf, `© ${year} ${SITE.name} · ${SITE.domain}`, margin, fy + 13)
     drawText(pdf, ctx.reportTitle, pageWidth / 2, fy + 13, { align: 'center' })
     drawText(pdf, `Page ${i} of ${pageCount}`, pageWidth - margin, fy + 13, { align: 'right' })
   }

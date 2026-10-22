@@ -3,18 +3,18 @@
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
+import { SITE, SITE_LINKS } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Static content page — no data fetching, no auth gating. Copy lives here
 // as plain strings so it's easy to tweak later without touching layout.
 //
-// Contact channels are shared with /contact — if you change the email,
-// WhatsApp number, or LinkedIn URL, update both files.
+// Contact channels come from lib/site.ts (shared with /contact).
 // ─────────────────────────────────────────────────────────────────────────
 const CONTACT = {
-  email: 'tawfik.elzahar1@gmail.com',
-  whatsapp: 'https://wa.me/201224491539',
-  linkedin: 'https://www.linkedin.com/in/tawfikelzahar',
+  email: SITE.contact.email,
+  whatsapp: SITE_LINKS.whatsapp,
+  linkedin: SITE_LINKS.linkedin,
 }
 
 export default function AboutPage() {
@@ -151,7 +151,7 @@ export default function AboutPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/tawfik-elzahar.jpg"
-                alt="Tawfik Elzahar"
+                alt={SITE.owner}
                 width={116}
                 height={116}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}

@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
+import { SITE } from '@/lib/site'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Quality Hub — Statistical Quality Engineering Tools",
-    short_name: "Quality Hub",
+    name: `${SITE.name} — Statistical Quality Engineering Tools`,
+    short_name: SITE.shortName,
     description:
       "SPC control charts, Pareto analysis, DPMO, AQL sampling, Gage R&R, and more — statistical quality engineering tools online.",
     start_url: "/",

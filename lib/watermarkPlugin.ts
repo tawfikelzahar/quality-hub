@@ -17,8 +17,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import type { Chart, ChartType, Plugin } from 'chart.js'
+import { SITE } from '@/lib/site'
 
-const WATERMARK_TEXT = 'qualityhub.tools'
+const WATERMARK_TEXT = SITE.domain
 
 /** Height in px of the solid strip; also the bottom padding to reserve. */
 export const WATERMARK_STRIP_HEIGHT = 22

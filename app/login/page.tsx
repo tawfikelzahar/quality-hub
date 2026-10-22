@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { compressAvatar } from '@/lib/avatar'
 import { COLORS, usePersistedTheme, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
+import { SITE } from '@/lib/site'
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/'
@@ -132,7 +133,7 @@ export default function LoginPage() {
       <div style={{width:'100%',maxWidth:420,display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:40}}>
         <Link href="/" style={{display:'flex',alignItems:'center',gap:10,textDecoration:'none',color:textColor,fontWeight:800,fontSize:18}}>
           <div style={{width:38,height:38,background:BRAND_GRADIENT,borderRadius:9,display:'flex',alignItems:'center',justifyContent:'center',color:BRAND_GRADIENT_TEXT_COLOR,fontWeight:900,fontSize:17}}>σ</div>
-          QualityTools
+          {SITE.name}
         </Link>
         <button
           onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}

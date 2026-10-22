@@ -1,4 +1,5 @@
 import type { DoeMessages } from './messages'
+import { SITE } from '../site'
 
 export const messagesAr: DoeMessages = {
   appSubtitle:
@@ -66,7 +67,7 @@ export const messagesAr: DoeMessages = {
   exportPdfButton: 'PDF',
   pdfReportTitle: 'تصميم التجارب — تقرير دراسة عاملية كاملة',
   footerNote:
-    'تصميم عاملي كامل 2^k. تُحسب التأثيرات عبر تباينات Yates على متوسطات نقاط التصميم؛ والقيم الاحتمالية لاختبار F في تحليل التباين تستخدم تقريب Wilson-Hilferty لتوزيع F، بما يتسق مع الأدوات الإحصائية الأخرى في Quality Hub.',
+    `تصميم عاملي كامل 2^k. تُحسب التأثيرات عبر تباينات Yates على متوسطات نقاط التصميم؛ والقيم الاحتمالية لاختبار F في تحليل التباين تستخدم تقريب Wilson-Hilferty لتوزيع F، بما يتسق مع الأدوات الإحصائية الأخرى في ${SITE.name}.`,
   requiredDataTitle: 'بنية البيانات المطلوبة',
   requiredDataBody: 'قيمة استجابة لكل تجربة من التصميم العاملي الكامل 2^k المُرمَّز (من 2 إلى 5 عوامل)، مع تكرار واحد أو أكثر لكل تجربة.',
   significantBadge: 'معنوي إحصائيًا',

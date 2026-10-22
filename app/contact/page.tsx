@@ -5,6 +5,7 @@ import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
+import { SITE, SITE_LINKS } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Static contact page. Same three channels as the "Meet the Builder"
@@ -18,25 +19,25 @@ const CHANNELS = [
   {
     key: 'email',
     titleKey: 'contact_ch_email_title' as TKey,
-    detail: 'tawfik.elzahar1@gmail.com',
+    detail: SITE.contact.email,
     subKey: 'contact_ch_email_sub' as TKey,
-    href: 'mailto:tawfik.elzahar1@gmail.com',
+    href: SITE_LINKS.email,
     ctaKey: 'contact_ch_email_cta' as TKey,
   },
   {
     key: 'whatsapp',
     titleKey: 'contact_ch_whatsapp_title' as TKey,
-    detail: '+20 122 449 1539',
+    detail: SITE.contact.whatsappDisplay,
     subKey: 'contact_ch_whatsapp_sub' as TKey,
-    href: 'https://wa.me/201224491539',
+    href: SITE_LINKS.whatsapp,
     ctaKey: 'contact_ch_whatsapp_cta' as TKey,
   },
   {
     key: 'linkedin',
     titleKey: 'contact_ch_linkedin_title' as TKey,
-    detail: 'in/tawfikelzahar',
+    detail: SITE_LINKS.linkedinDisplay,
     subKey: 'contact_ch_linkedin_sub' as TKey,
-    href: 'https://www.linkedin.com/in/tawfikelzahar',
+    href: SITE_LINKS.linkedin,
     ctaKey: 'contact_ch_linkedin_cta' as TKey,
   },
 ] as const

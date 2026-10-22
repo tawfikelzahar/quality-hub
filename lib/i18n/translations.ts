@@ -13,6 +13,8 @@
 // back to English for missing keys.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { SITE } from '../site'
+
 export const translations = {
   en: {
     // ── Shared nav (used across landing + tool pages) ──
@@ -142,11 +144,11 @@ export const translations = {
     fmea_desc: 'Process & Design FMEA · RPN calculation · Risk matrix · Export to Excel',
 
     // ── About page ──
-    about_kicker: 'About Quality Hub',
+    about_kicker: `About ${SITE.name}`,
     about_hero_title_1: 'Built by a Quality Engineer,',
     about_hero_title_2: 'for Quality Engineers.',
     about_origin_p1:
-      "Quality Hub started with a simple frustration: quality engineers shouldn't need five different tools, a stack of spreadsheets, and an expensive software license just to run an SPC chart or calculate Cpk.",
+      `${SITE.name} started with a simple frustration: quality engineers shouldn't need five different tools, a stack of spreadsheets, and an expensive software license just to run an SPC chart or calculate Cpk.`,
     about_origin_p2:
       'After more than 10 years working in manufacturing, quality engineering, and continuous improvement, I built the platform I wished existed — one place for SPC, Process Capability, Pareto Analysis, AQL Sampling, Gage R&R (MSA), and Stability Studies, built to the standards engineers actually work against: ISO 2859-1, AIAG, and ICH Q1E.',
     about_philosophy_heading: 'Our Philosophy',
@@ -158,11 +160,11 @@ export const translations = {
     about_step_improve: 'Improve',
     about_direct_heading: 'Direct, hands-on, and accountable',
     about_direct_p1:
-      "Every tool on Quality Hub is built, tested, and maintained by me — actively used and refined based on real quality engineering work, not handed off to a support team that doesn't understand the field.",
+      `Every tool on ${SITE.name} is built, tested, and maintained by me — actively used and refined based on real quality engineering work, not handed off to a support team that doesn't understand the field.`,
     about_direct_p2:
       "When you reach out, you're talking directly to the person building the platform. Feedback turns into features fast, because there's no layer between your request and the person who can act on it.",
-    about_builder_name: 'Tawfik Elzahar',
-    about_builder_role: 'Quality Engineer · Founder, Quality Hub',
+    about_builder_name: `${SITE.owner}`,
+    about_builder_role: `Quality Engineer · Founder, ${SITE.name}`,
     about_builder_cta: "If you have questions, feedback, or a feature request, I'd genuinely like to hear from you.",
 
     // ── Shared contact CTAs (About + Contact pages) ──
@@ -172,14 +174,14 @@ export const translations = {
 
     // ── Download page (Android app) ──
     download_kicker: 'Android App',
-    download_hero_title: 'Quality Hub in your pocket',
+    download_hero_title: `${SITE.name} in your pocket`,
     download_hero_sub:
-      'The full Quality Hub platform, packaged as an Android app. Same tools, same account, same subscription — just install it on your phone.',
+      `The full ${SITE.name} platform, packaged as an Android app. Same tools, same account, same subscription — just install it on your phone.`,
     download_btn: 'Download for Android',
     download_size_note: 'APK file · Free · Works with your existing account',
     download_why_heading: 'Why an app?',
     download_why_p:
-      'This app is a direct window into qualityhub.tools — it isn\u2019t a separate copy. Signing in, your subscription tier, and every update to the site show up automatically, with nothing extra to install or configure.',
+      `This app is a direct window into ${SITE.domain} — it isn\u2019t a separate copy. Signing in, your subscription tier, and every update to the site show up automatically, with nothing extra to install or configure.`,
     download_steps_heading: 'How to install',
     download_step1_title: 'Download the APK',
     download_step1_desc: 'Tap the download button above from your Android phone.',
@@ -187,14 +189,14 @@ export const translations = {
     download_step2_desc:
       'Android may ask you to allow installing apps from this source \u2014 this is a normal one-time confirmation for apps installed outside the Play Store.',
     download_step3_title: 'Open and sign in',
-    download_step3_desc: 'Launch Quality Hub from your home screen and sign in with your existing account.',
+    download_step3_desc: `Launch ${SITE.name} from your home screen and sign in with your existing account.`,
     download_ios_note:
-      'On iPhone? Open qualityhub.tools in Safari, tap Share, then \u201cAdd to Home Screen\u201d for the same app-like experience.',
+      `On iPhone? Open ${SITE.domain} in Safari, tap Share, then \u201cAdd to Home Screen\u201d for the same app-like experience.`,
 
     // ── Contact page ──
     contact_hero_title: 'Get in touch',
     contact_hero_sub:
-      "Questions, feedback, or a feature request — reach out directly. You'll be talking to the person building Quality Hub, not a support queue.",
+      `Questions, feedback, or a feature request — reach out directly. You'll be talking to the person building ${SITE.name}, not a support queue.`,
     contact_ch_email_title: 'Email',
     contact_ch_email_sub: 'Best for detailed questions, billing, or account issues.',
     contact_ch_email_cta: 'Send an email',
@@ -738,7 +740,7 @@ export const translations = {
     sample_hero_title_1: 'See exactly what you get',
     sample_hero_title_2: 'before you subscribe.',
     sample_hero_sub:
-      'These are real PDF and Excel reports generated by Quality Hub — same layout, same statistics, same branding you would get from your own data. No signup required.',
+      `These are real PDF and Excel reports generated by ${SITE.name} — same layout, same statistics, same branding you would get from your own data. No signup required.`,
     sample_note:
       'These reports use realistic illustrative data, not a live analysis. Run your own numbers for free on any tool page — only the Pro-tier export formats (PDF, Excel) shown here require a subscription.',
     sample_download_pdf: 'Download Sample PDF',
@@ -766,7 +768,7 @@ export const translations = {
     guide_hero_title_1: 'Everything you need to know,',
     guide_hero_title_2: 'in one place.',
     guide_hero_sub:
-      'A quick walkthrough of how Quality Hub works, plus a full directory of every tool — jump straight to the one you need.',
+      `A quick walkthrough of how ${SITE.name} works, plus a full directory of every tool — jump straight to the one you need.`,
     guide_steps_heading: 'How it works',
     guide_step_1_title: 'Pick a tool',
     guide_step_1_desc: 'Browse the directory below or use the tools menu on the homepage. Every tool opens straight into its calculator — no signup required to try it.',
@@ -932,11 +934,11 @@ export const translations = {
     fmea_desc: 'Process & Design FMEA · حساب RPN · مصفوفة المخاطر · تصدير إلى Excel',
 
     // ── About page ──
-    about_kicker: 'عن Quality Hub',
+    about_kicker: `عن ${SITE.name}`,
     about_hero_title_1: 'بُنيت على يد مهندس جودة،',
     about_hero_title_2: 'لمهندسي الجودة.',
     about_origin_p1:
-      'بدأت فكرة Quality Hub من إحباط بسيط: لا ينبغي أن يحتاج مهندس الجودة إلى خمس أدوات مختلفة، وكومة من ملفات الإكسل، ورخصة برنامج باهظة الثمن، لمجرد رسم مخطط SPC أو حساب Cpk.',
+      `بدأت فكرة ${SITE.name} من إحباط بسيط: لا ينبغي أن يحتاج مهندس الجودة إلى خمس أدوات مختلفة، وكومة من ملفات الإكسل، ورخصة برنامج باهظة الثمن، لمجرد رسم مخطط SPC أو حساب Cpk.`,
     about_origin_p2:
       'بعد أكثر من 10 سنوات من العمل في التصنيع وهندسة الجودة والتحسين المستمر، بنيت المنصة التي كنت أتمنى وجودها — مكان واحد لـ SPC، وتحليل القدرة (Process Capability)، وتحليل باريتو، وعينات AQL، وGage R&R (MSA)، ودراسات الاستقرار، مبنية على المعايير التي يعمل بها المهندس فعليًا: ISO 2859-1، وAIAG، وICH Q1E.',
     about_philosophy_heading: 'فلسفتنا',
@@ -948,11 +950,11 @@ export const translations = {
     about_step_improve: 'تحسين',
     about_direct_heading: 'مباشر، عملي، ومسؤول',
     about_direct_p1:
-      'كل أداة في Quality Hub مبنية ومُختبرة ومُدارة بمعرفتي الشخصية — تُستخدم وتُطوَّر باستمرار بناءً على عمل حقيقي في هندسة الجودة، وليست موكلة إلى فريق دعم لا يفهم المجال.',
+      `كل أداة في ${SITE.name} مبنية ومُختبرة ومُدارة بمعرفتي الشخصية — تُستخدم وتُطوَّر باستمرار بناءً على عمل حقيقي في هندسة الجودة، وليست موكلة إلى فريق دعم لا يفهم المجال.`,
     about_direct_p2:
       'عندما تتواصل معنا، فأنت تتحدث مباشرة مع الشخص الذي يبني المنصة. الملاحظات تتحول إلى ميزات بسرعة، لأنه لا توجد طبقات وسيطة بين طلبك والشخص القادر على تنفيذه.',
     about_builder_name: 'توفيق الزهار',
-    about_builder_role: 'مهندس جودة · مؤسس Quality Hub',
+    about_builder_role: `مهندس جودة · مؤسس ${SITE.name}`,
     about_builder_cta: 'إذا كانت لديك أسئلة أو ملاحظات أو اقتراح لميزة جديدة، يسعدني أن أسمعها منك.',
 
     // ── Shared contact CTAs (About + Contact pages) ──
@@ -962,14 +964,14 @@ export const translations = {
 
     // ── Download page (Android app) ──
     download_kicker: 'تطبيق أندرويد',
-    download_hero_title: 'Quality Hub في جيبك',
+    download_hero_title: `${SITE.name} في جيبك`,
     download_hero_sub:
-      'منصة Quality Hub بالكامل، في تطبيق أندرويد. نفس الأدوات، نفس الحساب، نفس الاشتراك — فقط ثبّته على هاتفك.',
+      `منصة ${SITE.name} بالكامل، في تطبيق أندرويد. نفس الأدوات، نفس الحساب، نفس الاشتراك — فقط ثبّته على هاتفك.`,
     download_btn: 'تحميل لأندرويد',
     download_size_note: 'ملف APK · مجاني · يعمل بحسابك الحالي',
     download_why_heading: 'ليه تطبيق؟',
     download_why_p:
-      'هذا التطبيق نافذة مباشرة على qualityhub.tools — وليس نسخة منفصلة. تسجيل الدخول، مستوى اشتراكك، وأي تحديث على الموقع يظهر تلقائيًا، دون أي شيء إضافي تثبّته أو تضبطه.',
+      `هذا التطبيق نافذة مباشرة على ${SITE.domain} — وليس نسخة منفصلة. تسجيل الدخول، مستوى اشتراكك، وأي تحديث على الموقع يظهر تلقائيًا، دون أي شيء إضافي تثبّته أو تضبطه.`,
     download_steps_heading: 'طريقة التثبيت',
     download_step1_title: 'حمّل ملف APK',
     download_step1_desc: 'اضغط على زر التحميل بالأعلى من هاتف الأندرويد الخاص بك.',
@@ -977,14 +979,14 @@ export const translations = {
     download_step2_desc:
       'قد يطلب منك أندرويد السماح بتثبيت تطبيقات من هذا المصدر — هذا إجراء طبيعي يظهر مرة واحدة فقط للتطبيقات المثبتة من خارج متجر Play.',
     download_step3_title: 'افتح وسجّل الدخول',
-    download_step3_desc: 'افتح Quality Hub من الشاشة الرئيسية وسجّل الدخول بحسابك الحالي.',
+    download_step3_desc: `افتح ${SITE.name} من الشاشة الرئيسية وسجّل الدخول بحسابك الحالي.`,
     download_ios_note:
-      'على آيفون؟ افتح qualityhub.tools في Safari، اضغط على زر المشاركة، ثم \u201cAdd to Home Screen\u201d للحصول على نفس تجربة التطبيق.',
+      `على آيفون؟ افتح ${SITE.domain} في Safari، اضغط على زر المشاركة، ثم \u201cAdd to Home Screen\u201d للحصول على نفس تجربة التطبيق.`,
 
     // ── Contact page ──
     contact_hero_title: 'تواصل معنا',
     contact_hero_sub:
-      'أسئلة أو ملاحظات أو اقتراح لميزة جديدة — تواصل معنا مباشرة. ستكون تتحدث مع الشخص الذي يبني Quality Hub، وليس مع فريق دعم.',
+      `أسئلة أو ملاحظات أو اقتراح لميزة جديدة — تواصل معنا مباشرة. ستكون تتحدث مع الشخص الذي يبني ${SITE.name}، وليس مع فريق دعم.`,
     contact_ch_email_title: 'البريد الإلكتروني',
     contact_ch_email_sub: 'الأنسب للأسئلة التفصيلية، أو مشكلات الفوترة أو الحساب.',
     contact_ch_email_cta: 'إرسال بريد إلكتروني',
@@ -1528,7 +1530,7 @@ export const translations = {
     sample_hero_title_1: 'شوف بالظبط اللي هتاخده',
     sample_hero_title_2: 'قبل ما تشترك.',
     sample_hero_sub:
-      'دي تقارير PDF وExcel حقيقية بتطلع من Quality Hub — نفس التصميم، نفس الحسابات، نفس الشكل الاحترافي اللي هتاخده ببياناتك أنت. من غير أي تسجيل.',
+      `دي تقارير PDF وExcel حقيقية بتطلع من ${SITE.name} — نفس التصميم، نفس الحسابات، نفس الشكل الاحترافي اللي هتاخده ببياناتك أنت. من غير أي تسجيل.`,
     sample_note:
       'التقارير دي بتستخدم بيانات توضيحية واقعية، مش تحليل حي فعلي. تقدر تجرّب أرقامك بنفسك مجاناً على صفحة أي أداة — بس صيغ التصدير المميزة (PDF وExcel) الظاهرة هنا محتاجة اشتراك.',
     sample_download_pdf: 'تحميل نموذج PDF',
@@ -1556,7 +1558,7 @@ export const translations = {
     guide_hero_title_1: 'كل اللي محتاج تعرفه،',
     guide_hero_title_2: 'في مكان واحد.',
     guide_hero_sub:
-      'شرح سريع لطريقة عمل Quality Hub، بالإضافة لدليل كامل بكل الأدوات — روح مباشرة للأداة اللي محتاجها.',
+      `شرح سريع لطريقة عمل ${SITE.name}، بالإضافة لدليل كامل بكل الأدوات — روح مباشرة للأداة اللي محتاجها.`,
     guide_steps_heading: 'إزاي تشتغل المنصة',
     guide_step_1_title: 'اختر أداة',
     guide_step_1_desc: 'تصفح الدليل تحت أو استخدم قائمة الأدوات في الصفحة الرئيسية. كل أداة بتفتح مباشرة على الحاسبة الخاصة بيها — من غير أي تسجيل عشان تجربها.',

@@ -7,6 +7,7 @@ import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
 import { getSharedStyles, type ThemeMode } from '@/lib/theme'
 import type { TKey } from '@/lib/i18n/translations'
+import { SITE } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Shared top nav — logo + breadcrumb + theme toggle + auth + Get Pro CTA.
@@ -42,7 +43,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
       <div className="qh-nav-left" style={s.navLeft}>
         <Link href="/" style={s.logo}>
           <div style={s.logoIcon}>σ</div>
-          QualityTools
+          {SITE.name}
         </Link>
         <span className="qh-breadcrumb-sep" style={s.separator}>/</span>
         <span className="qh-breadcrumb" style={s.breadcrumb}>{t(breadcrumbKey)}</span>

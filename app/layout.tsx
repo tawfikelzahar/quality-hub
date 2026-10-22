@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { SITE, SITE_TITLE } from '@/lib/site'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,16 +16,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://qualityhub-zeta.vercel.app";
-const SITE_NAME = "Quality Hub";
+const SITE_URL = SITE.url;
+const SITE_NAME = SITE.name;
 const DEFAULT_DESCRIPTION =
   "Statistical quality engineering tools online — SPC control charts, Pareto analysis, DPMO & Six Sigma calculations, AQL sampling plans (ISO 2859-1), Gage R&R (AIAG MSA), and capability studies. No Minitab license, no learning curve.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Quality Hub — Statistical Quality Engineering Tools Online",
-    template: "%s | Quality Hub",
+    default: SITE_TITLE,
+    template: `%s | ${SITE.name}`,
   },
   description: DEFAULT_DESCRIPTION,
   keywords: [
@@ -38,17 +39,17 @@ export const metadata: Metadata = {
     "Pareto chart maker",
     "process capability Cpk",
   ],
-  authors: [{ name: "Tawfik Elzahar" }],
+  authors: [{ name: SITE.owner }],
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
-    title: "Quality Hub — Statistical Quality Engineering Tools Online",
+    title: SITE_TITLE,
     description: DEFAULT_DESCRIPTION,
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Quality Hub — Statistical Quality Engineering Tools Online",
+    title: SITE_TITLE,
     description: DEFAULT_DESCRIPTION,
   },
   robots: {

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
+import { SITE } from '@/lib/site'
 
 export const metadata: Metadata = {
   title: 'Contact',
   description:
-    'Get in touch with Quality Hub — email, WhatsApp, or LinkedIn for questions about billing, accounts, or the statistical quality engineering tools.',
+    `Get in touch with ${SITE.name} — email, WhatsApp, or LinkedIn for questions about billing, accounts, or the statistical quality engineering tools.`,
   alternates: { canonical: '/contact' },
 }
 

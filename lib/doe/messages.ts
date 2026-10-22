@@ -1,3 +1,4 @@
+import { SITE } from '../site'
 export interface DoeMessages {
   appSubtitle: string
   setupSectionTitle: string
@@ -130,7 +131,7 @@ export const messages: DoeMessages = {
   exportPdfButton: 'PDF',
   pdfReportTitle: 'Design of Experiments — Full Factorial Study Report',
   footerNote:
-    'Full factorial 2^k design. Effects are computed via Yates contrasts on design-point means; ANOVA F-test p-values use a Wilson-Hilferty approximation to the F-distribution, consistent with other statistical tools in Quality Hub.',
+    `Full factorial 2^k design. Effects are computed via Yates contrasts on design-point means; ANOVA F-test p-values use a Wilson-Hilferty approximation to the F-distribution, consistent with other statistical tools in ${SITE.name}.`,
   requiredDataTitle: 'Required Data Structure',
   requiredDataBody:
     'A response measurement for every run of the coded 2^k design (2 to 5 factors), with 1 or more replicates per run.',

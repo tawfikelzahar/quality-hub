@@ -36,6 +36,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import ExcelJS from 'exceljs'
+import { SITE } from '@/lib/site'
 
 // ── Brand palette (from lib/theme.ts COLORS.dark — used regardless of the
 // UI theme the person currently has selected, so exported files always
@@ -135,7 +136,7 @@ class ReportSheet {
     const row = this.ws.getRow(this.cursor)
     this.ws.mergeCells(this.cursor, 1, this.cursor, cols)
     const cell = row.getCell(1)
-    cell.value = `Quality Hub — ${toolName}`
+    cell.value = `${SITE.name} — ${toolName}`
     cell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: argb(BRAND.textLight) } }
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(BRAND.navy) } }
     cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
@@ -377,7 +378,7 @@ class Report {
 
   constructor(toolName: string) {
     this.wb = new ExcelJS.Workbook()
-    this.wb.creator = 'Quality Hub'
+    this.wb.creator = SITE.name
     this.wb.created = new Date()
     this.toolName = toolName
   }
