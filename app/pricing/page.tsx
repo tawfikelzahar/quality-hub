@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
@@ -9,12 +9,16 @@ import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 
 // ─────────────────────────────────────────────────────────────────────────
-// Pricing is intentionally static for now (Phase 3 of the subscription
-// rollout plan). No real checkout yet — that's Phase 6 (Lemon Squeezy).
-// The Pro CTA sends the person to /account, where the real
-// "Upgrade to Pro — Coming Soon" stub already lives.
-//
-// PRICE_LABEL is translated via the pricing_price_label i18n key now.
+// Pricing — kept in line with what the code actually gates (Oct 2026):
+//   • every analysis tool is free and needs no account, except Gage R&R
+//     (components/GageRR.tsx renders LockedPage for non-Pro)
+//   • CSV / PNG export needs a free account (lib/exportGate.ts goToLogin);
+//     free PNGs keep the chart watermark (lib/watermarkHelpers.ts)
+//   • PDF / Excel export, saved projects (MAX_SAVED_ANALYSES = 50 in
+//     app/api/saved-analyses) and AI Insights (AI_DAILY_LIMIT = 10/day in
+//     lib/ai/insight.ts, X̄-R page) are Pro
+// Pro is not on sale yet (no checkout), so the Pro card has no buy button.
+// Update this table whenever a gate changes.
 // ─────────────────────────────────────────────────────────────────────────
 
 interface Feature {
@@ -28,22 +32,26 @@ const FEATURES: { sectionKey: TKey; items: Feature[] }[] = [
     sectionKey: 'pricing_section_spc',
     items: [
       { labelKey: 'pricing_feat_imr', free: true, pro: true },
+      { labelKey: 'pricing_feat_attribute', free: true, pro: true },
+      { labelKey: 'pricing_feat_nelson', free: true, pro: true },
       { labelKey: 'pricing_feat_capability', free: true, pro: true },
-      { labelKey: 'pricing_feat_attribute', free: false, pro: true },
-      { labelKey: 'pricing_feat_nelson', free: false, pro: true },
-      { labelKey: 'pricing_feat_ad', free: false, pro: true },
-      { labelKey: 'pricing_feat_dist', free: false, pro: true },
+      { labelKey: 'pricing_feat_ad', free: true, pro: true },
+      { labelKey: 'pricing_feat_dist', free: true, pro: true },
     ],
   },
   {
     sectionKey: 'pricing_section_other',
     items: [
+      { labelKey: 'pricing_feat_descriptive', free: true, pro: true },
       { labelKey: 'pricing_feat_pareto', free: true, pro: true },
       { labelKey: 'pricing_feat_dpmo', free: true, pro: true },
       { labelKey: 'pricing_feat_oee', free: true, pro: true },
+      { labelKey: 'pricing_feat_aql', free: true, pro: true },
+      { labelKey: 'pricing_feat_icmsf', free: true, pro: true },
+      { labelKey: 'pricing_feat_stability', free: true, pro: true },
+      { labelKey: 'pricing_feat_regression', free: true, pro: true },
+      { labelKey: 'pricing_feat_doe', free: true, pro: true },
       { labelKey: 'pricing_feat_gagerr', free: false, pro: true },
-      { labelKey: 'pricing_feat_stability', free: false, pro: true },
-      { labelKey: 'pricing_feat_aql', free: false, pro: true },
     ],
   },
   {
@@ -52,7 +60,7 @@ const FEATURES: { sectionKey: TKey; items: Feature[] }[] = [
       { labelKey: 'pricing_feat_export_csv', free: 'pricing_val_watermark', pro: 'pricing_val_nowatermark' },
       { labelKey: 'pricing_feat_export_excel', free: false, pro: true },
       { labelKey: 'pricing_feat_save', free: false, pro: 'pricing_val_50projects' },
-      { labelKey: 'pricing_feat_dashboard', free: false, pro: true },
+      { labelKey: 'pricing_feat_ai', free: false, pro: 'pricing_val_ai_limit' },
     ],
   },
 ]
@@ -81,8 +89,7 @@ export default function PricingPage() {
   }, [])
 
   const freeCtaHref = loggedIn ? '/dashboard' : '/login?next=/dashboard'
-  const proCtaHref = loggedIn ? '/account' : '/login?next=/account'
-
+  
   const planCard = (
     opts: {
       name: string
@@ -90,7 +97,7 @@ export default function PricingPage() {
       tagline: string
       bullets: string[]
       cta: string
-      href: string
+      href: string | null
       highlight?: boolean
     }
   ) => (
@@ -134,7 +141,9 @@ export default function PricingPage() {
           <li key={b}>{b}</li>
         ))}
       </ul>
-      {checkingAuth ? (
+      {opts.href === null ? (
+        <div aria-disabled="true" style={{ ...s.exportBtn, width: '100%', opacity: 0.55, cursor: 'default' }}>{opts.cta}</div>
+      ) : checkingAuth ? (
         <div style={{ ...s.exportBtn, opacity: 0.4, width: '100%' }}>{t('pricing_loading')}</div>
       ) : (
         <Link
@@ -214,7 +223,7 @@ export default function PricingPage() {
               t('pricing_pro_bullet_5'),
             ],
             cta: t('pricing_pro_cta'),
-            href: proCtaHref,
+            href: null,
             highlight: true,
           })}
         </div>
@@ -226,19 +235,20 @@ export default function PricingPage() {
             <table style={s.table}>
               <thead>
                 <tr>
-                  <th style={s.th}>{t('pricing_col_feature')}</th>
+                  <th style={{ ...s.th, textAlign: 'start' }}>{t('pricing_col_feature')}</th>
                   <th style={{ ...s.th, textAlign: 'center' }}>{t('pricing_col_free')}</th>
                   <th style={{ ...s.th, textAlign: 'center', color: c.accent }}>{t('pricing_col_pro')}</th>
                 </tr>
               </thead>
               <tbody>
                 {FEATURES.map((group) => (
-                  <>
-                    <tr key={group.sectionKey}>
+                  <Fragment key={group.sectionKey}>
+                    <tr>
                       <td
                         colSpan={3}
                         style={{
                           ...s.td,
+                          textAlign: 'start',
                           fontSize: 11,
                           fontWeight: 700,
                           color: c.muted,
@@ -253,7 +263,7 @@ export default function PricingPage() {
                     </tr>
                     {group.items.map((f) => (
                       <tr key={f.labelKey}>
-                        <td style={s.td}>{t(f.labelKey)}</td>
+                        <td style={{ ...s.td, textAlign: 'start' }}>{t(f.labelKey)}</td>
                         <td style={{ ...s.td, textAlign: 'center', color: c.muted }}>
                           <Check ok={f.free} accent={c.accent} muted={c.muted} t={t} />
                         </td>
@@ -262,7 +272,7 @@ export default function PricingPage() {
                         </td>
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -271,7 +281,7 @@ export default function PricingPage() {
 
         <div style={{ fontSize: 12, color: c.muted, marginTop: 32, marginBottom: 20 }}>
           {t('pricing_footer_prefix')}{' '}
-          <Link href="/account" style={{ color: c.accent, textDecoration: 'none', fontWeight: 600 }}>
+          <Link href="/contact" style={{ color: c.accent, textDecoration: 'none', fontWeight: 600 }}>
             {t('pricing_footer_link')}
           </Link>{' '}
           {t('pricing_footer_suffix')}

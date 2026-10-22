@@ -1514,7 +1514,7 @@ export default function SPCEngine() {
                 }}
                 onClick={() => { setDataType('attribute'); setResult(null); setErrorMsg('') }}
               >
-                {t('spc_attribute')} {!isPro && '🔒'}
+                {t('spc_attribute')}
               </button>
             </div>
           </div>

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'Pricing',
   description:
-    'Quality Hub pricing — free SPC control charts, capability indices, and calculators, with Pro tiers unlocking attribute charts, Nelson Rules, Gage R&R, AQL, and Stability Study tools.',
+    'Quality Hub pricing — every analysis tool is free, including SPC control charts, capability, AQL, Stability, Regression and DOE. Pro (coming soon) adds Gage R&R, PDF/Excel reports, saved projects and AI Insights.',
   alternates: { canonical: '/pricing' },
 }
 
