@@ -4,7 +4,7 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
+import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { LockedPage } from '@/components/Locked'
@@ -332,7 +332,7 @@ export default function GageRR() {
       datasets: [{
         label: t('grr_col_pcttotalvar'),
         data: [p.EV, p.AV, p.GRR, p.PV].map(v => +(v * 100).toFixed(2)),
-        backgroundColor: [c.bar, c.line, c.danger, c.accent2],
+        backgroundColor: [c.bar, c.line, c.danger, c.muted],
         borderRadius: 6,
       }],
     }
@@ -721,10 +721,10 @@ export default function GageRR() {
   }
 
   const conclusionStyle = !result ? null : result.conclusion === 'okay'
-    ? { icon: '✅', color: '#4ade80', bg: 'rgba(74,222,128,0.1)' }
+    ? { icon: '✅', color: 'var(--qh-good)', bg: 'color-mix(in srgb, var(--qh-good) 10%, transparent)' }
     : result.conclusion === 'marginal'
-    ? { icon: '⚠️', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
-    : { icon: '❌', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
+    ? { icon: '⚠️', color: 'var(--qh-amber)', bg: 'color-mix(in srgb, var(--qh-amber) 10%, transparent)' }
+    : { icon: '❌', color: 'var(--qh-danger)', bg: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)' }
 
   return (
     <div style={s.page}>
@@ -761,13 +761,13 @@ export default function GageRR() {
               <div style={s.label}>{t('grr_analysis_method')}</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
-                  style={{ ...s.exportBtn, flex: 1, ...(method === 'average-range' ? { background: c.accent, color: '#fff', borderColor: c.accent } : {}) }}
+                  style={{ ...s.exportBtn, flex: 1, ...(method === 'average-range' ? { background: c.accent, color: c.onAccent, borderColor: c.accent } : {}) }}
                   onClick={() => setMethod('average-range')}
                 >
                   {t('grr_method_avgrange')}
                 </button>
                 <button
-                  style={{ ...s.exportBtn, flex: 1, ...(method === 'anova' ? { background: c.accent, color: '#fff', borderColor: c.accent } : {}) }}
+                  style={{ ...s.exportBtn, flex: 1, ...(method === 'anova' ? { background: c.accent, color: c.onAccent, borderColor: c.accent } : {}) }}
                   onClick={() => setMethod('anova')}
                 >
                   {t('grr_method_anova')}
@@ -941,7 +941,7 @@ export default function GageRR() {
 
               {/* Conclusion banner */}
               {conclusionStyle && (
-                <div style={{ ...s.card, background: conclusionStyle.bg, border: `1px solid ${conclusionStyle.color}40`, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ ...s.card, background: conclusionStyle.bg, border: `1px solid ${tint(conclusionStyle.color, 25)}`, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ fontSize: 22 }}>{conclusionStyle.icon}</span>
                   <div>
                     <div style={{ fontWeight: 700, color: conclusionStyle.color }}>
@@ -958,7 +958,7 @@ export default function GageRR() {
                   <div style={s.sectionTitle}>{t('grr_anova_title')}</div>
                   <div style={{
                     fontSize: 13, lineHeight: 1.6, padding: 12, borderRadius: 8, marginBottom: 14,
-                    background: 'rgba(15,212,200,.06)', border: '1px solid rgba(15,212,200,.15)', color: c.text,
+                    background: 'color-mix(in srgb, var(--qh-accent) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--qh-accent) 15%, transparent)', color: c.text,
                   }}>
                     {result.significanceNote}
                   </div>
@@ -993,7 +993,7 @@ export default function GageRR() {
                           <td style={s.td}>{row.p !== null ? row.p.toFixed(4) : '—'}</td>
                           <td style={s.td}>
                             {row.significant === null ? '—' : (
-                              <span style={{ color: row.significant ? '#ef4444' : '#4ade80', fontWeight: 700 }}>
+                              <span style={{ color: row.significant ? 'var(--qh-danger)' : 'var(--qh-good)', fontWeight: 700 }}>
                                 {row.significant ? t('grr_sig_yes') : t('grr_sig_no')}
                               </span>
                             )}

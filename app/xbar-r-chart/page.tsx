@@ -421,7 +421,7 @@ export default function XbarRChartPage() {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = '#0a0f1e';
+    ctx.fillStyle = '#0A1120';
     ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = '#e2e8f0';
     ctx.font = 'bold 20px system-ui, sans-serif';
@@ -606,7 +606,7 @@ export default function XbarRChartPage() {
               />
               <p style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>{messages.csvUploadHint}</p>
               {gridImport.fileError && (
-                <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{gridImport.fileError}</p>
+                <p style={{ fontSize: 11, color: 'var(--qh-danger)', marginTop: 4 }}>{gridImport.fileError}</p>
               )}
               <SheetPicker
                 sheetNames={gridImport.sheetNames}
@@ -695,7 +695,7 @@ export default function XbarRChartPage() {
                         label: 'X\u0304',
                         data: result.xbarVals,
                         borderColor: c.line,
-                        backgroundColor: c.accent,
+                        backgroundColor: c.data,
                         pointBackgroundColor: result.xbarVals.map((_, i) => (violatedIndices.has(i) ? c.danger : c.accent)),
                         pointRadius: 4,
                         borderWidth: 1.5,
@@ -763,7 +763,7 @@ export default function XbarRChartPage() {
                         label: 'R',
                         data: result.rangeVals,
                         borderColor: c.line,
-                        backgroundColor: c.accent,
+                        backgroundColor: c.data,
                         pointRadius: 4,
                         borderWidth: 1.5,
                         tension: 0,
@@ -881,8 +881,8 @@ export default function XbarRChartPage() {
                           type: 'bar' as const,
                           label: 'Frequency',
                           data: histogramData.binLabels.map((x, i) => ({ x, y: histogramData.binCounts[i] })),
-                          backgroundColor: c.accent + '80',
-                          borderColor: c.accent,
+                          backgroundColor: c.data + '80',
+                          borderColor: c.data,
                           borderWidth: 1,
                           order: 2,
                         },

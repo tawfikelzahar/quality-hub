@@ -47,7 +47,7 @@ const SAMPLE_VALUES: (number | null)[][] = [
   [96.9, 96.5, 96.4],
 ]
 
-const BATCH_COLORS = ['#0fd4c8', '#f59e0b', '#a78bfa', '#f472b6', '#60a5fa', '#4ade80']
+const BATCH_COLORS = ['#5B8FD9', '#9A7FE0', '#2BA39A', '#D9659A', '#7A8BA6', '#5FB0D9'] // categorical, avoids the verdict colours (green/amber/red)
 
 function fmt(n: number | null | undefined, digits = 3): string {
   if (n === null || n === undefined || Number.isNaN(n)) return '—'
@@ -747,14 +747,14 @@ export default function StabilityStudy() {
                 <div style={s.rowCard}>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>{t('stab_equal_slopes')}</div>
                   <div style={{ fontSize: 12, color: c.muted }}>F({analysis.poolability.slopesDf1}, {analysis.poolability.slopesDf2}) = {fmt(analysis.poolability.slopesF, 3)}, p = {fmt(analysis.poolability.slopesP, 4)}</div>
-                  <span style={{ ...s.badge, background: analysis.poolability.slopesPoolable ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)', color: analysis.poolability.slopesPoolable ? '#4ade80' : c.danger, width: 'fit-content' }}>
+                  <span style={{ ...s.badge, background: analysis.poolability.slopesPoolable ? 'color-mix(in srgb, var(--qh-good) 15%, transparent)' : 'color-mix(in srgb, var(--qh-danger) 15%, transparent)', color: analysis.poolability.slopesPoolable ? 'var(--qh-good)' : c.danger, width: 'fit-content' }}>
                     {analysis.poolability.slopesPoolable ? t('stab_poolable') : t('stab_not_poolable')}
                   </span>
                 </div>
                 <div style={s.rowCard}>
                   <div style={{ fontSize: 12, fontWeight: 700 }}>{t('stab_equal_intercepts')}</div>
                   <div style={{ fontSize: 12, color: c.muted }}>F({analysis.poolability.interceptsDf1}, {analysis.poolability.interceptsDf2}) = {fmt(analysis.poolability.interceptsF, 3)}, p = {fmt(analysis.poolability.interceptsP, 4)}</div>
-                  <span style={{ ...s.badge, background: analysis.poolability.interceptsPoolable ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)', color: analysis.poolability.interceptsPoolable ? '#4ade80' : c.danger, width: 'fit-content' }}>
+                  <span style={{ ...s.badge, background: analysis.poolability.interceptsPoolable ? 'color-mix(in srgb, var(--qh-good) 15%, transparent)' : 'color-mix(in srgb, var(--qh-danger) 15%, transparent)', color: analysis.poolability.interceptsPoolable ? 'var(--qh-good)' : c.danger, width: 'fit-content' }}>
                     {analysis.poolability.interceptsPoolable ? t('stab_poolable') : t('stab_not_poolable')}
                   </span>
                 </div>

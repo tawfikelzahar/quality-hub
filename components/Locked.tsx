@@ -3,7 +3,7 @@
 import { type CSSProperties, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useSubscription } from '@/lib/useSubscription'
-import { COLORS, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR, type ThemeMode } from '@/lib/theme'
+import { COLORS, type ThemeMode } from '@/lib/theme'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Two reusable pieces for gating Pro features (Phase 4 of the subscription
@@ -31,8 +31,8 @@ import { COLORS, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR, type ThemeMode } fro
 function LockIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="4" y="11" width="16" height="10" rx="2" stroke={BRAND_GRADIENT_TEXT_COLOR} strokeWidth="2" />
-      <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke={BRAND_GRADIENT_TEXT_COLOR} strokeWidth="2" strokeLinecap="round" />
+      <rect x="4" y="11" width="16" height="10" rx="2" stroke="var(--qh-onGold)" strokeWidth="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" stroke="var(--qh-onGold)" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -81,7 +81,7 @@ export function LockedPage({ theme, feature, description, bullets, previewLocked
             height: 56,
             margin: '0 auto 20px',
             borderRadius: '50%',
-            background: BRAND_GRADIENT,
+            background: 'var(--qh-gold)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -124,8 +124,8 @@ export function LockedPage({ theme, feature, description, bullets, previewLocked
           <Link
             href="/pricing"
             style={{
-              background: BRAND_GRADIENT,
-              color: BRAND_GRADIENT_TEXT_COLOR,
+              background: 'var(--qh-gold)',
+              color: 'var(--qh-onGold)',
               fontWeight: 700,
               fontSize: 13,
               padding: '10px 20px',
@@ -224,7 +224,7 @@ export function LockedSection({
               height: 36,
               margin: '0 auto 10px',
               borderRadius: '50%',
-              background: BRAND_GRADIENT,
+              background: 'var(--qh-gold)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -243,8 +243,8 @@ export function LockedSection({
             style={{
               display: 'inline-block',
               marginTop: description ? 0 : 10,
-              background: c.accent,
-              color: '#060d1a',
+              background: 'var(--qh-gold)',
+              color: 'var(--qh-onGold)',
               fontWeight: 700,
               fontSize: 12,
               padding: '7px 16px',

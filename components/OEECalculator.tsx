@@ -167,8 +167,8 @@ export default function OEECalculator() {
   const cls = result ? classify(result.oee) : null
 
   const classColor: Record<Classification, string> = {
-    'world-class': '#22c55e',
-    good: c.accent,
+    'world-class': c.good,
+    good: c.data,
     average: c.amber,
     poor: c.danger,
   }
@@ -177,7 +177,7 @@ export default function OEECalculator() {
     ? [
         { labelKey: 'oee_loss_downtime' as TKey, subKey: 'oee_loss_downtime_sub' as TKey, value: result.downtimeLoss, color: c.danger },
         { labelKey: 'oee_loss_speed' as TKey, subKey: 'oee_loss_speed_sub' as TKey, value: result.speedLoss, color: c.amber },
-        { labelKey: 'oee_loss_quality' as TKey, subKey: 'oee_loss_quality_sub' as TKey, value: result.qualityLoss, color: c.accent },
+        { labelKey: 'oee_loss_quality' as TKey, subKey: 'oee_loss_quality_sub' as TKey, value: result.qualityLoss, color: c.data },
       ]
     : []
 
@@ -472,23 +472,23 @@ export default function OEECalculator() {
     nav: {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 32px', height: 56,
-      background: theme === 'dark' ? 'rgba(6,13,26,.95)' : '#ffffff',
+      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
       backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${theme === 'dark' ? 'rgba(15,212,200,.1)' : c.border}`,
+      borderBottom: `1px solid ${c.border}`,
       flexShrink: 0,
     },
     navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
     navRight: { display: 'flex', alignItems: 'center', gap: 14 },
     logo: {
       display: 'flex', alignItems: 'center', gap: 9,
-      textDecoration: 'none', color: theme === 'dark' ? '#f0f6ff' : c.text,
+      textDecoration: 'none', color: c.text,
       fontWeight: 800, fontSize: 15,
     },
     logoIcon: {
       width: 30, height: 30,
-      background: 'linear-gradient(135deg,#0fd4c8,#00a896)',
+      background: 'var(--qh-accent)',
       borderRadius: 7, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', color: '#060d1a', fontWeight: 900, fontSize: 13,
+      justifyContent: 'center', color: 'var(--qh-onAccent)', fontWeight: 900, fontSize: 13,
     },
     separator: { color: 'rgba(255,255,255,.12)', fontSize: 20 },
     breadcrumb: { fontSize: 13, color: c.muted, fontWeight: 500 },
@@ -510,7 +510,7 @@ export default function OEECalculator() {
     sectionTitle: { fontSize: 11, fontWeight: 700, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 },
     card: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20 },
     input: {
-      background: theme === 'dark' ? '#0d1520' : '#f8fafc',
+      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
       border: `1px solid ${c.border}`, borderRadius: 7,
       color: c.text, padding: '7px 10px', fontSize: 13, outline: 'none', width: '100%',
     },
@@ -683,11 +683,11 @@ export default function OEECalculator() {
                               {t(b.labelKey)}
                               <div style={{ fontSize: 10, color: c.muted }}>{b.note}</div>
                             </td>
-                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: yours >= b.wc ? '#22c55e' : c.text }}>
+                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: yours >= b.wc ? 'var(--qh-good)' : c.text }}>
                               {yours.toFixed(1)}%
                             </td>
                             <td style={{ ...s.td, textAlign: 'right', color: c.muted }}>{b.wc}%</td>
-                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: gap >= 0 ? '#22c55e' : c.danger }}>
+                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: gap >= 0 ? 'var(--qh-good)' : c.danger }}>
                               {gap >= 0 ? '+' : ''}{gap.toFixed(1)}%
                             </td>
                           </tr>

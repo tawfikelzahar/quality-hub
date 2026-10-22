@@ -254,7 +254,7 @@ export default function AQLPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#0a0f1e';
+    ctx.fillStyle = '#0A1120';
     ctx.fillRect(0, 0, width, height);
 
     ctx.fillStyle = '#e2e8f0';

@@ -67,7 +67,7 @@ export default function AuthStatus() {
 
   if (!user) {
     return (
-      <Link href="/login" style={{ fontSize: 13, color: '#6b89b4', textDecoration: 'none', fontWeight: 500 }}>
+      <Link href="/login" style={{ fontSize: 13, color: 'var(--qh-muted)', textDecoration: 'none', fontWeight: 500 }}>
         {t('nav_signin')}
       </Link>
     )
@@ -77,7 +77,7 @@ export default function AuthStatus() {
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <Link
         href="/account"
-        style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#8fafd4', textDecoration: 'none', fontWeight: 500 }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--qh-muted)', textDecoration: 'none', fontWeight: 500 }}
       >
         {user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -94,8 +94,8 @@ export default function AuthStatus() {
               width: 26,
               height: 26,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg,#0fd4c8,#00a896)',
-              color: '#060d1a',
+              background: 'var(--qh-accent)',
+              color: 'var(--qh-onAccent)',
               fontWeight: 800,
               fontSize: 12,
               display: 'flex',
@@ -111,7 +111,7 @@ export default function AuthStatus() {
       </Link>
       <button
         onClick={handleSignOut}
-        style={{ fontSize: 12, color: '#6b89b4', background: 'transparent', border: '1px solid rgba(255,255,255,.1)', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}
+        style={{ fontSize: 12, color: 'var(--qh-muted)', background: 'transparent', border: '1px solid var(--qh-border)', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}
       >
         {t('nav_signout')}
       </button>

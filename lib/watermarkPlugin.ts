@@ -74,7 +74,11 @@ export const watermarkPlugin: Plugin = {
     const spacing = fontSize * 11
 
     ctx.globalAlpha = cfg.opacity
-    ctx.fillStyle = '#0e7474'
+    // tiled text follows the active theme's muted colour (set by usePersistedTheme)
+    const muted = typeof document !== 'undefined'
+      ? getComputedStyle(document.documentElement).getPropertyValue('--qh-muted').trim()
+      : ''
+    ctx.fillStyle = muted || '#8A98AF'
     ctx.font = `700 ${fontSize}px Arial, sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -97,9 +101,9 @@ export const watermarkPlugin: Plugin = {
     // 2) Solid brand strip along the bottom edge of the canvas
     ctx.save()
     ctx.globalAlpha = 1
-    ctx.fillStyle = '#0e7474'
+    ctx.fillStyle = '#0B1F3F' // Mizan navy
     ctx.fillRect(0, height - WATERMARK_STRIP_HEIGHT, width, WATERMARK_STRIP_HEIGHT)
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = '#E3D3AE' // light gold, readable on navy
     ctx.font = '600 11px Arial, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'

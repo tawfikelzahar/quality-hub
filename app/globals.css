@@ -226,3 +226,52 @@ button:focus-visible {
     grid-template-columns: 1fr 1fr !important;
   }
 }
+
+/* Mizan palette as CSS variables (mirrors lib/theme.ts COLORS; the theme
+   hook overwrites these at runtime when the user switches theme). */
+:root {
+  --qh-bg: #0A1120;
+  --qh-surface: #101A2C;
+  --qh-surface2: #17233A;
+  --qh-border: #22314A;
+  --qh-accent: #F1ECE1;
+  --qh-accent2: #F1ECE1;
+  --qh-onAccent: #0B1F3F;
+  --qh-data: #8FB3E8;
+  --qh-data2: #C3B4F0;
+  --qh-gold: #CDAA62;
+  --qh-onGold: #1A1305;
+  --qh-good: #45C486;
+  --qh-amber: #E9A23B;
+  --qh-danger: #F06464;
+  --qh-text: #EEF1F6;
+  --qh-muted: #8A98AF;
+  --qh-grid: rgba(255,255,255,0.06);
+  --qh-bar: #8FB3E8;
+  --qh-barHover: #A9C5EE;
+  --qh-line: #C3B4F0;
+  --qh-vital: rgba(143,179,232,0.12);
+}
+:root[data-qh-theme="light"] {
+  --qh-bg: #F7F8FA;
+  --qh-surface: #ffffff;
+  --qh-surface2: #EEF2F7;
+  --qh-border: #DDE3EB;
+  --qh-accent: #0B1F3F;
+  --qh-accent2: #0B1F3F;
+  --qh-onAccent: #FFFFFF;
+  --qh-data: #2F5E9E;
+  --qh-data2: #6A55B8;
+  --qh-gold: #85662F;
+  --qh-onGold: #FFFFFF;
+  --qh-good: #1A7F4B;
+  --qh-amber: #935E07;
+  --qh-danger: #C9302C;
+  --qh-text: #0E1B31;
+  --qh-muted: #5B6B82;
+  --qh-grid: rgba(15,30,54,0.07);
+  --qh-bar: #2F5E9E;
+  --qh-barHover: #3A6DB3;
+  --qh-line: #6A55B8;
+  --qh-vital: rgba(47,94,158,0.08);
+}

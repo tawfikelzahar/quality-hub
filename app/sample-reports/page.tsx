@@ -74,8 +74,8 @@ export default function SampleReportsPage() {
 
   const btnPrimary: React.CSSProperties = {
     ...btnBase,
-    background: dark ? 'linear-gradient(135deg,#0FD4C8,#00A896)' : 'linear-gradient(135deg,#0e7474,#00a896)',
-    color: '#06121a',
+    background: 'var(--qh-accent)',
+    color: 'var(--qh-onAccent)',
   }
 
   const btnSecondary: React.CSSProperties = {
@@ -165,8 +165,8 @@ export default function SampleReportsPage() {
           {/* ── Note ── */}
           <div
             style={{
-              background: dark ? 'rgba(15,212,200,0.06)' : '#f0faf9',
-              border: `1px solid ${dark ? 'rgba(15,212,200,0.18)' : '#cdeee9'}`,
+              background: 'color-mix(in srgb, var(--qh-accent) 6%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--qh-accent) 18%, transparent)',
               borderRadius: 10,
               padding: '14px 18px',
               fontSize: 13,
@@ -190,8 +190,8 @@ export default function SampleReportsPage() {
               href="/pricing"
               style={{
                 display: 'inline-block',
-                background: dark ? 'linear-gradient(135deg,#0FD4C8,#00A896)' : 'linear-gradient(135deg,#0e7474,#00a896)',
-                color: '#06121a',
+                background: 'var(--qh-gold)',
+                color: 'var(--qh-onGold)',
                 fontWeight: 700,
                 fontSize: 14,
                 padding: '12px 28px',

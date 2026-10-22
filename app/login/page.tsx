@@ -26,15 +26,15 @@ export default function LoginPage() {
   // site-wide theme toggle, which was jarring when the rest of the app
   // was in light mode. Values mirror the ones already used on the landing
   // page / shared theme so this still looks like the same product.
-  const pageBg = dark ? '#060d1a' : c.bg
+  const pageBg = c.bg
   const textColor = dark ? '#f0f6ff' : c.text
   const mutedColor = dark ? '#6b89b4' : c.muted
   const softMuted = dark ? '#4a6080' : c.muted
   const labelColor = dark ? '#8fafd4' : c.muted
   const cardBg = dark ? 'rgba(11,22,40,.9)' : c.surface
-  const cardBorder = dark ? 'rgba(15,212,200,.15)' : c.border
+  const cardBorder = dark ? 'color-mix(in srgb, var(--qh-accent) 15%, transparent)' : c.border
   const toggleTrackBg = dark ? 'rgba(255,255,255,.04)' : c.surface2
-  const activeTabBg = dark ? 'rgba(15,212,200,.15)' : `${c.accent}18`
+  const activeTabBg = dark ? 'color-mix(in srgb, var(--qh-accent) 15%, transparent)' : `${c.accent}18`
   const dividerColor = dark ? 'rgba(255,255,255,.08)' : c.border
   const inputBg = dark ? 'rgba(255,255,255,.05)' : c.surface2
   const inputBorder = dark ? 'rgba(255,255,255,.1)' : c.border
@@ -250,7 +250,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div style={{fontSize:13,padding:'10px 14px',borderRadius:9,marginBottom:16,background: error.startsWith('✅') ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)',color: error.startsWith('✅') ? '#4ade80' : '#f87171',border:`1px solid ${error.startsWith('✅') ? 'rgba(34,197,94,.2)' : 'rgba(239,68,68,.2)'}`}}>
+          <div style={{fontSize:13,padding:'10px 14px',borderRadius:9,marginBottom:16,background: error.startsWith('✅') ? 'color-mix(in srgb, var(--qh-good) 10%, transparent)' : 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',color: error.startsWith('✅') ? 'var(--qh-good)' : '#f87171',border:`1px solid ${error.startsWith('✅') ? 'color-mix(in srgb, var(--qh-good) 20%, transparent)' : 'color-mix(in srgb, var(--qh-danger) 20%, transparent)'}`}}>
             {error}
           </div>
         )}

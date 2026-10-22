@@ -106,7 +106,7 @@ export default function PricingPage() {
         ...s.card,
         flex: 1,
         minWidth: 280,
-        border: opts.highlight ? `2px solid ${c.accent}` : s.card.border,
+        border: opts.highlight ? `2px solid ${c.gold}` : s.card.border,
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
@@ -118,8 +118,8 @@ export default function PricingPage() {
             position: 'absolute',
             top: -12,
             left: 20,
-            background: c.accent,
-            color: '#060d1a',
+            background: c.gold,
+            color: c.onGold,
             fontSize: 11,
             fontWeight: 800,
             padding: '3px 10px',
@@ -153,7 +153,7 @@ export default function PricingPage() {
             width: '100%',
             textDecoration: 'none',
             background: opts.highlight ? c.accent : s.exportBtn.background,
-            color: opts.highlight ? '#060d1a' : c.text,
+            color: opts.highlight ? 'var(--qh-onAccent)' : c.text,
           }}
         >
           {opts.cta}
@@ -237,7 +237,7 @@ export default function PricingPage() {
                 <tr>
                   <th style={{ ...s.th, textAlign: 'start' }}>{t('pricing_col_feature')}</th>
                   <th style={{ ...s.th, textAlign: 'center' }}>{t('pricing_col_free')}</th>
-                  <th style={{ ...s.th, textAlign: 'center', color: c.accent }}>{t('pricing_col_pro')}</th>
+                  <th style={{ ...s.th, textAlign: 'center', color: c.gold }}>{t('pricing_col_pro')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,7 +267,7 @@ export default function PricingPage() {
                         <td style={{ ...s.td, textAlign: 'center', color: c.muted }}>
                           <Check ok={f.free} accent={c.accent} muted={c.muted} t={t} />
                         </td>
-                        <td style={{ ...s.td, textAlign: 'center', color: c.accent, fontWeight: 600 }}>
+                        <td style={{ ...s.td, textAlign: 'center', color: c.gold, fontWeight: 600 }}>
                           <Check ok={f.pro} accent={c.accent} muted={c.muted} t={t} />
                         </td>
                       </tr>

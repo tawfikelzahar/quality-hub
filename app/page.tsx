@@ -38,10 +38,10 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_stability_title',
     descKey: 'section_stability_desc',
     tools: [
-      { href: '/spc', icon: '📊', iconBg: 'rgba(15,212,200,.1)', iconBorder: 'rgba(15,212,200,.2)', titleKey: 'spc_title', descKey: 'spc_desc', tags: ['Cp·Cpk·Pp·Ppk', 'Nelson Rules', 'Sigma Level', 'PPM'], live: true },
-      { href: '/imr-chart', icon: '📊', iconBg: 'rgba(236,72,153,.1)', iconBorder: 'rgba(236,72,153,.2)', titleKey: 'imr_title', descKey: 'imr_desc', tags: ['Individuals Chart', 'Moving Range', 'Nelson Rules', 'Capability'], live: true },
-      { href: '/xbar-r-chart', icon: '📈', iconBg: 'rgba(20,184,166,.1)', iconBorder: 'rgba(20,184,166,.2)', titleKey: 'xbar_r_title', descKey: 'xbar_r_desc', tags: ['Subgrouped Data', 'X̄ Chart', 'Range Chart', 'Nelson Rules'], live: true },
-      { href: '/xbar-s-chart', icon: '📈', iconBg: 'rgba(6,182,212,.1)', iconBorder: 'rgba(6,182,212,.2)', titleKey: 'xbar_s_title', descKey: 'xbar_s_desc', tags: ['Subgrouped Data', 'X̄ Chart', 'Std Dev Chart', 'Nelson Rules'], live: true },
+      { href: '/spc', icon: '📊', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'spc_title', descKey: 'spc_desc', tags: ['Cp·Cpk·Pp·Ppk', 'Nelson Rules', 'Sigma Level', 'PPM'], live: true },
+      { href: '/imr-chart', icon: '📊', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'imr_title', descKey: 'imr_desc', tags: ['Individuals Chart', 'Moving Range', 'Nelson Rules', 'Capability'], live: true },
+      { href: '/xbar-r-chart', icon: '📈', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'xbar_r_title', descKey: 'xbar_r_desc', tags: ['Subgrouped Data', 'X̄ Chart', 'Range Chart', 'Nelson Rules'], live: true },
+      { href: '/xbar-s-chart', icon: '📈', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'xbar_s_title', descKey: 'xbar_s_desc', tags: ['Subgrouped Data', 'X̄ Chart', 'Std Dev Chart', 'Nelson Rules'], live: true },
     ],
   },
   {
@@ -50,7 +50,7 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_msa_title',
     descKey: 'section_msa_desc',
     tools: [
-      { href: '/gage-rr', icon: '🎯', iconBg: 'rgba(232,160,32,.1)', iconBorder: 'rgba(232,160,32,.2)', titleKey: 'gagerr_title', descKey: 'gagerr_desc', tags: ['AIAG MSA', 'EV/AV/GRR', 'NDC'], live: true },
+      { href: '/gage-rr', icon: '🎯', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'gagerr_title', descKey: 'gagerr_desc', tags: ['AIAG MSA', 'EV/AV/GRR', 'NDC'], live: true },
     ],
   },
   {
@@ -59,8 +59,8 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_regression_title',
     descKey: 'section_regression_desc',
     tools: [
-      { href: '/regression', icon: '📈', iconBg: 'rgba(59,130,246,.1)', iconBorder: 'rgba(59,130,246,.2)', titleKey: 'regression_title', descKey: 'regression_desc', tags: ['OLS Fit', 'ANOVA', 'Residual Diagnostics', 'Prediction Intervals'], live: true },
-      { href: '/multiregression', icon: '📉', iconBg: 'rgba(99,102,241,.1)', iconBorder: 'rgba(99,102,241,.2)', titleKey: 'multiregression_title', descKey: 'multiregression_desc', tags: ['Multiple Predictors', 'VIF', 'ANOVA', 'Prediction Intervals'], live: true },
+      { href: '/regression', icon: '📈', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'regression_title', descKey: 'regression_desc', tags: ['OLS Fit', 'ANOVA', 'Residual Diagnostics', 'Prediction Intervals'], live: true },
+      { href: '/multiregression', icon: '📉', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'multiregression_title', descKey: 'multiregression_desc', tags: ['Multiple Predictors', 'VIF', 'ANOVA', 'Prediction Intervals'], live: true },
     ],
   },
   {
@@ -69,7 +69,7 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_doe_title',
     descKey: 'section_doe_desc',
     tools: [
-      { href: '/doe', icon: '🧪', iconBg: 'rgba(244,114,182,.1)', iconBorder: 'rgba(244,114,182,.2)', titleKey: 'doe_title', descKey: 'doe_desc', tags: ['2^k Full Factorial', 'Pareto of Effects', 'ANOVA', 'Coded Equation'], live: true },
+      { href: '/doe', icon: '🧪', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'doe_title', descKey: 'doe_desc', tags: ['2^k Full Factorial', 'Pareto of Effects', 'ANOVA', 'Coded Equation'], live: true },
     ],
   },
   {
@@ -78,8 +78,8 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_sampling_title',
     descKey: 'section_sampling_desc',
     tools: [
-      { href: '/aql', icon: '📋', iconBg: 'rgba(168,85,247,.1)', iconBorder: 'rgba(168,85,247,.2)', titleKey: 'aql_title', descKey: 'aql_desc', tags: ['ISO 2859-1', 'Ac/Re Tables', 'CSV/Excel/PDF Export'], live: true },
-      { href: '/icmsf', icon: '🧫', iconBg: 'rgba(34,197,94,.1)', iconBorder: 'rgba(34,197,94,.2)', titleKey: 'icmsf_title', descKey: 'icmsf_desc', tags: ['ICMSF Case Selector', 'n/c/m/M', 'OC Curve'], live: true },
+      { href: '/aql', icon: '📋', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'aql_title', descKey: 'aql_desc', tags: ['ISO 2859-1', 'Ac/Re Tables', 'CSV/Excel/PDF Export'], live: true },
+      { href: '/icmsf', icon: '🧫', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'icmsf_title', descKey: 'icmsf_desc', tags: ['ICMSF Case Selector', 'n/c/m/M', 'OC Curve'], live: true },
     ],
   },
   {
@@ -88,10 +88,10 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_quality_title',
     descKey: 'section_quality_desc',
     tools: [
-      { href: '/pareto', icon: '📈', iconBg: 'rgba(245,158,11,.1)', iconBorder: 'rgba(245,158,11,.2)', titleKey: 'pareto_title', descKey: 'pareto_desc', tags: ['80/20 Rule', 'Excel Import', 'PDF Export'], live: true },
-      { href: '/dpmo', icon: '🎯', iconBg: 'rgba(59,130,246,.1)', iconBorder: 'rgba(59,130,246,.2)', titleKey: 'dpmo_title', descKey: 'dpmo_desc', tags: ['Six Sigma', 'DPMO', 'Yield %'], live: true },
-      { href: '/oee', icon: '⚙️', iconBg: 'rgba(15,212,200,.1)', iconBorder: 'rgba(15,212,200,.2)', titleKey: 'oee_title', descKey: 'oee_desc', tags: ['JIPM TPM', 'Six Big Losses', 'CSV/Excel/PDF Export'], live: true },
-      { href: null, icon: '⚠️', iconBg: 'rgba(239,68,68,.08)', iconBorder: 'rgba(239,68,68,.12)', titleKey: 'fmea_title', descKey: 'fmea_desc', tags: [], live: false },
+      { href: '/pareto', icon: '📈', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'pareto_title', descKey: 'pareto_desc', tags: ['80/20 Rule', 'Excel Import', 'PDF Export'], live: true },
+      { href: '/dpmo', icon: '🎯', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'dpmo_title', descKey: 'dpmo_desc', tags: ['Six Sigma', 'DPMO', 'Yield %'], live: true },
+      { href: '/oee', icon: '⚙️', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'oee_title', descKey: 'oee_desc', tags: ['JIPM TPM', 'Six Big Losses', 'CSV/Excel/PDF Export'], live: true },
+      { href: null, icon: '⚠️', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'fmea_title', descKey: 'fmea_desc', tags: [], live: false },
     ],
   },
   {
@@ -100,7 +100,7 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_descriptive_title',
     descKey: 'section_descriptive_desc',
     tools: [
-      { href: '/descriptive', icon: '📐', iconBg: 'rgba(20,184,166,.1)', iconBorder: 'rgba(20,184,166,.2)', titleKey: 'descriptive_title', descKey: 'descriptive_desc', tags: ['Mean/Median/StdDev', 'Histogram', 'Confidence Intervals'], live: true },
+      { href: '/descriptive', icon: '📐', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'descriptive_title', descKey: 'descriptive_desc', tags: ['Mean/Median/StdDev', 'Histogram', 'Confidence Intervals'], live: true },
     ],
   },
   {
@@ -109,7 +109,7 @@ const TOOL_SECTIONS: ToolSectionData[] = [
     titleKey: 'section_reliability_title',
     descKey: 'section_reliability_desc',
     tools: [
-      { href: '/stability', icon: '🧪', iconBg: 'rgba(15,212,200,.1)', iconBorder: 'rgba(15,212,200,.2)', titleKey: 'stability_title', descKey: 'stability_desc', tags: ['ICH Q1E', 'Shelf-Life', 'CSV/Excel/PDF Export'], live: true },
+      { href: '/stability', icon: '🧪', iconBg: 'color-mix(in srgb, var(--qh-data) 10%, transparent)', iconBorder: 'color-mix(in srgb, var(--qh-data) 22%, transparent)', titleKey: 'stability_title', descKey: 'stability_desc', tags: ['ICH Q1E', 'Shelf-Life', 'CSV/Excel/PDF Export'], live: true },
     ],
   },
 ]
@@ -124,15 +124,15 @@ export default function Home() {
   // component theme (hero gradients, card surfaces) but still need a
   // light-mode counterpart. Defined here, once, instead of scattered
   // through the JSX below.
-  const bg = dark ? '#060d1a' : c.bg
-  const text = dark ? '#f0f6ff' : c.text
-  const navLinkColor = dark ? '#8fafd4' : c.muted
-  const cardBg = dark ? 'rgba(11,22,40,.9)' : c.surface
-  const cardBorder = dark ? 'rgba(15,212,200,.2)' : c.border
-  const comingSoonBg = dark ? 'rgba(11,22,40,.45)' : c.surface2
+  const bg = c.bg
+  const text = c.text
+  const navLinkColor = c.muted
+  const cardBg = c.surface
+  const cardBorder = dark ? 'color-mix(in srgb, var(--qh-accent) 20%, transparent)' : c.border
+  const comingSoonBg = c.surface2
   const comingSoonBorder = dark ? 'rgba(255,255,255,.04)' : c.border
   const footerBorder = dark ? 'rgba(255,255,255,.05)' : c.border
-  const footerMuted = dark ? '#6b89b4' : c.muted
+  const footerMuted = c.muted
   const glowOpacity = dark ? 1 : 0 // the animated background glows are dark-mode only
 
   const featurePills = [dict.pill_1, dict.pill_2, dict.pill_3, dict.pill_4, dict.pill_5, dict.pill_6]
@@ -148,24 +148,24 @@ export default function Home() {
         .fu{animation:fadeUp .75s ease forwards;opacity:0}
         .fu1{animation-delay:.1s} .fu2{animation-delay:.28s} .fu3{animation-delay:.46s} .fu4{animation-delay:.62s}
         .card{transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
-        .card:hover{transform:translateY(-7px);box-shadow:0 24px 64px rgba(15,212,200,.1)}
+        .card:hover{transform:translateY(-7px);box-shadow:0 24px 64px color-mix(in srgb, var(--qh-accent) 10%, transparent)}
         .btn{transition:transform .25s ease,box-shadow .25s ease}
-        .btn:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(15,212,200,.35)}
-        .nl{transition:color .2s} .nl:hover{color:#0fd4c8!important}
+        .btn:hover{transform:translateY(-2px);box-shadow:0 14px 44px color-mix(in srgb, var(--qh-accent) 35%, transparent)}
+        .nl{transition:color .2s} .nl:hover{color:var(--qh-accent)!important}
       `}</style>
 
       <main style={{background:bg,color:text,fontFamily:"'Inter',system-ui,sans-serif",minHeight:'100vh',transition:'background .25s ease,color .25s ease'}}>
 
         {/* ── Animated Background (dark mode only) ── */}
         <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden',opacity:glowOpacity,transition:'opacity .25s ease'}}>
-          <div style={{position:'absolute',top:'-15%',left:'-8%',width:800,height:800,borderRadius:'50%',background:'radial-gradient(circle,rgba(15,212,200,.13) 0%,transparent 68%)',animation:'float1 13s ease-in-out infinite'}}/>
-          <div style={{position:'absolute',top:'45%',right:'-12%',width:650,height:650,borderRadius:'50%',background:'radial-gradient(circle,rgba(0,168,150,.1) 0%,transparent 68%)',animation:'float2 16s ease-in-out infinite'}}/>
-          <div style={{position:'absolute',bottom:'-8%',left:'28%',width:550,height:550,borderRadius:'50%',background:'radial-gradient(circle,rgba(232,160,32,.07) 0%,transparent 68%)',animation:'float3 20s ease-in-out infinite'}}/>
-          <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(rgba(15,212,200,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(15,212,200,.025) 1px,transparent 1px)',backgroundSize:'64px 64px'}}/>
+          <div style={{position:'absolute',top:'-15%',left:'-8%',width:800,height:800,borderRadius:'50%',background:'radial-gradient(circle,color-mix(in srgb, var(--qh-accent) 13%, transparent) 0%,transparent 68%)',animation:'float1 13s ease-in-out infinite'}}/>
+          <div style={{position:'absolute',top:'45%',right:'-12%',width:650,height:650,borderRadius:'50%',background:'radial-gradient(circle,color-mix(in srgb, var(--qh-accent) 10%, transparent) 0%,transparent 68%)',animation:'float2 16s ease-in-out infinite'}}/>
+          <div style={{position:'absolute',bottom:'-8%',left:'28%',width:550,height:550,borderRadius:'50%',background:'radial-gradient(circle,color-mix(in srgb, var(--qh-gold) 7%, transparent) 0%,transparent 68%)',animation:'float3 20s ease-in-out infinite'}}/>
+          <div style={{position:'absolute',inset:0,backgroundImage:'linear-gradient(color-mix(in srgb, var(--qh-accent) 2%, transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb, var(--qh-accent) 2%, transparent) 1px,transparent 1px)',backgroundSize:'64px 64px'}}/>
         </div>
 
         {/* ── Nav ── */}
-        <nav className="qh-landing-nav" style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'rgba(15,212,200,.07)':c.border}`}}>
+        <nav className="qh-landing-nav" style={{position:'fixed',top:0,left:0,right:0,zIndex:100,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'0 48px',height:64,background:dark?'rgba(6,13,26,.88)':'rgba(255,255,255,.92)',backdropFilter:'blur(24px)',borderBottom:`1px solid ${dark?'color-mix(in srgb, var(--qh-accent) 7%, transparent)':c.border}`}}>
           <div style={{display:'flex',alignItems:'center',flexShrink:0,marginInlineEnd:12}}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="qh-brand-logo" src={dark ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{height:38,width:'auto',display:'block'}} />
@@ -185,21 +185,21 @@ export default function Home() {
             >
               {dark ? '☀️' : '🌙'}<span className="qh-hide-small">{dark ? ' Light' : ' Dark'}</span>
             </button>
-            <a href="/pricing" className="qh-hide-mobile" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:13,padding:'8px 20px',borderRadius:8,textDecoration:'none'}}>{t('nav_getpro')} →</a>
+            <a href="/pricing" className="qh-hide-mobile" style={{background:'var(--qh-gold)',color:'var(--qh-onGold)',fontWeight:700,fontSize:13,padding:'8px 20px',borderRadius:8,textDecoration:'none'}}>{t('nav_getpro')} →</a>
           </div>
         </nav>
 
         {/* ── Hero ── */}
         <section className="qh-landing-hero" style={{position:'relative',zIndex:1,minHeight:'100vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'120px 24px 80px'}}>
 
-          <div className="fu fu1" style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(15,212,200,.07)',border:'1px solid rgba(15,212,200,.2)',borderRadius:100,padding:'7px 18px',fontSize:11,fontWeight:700,color:'#0fd4c8',letterSpacing:'2px',textTransform:'uppercase',marginBottom:40}}>
-            <span style={{width:6,height:6,borderRadius:'50%',background:'#0fd4c8',display:'inline-block',animation:'pulse 2s infinite'}}/>
+          <div className="fu fu1" style={{display:'inline-flex',alignItems:'center',gap:8,background:'color-mix(in srgb, var(--qh-accent) 7%, transparent)',border:'1px solid color-mix(in srgb, var(--qh-accent) 20%, transparent)',borderRadius:100,padding:'7px 18px',fontSize:11,fontWeight:700,color:'var(--qh-accent)',letterSpacing:'2px',textTransform:'uppercase',marginBottom:40}}>
+            <span style={{width:6,height:6,borderRadius:'50%',background:'var(--qh-accent)',display:'inline-block',animation:'pulse 2s infinite'}}/>
             {t('hero_badge')}
           </div>
 
           <h1 className="fu fu2" style={{fontSize:'clamp(42px,6.5vw,90px)',fontWeight:900,lineHeight:1.02,letterSpacing:-3,marginBottom:24,maxWidth:960}}>
             {t('hero_title_1')}<br/>
-            <span style={{background:'linear-gradient(90deg,#0fd4c8 0%,#00d4b0 45%,#e8a020 100%)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
+            <span style={{background:dark?'linear-gradient(90deg,var(--qh-accent) 0%,var(--qh-gold) 100%)':'var(--qh-gold)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
               {t('hero_title_2')}
             </span>
           </h1>
@@ -209,10 +209,10 @@ export default function Home() {
           </p>
 
           <div className="fu fu4" style={{display:'flex',gap:14,flexWrap:'wrap',justifyContent:'center',marginBottom:72}}>
-            <a href="#tools" className="btn" style={{background:'linear-gradient(135deg,#0fd4c8,#00a896)',color:'#060d1a',fontWeight:700,fontSize:15,padding:'15px 38px',borderRadius:12,textDecoration:'none'}}>
+            <a href="#tools" className="btn" style={{background:'var(--qh-accent)',color:'var(--qh-onAccent)',fontWeight:700,fontSize:15,padding:'15px 38px',borderRadius:12,textDecoration:'none'}}>
               {t('hero_cta_explore')} →
             </a>
-            <a href="/pricing" style={{border:'1px solid rgba(15,212,200,.2)',color:'#0fd4c8',fontSize:14,fontWeight:500,padding:'15px 28px',borderRadius:12,textDecoration:'none',background:'rgba(15,212,200,.04)'}}>
+            <a href="/pricing" style={{border:'1px solid color-mix(in srgb, var(--qh-accent) 20%, transparent)',color:'var(--qh-accent)',fontSize:14,fontWeight:500,padding:'15px 28px',borderRadius:12,textDecoration:'none',background:'color-mix(in srgb, var(--qh-accent) 4%, transparent)'}}>
               {t('hero_cta_pricing')} →
             </a>
           </div>
@@ -227,7 +227,7 @@ export default function Home() {
 
         {/* ── Tools ── */}
         <section id="tools" className="qh-landing-section" style={{position:'relative',zIndex:1,maxWidth:1100,margin:'0 auto',padding:'100px 32px'}}>
-          <p style={{fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:'#0fd4c8',marginBottom:14}}>{t('tools_label')}</p>
+          <p style={{fontSize:11,fontWeight:700,letterSpacing:3,textTransform:'uppercase',color:'var(--qh-accent)',marginBottom:14}}>{t('tools_label')}</p>
           <h2 style={{fontSize:'clamp(30px,4vw,50px)',fontWeight:800,letterSpacing:-1.5,marginBottom:12,lineHeight:1.1}}>
             {t('tools_h1')}<br/>{t('tools_h2')}
           </h2>
@@ -241,7 +241,7 @@ export default function Home() {
               <a
                 key={section.id}
                 href={`#${section.id}`}
-                style={{fontSize:12,fontWeight:600,color:dark?'#8fafd4':c.muted,background:dark?'rgba(255,255,255,.03)':c.surface2,border:`1px solid ${dark?'rgba(255,255,255,.08)':c.border}`,borderRadius:20,padding:'7px 16px',textDecoration:'none',transition:'color .2s,border-color .2s'}}
+                style={{fontSize:12,fontWeight:600,color:c.muted,background:dark?'rgba(255,255,255,.03)':c.surface2,border:`1px solid ${dark?'rgba(255,255,255,.08)':c.border}`,borderRadius:20,padding:'7px 16px',textDecoration:'none',transition:'color .2s,border-color .2s'}}
                 className="nl"
               >
                 {t(section.labelKey)}
@@ -264,8 +264,8 @@ export default function Home() {
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
                         <div style={{width:52,height:52,borderRadius:14,background:tool.iconBg,border:`1px solid ${tool.iconBorder}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:24}}>{tool.icon}</div>
                         {tool.live ? (
-                          <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(34,197,94,.1)',color:'#4ade80',border:'1px solid rgba(34,197,94,.2)',display:'flex',alignItems:'center',gap:5}}>
-                            <span style={{width:5,height:5,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
+                          <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'color-mix(in srgb, var(--qh-good) 10%, transparent)',color:'var(--qh-good)',border:'1px solid color-mix(in srgb, var(--qh-good) 20%, transparent)',display:'flex',alignItems:'center',gap:5}}>
+                            <span style={{width:5,height:5,borderRadius:'50%',background:'var(--qh-good)',display:'inline-block',animation:'pulse 2s infinite'}}/>{t('badge_live')}
                           </span>
                         ) : (
                           <span style={{fontSize:10,fontWeight:700,padding:'4px 12px',borderRadius:20,background:'rgba(148,163,184,.06)',color:'#64748b',border:'1px solid rgba(148,163,184,.1)'}}>{t('badge_soon')}</span>
@@ -278,11 +278,11 @@ export default function Home() {
                       {tool.tags.length > 0 && (
                         <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                           {tool.tags.map(tag=>(
-                            <span key={tag} style={{fontSize:11,color:'#0fd4c8',background:'rgba(15,212,200,.06)',border:'1px solid rgba(15,212,200,.12)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
+                            <span key={tag} style={{fontSize:11,color:'var(--qh-accent)',background:'color-mix(in srgb, var(--qh-accent) 6%, transparent)',border:'1px solid color-mix(in srgb, var(--qh-accent) 12%, transparent)',borderRadius:20,padding:'3px 10px'}}>{tag}</span>
                           ))}
                         </div>
                       )}
-                      {tool.live && <div style={{fontSize:13,fontWeight:600,color:'#0fd4c8'}}>{t('open_tool')}</div>}
+                      {tool.live && <div style={{fontSize:13,fontWeight:600,color:'var(--qh-accent)'}}>{t('open_tool')}</div>}
                     </>
                   )
                   return tool.live && tool.href ? (

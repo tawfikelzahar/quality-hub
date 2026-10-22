@@ -253,7 +253,7 @@ export default function RegressionPage() {
           type: 'scatter',
           label: 'Data',
           data: result.residuals.map((r) => ({ x: r.x, y: r.y })),
-          backgroundColor: c.accent,
+          backgroundColor: c.data,
           pointRadius: 4,
           pointHoverRadius: 5,
           order: 1,
@@ -295,7 +295,7 @@ export default function RegressionPage() {
     if (!result) return null;
     return {
       datasets: [
-        { type: 'scatter', label: 'Residual', data: result.residuals.map((r) => ({ x: r.fitted, y: r.residual })), backgroundColor: c.accent, pointRadius: 3 },
+        { type: 'scatter', label: 'Residual', data: result.residuals.map((r) => ({ x: r.fitted, y: r.residual })), backgroundColor: c.data, pointRadius: 3 },
       ],
     };
   }, [result, c]);
@@ -311,8 +311,8 @@ export default function RegressionPage() {
           data: result.residuals.map((r) => ({ x: r.index + 1, y: r.residual })),
           borderColor: c.line,
           borderWidth: 1,
-          pointBackgroundColor: c.accent,
-          pointBorderColor: c.accent,
+          pointBackgroundColor: c.data,
+          pointBorderColor: c.data,
           pointRadius: 3,
           tension: 0,
         },
@@ -353,7 +353,7 @@ export default function RegressionPage() {
     });
     return {
       datasets: [
-        { type: 'scatter', label: 'Std residual', data: points, backgroundColor: c.accent, pointRadius: 3 },
+        { type: 'scatter', label: 'Std residual', data: points, backgroundColor: c.data, pointRadius: 3 },
       ],
     };
   }, [result, c]);
@@ -489,7 +489,7 @@ export default function RegressionPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.fillStyle = '#0a0f1e';
+    ctx.fillStyle = '#0A1120';
     ctx.fillRect(0, 0, width, height);
     ctx.fillStyle = '#e2e8f0';
     ctx.font = 'bold 20px system-ui, sans-serif';
@@ -662,7 +662,7 @@ export default function RegressionPage() {
               />
               <p style={{ fontSize: 11, color: c.muted, marginTop: 4 }}>{messages.csvUploadHint}</p>
               {gridImport.fileError && (
-                <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>{gridImport.fileError}</p>
+                <p style={{ fontSize: 11, color: 'var(--qh-danger)', marginTop: 4 }}>{gridImport.fileError}</p>
               )}
               <SheetPicker
                 sheetNames={gridImport.sheetNames}

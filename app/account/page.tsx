@@ -189,7 +189,7 @@ export default function AccountPage() {
                       justifyContent: 'center',
                       fontSize: 22,
                       fontWeight: 800,
-                      color: '#060d1a',
+                      color: 'var(--qh-onAccent)',
                       flexShrink: 0,
                     }}
                   >
@@ -273,14 +273,14 @@ export default function AccountPage() {
                   </div>
                 </div>
                 {profileMessage && (
-                  <div style={{ fontSize: 12, color: profileMessage.startsWith('✅') ? '#4ade80' : c.danger }}>
+                  <div style={{ fontSize: 12, color: profileMessage.startsWith('✅') ? 'var(--qh-good)' : c.danger }}>
                     {profileMessage}
                   </div>
                 )}
                 <button
                   onClick={handleSaveProfile}
                   disabled={profileLoading}
-                  style={{ ...s.exportBtn, background: c.accent, color: '#060d1a', width: 'fit-content', padding: '9px 20px' }}
+                  style={{ ...s.exportBtn, background: c.accent, color: c.onAccent, width: 'fit-content', padding: '9px 20px' }}
                 >
                   {profileLoading ? 'Saving...' : 'Save Profile'}
                 </button>
@@ -317,14 +317,14 @@ export default function AccountPage() {
                     />
                   </div>
                   {pwMessage && (
-                    <div style={{ fontSize: 12, color: pwMessage.startsWith('✅') ? '#4ade80' : c.danger }}>
+                    <div style={{ fontSize: 12, color: pwMessage.startsWith('✅') ? 'var(--qh-good)' : c.danger }}>
                       {pwMessage}
                     </div>
                   )}
                   <button
                     onClick={handleChangePassword}
                     disabled={pwLoading}
-                    style={{ ...s.exportBtn, background: c.accent, color: '#060d1a', width: 'fit-content', padding: '9px 20px' }}
+                    style={{ ...s.exportBtn, background: c.accent, color: c.onAccent, width: 'fit-content', padding: '9px 20px' }}
                   >
                     {pwLoading ? 'Updating...' : 'Update Password'}
                   </button>

@@ -317,7 +317,7 @@ export default function DescriptiveStats() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    ctx.fillStyle = '#0a0f1e'
+    ctx.fillStyle = '#0A1120'
     ctx.fillRect(0, 0, width, height)
     ctx.fillStyle = '#e2e8f0'
     ctx.font = 'bold 20px system-ui, sans-serif'
@@ -337,7 +337,7 @@ export default function DescriptiveStats() {
     y += rowH
 
     rows.forEach(([label, value], i) => {
-      ctx.fillStyle = i % 2 === 0 ? '#111a2c' : '#0a0f1e'
+      ctx.fillStyle = i % 2 === 0 ? '#101A2C' : '#0A1120'
       ctx.fillRect(16, y, width - 32, rowH)
       ctx.fillStyle = '#cbd5e1'
       ctx.font = '12px system-ui, sans-serif'
@@ -465,8 +465,8 @@ export default function DescriptiveStats() {
           type: 'bar' as const,
           label: 'IQR (Q1–Q3)',
           data: [[bp.q1, bp.q3]],
-          backgroundColor: `${c.accent}30`,
-          borderColor: c.accent,
+          backgroundColor: `${c.data}30`,
+          borderColor: c.data,
           borderWidth: 2,
           barThickness: 40,
           order: 2,
@@ -574,7 +574,7 @@ export default function DescriptiveStats() {
             </button>
             <gridImport.FileInput />
             {gridImport.fileError && (
-              <div style={{ color: '#ef4444', fontSize: 11, marginTop: 6 }}>{gridImport.fileError}</div>
+              <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginTop: 6 }}>{gridImport.fileError}</div>
             )}
             <SheetPicker
               sheetNames={gridImport.sheetNames}
@@ -605,9 +605,9 @@ export default function DescriptiveStats() {
                 style={{
                   ...(s.addBtn as CSSProperties),
                   marginTop: 8,
-                  background: 'rgba(239,68,68,0.1)',
+                  background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',
                   border: '1px dashed #ef4444',
-                  color: '#ef4444',
+                  color: 'var(--qh-danger)',
                 }}
                 onClick={clearAll}
               >

@@ -103,7 +103,7 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
             whiteSpace: 'nowrap',
             fontSize: 11,
             fontWeight: 600,
-            color: message.ok ? '#22c55e' : c.danger,
+            color: message.ok ? 'var(--qh-good)' : c.danger,
             background: c.surface,
             border: `1px solid ${c.border}`,
             borderRadius: 6,

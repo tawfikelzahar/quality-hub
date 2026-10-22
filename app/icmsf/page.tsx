@@ -208,7 +208,7 @@ export default function IcmsfPage() {
           {
             type: 'line' as const,
             data: ocCurve.map((pt) => ({ x: pt.p * 100, y: pt.pa * 100 })),
-            borderColor: c.accent,
+            borderColor: c.data,
             borderWidth: 2.5,
             pointRadius: 0,
             tension: 0,
@@ -240,7 +240,7 @@ export default function IcmsfPage() {
           {
             type: 'line' as const,
             data: threeClassCurve.map((pt) => ({ x: pt.logMean, y: pt.pAccept * 100 })),
-            borderColor: c.accent,
+            borderColor: c.data,
             borderWidth: 2.5,
             pointRadius: 0,
             tension: 0,
@@ -296,7 +296,7 @@ export default function IcmsfPage() {
     canvas.height = 420;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.fillStyle = '#0a0f1e';
+    ctx.fillStyle = '#0A1120';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#e2e8f0';
     ctx.font = 'bold 20px system-ui, sans-serif';
@@ -733,7 +733,7 @@ export default function IcmsfPage() {
                 flexWrap: 'wrap',
               }}
             >
-              <span style={{ ...s.badge, background: c.accent, color: theme === 'dark' ? '#04211f' : '#fff' }}>
+              <span style={{ ...s.badge, background: c.accent, color: c.onAccent }}>
                 {messages.resolvedCaseLabel(resolvedCase.case)}
               </span>
               <span style={{ fontSize: 13, color: c.text }}>

@@ -8,7 +8,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 
 // Registered once at module load. Safe to call multiple times (Chart.js
 // no-ops on a duplicate id), but this keeps it to a single call site.
-import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
+import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
@@ -188,10 +188,10 @@ function toneColor(tone: Tone) {
 
 // Capability verdict — mirrors capabilityClass/capabilityLabel from spc-tool.html
 function capabilityColor(val: number | null): string {
-  if (val === null || isNaN(val)) return '#8892a4'
-  if (val >= 1.33) return '#4ade80'
-  if (val >= 1.0) return '#f59e0b'
-  return '#ef4444'
+  if (val === null || isNaN(val)) return 'var(--qh-muted)'
+  if (val >= 1.33) return 'var(--qh-good)'
+  if (val >= 1.0) return 'var(--qh-amber)'
+  return 'var(--qh-danger)'
 }
 function capabilityLabel(val: number | null): string {
   if (val === null || isNaN(val)) return '—'
@@ -200,10 +200,10 @@ function capabilityLabel(val: number | null): string {
   return '✗ Not Capable'
 }
 function sigmaColor(sVal: number): string {
-  if (sVal >= 6) return '#4ade80'
-  if (sVal >= 4) return '#1ea7a7'
-  if (sVal >= 3) return '#fbbf24'
-  return '#f87171'
+  if (sVal >= 6) return 'var(--qh-good)'
+  if (sVal >= 4) return 'var(--qh-good)'
+  if (sVal >= 3) return 'var(--qh-amber)'
+  return 'var(--qh-danger)'
 }
 
 // Analytical normal PDF/CDF — used client-side to draw the distribution and
@@ -1250,9 +1250,9 @@ export default function SPCEngine() {
         {
           label,
           data: values,
-          borderColor: c.accent,
-          backgroundColor: c.accent,
-          pointBackgroundColor: labels.map(n => (violated.has(n) ? c.danger : c.accent)),
+          borderColor: c.data,
+          backgroundColor: c.data,
+          pointBackgroundColor: labels.map(n => (violated.has(n) ? c.danger : c.data)),
           pointRadius: 4,
           pointHoverRadius: 5,
           borderWidth: 2,
@@ -1355,8 +1355,8 @@ export default function SPCEngine() {
         type: 'bar',
         label: 'Frequency',
         data: binCenters.map((x, i) => ({ x, y: binCounts[i] })),
-        backgroundColor: `${c.accent}80`,
-        borderColor: c.accent,
+        backgroundColor: `${c.data}80`,
+        borderColor: c.data,
         borderWidth: 1,
         order: 2,
       },
@@ -1406,7 +1406,7 @@ export default function SPCEngine() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const datasets: any[] = [
       { label: 'Normal CDF', data: normPts, borderColor: c.muted, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true },
-      { label: 'Empirical CDF', data: ecdf, backgroundColor: c.accent, borderColor: c.accent, pointRadius: 4, pointHoverRadius: 6, showLine: true, stepped: true, borderWidth: 1.5, fill: false },
+      { label: 'Empirical CDF', data: ecdf, backgroundColor: c.data, borderColor: c.data, pointRadius: 4, pointHoverRadius: 6, showLine: true, stepped: true, borderWidth: 1.5, fill: false },
     ]
     if (lsl !== null) datasets.push({ label: 'LSL', data: [{ x: lsl, y: 0 }, { x: lsl, y: 1 }], borderColor: c.danger, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
     if (usl !== null) datasets.push({ label: 'USL', data: [{ x: usl, y: 0 }, { x: usl, y: 1 }], borderColor: c.danger, borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, showLine: true })
@@ -1459,7 +1459,7 @@ export default function SPCEngine() {
   ]
 
   const adequacy = varResult?.dataAdequacy ?? attrResult?.dataAdequacy ?? null
-  const adequacyColor = adequacy?.tier === 'adequate' ? '#4ade80' : adequacy?.tier === 'moderate' ? '#facc15' : '#ef4444'
+  const adequacyColor = adequacy?.tier === 'adequate' ? 'var(--qh-good)' : adequacy?.tier === 'moderate' ? 'var(--qh-amber)' : 'var(--qh-danger)'
   const adequacyIcon = adequacy?.tier === 'adequate' ? '🟢' : adequacy?.tier === 'moderate' ? '🟡' : '⚠️'
 
   // Capability verdict prefers Cpk (short-term/within) and falls back to Ppk,
@@ -1469,10 +1469,10 @@ export default function SPCEngine() {
   const verdict = !hasSpecLimits || pkVal === null
     ? null
     : pkVal >= 1.33
-    ? { icon: '✅', color: '#4ade80', bg: 'rgba(74,222,128,0.1)', text: t('spc_capable'), sub: t('spc_capable_sub') }
+    ? { icon: '✅', color: 'var(--qh-good)', bg: 'color-mix(in srgb, var(--qh-good) 10%, transparent)', text: t('spc_capable'), sub: t('spc_capable_sub') }
     : pkVal < 1.0
-    ? { icon: '❌', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', text: t('spc_notcapable').replace('{n}', fmt(varResult!.Ppk, 3)), sub: t('spc_notcapable_sub') }
-    : { icon: '⚠️', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', text: t('spc_marginal'), sub: t('spc_marginal_sub') }
+    ? { icon: '❌', color: 'var(--qh-danger)', bg: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)', text: t('spc_notcapable').replace('{n}', fmt(varResult!.Ppk, 3)), sub: t('spc_notcapable_sub') }
+    : { icon: '⚠️', color: 'var(--qh-amber)', bg: 'color-mix(in srgb, var(--qh-amber) 10%, transparent)', text: t('spc_marginal'), sub: t('spc_marginal_sub') }
 
   const displaySigLvl = varResult ? varResult.sigLvl_st ?? varResult.sigLvl_lt : null
 
@@ -1498,7 +1498,7 @@ export default function SPCEngine() {
                 style={{
                   ...s.exportBtn,
                   background: dataType === 'variable' ? c.accent : s.exportBtn.background,
-                  color: dataType === 'variable' ? '#060d1a' : c.text,
+                  color: dataType === 'variable' ? 'var(--qh-onAccent)' : c.text,
                   border: dataType === 'variable' ? `1px solid ${c.accent}` : s.exportBtn.border,
                 }}
                 onClick={() => { setDataType('variable'); setResult(null); setErrorMsg('') }}
@@ -1509,7 +1509,7 @@ export default function SPCEngine() {
                 style={{
                   ...s.exportBtn,
                   background: dataType === 'attribute' ? c.accent : s.exportBtn.background,
-                  color: dataType === 'attribute' ? '#060d1a' : c.text,
+                  color: dataType === 'attribute' ? 'var(--qh-onAccent)' : c.text,
                   border: dataType === 'attribute' ? `1px solid ${c.accent}` : s.exportBtn.border,
                 }}
                 onClick={() => { setDataType('attribute'); setResult(null); setErrorMsg('') }}
@@ -1652,7 +1652,7 @@ export default function SPCEngine() {
 
           <div>
             <button
-              style={{ ...s.addBtn, background: 'rgba(239,68,68,0.1)', border: '1px dashed #ef4444', color: '#ef4444' }}
+              style={{ ...s.addBtn, background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)', border: '1px dashed #ef4444', color: 'var(--qh-danger)' }}
               onClick={clearAll}
             >
               {t('spc_clear_all')}
@@ -1730,7 +1730,7 @@ export default function SPCEngine() {
             </div>
 
             {dataEntryOpen && gridImport.fileError && (
-              <div style={{ color: '#ef4444', fontSize: 11, marginBottom: 8 }}>{gridImport.fileError}</div>
+              <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginBottom: 8 }}>{gridImport.fileError}</div>
             )}
             {dataEntryOpen && (
               <SheetPicker
@@ -1819,7 +1819,7 @@ export default function SPCEngine() {
           </div>
 
           {errorMsg && (
-            <div style={{ ...s.card, borderColor: '#ef4444', color: '#ef4444', fontSize: 13 }}>{errorMsg}</div>
+            <div style={{ ...s.card, borderColor: 'var(--qh-danger)', color: 'var(--qh-danger)', fontSize: 13 }}>{errorMsg}</div>
           )}
 
           {/* ── VARIABLE RESULTS ───────────────────────────────────────── */}
@@ -1840,7 +1840,7 @@ export default function SPCEngine() {
                 </div>
                 {varResult.ad ? (
                   <div style={s.statCard}>
-                    <div style={{ ...s.statVal, color: varResult.isNormal ? '#4ade80' : '#f59e0b' }}>
+                    <div style={{ ...s.statVal, color: varResult.isNormal ? 'var(--qh-good)' : 'var(--qh-amber)' }}>
                       {varResult.isNormal ? t('spc_normal') : t('spc_nonnormal')}
                     </div>
                     <div style={s.statLabel}>
@@ -1911,10 +1911,10 @@ export default function SPCEngine() {
               {hasSpecLimits ? (
                 <>
                   {allViolations.length > 0 && (
-                    <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b55' }}>
+                    <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', background: 'color-mix(in srgb, var(--qh-amber) 8%, transparent)', border: '1px solid #f59e0b55' }}>
                       <div style={{ fontSize: 20 }}>⚠️</div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: '#f59e0b' }}>{t('spc_capability_needs_stability_title')}</div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--qh-amber)' }}>{t('spc_capability_needs_stability_title')}</div>
                         <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{t('spc_capability_needs_stability_note')}</div>
                       </div>
                     </div>
@@ -1966,14 +1966,14 @@ export default function SPCEngine() {
                         { label: 'Pp', val: varResult.Pp, sub: t('spc_pp_sub') },
                         { label: 'Ppk', val: varResult.Ppk, sub: t('spc_ppk_sub') },
                       ].map(item => (
-                        <div key={item.label} style={{ ...s.statCard, border: `1px solid ${capabilityColor(item.val)}44` }}>
+                        <div key={item.label} style={{ ...s.statCard, border: `1px solid ${tint(capabilityColor(item.val), 27)}` }}>
                           <div style={{ ...s.statVal, color: capabilityColor(item.val) }}>{fmt(item.val)}</div>
                           <div style={s.statLabel}>{item.label}</div>
                           <div style={{ fontSize: 10, color: capabilityColor(item.val), marginTop: 4 }}>{capabilityLabel(item.val)}</div>
                         </div>
                       ))}
                       {varResult.Cpm !== null && (
-                        <div style={{ ...s.statCard, border: `1px solid ${capabilityColor(varResult.Cpm)}44` }}>
+                        <div style={{ ...s.statCard, border: `1px solid ${tint(capabilityColor(varResult.Cpm), 27)}` }}>
                           <div style={{ ...s.statVal, color: capabilityColor(varResult.Cpm) }}>{fmt(varResult.Cpm, 4)}</div>
                           <div style={s.statLabel}>{t('spc_cpm_taguchi')}</div>
                           <div style={{ fontSize: 10, color: capabilityColor(varResult.Cpm), marginTop: 4 }}>{capabilityLabel(varResult.Cpm)}</div>
@@ -2014,7 +2014,7 @@ export default function SPCEngine() {
                   )}
 
                   {verdict && (
-                    <div style={{ ...s.card, display: 'flex', gap: 14, alignItems: 'flex-start', background: verdict.bg, border: `1px solid ${verdict.color}55` }}>
+                    <div style={{ ...s.card, display: 'flex', gap: 14, alignItems: 'flex-start', background: verdict.bg, border: `1px solid ${tint(verdict.color, 33)}` }}>
                       <div style={{ fontSize: 22 }}>{verdict.icon}</div>
                       <div>
                         <div style={{ fontWeight: 700, color: verdict.color, fontSize: 14 }}>{verdict.text}</div>
@@ -2100,7 +2100,7 @@ export default function SPCEngine() {
 
           {/* ── DATA ADEQUACY ──────────────────────────────────────────── */}
           {result && adequacy && (
-            <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${adequacyColor}55` }}>
+            <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${tint(adequacyColor, 33)}` }}>
               <div style={{ fontSize: 20 }}>{adequacyIcon}</div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13, color: adequacyColor }}>{adequacy.label}</div>
@@ -2119,12 +2119,12 @@ export default function SPCEngine() {
                 {t('spc_tests_label')}: {t((result.testSet ?? DEFAULT_TEST_SET) === 'all' ? 'spc_tests_all' : 'spc_tests_assistant')}
               </div>
               {allViolations.length === 0 ? (
-                <div style={{ color: '#4ade80', fontSize: 13 }}>{t('spc_no_violations')}</div>
+                <div style={{ color: 'var(--qh-good)', fontSize: 13 }}>{t('spc_no_violations')}</div>
               ) : (
                 allViolations.map((v, i) => (
                   <div key={i} style={s.rowCard}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, color: '#ef4444', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {v.label}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--qh-danger)', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {v.label}</span>
                       <span style={{ fontSize: 11, color: c.muted }}>{v.chart}</span>
                     </div>
                     <div style={{ fontSize: 12, color: c.muted }}>{v.desc}</div>

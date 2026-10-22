@@ -31,7 +31,6 @@ export function VerifiedBadge({
 }) {
   const [open, setOpen] = useState(false)
   const c = COLORS[theme]
-  const dark = theme === 'dark'
 
   const pill: CSSProperties = {
     display: 'inline-flex',
@@ -40,8 +39,8 @@ export function VerifiedBadge({
     fontSize: 12,
     fontWeight: 600,
     color: c.accent,
-    background: dark ? 'rgba(15,212,200,.08)' : 'rgba(14,116,116,.06)',
-    border: `1px solid ${dark ? 'rgba(15,212,200,.22)' : 'rgba(14,116,116,.2)'}`,
+    background: 'color-mix(in srgb, var(--qh-accent) 8%, transparent)',
+    border: '1px solid color-mix(in srgb, var(--qh-accent) 22%, transparent)',
     borderRadius: 20,
     padding: '5px 12px',
     cursor: 'pointer',

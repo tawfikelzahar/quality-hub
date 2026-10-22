@@ -35,12 +35,12 @@ interface ProcessRow {
 // `label` stays English — used verbatim in CSV/Excel/PDF exports.
 // `labelKey` is the translated version shown in the UI (badges, tooltips, stats).
 const SIGMA_BANDS = [
-  { min: 6, label: 'World Class', labelKey: 'dpmo_band_worldclass' as TKey, color: '#3b82f6' },
-  { min: 5, label: 'Excellent', labelKey: 'dpmo_band_excellent' as TKey, color: '#22c55e' },
-  { min: 4, label: 'Good', labelKey: 'dpmo_band_good' as TKey, color: '#84cc16' },
-  { min: 3, label: 'Industry Average', labelKey: 'dpmo_band_avg' as TKey, color: '#f59e0b' },
-  { min: 2, label: 'Needs Improvement', labelKey: 'dpmo_band_needsimprovement' as TKey, color: '#f97316' },
-  { min: 0, label: 'Non-Competitive', labelKey: 'dpmo_band_noncompetitive' as TKey, color: '#ef4444' },
+  { min: 6, label: 'World Class', labelKey: 'dpmo_band_worldclass' as TKey, tone: 'data' as const },
+  { min: 5, label: 'Excellent', labelKey: 'dpmo_band_excellent' as TKey, tone: 'good' as const },
+  { min: 4, label: 'Good', labelKey: 'dpmo_band_good' as TKey, tone: 'good' as const },
+  { min: 3, label: 'Industry Average', labelKey: 'dpmo_band_avg' as TKey, tone: 'amber' as const },
+  { min: 2, label: 'Needs Improvement', labelKey: 'dpmo_band_needsimprovement' as TKey, tone: 'amber' as const },
+  { min: 0, label: 'Non-Competitive', labelKey: 'dpmo_band_noncompetitive' as TKey, tone: 'danger' as const },
 ]
 
 function sigmaBand(sigma: number) {
@@ -397,7 +397,7 @@ export default function DPMOCalculator() {
       {
         label: t('dpmo_axis_sigma'),
         data: results.map(r => Number(r.sigma.toFixed(2))),
-        backgroundColor: results.map(r => sigmaBand(r.sigma).color),
+        backgroundColor: results.map(r => c[sigmaBand(r.sigma).tone]),
         borderRadius: 4,
       },
     ],
@@ -464,23 +464,23 @@ export default function DPMOCalculator() {
     nav: {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 32px', height: 56,
-      background: theme === 'dark' ? 'rgba(6,13,26,.95)' : '#ffffff',
+      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
       backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${theme === 'dark' ? 'rgba(15,212,200,.1)' : c.border}`,
+      borderBottom: `1px solid ${c.border}`,
       flexShrink: 0,
     },
     navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
     navRight: { display: 'flex', alignItems: 'center', gap: 14 },
     logo: {
       display: 'flex', alignItems: 'center', gap: 9,
-      textDecoration: 'none', color: theme === 'dark' ? '#f0f6ff' : c.text,
+      textDecoration: 'none', color: c.text,
       fontWeight: 800, fontSize: 15,
     },
     logoIcon: {
       width: 30, height: 30,
-      background: 'linear-gradient(135deg,#0fd4c8,#00a896)',
+      background: 'var(--qh-accent)',
       borderRadius: 7, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', color: '#060d1a', fontWeight: 900, fontSize: 13,
+      justifyContent: 'center', color: 'var(--qh-onAccent)', fontWeight: 900, fontSize: 13,
     },
     separator: { color: 'rgba(255,255,255,.12)', fontSize: 20 },
     breadcrumb: { fontSize: 13, color: c.muted, fontWeight: 500 },
@@ -507,14 +507,14 @@ export default function DPMOCalculator() {
       display: 'flex', flexDirection: 'column', gap: 6,
     },
     input: {
-      background: theme === 'dark' ? '#0d1520' : '#f8fafc',
+      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
       border: `1px solid ${c.border}`, borderRadius: 7,
       color: c.text, padding: '7px 10px', fontSize: 13, outline: 'none', width: '100%',
     },
     inputGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 },
     label: { fontSize: 10, color: c.muted, marginBottom: 2 },
     removeBtn: {
-      background: 'transparent', border: 'none', color: '#ef4444',
+      background: 'transparent', border: 'none', color: 'var(--qh-danger)',
       cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '2px 4px',
       alignSelf: 'flex-end',
     },
@@ -560,7 +560,7 @@ export default function DPMOCalculator() {
     toast: {
       position: 'fixed' as const, bottom: 24, left: '50%',
       transform: 'translateX(-50%)',
-      background: c.accent, color: '#060d1a',
+      background: c.accent, color: c.onAccent,
       padding: '10px 20px', borderRadius: 8,
       fontSize: 13, fontWeight: 700, zIndex: 100,
       boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
@@ -632,8 +632,8 @@ export default function DPMOCalculator() {
               <button
                 style={{
                   ...s.addBtn, marginTop: 8,
-                  background: 'rgba(239,68,68,0.1)',
-                  border: '1px dashed #ef4444', color: '#ef4444',
+                  background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',
+                  border: '1px dashed #ef4444', color: 'var(--qh-danger)',
                 }}
                 onClick={clearAll}
               >
@@ -659,7 +659,7 @@ export default function DPMOCalculator() {
               <div style={{ color: c.text, fontWeight: 600, fontSize: 12 }}>
                 {t('dpmo_dropzone_text')}
               </div>
-              {fileError && <div style={{ color: '#ef4444', fontSize: 11, marginTop: 6 }}>{fileError}</div>}
+              {fileError && <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginTop: 6 }}>{fileError}</div>}
             </div>
             <input
               ref={fileRef} type="file" accept=".csv,.xlsx,.xls"
@@ -700,7 +700,7 @@ export default function DPMOCalculator() {
               <div style={{ ...s.card, marginTop: 10, padding: 12 }}>
                 {SIGMA_BANDS.slice().reverse().map(b => (
                   <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 11 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: b.color, flexShrink: 0 }} />
+                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: c[b.tone], flexShrink: 0 }} />
                     <span style={{ color: c.text, fontWeight: 600 }}>{b.min}σ+</span>
                     <span style={{ color: c.muted }}>{t(b.labelKey)}</span>
                   </div>
@@ -724,7 +724,7 @@ export default function DPMOCalculator() {
                 </div>
                 {worstProcess && (
                   <div style={s.statCard}>
-                    <div style={{ ...s.statVal, color: sigmaBand(worstProcess.sigma).color, fontSize: 16 }}>
+                    <div style={{ ...s.statVal, color: c[sigmaBand(worstProcess.sigma).tone], fontSize: 16 }}>
                       {worstProcess.name}
                     </div>
                     <div style={s.statLabel}>{t('dpmo_stat_lowest')} ({worstProcess.sigma.toFixed(2)}σ)</div>
@@ -771,9 +771,9 @@ export default function DPMOCalculator() {
                           <td style={s.td}>{r.dpo.toFixed(4)}</td>
                           <td style={s.td}>{Math.round(r.dpmo).toLocaleString()}</td>
                           <td style={s.td}>{r.yieldPct.toFixed(2)}%</td>
-                          <td style={{ ...s.td, fontWeight: 700, color: band.color }}>{r.sigma.toFixed(2)}</td>
+                          <td style={{ ...s.td, fontWeight: 700, color: c[band.tone] }}>{r.sigma.toFixed(2)}</td>
                           <td style={s.td}>
-                            <span style={{ ...s.badge, background: `${band.color}22`, color: band.color }}>
+                            <span style={{ ...s.badge, background: `${c[band.tone]}22`, color: c[band.tone] }}>
                               {t(band.labelKey)}
                             </span>
                           </td>

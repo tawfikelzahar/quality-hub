@@ -1,66 +1,83 @@
 import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Quality Hub visual identity — single source of truth
-// ─────────────────────────────────────────────────────────────────────────
-// These are the exact color values already in use across ParetoChart.tsx,
-// DPMOCalculator.tsx, and the landing page (app/page.tsx) — extracted here,
-// not invented. Before this file existed, each tool defined its own copy
-// of this object, so changing the brand color meant editing 3+ files by
-// hand. Now every tool imports COLORS (and, for new/rebuilt pages,
-// getSharedStyles) from here instead.
-//
-// To change the brand color across the whole site: edit `accent` (and its
-// light-mode counterpart) below. Everything that imports COLORS picks it
-// up automatically.
+// Mizan Quality colours — single source of truth (approved 22 Oct 2026,
+// "navy, ivory & gold"). Each colour has ONE job:
+//   accent / onAccent  primary buttons, active states, links (ivory on dark,
+//                      navy on light) and the text placed on them
+//   data / data2       chart series (blue) and secondary series (lavender)
+//   gold / onGold      brand and Pro only (Get Pro, PRO badges)
+//   good / amber / danger   process verdicts only (capable / caution / not)
+// Every value was checked for WCAG contrast on its background (>= 4.5:1
+// for text, >= 3:1 for chart marks). Pages that cannot reach `c` (module-
+// level helpers) can use the CSS variables --qh-<name> set by
+// usePersistedTheme below.
 // ─────────────────────────────────────────────────────────────────────────
 
 export type ThemeMode = 'dark' | 'light';
 
 export const COLORS = {
   dark: {
-    bg: '#0a0f1e',
-    surface: '#111827',
-    surface2: '#1e2d40',
-    border: '#1e3a5f',
-    accent: '#0fd4c8',
-    accent2: '#00a896', // used in the logo/CTA gradient: accent -> accent2
-    amber: '#f59e0b',
-    danger: '#ef4444',
-    text: '#e2e8f0',
-    muted: '#6b89b4',
+    bg: '#0A1120',
+    surface: '#101A2C',
+    surface2: '#17233A',
+    border: '#22314A',
+    accent: '#F1ECE1',
+    accent2: '#F1ECE1', // kept for older code paths; same as accent (no gradients)
+    onAccent: '#0B1F3F',
+    data: '#8FB3E8',
+    data2: '#C3B4F0',
+    gold: '#CDAA62',
+    onGold: '#1A1305',
+    good: '#45C486',
+    amber: '#E9A23B',
+    danger: '#F06464',
+    text: '#EEF1F6',
+    muted: '#8A98AF',
     grid: 'rgba(255,255,255,0.06)',
-    // chart-specific (Pareto bars/line)
-    bar: '#0fd4c8',
-    barHover: '#14b8b0',
-    line: '#f59e0b',
-    vital: 'rgba(245,158,11,0.15)',
+    // chart-specific
+    bar: '#8FB3E8',
+    barHover: '#A9C5EE',
+    line: '#C3B4F0',
+    vital: 'rgba(143,179,232,0.12)',
   },
   light: {
-    bg: '#f8fafc',
+    bg: '#F7F8FA',
     surface: '#ffffff',
-    surface2: '#f1f5f9',
-    border: '#e2e8f0',
-    accent: '#0e7474',
-    accent2: '#00a896',
-    amber: '#d97706',
-    danger: '#ef4444',
-    text: '#1e293b',
-    muted: '#64748b',
-    grid: 'rgba(0,0,0,0.06)',
-    bar: '#0e7474',
-    barHover: '#0f8585',
-    line: '#d97706',
-    vital: 'rgba(217,119,6,0.08)',
+    surface2: '#EEF2F7',
+    border: '#DDE3EB',
+    accent: '#0B1F3F',
+    accent2: '#0B1F3F',
+    onAccent: '#FFFFFF',
+    data: '#2F5E9E',
+    data2: '#6A55B8',
+    gold: '#85662F',
+    onGold: '#FFFFFF',
+    good: '#1A7F4B',
+    amber: '#935E07',
+    danger: '#C9302C',
+    text: '#0E1B31',
+    muted: '#5B6B82',
+    grid: 'rgba(15,30,54,0.07)',
+    bar: '#2F5E9E',
+    barHover: '#3A6DB3',
+    line: '#6A55B8',
+    vital: 'rgba(47,94,158,0.08)',
   },
 } as const;
 
+/** Transparent version of any colour (hex or CSS variable): tint('var(--qh-good)', 20) */
+export function tint(color: string, percent: number): string {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+}
+
 export type ThemeColors = (typeof COLORS)['dark'];
 
-// The gradient used for the logo mark and primary CTAs site-wide.
-// Always the same two stops regardless of light/dark mode.
-export const BRAND_GRADIENT = `linear-gradient(135deg, ${COLORS.dark.accent}, ${COLORS.dark.accent2})`;
-export const BRAND_GRADIENT_TEXT_COLOR = '#060d1a'; // text color placed ON TOP of the gradient
+// Primary call-to-action fill and its text. These follow the active theme
+// through the CSS variables set by usePersistedTheme (ivory on dark, navy
+// on light), so they are safe in module-level style objects too.
+export const BRAND_GRADIENT = 'var(--qh-accent)';
+export const BRAND_GRADIENT_TEXT_COLOR = 'var(--qh-onAccent)';
 
 /**
  * Shared structural styles used by every tool page (SPC, Pareto, DPMO, AQL):
@@ -97,9 +114,9 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
       justifyContent: 'space-between',
       padding: '0 32px',
       height: 56,
-      background: theme === 'dark' ? 'rgba(6,13,26,.95)' : '#ffffff',
+      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
       backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${theme === 'dark' ? 'rgba(15,212,200,.1)' : c.border}`,
+      borderBottom: `1px solid ${c.border}`,
       flexShrink: 0,
     },
     navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
@@ -109,7 +126,7 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
       alignItems: 'center',
       gap: 9,
       textDecoration: 'none',
-      color: theme === 'dark' ? '#f0f6ff' : c.text,
+      color: c.text,
       fontWeight: 800,
       fontSize: 15,
     },
@@ -140,6 +157,16 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
     ctaBtn: {
       background: BRAND_GRADIENT,
       color: BRAND_GRADIENT_TEXT_COLOR,
+      fontWeight: 700,
+      fontSize: 12,
+      padding: '7px 16px',
+      borderRadius: 7,
+      textDecoration: 'none',
+    },
+    // Pro / upgrade CTAs only — gold is reserved for the brand and Pro
+    proBtn: {
+      background: c.gold,
+      color: c.onGold,
       fontWeight: 700,
       fontSize: 12,
       padding: '7px 16px',
@@ -184,7 +211,7 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
     },
 
     input: {
-      background: theme === 'dark' ? '#0d1520' : '#f8fafc',
+      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
       border: `1px solid ${c.border}`,
       borderRadius: 7,
       color: c.text,
@@ -194,7 +221,7 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
       width: '100%',
     },
     select: {
-      background: theme === 'dark' ? '#0d1520' : '#f8fafc',
+      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
       border: `1px solid ${c.border}`,
       borderRadius: 7,
       color: c.text,
@@ -309,6 +336,13 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
 // ─────────────────────────────────────────────────────────────────────────
 const THEME_STORAGE_KEY = 'qh-theme';
 
+export function applyThemeVars(theme: ThemeMode) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(COLORS[theme])) root.style.setProperty(`--qh-${k}`, v);
+  root.dataset.qhTheme = theme;
+}
+
 export function usePersistedTheme(): [ThemeMode, Dispatch<SetStateAction<ThemeMode>>] {
   const [theme, setTheme] = useState<ThemeMode>('dark');
 
@@ -320,9 +354,11 @@ export function usePersistedTheme(): [ThemeMode, Dispatch<SetStateAction<ThemeMo
     }
   }, []);
 
-  // Every time the theme changes, save it
+  // Every time the theme changes, save it and publish the palette as CSS
+  // variables (--qh-accent, --qh-good, ...) for styles that can't reach COLORS
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
+    applyThemeVars(theme);
   }, [theme]);
 
   return [theme, setTheme];

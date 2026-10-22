@@ -433,14 +433,14 @@ export default function ParetoChart() {
         min: 0,
         max: 100,
         ticks: {
-          color: c.amber,
+          color: c.line,
           font: { size: 11 },
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           callback: (v: any) => `${v}%`,
         },
         grid: { drawOnChartArea: false },
-        border: { color: c.amber },
-        title: { display: true, text: t('pareto_axis_cumulative'), color: c.amber, font: { size: 11 } },
+        border: { color: c.line },
+        title: { display: true, text: t('pareto_axis_cumulative'), color: c.line, font: { size: 11 } },
       },
     },
   }
@@ -454,23 +454,23 @@ export default function ParetoChart() {
     nav: {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 32px', height: 56,
-      background: theme === 'dark' ? 'rgba(6,13,26,.95)' : '#ffffff',
+      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
       backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${theme === 'dark' ? 'rgba(15,212,200,.1)' : c.border}`,
+      borderBottom: `1px solid ${c.border}`,
       flexShrink: 0,
     },
     navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
     navRight: { display: 'flex', alignItems: 'center', gap: 14 },
     logo: {
       display: 'flex', alignItems: 'center', gap: 9,
-      textDecoration: 'none', color: theme === 'dark' ? '#f0f6ff' : c.text,
+      textDecoration: 'none', color: c.text,
       fontWeight: 800, fontSize: 15,
     },
     logoIcon: {
       width: 30, height: 30,
-      background: 'linear-gradient(135deg,#0fd4c8,#00a896)',
+      background: 'var(--qh-accent)',
       borderRadius: 7, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', color: '#060d1a', fontWeight: 900, fontSize: 13,
+      justifyContent: 'center', color: 'var(--qh-onAccent)', fontWeight: 900, fontSize: 13,
     },
     separator: { color: 'rgba(255,255,255,.12)', fontSize: 20 },
     breadcrumb: { fontSize: 13, color: c.muted, fontWeight: 500 },
@@ -496,12 +496,12 @@ export default function ParetoChart() {
     },
     inputRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
     input: {
-      background: theme === 'dark' ? '#0d1520' : '#f8fafc',
+      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
       border: `1px solid ${c.border}`, borderRadius: 7,
       color: c.text, padding: '7px 10px', fontSize: 13, outline: 'none',
     },
     removeBtn: {
-      background: 'transparent', border: 'none', color: '#ef4444',
+      background: 'transparent', border: 'none', color: 'var(--qh-danger)',
       cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1,
     },
     addBtn: {
@@ -552,7 +552,7 @@ export default function ParetoChart() {
     toast: {
       position: 'fixed' as const, bottom: 24, left: '50%',
       transform: 'translateX(-50%)',
-      background: c.accent, color: '#060d1a',
+      background: c.accent, color: c.onAccent,
       padding: '10px 20px', borderRadius: 8,
       fontSize: 13, fontWeight: 700, zIndex: 100,
       boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
@@ -600,9 +600,9 @@ export default function ParetoChart() {
               <button
                 style={{
                   ...s.addBtn,
-                  background: 'rgba(239,68,68,0.1)',
+                  background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',
                   border: '1px dashed #ef4444',
-                  color: '#ef4444',
+                  color: 'var(--qh-danger)',
                   marginTop: 8,
                 }}
                 onClick={clearAll}
@@ -634,7 +634,7 @@ export default function ParetoChart() {
                 {t('pareto_dropzone_sub')}
               </div>
               {fileError && (
-                <div style={{ color: '#ef4444', fontSize: 11, marginTop: 8 }}>{fileError}</div>
+                <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginTop: 8 }}>{fileError}</div>
               )}
             </div>
             <input
@@ -745,7 +745,7 @@ export default function ParetoChart() {
                       <td style={{ ...s.td, fontWeight: 600 }}>{r.label}</td>
                       <td style={s.td}>{r.value}</td>
                       <td style={s.td}>{total > 0 ? Math.round((r.value / total) * 100) : 0}%</td>
-                      <td style={{ ...s.td, color: c.amber, fontWeight: 600 }}>{cumulative[i]}%</td>
+                      <td style={{ ...s.td, color: c.line, fontWeight: 600 }}>{cumulative[i]}%</td>
                       <td style={s.td}>
                         {i < vitalFew ? (
                           <span style={{ ...s.vitalBadge, fontSize: 11, padding: '3px 8px' }}>
