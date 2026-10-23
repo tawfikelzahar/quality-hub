@@ -20,7 +20,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
 import { useGridImport } from '@/lib/gridImport'
-import { DEFAULT_TEST_SET, describeTestSet, type TestSet } from '@/lib/spc/nelson'
+import { DEFAULT_TEST_SET, describeTestSet, type TestSet } from '@/lib/spc/testSets'
 import { SheetPicker } from '@/components/GridImportControls'
 import {
   createReport as createPdfReport,
@@ -47,7 +47,7 @@ import {
   type RuleSignal,
   type Tone,
 } from '@/lib/spc/reportInterpretation'
-import { formatPValue } from '@/lib/stats/normal'
+import { formatPValue } from '@/lib/stats/format'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types — mirror the shape returned by app/api/analyze/route.ts exactly

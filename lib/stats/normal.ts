@@ -120,15 +120,6 @@ export function andersonDarlingNormal(data: number[]): AndersonDarlingNormal | n
   return { A2, A2adj, p, normal: p >= 0.05 }
 }
 
-/** p-value text the way Minitab prints it: "< 0.005" below 0.005, otherwise 3 decimals. */
-export function formatPValue(p: number | null | undefined): string {
-  if (p === null || p === undefined || !isFinite(p)) return '—'
-  if (p < 0.005) return '< 0.005'
-  return p.toFixed(3)
-}
-
-/** "p = 0.968" / "p < 0.005" — for sentences and labels. */
-export function formatPEquals(p: number | null | undefined): string {
-  const t = formatPValue(p)
-  return t.startsWith('<') ? `p ${t}` : `p = ${t}`
-}
+// Display helpers live in ./format so pages can use them without pulling
+// these formulas into the browser.
+export { formatPValue, formatPEquals } from './format'

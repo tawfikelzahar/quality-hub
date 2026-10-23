@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/i18n/context'
 import { tint } from '@/lib/theme'
-import { formatPEquals } from '@/lib/stats/normal'
+import { formatPEquals } from '@/lib/stats/format'
 import type { CapabilityVerdict } from '@/lib/spc/verdict'
 
 // ─────────────────────────────────────────────────────────────────────────

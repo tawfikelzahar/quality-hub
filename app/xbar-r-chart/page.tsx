@@ -4,10 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import 'chart.js/auto';
 import { Chart } from 'react-chartjs-2';
 import type { Chart as ChartJSInstance } from 'chart.js';
-import {
-  runVariableChartAnalysis,
-  type VariableChartResult,
-} from '@/lib/spc/calculator';
+import { useChartAnalysis } from '@/lib/spc/useChartAnalysis';
+import type { VariableChartResult } from '@/lib/spc/calculator';
 import { messages as messagesEn } from '@/lib/spc/xbar-r-messages';
 import { xbarRMessagesAr } from '@/lib/spc/xbar-r-messages.ar';
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
@@ -232,17 +230,8 @@ export default function XbarRChartPage() {
 
   const subgroupSize = subgroups && subgroups.length > 0 ? subgroups[0].length : 0;
 
-  const result: VariableChartResult | null = useMemo(() => {
-    if (!subgroups || subgroupSize < 2) return null;
-    return runVariableChartAnalysis({
-      data: subgroups,
-      N: subgroupSize,
-      LSL: appliedLimits.lsl,
-      USL: appliedLimits.usl,
-      target: appliedLimits.target,
-      sigmaConvention: 'direct',
-    });
-  }, [subgroups, subgroupSize, appliedLimits]);
+  const chartData = subgroups && subgroupSize >= 2 ? subgroups : null;
+  const { result, pending, failed } = useChartAnalysis('xbar-r', chartData, appliedLimits);
 
   const xChartRef = useRef<ChartJSInstance<'line'>>(null);
   const rChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
@@ -971,7 +960,8 @@ export default function XbarRChartPage() {
                     <ViolationsCard items={signals} allTests={false} />
                   </>
                 )}
-                {!result && !error && <div className="tl-card tl-empty">{t('xr_empty')}</div>}
+                {failed && <div className="tl-error">{t('tool_calc_failed')}</div>}
+                {!result && !error && !failed && <div className="tl-card tl-empty">{pending ? t('tool_calculating') : t('xr_empty')}</div>}
                 <p style={{ fontSize: 11, color: c.muted, opacity: 0.8, margin: 0 }}>{messages.footerNote}</p>
               </section>
             </div>

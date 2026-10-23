@@ -428,6 +428,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
   }
 
+  // Gage R&R is a Pro tool: check the plan here too, never only in the UI.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('subscription_status')
+    .eq('id', user.id)
+    .single()
+  if (profile?.subscription_status !== 'pro') {
+    return NextResponse.json({ error: 'Gage R&R is a Pro feature.', code: 'pro' }, { status: 403 })
+  }
+
   try {
     const body = (await request.json()) as GageInput & { method?: 'average-range' | 'anova'; poolingAlpha?: number }
     if (!body || !Array.isArray(body.measurements) || !Array.isArray(body.appraiserNames)) {

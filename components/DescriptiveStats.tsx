@@ -23,7 +23,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
-import { formatPValue } from '@/lib/stats/normal'
+import { formatPValue } from '@/lib/stats/format'
 
 function parseValues(text: string): number[] {
   return text

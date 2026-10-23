@@ -4,12 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import 'chart.js/auto';
 import { Chart } from 'react-chartjs-2';
 import type { Chart as ChartJSInstance } from 'chart.js';
-import {
-  runVariableChartAnalysis,
-  validateVariableData,
-  type VariableChartResult,
-  type VariableChartError,
-} from '@/lib/spc/calculator';
+import { useChartAnalysis } from '@/lib/spc/useChartAnalysis';
 import { messages as messagesEn } from '@/lib/spc/imr-messages';
 import { imrMessagesAr } from '@/lib/spc/imr-messages.ar';
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
@@ -187,8 +182,7 @@ export default function ImrChartPage() {
       if (Number.isFinite(v)) parsed.push(v);
     }
 
-    const validationError: VariableChartError | null = validateVariableData(parsed.map((v) => [v]));
-    if (validationError === 'insufficient-data') {
+    if (parsed.length < 3) {
       setError(messages.errorInsufficientData);
       return false;
     }
@@ -210,17 +204,8 @@ export default function ImrChartPage() {
     return true;
   }
 
-  const result: VariableChartResult | null = useMemo(() => {
-    if (!values) return null;
-    return runVariableChartAnalysis({
-      data: values.map((v) => [v]),
-      N: 1,
-      LSL: appliedLimits.lsl,
-      USL: appliedLimits.usl,
-      target: appliedLimits.target,
-      sigmaConvention: 'direct',
-    });
-  }, [values, appliedLimits]);
+  const chartData = useMemo(() => (values ? values.map((v) => [v]) : null), [values]);
+  const { result, pending, failed } = useChartAnalysis('imr', chartData, appliedLimits);
 
   const iChartRef = useRef<ChartJSInstance<'line'>>(null);
   const mrChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
@@ -883,7 +868,8 @@ export default function ImrChartPage() {
                     <ViolationsCard items={signals} allTests={false} />
                   </>
                 )}
-                {!result && !error && <div className="tl-card tl-empty">{t('imr_empty')}</div>}
+                {failed && <div className="tl-error">{t('tool_calc_failed')}</div>}
+                {!result && !error && !failed && <div className="tl-card tl-empty">{pending ? t('tool_calculating') : t('imr_empty')}</div>}
                 <p style={{ fontSize: 11, color: c.muted, opacity: 0.8, margin: 0 }}>{messages.footerNote}</p>
               </section>
             </div>
