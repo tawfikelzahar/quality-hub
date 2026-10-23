@@ -1396,8 +1396,9 @@ export default function SPCEngine() {
     const sorted = [...vals].sort((a, b) => a - b)
     const n = sorted.length
     const ecdf = sorted.map((x, i) => ({ x, y: (i + 1) / n }))
-    const xMin = sorted[0] - 2 * sigma
-    const xMax = sorted[n - 1] + 2 * sigma
+    // Plot range only: reach the spec limits so the normal curve spans the whole axis
+    const xMin = Math.min(sorted[0] - 2 * sigma, lsl ?? Infinity)
+    const xMax = Math.max(sorted[n - 1] + 2 * sigma, usl ?? -Infinity)
     const steps = 200
     const dx = (xMax - xMin) / steps
     const normPts = Array.from({ length: steps + 1 }, (_, i) => {

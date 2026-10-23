@@ -18,12 +18,17 @@ export default function ToolSidebar({ current }: { current: string }) {
       <style>{`
         .qh-toolnav { width: 232px; flex: none; box-sizing: border-box; padding: 20px 12px 32px;
           border-inline-end: 1px solid var(--qh-border); background: var(--qh-bg);
-          position: sticky; top: 0; align-self: flex-start; max-height: 100vh; overflow-y: auto; }
-        .qh-toolnav-h { font-size: 11px; font-weight: 700; color: var(--qh-muted); padding: 16px 10px 6px; }
+          position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+          scrollbar-width: thin; scrollbar-color: transparent transparent; }
+        .qh-toolnav:hover { scrollbar-color: var(--qh-border) transparent; }
+        .qh-toolnav::-webkit-scrollbar { width: 6px; }
+        .qh-toolnav::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+        .qh-toolnav:hover::-webkit-scrollbar-thumb { background: var(--qh-border); }
+        .qh-toolnav-h { font-size: 11px; font-weight: 700; color: var(--qh-muted); padding: 14px 10px 4px; }
         .qh-toolnav > div:first-of-type .qh-toolnav-h { padding-top: 0; }
         .qh-toolnav > div + div { margin-top: 6px; }
         .qh-toolnav a { display: flex; justify-content: space-between; align-items: center; gap: 8px;
-          padding: 8px 10px; border-radius: 8px; color: var(--qh-text); font-size: 13.5px; line-height: 1.35;
+          padding: 7px 10px; border-radius: 8px; color: var(--qh-text); font-size: 13.5px; line-height: 1.35;
           text-decoration: none; opacity: .82; }
         .qh-toolnav a:hover { opacity: 1; background: var(--qh-surface); }
         .qh-toolnav a[aria-current="page"] { opacity: 1; font-weight: 600; background: var(--qh-surface2);
