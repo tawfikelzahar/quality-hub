@@ -10,6 +10,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 // no-ops on a duplicate id), but this keeps it to a single call site.
 import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import ToolSidebar from '@/components/ToolSidebar'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
@@ -1478,8 +1479,76 @@ export default function SPCEngine() {
 
   const displaySigLvl = varResult ? varResult.sigLvl_st ?? varResult.sigLvl_lt : null
 
+
+  // ── Layout state (no effect on any calculation) ─────────────────────────
+  // Phones show one panel at a time: setup, data or results.
+  const [mobileTab, setMobileTab] = useState<'setup' | 'data' | 'results'>('setup')
+  const [narrow, setNarrow] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const update = () => setNarrow(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  const runAnalyze = async () => {
+    await analyze()
+    setMobileTab('results')
+    if (narrow) window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      for (const r of [iChartRef, rChartRef, distChartRef, ecdfChartRef, attrChartRef]) r.current?.resize()
+    })
+    return () => cancelAnimationFrame(id)
+  }, [mobileTab, result])
+  const nPoints = varResult ? varResult.n : attrResult ? attrResult.pts.length : 0
+  const stable = allViolations.length === 0
+
   return (
     <div style={s.page}>
+      <style>{`
+        .spc-shell { display: flex; flex: 1; min-height: 0; align-items: stretch; }
+        .spc-main { flex: 1; min-width: 0; padding: 24px 28px 48px; display: flex; flex-direction: column; gap: 20px; }
+        .spc-head h1 { margin: 0 0 4px; font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
+        .spc-head p { margin: 0; font-size: 14px; line-height: 1.7; color: color-mix(in srgb, var(--qh-text) 76%, var(--qh-bg)); }
+        .spc-top { display: flex; gap: 20px; align-items: flex-start; }
+        .spc-setup { width: 300px; flex: none; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 16px; }
+        .spc-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+        .spc-data { min-width: 0; }
+        .spc-results { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+        .spc-results-head { display: flex; flex-direction: column; gap: 10px; }
+        .spc-verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+        .spc-verdict { display: flex; gap: 14px; align-items: flex-start; border-radius: 12px; padding: 16px 18px; }
+        .spc-verdict-icon { width: 36px; height: 36px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 800; }
+        .spc-more { background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 12px; }
+        .spc-more > summary { list-style: none; cursor: pointer; min-height: 50px; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 15px; }
+        .spc-more > summary::-webkit-details-marker { display: none; }
+        .spc-more > summary::after { content: '▾'; color: var(--qh-muted); transition: transform .2s ease; }
+        .spc-more[open] > summary::after { transform: rotate(180deg); }
+        .spc-more-body { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 16px; }
+        .spc-tabs { display: none; }
+        .spc-bar { display: none; }
+        @media (max-width: 900px) and (min-width: 769px) {
+          .spc-setup { width: 260px; }
+        }
+        @media (max-width: 768px) {
+          .spc-main { padding: 14px 14px 24px; gap: 14px; }
+          .spc-head h1 { font-size: 22px; }
+          .spc-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 10px; }
+          .spc-tabs button { min-height: 42px; border: 0; border-radius: 7px; background: transparent; color: var(--qh-muted); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+          .spc-tabs button[aria-selected="true"] { background: var(--qh-accent); color: var(--qh-onAccent); font-weight: 700; }
+          .spc-panel[data-active="false"] { display: none !important; }
+          .spc-top { flex-direction: column; gap: 14px; }
+          .spc-setup { width: auto; position: static; }
+          .spc-col { width: 100%; gap: 14px; }
+          .spc-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; position: sticky; bottom: 0; z-index: 20; padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--qh-bg); border-top: 1px solid var(--qh-border); }
+          .spc-bar button { min-height: 48px; border-radius: 10px; font: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+          .spc-bar .spc-bar-primary { background: var(--qh-accent); color: var(--qh-onAccent); border: 0; }
+          .spc-bar .spc-bar-ghost { background: transparent; color: var(--qh-text); border: 1px solid var(--qh-border); }
+          .spc-bar .spc-bar-wide { grid-column: 1 / -1; }
+        }
+      `}</style>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_spc" />
 
       {loadedProjectName && (
@@ -1490,9 +1559,27 @@ export default function SPCEngine() {
         </div>
       )}
 
-      <div className="qh-body" style={s.body}>
-        {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
-        <div className="qh-left" style={s.left}>
+      <div className="spc-shell">
+        <ToolSidebar current="/spc" />
+
+        <div className="spc-main">
+          <header className="spc-head">
+            <h1>SPC Engine</h1>
+            <p>{t('spc_intro')}</p>
+          </header>
+
+          {/* Phone tabs */}
+          <div className="spc-tabs" role="tablist" aria-label={t('spc_tabs_label')}>
+            <button type="button" role="tab" aria-selected={mobileTab === 'setup'} onClick={() => setMobileTab('setup')}>{t('spc_tab_setup')}</button>
+            <button type="button" role="tab" aria-selected={mobileTab === 'data'} onClick={() => setMobileTab('data')}>
+              {t('spc_tab_data')} · {dataType === 'variable' ? varRows.length : attrRows.length}
+            </button>
+            <button type="button" role="tab" aria-selected={mobileTab === 'results'} onClick={() => setMobileTab('results')}>{t('spc_tab_results')}</button>
+          </div>
+
+          <div className="spc-top">
+            {/* ── SETUP ──────────────────────────────────────────────────── */}
+            <section className="spc-panel spc-setup" data-active={mobileTab === 'setup'} aria-label={t('spc_tab_setup')} style={s.card}>
           <div>
             <div style={s.sectionTitle}>{t('spc_data_type')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1645,13 +1732,11 @@ export default function SPCEngine() {
               </div>
             </>
           )}
-
           <div>
-            <button style={{ ...s.ctaBtn, width: '100%', textAlign: 'center', border: 'none', cursor: 'pointer', fontSize: 13, padding: '10px 16px' }} onClick={analyze} disabled={loading}>
+            <button style={{ ...s.ctaBtn, width: '100%', textAlign: 'center', border: 'none', cursor: 'pointer', fontSize: 13, padding: '10px 16px' }} onClick={runAnalyze} disabled={loading}>
               {loading ? t('spc_analyzing') : t('spc_analyze_btn')}
             </button>
           </div>
-
           <div>
             <button
               style={{ ...s.addBtn, background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)', border: '1px dashed #ef4444', color: 'var(--qh-danger)' }}
@@ -1660,47 +1745,11 @@ export default function SPCEngine() {
               {t('spc_clear_all')}
             </button>
           </div>
+            </section>
 
-          <div>
-            <div style={s.sectionTitle}>{t('spc_export')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV} disabled={!result}>{isLoggedIn ? t('spc_export_csv') : t('spc_export_csv_locked')}</button>
-              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('spc_export_excel') : t('spc_export_excel_locked')}</button>
-              <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>{isLoggedIn ? t('spc_export_png') : t('spc_export_png_locked')}</button>
-              <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>{isPro ? t('spc_export_pdf') : t('spc_export_pdf_locked')}</button>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <SaveAnalysisButton
-                theme={theme}
-                tool="spc"
-                defaultName={`SPC — ${new Date().toLocaleDateString('en-US')}`}
-                getPayload={() =>
-                  !result
-                    ? null
-                    : {
-                        input_data: {
-                          dataType,
-                          varRows,
-                          attrRows,
-                          attrType,
-                          fixedN,
-                          LSL,
-                          USL,
-                          target,
-                          sigmaConvention,
-                          testSet,
-                        },
-                        results: result,
-                      }
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── RIGHT MAIN AREA ──────────────────────────────────────────── */}
-        <div className="qh-right" style={s.right}>
-          {/* Data entry table — auto-collapses into a summary bar once you have a result */}
+            <div className="spc-col">
+            {/* ── DATA ───────────────────────────────────────────────────── */}
+            <section className="spc-panel spc-data" data-active={mobileTab === 'data'} aria-label={t('spc_tab_data')}>
           <div style={s.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: dataEntryOpen ? 12 : 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1819,11 +1868,82 @@ export default function SPCEngine() {
               </>
             ))}
           </div>
+            </section>
 
+          {/* ── RESULTS ──────────────────────────────────────────────────── */}
+          <section className="spc-panel spc-results" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
+          {result && (
+            <div className="spc-results-head">
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t('spc_tab_results')}</h2>
+            </div>
+          )}
           {errorMsg && (
             <div style={{ ...s.card, borderColor: 'var(--qh-danger)', color: 'var(--qh-danger)', fontSize: 13 }}>{errorMsg}</div>
           )}
-
+          {/* ── VERDICTS: stability + capability, first thing on the results ── */}
+          {result && (
+            <div className="spc-verdicts">
+              <div className="spc-verdict" style={{ background: tint(stable ? 'var(--qh-good)' : 'var(--qh-amber)', 8), border: `1px solid ${tint(stable ? 'var(--qh-good)' : 'var(--qh-amber)', 35)}` }}>
+                <span className="spc-verdict-icon" aria-hidden="true" style={{ background: tint(stable ? 'var(--qh-good)' : 'var(--qh-amber)', 16), color: stable ? 'var(--qh-good)' : 'var(--qh-amber)' }}>{stable ? '✓' : '!'}</span>
+                <div>
+                  <div style={{ fontSize: 12, color: c.muted, marginBottom: 2 }}>{t('spc_verdict_stability')}</div>
+                  <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>{stable ? t('spc_stable_title') : t('spc_unstable_title')}</div>
+                  <div style={{ fontSize: 13, color: c.muted, lineHeight: 1.6 }}>
+                    {stable
+                      ? t('spc_stable_sub').replace('{n}', String(nPoints))
+                      : t('spc_unstable_sub').replace('{k}', String(allViolations.length))}
+                  </div>
+                </div>
+              </div>
+              {verdict && (
+                <div className="spc-verdict" style={{ background: tint(verdict.color, 8), border: `1px solid ${tint(verdict.color, 35)}` }}>
+                  <span className="spc-verdict-icon" aria-hidden="true" style={{ background: tint(verdict.color, 16), color: verdict.color }}>{verdict.color === 'var(--qh-good)' ? '✓' : '!'}</span>
+                  <div>
+                    <div style={{ fontSize: 12, color: c.muted, marginBottom: 2 }}>{t('spc_verdict_capability')}</div>
+                    <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: verdict.color }}>{verdict.text}</div>
+                    <div style={{ fontSize: 13, color: c.muted, lineHeight: 1.6 }}>{verdict.sub}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {result && (
+            <div>
+              <div id="spc-export" style={s.sectionTitle}>{t('spc_export')}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button style={s.exportBtn} onClick={exportCSV} disabled={!result}>{isLoggedIn ? t('spc_export_csv') : t('spc_export_csv_locked')}</button>
+                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('spc_export_excel') : t('spc_export_excel_locked')}</button>
+                <button style={s.exportBtn} onClick={exportPNG} disabled={!result}>{isLoggedIn ? t('spc_export_png') : t('spc_export_png_locked')}</button>
+                <button style={s.exportBtn} onClick={exportPDF} disabled={!result}>{isPro ? t('spc_export_pdf') : t('spc_export_pdf_locked')}</button>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <SaveAnalysisButton
+                  theme={theme}
+                  tool="spc"
+                  defaultName={`SPC — ${new Date().toLocaleDateString('en-US')}`}
+                  getPayload={() =>
+                    !result
+                      ? null
+                      : {
+                          input_data: {
+                            dataType,
+                            varRows,
+                            attrRows,
+                            attrType,
+                            fixedN,
+                            LSL,
+                            USL,
+                            target,
+                            sigmaConvention,
+                            testSet,
+                          },
+                          results: result,
+                        }
+                  }
+                />
+              </div>
+            </div>
+          )}
           {/* ── VARIABLE RESULTS ───────────────────────────────────────── */}
           {varResult && (
             <>
@@ -1921,109 +2041,105 @@ export default function SPCEngine() {
                       </div>
                     </div>
                   )}
-                  {displaySigLvl !== null && (
-                    <div style={s.card}>
-                      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div style={{ textAlign: 'center', minWidth: 110 }}>
-                          <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, color: sigmaColor(displaySigLvl) }}>
-                            {isFinite(displaySigLvl) ? displaySigLvl.toFixed(2) : '∞'}
+                  {/* All indices: open on desktop, tap to open on phones */}
+                  <details key={narrow ? 'n' : 'w'} className="spc-more" open={!narrow}>
+                    <summary>{t('spc_show_all_indices')}</summary>
+                    <div className="spc-more-body">
+                      {displaySigLvl !== null && (
+                        <div style={s.card}>
+                          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ textAlign: 'center', minWidth: 110 }}>
+                              <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, color: sigmaColor(displaySigLvl) }}>
+                                {isFinite(displaySigLvl) ? displaySigLvl.toFixed(2) : '∞'}
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: sigmaColor(displaySigLvl) }}>σ</div>
+                              <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{t('spc_sigma_level')}</div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {varResult.sigLvl_st !== null && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                                  <span style={{ color: c.muted }}>{t('spc_zbench_st')}</span><span>{fmt(varResult.Z_bench_st)}</span>
+                                </div>
+                              )}
+                              {varResult.sigLvl_lt !== null && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                                  <span style={{ color: c.muted }}>{t('spc_zbench_lt')}</span><span>{fmt(varResult.Z_bench_lt)}</span>
+                                </div>
+                              )}
+                              {varResult.Z_USL_st !== null && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                                  <span style={{ color: c.muted }}>{t('spc_zusl_within')}</span><span>{fmt(varResult.Z_USL_st)}</span>
+                                </div>
+                              )}
+                              {varResult.Z_LSL_st !== null && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
+                                  <span style={{ color: c.muted }}>{t('spc_zlsl_within')}</span><span>{fmt(varResult.Z_LSL_st)}</span>
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
+                                <span style={{ color: c.muted }}>{t('spc_convention_label')}</span><span>{sigmaConvention === 'sixsigma' ? t('spc_conv_shift') : t('spc_conv_direct_val')}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: sigmaColor(displaySigLvl) }}>σ</div>
-                          <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>{t('spc_sigma_level')}</div>
                         </div>
-                        <div style={{ flex: 1, minWidth: 240, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {varResult.sigLvl_st !== null && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>{t('spc_zbench_st')}</span><span>{fmt(varResult.Z_bench_st)}</span>
-                            </div>
-                          )}
-                          {varResult.sigLvl_lt !== null && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>{t('spc_zbench_lt')}</span><span>{fmt(varResult.Z_bench_lt)}</span>
-                            </div>
-                          )}
-                          {varResult.Z_USL_st !== null && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>{t('spc_zusl_within')}</span><span>{fmt(varResult.Z_USL_st)}</span>
-                            </div>
-                          )}
-                          {varResult.Z_LSL_st !== null && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: `1px solid ${c.border}`, padding: '4px 0' }}>
-                              <span style={{ color: c.muted }}>{t('spc_zlsl_within')}</span><span>{fmt(varResult.Z_LSL_st)}</span>
-                            </div>
-                          )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0' }}>
-                            <span style={{ color: c.muted }}>{t('spc_convention_label')}</span><span>{sigmaConvention === 'sixsigma' ? t('spc_conv_shift') : t('spc_conv_direct_val')}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {(displayMode === 'capability' || displayMode === 'both') && (
-                    <div className="qh-stats-row" style={s.statsRow}>
-                      {[
-                        { label: 'Cp', val: varResult.Cp, sub: t('spc_cp_sub') },
-                        { label: 'Cpk', val: varResult.Cpk, sub: t('spc_cpk_sub') },
-                        { label: 'Pp', val: varResult.Pp, sub: t('spc_pp_sub') },
-                        { label: 'Ppk', val: varResult.Ppk, sub: t('spc_ppk_sub') },
-                      ].map(item => (
-                        <div key={item.label} style={{ ...s.statCard, border: `1px solid ${tint(capabilityColor(item.val), 27)}` }}>
-                          <div style={{ ...s.statVal, color: capabilityColor(item.val) }}>{fmt(item.val)}</div>
-                          <div style={s.statLabel}>{item.label}</div>
-                          <div style={{ fontSize: 10, color: capabilityColor(item.val), marginTop: 4 }}>{capabilityLabel(item.val)}</div>
+                      {(displayMode === 'capability' || displayMode === 'both') && (
+                        <div className="qh-stats-row" style={s.statsRow}>
+                          {[
+                            { label: 'Cp', val: varResult.Cp, sub: t('spc_cp_sub') },
+                            { label: 'Cpk', val: varResult.Cpk, sub: t('spc_cpk_sub') },
+                            { label: 'Pp', val: varResult.Pp, sub: t('spc_pp_sub') },
+                            { label: 'Ppk', val: varResult.Ppk, sub: t('spc_ppk_sub') },
+                          ].map(item => (
+                            <div key={item.label} style={{ ...s.statCard, border: `1px solid ${tint(capabilityColor(item.val), 27)}` }}>
+                              <div style={{ ...s.statVal, color: capabilityColor(item.val) }}>{fmt(item.val)}</div>
+                              <div style={s.statLabel}>{item.label}</div>
+                              <div style={{ fontSize: 10, color: capabilityColor(item.val), marginTop: 4 }}>{capabilityLabel(item.val)}</div>
+                            </div>
+                          ))}
+                          {varResult.Cpm !== null && (
+                            <div style={{ ...s.statCard, border: `1px solid ${tint(capabilityColor(varResult.Cpm), 27)}` }}>
+                              <div style={{ ...s.statVal, color: capabilityColor(varResult.Cpm) }}>{fmt(varResult.Cpm, 4)}</div>
+                              <div style={s.statLabel}>{t('spc_cpm_taguchi')}</div>
+                              <div style={{ fontSize: 10, color: capabilityColor(varResult.Cpm), marginTop: 4 }}>{capabilityLabel(varResult.Cpm)}</div>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                      {varResult.Cpm !== null && (
-                        <div style={{ ...s.statCard, border: `1px solid ${tint(capabilityColor(varResult.Cpm), 27)}` }}>
-                          <div style={{ ...s.statVal, color: capabilityColor(varResult.Cpm) }}>{fmt(varResult.Cpm, 4)}</div>
-                          <div style={s.statLabel}>{t('spc_cpm_taguchi')}</div>
-                          <div style={{ fontSize: 10, color: capabilityColor(varResult.Cpm), marginTop: 4 }}>{capabilityLabel(varResult.Cpm)}</div>
+                      )}
+
+                      {(varResult.ppmD_st || varResult.ppmD_lt) && (
+                        <div style={s.card}>
+                          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_ppm_breakdown_title')}</div>
+                          <div className="qh-table-wrap qh-table-fit" style={{ overflowX: 'auto' }}>
+                          <table style={s.table}>
+                            <thead>
+                              <tr><th style={s.th}>{t('spc_col_region')}</th><th style={s.th}>{t('spc_col_shortterm')}</th><th style={s.th}>{t('spc_col_longterm')}</th></tr>
+                            </thead>
+                            <tbody>
+                              {varResult.USL !== null && (
+                                <tr><td style={s.td}>{t('spc_row_aboveusl')}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(2) : '—'}</td></tr>
+                              )}
+                              {varResult.LSL !== null && (
+                                <tr><td style={s.td}>{t('spc_row_belowlsl')}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(2) : '—'}</td></tr>
+                              )}
+                              <tr style={{ fontWeight: 700 }}>
+                                <td style={s.td}>{t('spc_row_totalppm')}</td>
+                                <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(2) : '—'}</td>
+                                <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(2) : '—'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          </div>
+                          {varResult.USL !== null && varResult.LSL !== null && (
+                            <div style={{ fontSize: 11, color: c.muted, marginTop: 10 }}>
+                              K × Σ Tolerance (K=6): (USL−LSL)/6Σ = {fmt(varResult.Cp)} · Overall = {fmt(varResult.Pp)}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-
-                  {(varResult.ppmD_st || varResult.ppmD_lt) && (
-                    <div style={s.card}>
-                      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 12 }}>{t('spc_ppm_breakdown_title')}</div>
-                      <div className="qh-table-wrap qh-table-fit" style={{ overflowX: 'auto' }}>
-                      <table style={s.table}>
-                        <thead>
-                          <tr><th style={s.th}>{t('spc_col_region')}</th><th style={s.th}>{t('spc_col_shortterm')}</th><th style={s.th}>{t('spc_col_longterm')}</th></tr>
-                        </thead>
-                        <tbody>
-                          {varResult.USL !== null && (
-                            <tr><td style={s.td}>{t('spc_row_aboveusl')}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.above.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.above.toFixed(2) : '—'}</td></tr>
-                          )}
-                          {varResult.LSL !== null && (
-                            <tr><td style={s.td}>{t('spc_row_belowlsl')}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.below.toFixed(2) : '—'}</td><td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.below.toFixed(2) : '—'}</td></tr>
-                          )}
-                          <tr style={{ fontWeight: 700 }}>
-                            <td style={s.td}>{t('spc_row_totalppm')}</td>
-                            <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_st ? varResult.ppmD_st.total.toFixed(2) : '—'}</td>
-                            <td style={{ ...s.td, color: c.danger }}>{varResult.ppmD_lt ? varResult.ppmD_lt.total.toFixed(2) : '—'}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      </div>
-                      {varResult.USL !== null && varResult.LSL !== null && (
-                        <div style={{ fontSize: 11, color: c.muted, marginTop: 10 }}>
-                          K × Σ Tolerance (K=6): (USL−LSL)/6Σ = {fmt(varResult.Cp)} · Overall = {fmt(varResult.Pp)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {verdict && (
-                    <div style={{ ...s.card, display: 'flex', gap: 14, alignItems: 'flex-start', background: verdict.bg, border: `1px solid ${tint(verdict.color, 33)}` }}>
-                      <div style={{ fontSize: 22 }}>{verdict.icon}</div>
-                      <div>
-                        <div style={{ fontWeight: 700, color: verdict.color, fontSize: 14 }}>{verdict.text}</div>
-                        <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>{verdict.sub}</div>
-                      </div>
-                    </div>
-                  )}
+                  </details>
 
                   {submittedVals.length > 0 && (
                     <div className="qh-chart-wrap" style={s.chartWrap}>
@@ -2060,7 +2176,6 @@ export default function SPCEngine() {
               )}
             </>
           )}
-
           {/* ── ATTRIBUTE RESULTS ──────────────────────────────────────── */}
           {attrResult && (
             <>
@@ -2099,7 +2214,6 @@ export default function SPCEngine() {
               </div>
             </>
           )}
-
           {/* ── DATA ADEQUACY ──────────────────────────────────────────── */}
           {result && adequacy && (
             <div style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'center', border: `1px solid ${tint(adequacyColor, 33)}` }}>
@@ -2112,7 +2226,6 @@ export default function SPCEngine() {
               </div>
             </div>
           )}
-
           {/* ── NELSON RULE VIOLATIONS ─────────────────────────────────── */}
           {result && (
             <div style={s.card}>
@@ -2136,15 +2249,30 @@ export default function SPCEngine() {
               )}
             </div>
           )}
-
           {!result && !errorMsg && (
             <div style={{ ...s.card, textAlign: 'center', padding: 60, color: c.muted }}>
               {t('spc_empty_state')}
             </div>
           )}
+          </section>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Phone action bar */}
+      <div className="spc-bar">
+        {mobileTab === 'results' && result ? (
+          <>
+            <button type="button" className="spc-bar-ghost" onClick={() => { setMobileTab('data'); window.scrollTo({ top: 0 }) }}>{t('spc_bar_edit')}</button>
+            <button type="button" className="spc-bar-primary" onClick={() => document.getElementById('spc-export')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{t('spc_bar_export')}</button>
+          </>
+        ) : (
+          <button type="button" className="spc-bar-primary spc-bar-wide" onClick={runAnalyze} disabled={loading}>
+            {loading ? t('spc_analyzing') : t('spc_analyze_btn')}
+          </button>
+        )}
+      </div>
       {pasteToast && <div style={s.toast}>{t('spc_toast')}</div>}
     </div>
   )

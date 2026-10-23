@@ -53,7 +53,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
           style={s.themeBtn}
           onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
         >
-          {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          {theme === 'dark' ? `☀️ ${t('theme_light')}` : `🌙 ${t('theme_dark')}`}
         </button>
         <LanguageToggle theme={theme} />
         <AuthStatus />

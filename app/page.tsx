@@ -6,7 +6,7 @@ import { usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
-import type { TKey } from '@/lib/i18n/translations'
+import { TOOL_GROUPS as GROUPS, TOOL_COUNT } from '@/lib/tools'
 import { SITE } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -32,82 +32,6 @@ const exLCL = exMean - 3 * exSigmaWithin
 const exCpk = Math.min(EX_USL - exMean, exMean - EX_LSL) / (3 * exSigmaWithin)
 const exPpk = Math.min(EX_USL - exMean, exMean - EX_LSL) / (3 * exSigmaOverall)
 
-// ── Tools grouped by the question the engineer is trying to answer ──
-interface ToolRow {
-  href: string
-  titleKey: TKey
-  descKey: TKey
-  /** Extra search words (always English technical terms) */
-  keywords: string
-  pro?: boolean
-}
-interface ToolGroup {
-  id: string
-  labelKey: TKey
-  questionKey: TKey
-  rows: ToolRow[]
-}
-
-const GROUPS: ToolGroup[] = [
-  {
-    id: 'stability',
-    labelKey: 'home_q_stability_label',
-    questionKey: 'home_q_stability',
-    rows: [
-      { href: '/spc', titleKey: 'spc_title', descKey: 'home_row_spc', keywords: 'spc cp cpk pp ppk ppm nelson control chart capability attribute p np c u sigma' },
-      { href: '/imr-chart', titleKey: 'imr_title', descKey: 'home_row_imr', keywords: 'imr i-mr individuals moving range control chart' },
-      { href: '/xbar-r-chart', titleKey: 'xbar_r_title', descKey: 'home_row_xbar_r', keywords: 'xbar x-bar r range subgroup control chart' },
-      { href: '/xbar-s-chart', titleKey: 'xbar_s_title', descKey: 'home_row_xbar_s', keywords: 'xbar x-bar s standard deviation subgroup control chart' },
-    ],
-  },
-  {
-    id: 'msa',
-    labelKey: 'home_q_msa_label',
-    questionKey: 'home_q_msa',
-    rows: [
-      { href: '/gage-rr', titleKey: 'gagerr_title', descKey: 'home_row_gagerr', keywords: 'gage gauge r&r grr msa aiag anova ndc repeatability reproducibility', pro: true },
-      { href: '/descriptive', titleKey: 'descriptive_title', descKey: 'home_row_descriptive', keywords: 'descriptive mean median standard deviation histogram box plot normality' },
-    ],
-  },
-  {
-    id: 'sampling',
-    labelKey: 'home_q_sampling_label',
-    questionKey: 'home_q_sampling',
-    rows: [
-      { href: '/aql', titleKey: 'aql_title', descKey: 'home_row_aql', keywords: 'aql iso 2859 z1.4 sampling inspection lot ac re' },
-      { href: '/icmsf', titleKey: 'icmsf_title', descKey: 'home_row_icmsf', keywords: 'icmsf microbiological sampling food oc curve' },
-    ],
-  },
-  {
-    id: 'problem',
-    labelKey: 'home_q_problem_label',
-    questionKey: 'home_q_problem',
-    rows: [
-      { href: '/pareto', titleKey: 'pareto_title', descKey: 'home_row_pareto', keywords: 'pareto 80/20 defects causes' },
-      { href: '/regression', titleKey: 'regression_title', descKey: 'home_row_regression', keywords: 'regression linear correlation anova prediction' },
-      { href: '/multiregression', titleKey: 'multiregression_title', descKey: 'home_row_multiregression', keywords: 'multiple regression vif anova prediction' },
-      { href: '/doe', titleKey: 'doe_title', descKey: 'home_row_doe', keywords: 'doe design of experiments factorial 2^k effects' },
-    ],
-  },
-  {
-    id: 'performance',
-    labelKey: 'home_q_perf_label',
-    questionKey: 'home_q_perf',
-    rows: [
-      { href: '/oee', titleKey: 'oee_title', descKey: 'home_row_oee', keywords: 'oee availability performance tpm losses' },
-      { href: '/dpmo', titleKey: 'dpmo_title', descKey: 'home_row_dpmo', keywords: 'dpmo six sigma yield defects per million' },
-    ],
-  },
-  {
-    id: 'life',
-    labelKey: 'home_q_life_label',
-    questionKey: 'home_q_life',
-    rows: [
-      { href: '/stability', titleKey: 'stability_title', descKey: 'home_row_stability', keywords: 'stability shelf life ich q1e expiry expiration' },
-    ],
-  },
-]
-const TOOL_COUNT = GROUPS.reduce((n, g) => n + g.rows.length, 0)
 
 const STANDARDS = ['ISO 2859-1', 'AIAG MSA 4th ed.', 'Montgomery SPC', 'ICH Q1E', 'ICMSF']
 
