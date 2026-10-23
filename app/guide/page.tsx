@@ -83,7 +83,6 @@ const GUIDE_SECTIONS: GuideSectionData[] = [
       { href: '/pareto', icon: '📈', titleKey: 'pareto_title', descKey: 'pareto_desc', live: true },
       { href: '/dpmo', icon: '🎯', titleKey: 'dpmo_title', descKey: 'dpmo_desc', live: true },
       { href: '/oee', icon: '⚙️', titleKey: 'oee_title', descKey: 'oee_desc', live: true },
-      { href: null, icon: '⚠️', titleKey: 'fmea_title', descKey: 'fmea_desc', live: false },
     ],
   },
   {

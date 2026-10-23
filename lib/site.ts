@@ -17,7 +17,7 @@ export const SITE = {
   /** Name under the app icon on a phone (keep it short) */
   shortName: 'Mizan Quality',
   /** One-line description after the name in browser titles and link previews */
-  tagline: 'Statistical Quality Engineering Tools Online',
+  tagline: 'Quality Engineering Platform',
 
   /** Public website address, without a trailing slash */
   url: process.env.NEXT_PUBLIC_SITE_URL || 'https://qualityhub-zeta.vercel.app',
