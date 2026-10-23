@@ -21,9 +21,11 @@ import {
   capabilityGauge,
   interpretationBox,
   calloutBox,
+  summaryBox,
   criteriaReferenceTable,
   addChartImage,
   addChartImagePair,
+  chartSnapshot,
   finalizeReport,
   REPORT_COLORS,
   type KVRow,
@@ -104,7 +106,23 @@ interface AnovaResult {
   significanceNote: string
 }
 
-type GageResult = AvgRangeResult | AnovaResult
+// Report interpretation written on the server (lib/gage/diagnosis.server.ts)
+type DiagTone = 'good' | 'warn' | 'bad' | 'info'
+interface GageDiagnosis {
+  rows: { dimension: string; result: string; assessment: string; tone: DiagTone }[]
+  summary: Array<[string, string]>
+  recommendedAction: string
+  tone: DiagTone
+}
+
+type GageResult = (AvgRangeResult | AnovaResult) & { diagnosis?: GageDiagnosis }
+
+const diagToneColor = (tone: DiagTone) =>
+  tone === 'good' ? REPORT_COLORS.good : tone === 'bad' ? REPORT_COLORS.bad : tone === 'warn' ? REPORT_COLORS.warn : null
+
+// Charts are drawn at a fixed size for the report, so fonts stay readable and
+// each chart takes a third of a page instead of a full page.
+const REPORT_CHART_SIZE = { width: 900, height: 340 }
 
 // Sample dataset (cross-checked against a verified AIAG Gage R&R workbook)
 // so the tool is usable out of the box and its output is independently verifiable.
@@ -472,7 +490,10 @@ export default function GageRR() {
 
     overview.sectionHeading('Variance Components')
     overview.kpiRow([
-      { label: '%GRR (of Total Variation)', value: `${(p.GRR * 100).toFixed(1)}%`, tone: conclusionTone },
+      ...(result.pctOfTolerance
+        ? [{ label: '%GRR (of Tolerance)', value: `${(result.pctOfTolerance.GRR * 100).toFixed(1)}%`, tone: conclusionTone }]
+        : []),
+      { label: '%GRR (of Total Variation)', value: `${(p.GRR * 100).toFixed(1)}%`, tone: result.pctOfTolerance ? 'neutral' : conclusionTone },
       { label: 'NDC', value: result.ndc, sub: 'Number of Distinct Categories', tone: result.ndc >= 5 ? 'good' : 'warning' },
       { label: 'Repeatability (EV)', value: `${(p.EV * 100).toFixed(1)}%`, tone: 'neutral' },
       { label: 'Reproducibility (AV)', value: `${(p.AV * 100).toFixed(1)}%`, tone: 'neutral' },
@@ -498,6 +519,21 @@ export default function GageRR() {
 
     overview.note(`Conclusion: ${result.conclusionText}`, conclusionTone)
 
+    if (result.diagnosis) {
+      const xlTone = (t: DiagTone): Tone => (t === 'good' ? 'good' : t === 'warn' ? 'warning' : t === 'bad' ? 'danger' : 'neutral')
+      overview.table({
+        title: 'Measurement System Diagnosis',
+        headers: [
+          { header: 'Dimension', key: 'dimension', align: 'left', width: 26 },
+          { header: 'Result', key: 'result', align: 'left', width: 34 },
+          { header: 'Assessment', key: 'assessment', align: 'left', width: 70 },
+        ],
+        rows: result.diagnosis.rows.map(r => [r.dimension, r.result, r.assessment]),
+        rowTones: result.diagnosis.rows.map(r => xlTone(r.tone)),
+      })
+      overview.note(`Recommended action: ${result.diagnosis.recommendedAction}`, xlTone(result.diagnosis.tone))
+    }
+
     if (result.method === 'anova' && result.significanceNote) {
       overview.note(result.significanceNote, 'neutral')
     }
@@ -507,7 +543,7 @@ export default function GageRR() {
     // without leaving the spreadsheet. ──
     overview.sectionHeading('Variation by Source')
     if (contribChartRef.current) {
-      await overview.image(contribChartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
+      await overview.image(chartSnapshot(contribChartRef.current, { width: 900, height: 450 }).data, { widthCm: 16, heightCm: 8 })
     }
 
     overview.freezeHeader(2)
@@ -567,7 +603,7 @@ export default function GageRR() {
     if (!isLoggedIn) { goToLogin('gage-rr', 'png'); return }
     const chart = contribChartRef.current
     if (!chart) return
-    const url = chart.toBase64Image('image/png', 1)
+    const url = chartSnapshot(chart).data
     const a = document.createElement('a')
     a.href = url; a.download = 'gage-rr-contribution.png'; a.click()
   }
@@ -586,6 +622,9 @@ export default function GageRR() {
 
     const ctx = createPdfReport('Gage R&R Study Report', 'gage-rr')
     classificationBanner(ctx, cls, 'Measurement System Assessment')
+    if (result.diagnosis) {
+      summaryBox(ctx, 'Summary', result.diagnosis.summary, result.diagnosis.tone)
+    }
 
     const studyRows: KVRow[] = [
       ['Method', result.method === 'anova' ? 'ANOVA' : 'Average & Range'],
@@ -645,14 +684,15 @@ export default function GageRR() {
       caption: `${gaugeBasisLabel} = ${gaugeBasisPct.toFixed(1)}% (AIAG: <10% acceptable, 10–30% marginal, >30% unacceptable)`,
     })
 
-    addChartImage(ctx, contribChartRef.current, 'Variation by Source')
+    addChartImage(ctx, contribChartRef.current, 'Variation by Source', REPORT_CHART_SIZE)
 
     if (result.method === 'average-range') {
       addChartImagePair(
         ctx,
-        'Process Stability Assessment',
-        { chart: rangeChartRef.current, title: `Range Chart (UCL=${fmt(result.uclR, 4)})` },
-        { chart: xbarChartRef.current, title: 'X̄ Chart by Appraiser' }
+        'Repeatability and Appraiser Consistency',
+        { chart: rangeChartRef.current, title: `Range Chart by Appraiser (UCL = ${fmt(result.uclR, 4)})` },
+        { chart: xbarChartRef.current, title: 'Part Averages by Appraiser' },
+        REPORT_CHART_SIZE
       )
       calloutBox(
         ctx,
@@ -674,7 +714,7 @@ export default function GageRR() {
         )
       }
     } else {
-      addChartImage(ctx, xbarChartRef.current, 'X̄ Chart by Appraiser')
+      addChartImage(ctx, xbarChartRef.current, 'Part Averages by Appraiser', REPORT_CHART_SIZE)
     }
 
     if (result.method === 'anova') {
@@ -701,6 +741,22 @@ export default function GageRR() {
         ])
       )
       interpretationBox(ctx, 'Statistical Interpretation', result.significanceNote, 'info')
+    }
+
+    if (result.diagnosis) {
+      const d = result.diagnosis
+      dataTable(
+        ctx,
+        'Measurement System Diagnosis',
+        [
+          { header: 'DIMENSION', width: 120 },
+          { header: 'RESULT', width: 150 },
+          { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 270 },
+        ],
+        d.rows.map(r => [r.dimension, r.result, r.assessment]),
+        { cellColors: d.rows.map(r => [null, null, diagToneColor(r.tone)]) }
+      )
+      interpretationBox(ctx, 'Recommended Action', d.recommendedAction, d.tone)
     }
 
     const tone = result.conclusion === 'okay' ? 'good' : result.conclusion === 'marginal' ? 'warn' : 'bad'

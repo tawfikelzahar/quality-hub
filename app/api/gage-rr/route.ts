@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { buildGageDiagnosis, type GageResultForDiagnosis } from '@/lib/gage/diagnosis.server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Gage R&R — AIAG Average & Range (X̄ & R) Method
@@ -450,7 +451,10 @@ export async function POST(request: NextRequest) {
     const result = body.method === 'anova'
       ? runAnovaGageRR(body, body.poolingAlpha ?? 0.25)
       : runGageRR(body)
-    return NextResponse.json({ method: body.method === 'anova' ? 'anova' : 'average-range', ...result })
+    const method = body.method === 'anova' ? 'anova' : 'average-range'
+    // Report interpretation, written on the server from the numbers above
+    const diagnosis = buildGageDiagnosis({ method, ...result } as GageResultForDiagnosis)
+    return NextResponse.json({ method, ...result, diagnosis })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: 'Calculation error: ' + message }, { status: 400 })

@@ -830,21 +830,77 @@ function drawStatPanel(ctx: ReportContext, x: number, y: number, width: number, 
 
 // ── Charts (Chart.js canvas → embedded PNG) ─────────────────────────────
 
-interface EmbeddableChart {
+export interface EmbeddableChart {
   width: number
   height: number
   toBase64Image: (type?: string, quality?: number) => string
+  // Chart.js methods used for a clean snapshot (all optional)
+  resize?: (width?: number, height?: number) => void
+  setActiveElements?: (active: never[]) => void
+  tooltip?: { setActiveElements?: (active: never[], position: { x: number; y: number }) => void } | null
+  update?: (mode?: 'none') => void
+}
+
+/** Size (CSS pixels) to draw a chart at for the report, so fonts and proportions stay consistent. */
+export interface ChartRenderSize {
+  width: number
+  height: number
+}
+
+/**
+ * PNG of the chart for the report: hides any hover tooltip first (it would
+ * otherwise be baked into the picture) and, when a size is given, draws the
+ * chart at that size for the snapshot and then restores it on screen.
+ */
+export function chartSnapshot(chart: EmbeddableChart, size?: ChartRenderSize): { data: string; ratio: number } {
+  // Chart.js replays the last mouse event on every update, which would bring
+  // the tooltip straight back — so the tooltip is switched off for the
+  // snapshot and the remembered event is dropped.
+  const c = chart as EmbeddableChart & {
+    _lastEvent?: unknown
+    stop?: () => void
+    options?: { plugins?: { tooltip?: { enabled?: boolean } } }
+  }
+  const tip = c.tooltip as (EmbeddableChart['tooltip'] & { opacity?: number }) | null | undefined
+  const tooltipOpts = c.options?.plugins?.tooltip
+  const wasEnabled = tooltipOpts?.enabled
+  const restore = () => {
+    if (tooltipOpts) tooltipOpts.enabled = wasEnabled
+  }
+  try {
+    if (tooltipOpts) tooltipOpts.enabled = false
+    c._lastEvent = null
+    c.setActiveElements?.([])
+    tip?.setActiveElements?.([], { x: 0, y: 0 })
+    // the tooltip fades out with an animation; finish it now
+    c.stop?.()
+    if (tip) tip.opacity = 0
+    c.update?.('none')
+  } catch { /* not a Chart.js instance: snapshot as is */ }
+  try {
+    if (size && c.resize) {
+      c.resize(size.width, size.height)
+      const data = c.toBase64Image('image/png', 1)
+      const ratio = c.height / c.width
+      c.resize()
+      return { data, ratio }
+    }
+    return { data: c.toBase64Image('image/png', 1), ratio: c.height / c.width }
+  } finally {
+    restore()
+  }
 }
 
 /** Embeds a full-width Chart.js chart as a PNG, with a section-style title above it. */
-export function addChartImage(ctx: ReportContext, chart: EmbeddableChart | null, title: string) {
+export function addChartImage(ctx: ReportContext, chart: EmbeddableChart | null, title: string, size?: ChartRenderSize) {
   if (!chart) return
   const { margin, pageWidth } = ctx
   const imgWidth = pageWidth - margin * 2
-  const imgHeight = (chart.height / chart.width) * imgWidth
+  const snap = chartSnapshot(chart, size)
+  const imgHeight = snap.ratio * imgWidth
   sectionHeading(ctx, title, imgHeight)
   const { pdf } = ctx
-  const imgData = chart.toBase64Image('image/png', 1)
+  const imgData = snap.data
   // 'FAST' = lossless deflate. Without it jsPDF stores raw pixels: a single
   // retina chart was ~5 MB uncompressed vs ~25 KB compressed, same render.
   pdf.addImage(imgData, 'PNG', margin, ctx.y, imgWidth, imgHeight, undefined, 'FAST')
@@ -861,29 +917,32 @@ export function addChartImagePair(
   ctx: ReportContext,
   sectionTitle: string,
   left: { chart: EmbeddableChart | null; title: string },
-  right: { chart: EmbeddableChart | null; title: string }
+  right: { chart: EmbeddableChart | null; title: string },
+  size?: ChartRenderSize
 ) {
-  const items = [left, right].filter((i): i is { chart: EmbeddableChart; title: string } => !!i.chart)
+  const items = [left, right]
+    .filter((i): i is { chart: EmbeddableChart; title: string } => !!i.chart)
+    .map(i => ({ ...i, snap: chartSnapshot(i.chart, size) }))
   if (items.length === 0) return
   const { margin, pageWidth } = ctx
   const w = pageWidth - margin * 2
-  const heightOf = (c: EmbeddableChart) => (c.height / c.width) * w
+  const heightOf = (it: { snap: { ratio: number } }) => it.snap.ratio * w
 
   if (sectionTitle) {
-    sectionHeading(ctx, sectionTitle, heightOf(items[0].chart) + 24)
+    sectionHeading(ctx, sectionTitle, heightOf(items[0]) + 24)
   } else {
-    ensureSpace(ctx, heightOf(items[0].chart) + 24)
+    ensureSpace(ctx, heightOf(items[0]) + 24)
   }
   const { pdf } = ctx
 
   items.forEach((item, idx) => {
-    const h = heightOf(item.chart)
+    const h = heightOf(item)
     if (idx > 0) ensureSpace(ctx, h + 24)
     pdf.setFont(PDF_FONT, 'bold')
     pdf.setFontSize(9)
     setText(pdf, REPORT_COLORS.ink)
     drawText(pdf, item.title, margin, ctx.y)
-    const imgData = item.chart.toBase64Image('image/png', 1)
+    const imgData = item.snap.data
     pdf.addImage(imgData, 'PNG', margin, ctx.y + 8, w, h, undefined, 'FAST')
     ctx.y += h + 22
   })
