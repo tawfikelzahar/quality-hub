@@ -130,7 +130,7 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
   const label = { fontSize: 12, fontWeight: 600, color: c.muted, marginBottom: 6, display: 'block' } as const
 
   return (
-    <div style={{ ...s.card, maxWidth: 560, width: '100%' }}>
+    <div style={{ ...s.card, width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
         <div style={s.sectionTitle}>{t('rb_title')}</div>
         <span style={{ ...s.badge, background: c.gold, color: c.onGold }}>PRO</span>

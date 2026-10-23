@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/lib/i18n/context'
+import { useSubscription } from '@/lib/useSubscription'
 
 interface AuthDisplay {
   email: string
@@ -39,6 +40,7 @@ export default function AuthStatus() {
   const [user, setUser] = useState<AuthDisplay | null>(null)
   const [loading, setLoading] = useState(true)
   const { t } = useLanguage()
+  const { isPro, loading: planLoading } = useSubscription()
 
   useEffect(() => {
     const supabase = createClient()
@@ -75,6 +77,18 @@ export default function AuthStatus() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {!planLoading && (
+        <Link
+          href="/account#saved"
+          className="qh-hide-mobile"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--qh-muted)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}
+        >
+          {t('acc_saved')}
+          {!isPro && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--qh-gold)', border: '1px solid color-mix(in srgb, var(--qh-gold) 55%, transparent)', borderRadius: 4, padding: '1px 5px' }}>PRO</span>
+          )}
+        </Link>
+      )}
       <Link
         href="/account"
         style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--qh-muted)', textDecoration: 'none', fontWeight: 500 }}
