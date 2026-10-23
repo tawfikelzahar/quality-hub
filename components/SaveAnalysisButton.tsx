@@ -15,12 +15,14 @@ interface SaveAnalysisButtonProps {
   // أو فيه رسالة validation error) — الزرار وقتها هيقول "مفيش نتيجة للحفظ"
   // بدل ما يبعت طلب فاضي للسيرفر.
   getPayload: () => { input_data: unknown; results: unknown } | null
+  /** Opt-in compact look: the page passes its own button/badge classes and label */
+  compact?: { className: string; badgeClassName: string; label: string }
 }
 
 // زرار حفظ قابل لإعادة الاستخدام في أي أداة من السبعة. من غير أي افتراض
 // عن الـ styles بتاعة الصفحة اللي حاطينه فيها (كل أداة عندها نسخة
 // مختلفة شوية من "s")، فده بيجيب الألوان بنفسه من COLORS مباشرة.
-export default function SaveAnalysisButton({ theme, tool, defaultName, getPayload }: SaveAnalysisButtonProps) {
+export default function SaveAnalysisButton({ theme, tool, defaultName, getPayload, compact }: SaveAnalysisButtonProps) {
   const c = COLORS[theme]
   const { isPro, loading } = useSubscription()
   const [saving, setSaving] = useState(false)
@@ -85,7 +87,17 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-      {isPro ? (
+      {compact ? (
+        isPro ? (
+          <button className={compact.className} onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : compact.label}
+          </button>
+        ) : (
+          <Link href="/account" className={compact.className} style={{ textDecoration: 'none' }}>
+            {compact.label}<span className={compact.badgeClassName}>PRO</span>
+          </Link>
+        )
+      ) : isPro ? (
         <button style={saveBtnStyle} onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : '💾 Save Project'}
         </button>

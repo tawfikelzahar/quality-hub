@@ -146,6 +146,17 @@ interface AttrRow {
   defects: string
 }
 
+// Example data for the "Try an example" button: golden dataset DS01
+const EXAMPLE_READINGS = ['24.1', '24.3', '23.9', '24.2', '24.6', '24.0', '23.8', '24.4', '24.5', '24.1', '24.0', '24.3', '23.7', '24.2', '24.4']
+
+/** Pads a plain decimal to d decimals for display ("24" → "24.0"); anything else is returned as typed */
+function padDecimals(v: string, d: number): string {
+  const t = v.trim()
+  if (d === 0 || !/^-?\d+(\.\d*)?$/.test(t)) return v
+  const [i, f = ''] = t.split('.')
+  return `${i}.${f.padEnd(d, '0')}`
+}
+
 function generateId() {
   return Math.random().toString(36).slice(2, 9)
 }
@@ -1485,6 +1496,27 @@ export default function SPCEngine() {
   // ── Layout state (no effect on any calculation) ─────────────────────────
   // Phones show one panel at a time: setup, data or results.
   const [mobileTab, setMobileTab] = useState<'setup' | 'data' | 'results'>('setup')
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [editingCell, setEditingCell] = useState<string | null>(null)
+  useEffect(() => {
+    if (!helpOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setHelpOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [helpOpen])
+  // "Try an example": golden dataset DS01 (15 readings, LSL 23, USL 25), analysed right away
+  const exampleQueued = useRef(false)
+  const loadExample = () => {
+    setDataType('variable')
+    setN(1)
+    setVarRows(EXAMPLE_READINGS.map(v => ({ id: generateId(), vals: [v] })))
+    setLSL('23')
+    setUSL('25')
+    setTarget('')
+    setResult(null)
+    setErrorMsg('')
+    exampleQueued.current = true
+  }
   const [narrow, setNarrow] = useState(false)
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)')
@@ -1498,6 +1530,12 @@ export default function SPCEngine() {
     setMobileTab('results')
     if (narrow) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
+  // Runs once after "Try an example" has put the example data in place
+  useEffect(() => {
+    if (!exampleQueued.current) return
+    exampleQueued.current = false
+    void runAnalyze()
+  })
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       for (const r of [iChartRef, rChartRef, distChartRef, ecdfChartRef, attrChartRef]) r.current?.resize()
@@ -1527,8 +1565,18 @@ export default function SPCEngine() {
   })()
   const verdictReason = screenDiagnosis ? capabilityReason(screenDiagnosis.facts, varResult?.isNormal ?? true, t) : null
 
-  // Single readings (n = 1) show as an always-open numbered grid; subgroups keep the table
   const gridMode = dataType === 'variable' && N === 1
+  // Display only: show every reading with the same number of decimals (24 → 24.0)
+  // while it is not being edited. The stored text, and so every calculation, is unchanged.
+  const cellDecimals = gridMode
+    ? varRows.reduce((m, r) => {
+        const v = (r.vals[0] ?? '').trim()
+        const d = /^-?\d*\.(\d+)$/.exec(v)
+        return Math.max(m, d ? d[1].length : 0)
+      }, 0)
+    : 0
+
+  // Single readings (n = 1) show as an always-open numbered grid; subgroups keep the table
   const showData = gridMode || dataEntryOpen
   const fieldLabel = { fontSize: 13, fontWeight: 600, color: c.text, marginBottom: 8 } as const
   const nPoints = varResult ? varResult.n : attrResult ? attrResult.pts.length : 0
@@ -1571,6 +1619,19 @@ export default function SPCEngine() {
         .spc-chip-warn { color: var(--qh-amber); background: color-mix(in srgb, var(--qh-amber) 10%, transparent); border-color: color-mix(in srgb, var(--qh-amber) 45%, transparent); font-size: 13px; padding: 5px 12px; border-radius: 8px; line-height: 1.5; }
         .spc-chip-warn b { font-weight: 700; }
         .spc-exports { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+        .spc-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 20px; }
+        .spc-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .spc-head-actions .spc-xbtn span { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+        .spc-help-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(5,10,20,.55); display: flex; justify-content: flex-end; }
+        .spc-help { width: min(440px, 100%); height: 100%; overflow-y: auto; box-sizing: border-box; padding: 22px 22px 32px; background: var(--qh-bg); border-inline-start: 1px solid var(--qh-border); box-shadow: -20px 0 60px rgba(0,0,0,.25); }
+        .spc-help-steps { margin: 14px 0 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 12px; }
+        .spc-help-steps li { counter-increment: s; position: relative; padding-inline-start: 38px; font-size: 14px; line-height: 1.7; }
+        .spc-help-steps li::before { content: counter(s); position: absolute; inset-inline-start: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--qh-surface2); color: var(--qh-gold); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+        .spc-help-steps b { display: block; }
+        .spc-help-steps span { color: color-mix(in srgb, var(--qh-text) 78%, var(--qh-bg)); }
+        .spc-help-box { margin-top: 16px; background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 12px; padding: 14px 16px; font-size: 14px; line-height: 1.7; }
+        .spc-help-box ul { margin: 6px 0; padding-inline-start: 18px; }
+        .spc-help-box p { margin: 6px 0 0; font-size: 13px; color: var(--qh-muted); }
         .spc-xbtn { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--qh-border); background: transparent; color: var(--qh-text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
         .spc-xbtn:hover:not(:disabled) { background: var(--qh-surface); }
         .spc-xbtn:disabled { opacity: .5; cursor: default; }
@@ -1620,9 +1681,50 @@ export default function SPCEngine() {
 
         <div className="spc-main">
           <header className="spc-head">
-            <h1>SPC Engine</h1>
-            <p>{t('spc_intro')}</p>
+            <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+              <h1>SPC Engine</h1>
+              <p>{t('spc_intro')}</p>
+            </div>
+            <div className="spc-head-actions">
+              <button type="button" className="spc-xbtn" onClick={() => setHelpOpen(true)} aria-haspopup="dialog">
+                <span aria-hidden="true">?</span> {t('spc_help_btn')}
+              </button>
+              <button type="button" className="spc-xbtn" onClick={loadExample} disabled={loading}>{t('spc_example_btn')}</button>
+            </div>
           </header>
+
+          {helpOpen && (
+            <div className="spc-help-overlay" onClick={() => setHelpOpen(false)}>
+              <aside className="spc-help" role="dialog" aria-modal="true" aria-labelledby="spc-help-title" onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                  <h2 id="spc-help-title" style={{ margin: 0, fontSize: 19 }}>{t('spc_help_title')}</h2>
+                  <button type="button" className="spc-xbtn" onClick={() => setHelpOpen(false)} aria-label={t('spc_help_close')} autoFocus>✕</button>
+                </div>
+                <ol className="spc-help-steps">
+                  {([1, 2, 3, 4, 5, 6] as const).map(i => (
+                    <li key={i}>
+                      <b>{t(`spc_help_s${i}_t`)}</b>
+                      <span>{t(`spc_help_s${i}_d`)}</span>
+                    </li>
+                  ))}
+                </ol>
+                <div className="spc-help-box">
+                  <b>{t('spc_help_read_t')}</b>
+                  <ul>
+                    <li><span style={{ color: 'var(--qh-good)', fontWeight: 700 }}>≥ 1.33</span> {t('spc_help_read_capable')}</li>
+                    <li><span style={{ color: 'var(--qh-amber)', fontWeight: 700 }}>1.00 – 1.33</span> {t('spc_help_read_marginal')}</li>
+                    <li><span style={{ color: 'var(--qh-danger)', fontWeight: 700 }}>&lt; 1.00</span> {t('spc_help_read_not')}</li>
+                  </ul>
+                  <p>{t('spc_help_read_note')}</p>
+                </div>
+                <p style={{ fontSize: 13, color: c.muted, lineHeight: 1.7, margin: '14px 0' }}>{t('spc_help_tip')}</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button type="button" className="spc-xbtn" onClick={() => { setHelpOpen(false); loadExample() }}>{t('spc_example_btn')}</button>
+                  <a className="spc-xbtn" href="/guide" style={{ textDecoration: 'none' }}>{t('spc_help_guide')}</a>
+                </div>
+              </aside>
+            </div>
+          )}
 
           {/* Phone tabs */}
           <div className="spc-tabs" role="tablist" aria-label={t('spc_tabs_label')}>
@@ -1850,8 +1952,10 @@ export default function SPCEngine() {
                       <span className="spc-cell-n">{ridx + 1}</span>
                       <input
                         type="number"
-                        value={row.vals[0] ?? ''}
+                        value={editingCell === row.id ? (row.vals[0] ?? '') : padDecimals(row.vals[0] ?? '', cellDecimals)}
                         aria-label={`${t('spc_col_value')} ${ridx + 1}`}
+                        onFocus={() => setEditingCell(row.id)}
+                        onBlur={() => setEditingCell(null)}
                         onChange={e => updateVarCell(row.id, 0, e.target.value)}
                       />
                       <button type="button" className="spc-cell-x" aria-label={`${t('spc_remove')} ${ridx + 1}`} onClick={() => removeVarRow(row.id)}>✕</button>
@@ -1972,6 +2076,7 @@ export default function SPCEngine() {
                   theme={theme}
                   tool="spc"
                   defaultName={`SPC — ${new Date().toLocaleDateString('en-US')}`}
+                  compact={{ className: 'spc-xbtn spc-xbtn-pro', badgeClassName: 'spc-pro', label: t('spc_x_save') }}
                   getPayload={() =>
                     !result
                       ? null
