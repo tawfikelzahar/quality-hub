@@ -12,7 +12,7 @@ import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
 import ToolStyles from '@/components/tool/ToolStyles';
-import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
 import { capabilityVerdict } from '@/lib/spc/verdict';
 import { EXAMPLE_XBAR_R } from '@/lib/spc/examples';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
@@ -377,16 +377,18 @@ export default function XbarRChartPage() {
       await overview.charts([{ ref: histChartRef, title: 'Capability Histogram' }], { widthCm: 17, heightCm: 8 });
     }
 
-    if (result.violations_x.length > 0) {
-      overview.sectionHeading('Rule Violations');
+    const xlSignals = [...result.violations_x.map((v) => ({ ...v, chart: messagesEn.chartXTitle })), ...result.violations_r.map((v) => ({ ...v, chart: messagesEn.chartRTitle }))];
+    if (xlSignals.length > 0) {
+      overview.sectionHeading('Special-Cause Signals');
       overview.table({
         headers: [
-          { header: 'Rule', key: 'rule', align: 'left', width: 10 },
-          { header: 'Description', key: 'desc', align: 'left', width: 40 },
+          { header: 'Chart', key: 'chart', align: 'left', width: 22 },
+          { header: 'Test', key: 'rule', align: 'left', width: 8 },
+          { header: 'Description', key: 'desc', align: 'left', width: 36 },
           { header: 'Points', key: 'points', align: 'left' },
         ],
-        rows: result.violations_x.map((v) => ({ rule: `#${v.rule}`, desc: v.label, points: v.points.join('–') })),
-        rowTones: result.violations_x.map(() => 'warning' as const),
+        rows: xlSignals.map((v) => ({ chart: v.chart, rule: `#${v.rule}`, desc: v.label, points: violationPointsText(v) })),
+        rowTones: xlSignals.map(() => 'warning' as const),
       });
     }
 
@@ -510,25 +512,28 @@ export default function XbarRChartPage() {
 
     addChartImage(ctx, histChartRef.current, messages.histogramTitle);
 
-    const stable = result.violations_x.length === 0;
+    // Signals on both charts (location and dispersion), the same list as the screen
+    const pdfSignals = [...result.violations_x.map((v) => ({ ...v, chart: messagesEn.chartXTitle })), ...result.violations_r.map((v) => ({ ...v, chart: messagesEn.chartRTitle }))];
+    const stable = pdfSignals.length === 0;
     calloutBox(
       ctx,
       stable
-        ? 'No Nelson Rule violations were detected on the X\u0304 chart.'
-        : `${result.violations_x.length} Nelson Rule violation(s) were detected on the X\u0304 chart — see the table below.`,
+        ? `No special-cause signals were detected on the ${messagesEn.chartXTitle} or the ${messagesEn.chartRTitle}.`
+        : `${pdfSignals.length} special-cause signal(s) were detected — see the table below.`,
       stable ? 'good' : 'warn'
     );
 
-    if (result.violations_x.length > 0) {
+    if (!stable) {
       dataTable(
         ctx,
-        'Rule Violations',
+        'Special-Cause Signals',
         [
-          { header: 'RULE', width: 60 },
-          { header: 'DESCRIPTION', width: 260 },
-          { header: 'POINTS', width: ctx.pageWidth - ctx.margin * 2 - 320 },
+          { header: 'CHART', width: 130 },
+          { header: 'TEST', width: 45 },
+          { header: 'DESCRIPTION', width: 190 },
+          { header: 'POINTS', width: ctx.pageWidth - ctx.margin * 2 - 365 },
         ],
-        result.violations_x.map((v) => [`#${v.rule}`, v.label, v.points.join('–')])
+        pdfSignals.map((v) => [v.chart, `#${v.rule}`, v.label, violationPointsText(v)])
       );
     }
 

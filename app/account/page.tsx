@@ -8,6 +8,7 @@ import { compressAvatar } from '@/lib/avatar'
 import ReportBrandingSettings from '@/components/ReportBrandingSettings'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import { useSubscription } from '@/lib/useSubscription'
 
 interface AccountUser {
   email: string
@@ -25,6 +26,7 @@ export default function AccountPage() {
   const [theme, setTheme] = usePersistedTheme()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
+  const { isPro } = useSubscription()
 
   const [user, setUser] = useState<AccountUser | null>(null)
   const [loadingUser, setLoadingUser] = useState(true)
@@ -335,34 +337,28 @@ export default function AccountPage() {
 
             <ReportBrandingSettings theme={theme} />
 
-            {/* Plan card — extension point for future subscriptions (Lemon Squeezy) */}
+            {/* Plan card — reads the real plan from profiles.subscription_status */}
             <div style={cardStyle}>
               <div style={s.sectionTitle}>Plan</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: c.text }}>Free Plan</div>
-                  <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>Full access to all tools</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: c.text }}>{isPro ? 'Pro Plan' : 'Free Plan'}</div>
+                  <div style={{ fontSize: 12, color: c.muted, marginTop: 2 }}>
+                    {isPro ? 'Full reports, saved projects and your branding on reports' : 'All tools and on-screen results'}
+                  </div>
                 </div>
-                <span style={{ ...s.badge, background: `${c.accent}20`, color: c.accent }}>Active</span>
+                <span style={{ ...s.badge, background: isPro ? 'var(--qh-gold)' : `${c.accent}20`, color: isPro ? 'var(--qh-onGold)' : c.accent }}>
+                  {isPro ? 'PRO' : 'Active'}
+                </span>
               </div>
-              <ul style={{ margin: '0 0 16px', paddingLeft: 18, fontSize: 13, color: c.text, lineHeight: 1.9 }}>
-                <li>SPC Engine</li>
-                <li>Pareto Chart</li>
-                <li>DPMO &amp; Sigma Calculator</li>
-                <li>AQL Sampling Plan Calculator</li>
-              </ul>
-              <button
-                disabled
-                style={{
-                  ...s.exportBtn,
-                  cursor: 'not-allowed',
-                  opacity: 0.5,
-                  width: 'fit-content',
-                  padding: '9px 20px',
-                }}
-              >
-                Upgrade to Pro — Coming Soon
-              </button>
+              {!isPro && (
+                <Link
+                  href="/pricing"
+                  style={{ ...s.exportBtn, background: 'var(--qh-gold)', color: 'var(--qh-onGold)', border: 'none', width: 'fit-content', padding: '9px 20px', textDecoration: 'none', fontWeight: 700 }}
+                >
+                  See Pro
+                </Link>
+              )}
             </div>
 
             <Link

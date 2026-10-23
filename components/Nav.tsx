@@ -3,6 +3,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import Link from 'next/link'
 import AuthStatus from '@/components/AuthStatus'
+import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
 import { getSharedStyles, type ThemeMode } from '@/lib/theme'
@@ -58,9 +59,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
         <LanguageToggle theme={theme} />
         <AuthStatus />
         {showGetPro && (
-          <Link href="/pricing" className="qh-hide-mobile" style={s.proBtn}>
-            {t('nav_getpro')} →
-          </Link>
+          <GetProLink label={`${t('nav_getpro')} →`} className="qh-hide-mobile" style={s.proBtn} />
         )}
       </div>
     </nav>

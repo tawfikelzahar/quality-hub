@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
+import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS as GROUPS, TOOL_COUNT } from '@/lib/tools'
@@ -216,7 +217,7 @@ export default function Home() {
             >
               {dark ? '☀️' : '🌙'}<span className="qh-hide-small"> {dark ? t('theme_light') : t('theme_dark')}</span>
             </button>
-            <a href="/pricing" className="qh-hide-mobile" style={{background:'var(--qh-gold)',color:'var(--qh-onGold)',fontWeight:700,fontSize:13,padding:'8px 18px',borderRadius:8,whiteSpace:'nowrap'}}>{t('nav_getpro')}</a>
+            <GetProLink label={t('nav_getpro')} className="qh-hide-mobile" style={{background:'var(--qh-gold)',color:'var(--qh-onGold)',fontWeight:700,fontSize:13,padding:'8px 18px',borderRadius:8,whiteSpace:'nowrap'}} />
           </div>
         </nav>
 
