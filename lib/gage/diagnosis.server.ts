@@ -31,6 +31,10 @@ export interface GageDiagnosis {
   rows: GageDiagnosisRow[]
   summary: Array<[string, string]>
   recommendedAction: string
+  /** one paragraph that ties verdict, source and action together */
+  conclusion: string
+  /** sentence under the "Part Averages by Appraiser" chart */
+  averagesNote: string
   tone: Tone
 }
 
@@ -50,6 +54,7 @@ export interface GageResultForDiagnosis {
   pctStudyVar?: Pct
   outOfControlRanges?: { appraiser: string; part: number; range: number }[]
   pooled?: boolean
+  xbarByAppraiser?: number[]
   unpooledInteraction?: { p: number | null } | undefined
 }
 
@@ -201,5 +206,42 @@ export function buildGageDiagnosis(r: GageResultForDiagnosis): GageDiagnosis {
     ['Action', firstSentence(recommendedAction)],
   ]
 
-  return { rows, summary, recommendedAction, tone: toneOf(verdict) }
+  // Study conclusion: verdict + basis, where the error comes from, discrimination, next step
+  const verdictSentence: Record<Band, string> = {
+    acceptable: `The measurement system is acceptable: %GRR is ${pct(basisPct)} ${basisName}, below the 10% guideline.`,
+    marginal: `The measurement system is marginal: %GRR is ${pct(basisPct)} ${basisName}, between 10% and 30%, so it may be used depending on how important the characteristic is and the cost of a better gage.`,
+    unacceptable: `The measurement system is not acceptable: %GRR is ${pct(basisPct)} ${basisName}, above 30%.`,
+  }
+  const sourceSentence: Record<Source, string> = {
+    none: 'No measurable gage error was found in this study.',
+    repeatability: 'The error comes mainly from the gage itself (repeatability), not from the appraisers.',
+    reproducibility: 'The error comes mainly from differences between appraisers (reproducibility), not from the gage.',
+    both: 'Both the gage (repeatability) and the differences between appraisers (reproducibility) contribute to the error.',
+  }
+  const ndcSentence = !isFinite(r.ndcRaw)
+    ? ''
+    : ndcOk
+    ? `With ndc = ${r.ndc}, the gage can tell the parts apart.`
+    : `With ndc = ${r.ndc}, the gage cannot reliably tell the parts apart.`
+  const nextStep = verdict === 'acceptable'
+    ? 'Keep it under periodic verification.'
+    : source === 'repeatability'
+    ? 'Improve the gage and how the part is held before relying on it for critical decisions.'
+    : source === 'reproducibility'
+    ? 'Standardise the measuring method between appraisers before relying on it for critical decisions.'
+    : 'Improve the gage and standardise the method before relying on it for critical decisions.'
+  const conclusion = [verdictSentence[verdict], sourceSentence[source], ndcSentence, nextStep].filter(Boolean).join(' ')
+
+  // Note under the appraiser averages chart
+  const avgs = r.xbarByAppraiser ?? []
+  const spread = avgs.length > 1 ? Math.max(...avgs) - Math.min(...avgs) : null
+  const gapText = spread !== null ? ` (largest gap between appraiser averages: ${spread.toFixed(4)})` : ''
+  const avShareNow = r.GRR > 0 ? (r.AV * r.AV) / (r.GRR * r.GRR) : 0
+  const averagesNote = r.GRR === 0 || avShareNow < 0.1
+    ? `The appraiser lines almost overlap${gapText}: the appraisers read the parts the same way, which is why reproducibility (AV) is ${r.AV === 0 ? '0' : 'small'}.${ndcOk ? ' The lines rise and fall with the parts, so the gage sees the real part-to-part differences.' : ''}`
+    : avShareNow > 0.75
+    ? `The appraiser lines are visibly apart${gapText}: one appraiser reads consistently higher or lower than the others, which is the reproducibility (AV) in this study.`
+    : `The appraiser lines are close but not identical${gapText}: the differences between appraisers are part of the measurement error (AV).`
+
+  return { rows, summary, recommendedAction, conclusion, averagesNote, tone: toneOf(verdict) }
 }

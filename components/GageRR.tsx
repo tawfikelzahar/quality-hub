@@ -112,6 +112,8 @@ interface GageDiagnosis {
   rows: { dimension: string; result: string; assessment: string; tone: DiagTone }[]
   summary: Array<[string, string]>
   recommendedAction: string
+  conclusion?: string
+  averagesNote?: string
   tone: DiagTone
 }
 
@@ -356,28 +358,25 @@ export default function GageRR() {
     }
   }, [result, c, t])
 
+  // Range chart: one coloured line per appraiser over the parts (same colours
+  // as the averages chart), so the x axis only needs the part numbers.
   const rangeChartData = useMemo(() => {
     if (!result || result.method !== 'average-range') return null
-    const labels: string[] = []
-    const data: number[] = []
-    for (let a = 0; a < result.numAppraisers; a++) {
-      for (let p = 0; p < result.numParts; p++) {
-        labels.push(`${result.appraiserNames[a]}-P${p + 1}`)
-        data.push(result.rng[a][p])
-      }
-    }
+    const labels = Array.from({ length: result.numParts }, (_, i) => `Part ${i + 1}`)
+    const palette = [c.bar, c.line, c.danger]
     return {
       labels,
       datasets: [
-        {
+        ...result.appraiserNames.map((name, a) => ({
           type: 'line' as const,
-          label: t('grr_axis_range'),
-          data,
-          borderColor: c.bar,
-          backgroundColor: c.bar,
-          pointRadius: 2,
+          label: name,
+          data: result.rng[a],
+          borderColor: palette[a % palette.length],
+          backgroundColor: palette[a % palette.length],
+          pointRadius: result.rng[a].map(v => (v > result.uclR ? 5 : 3)),
+          pointBackgroundColor: result.rng[a].map(v => (v > result.uclR ? c.danger : palette[a % palette.length])),
           tension: 0,
-        },
+        })),
         {
           type: 'line' as const,
           label: t('grr_chart_ucl'),
@@ -694,6 +693,7 @@ export default function GageRR() {
         { chart: xbarChartRef.current, title: 'Part Averages by Appraiser' },
         REPORT_CHART_SIZE
       )
+      if (result.diagnosis?.averagesNote) calloutBox(ctx, result.diagnosis.averagesNote, 'info')
       calloutBox(
         ctx,
         result.outOfControlRanges.length === 0
@@ -715,6 +715,7 @@ export default function GageRR() {
       }
     } else {
       addChartImage(ctx, xbarChartRef.current, 'Part Averages by Appraiser', REPORT_CHART_SIZE)
+      if (result.diagnosis?.averagesNote) calloutBox(ctx, result.diagnosis.averagesNote, 'info')
     }
 
     if (result.method === 'anova') {
@@ -760,7 +761,7 @@ export default function GageRR() {
     }
 
     const tone = result.conclusion === 'okay' ? 'good' : result.conclusion === 'marginal' ? 'warn' : 'bad'
-    interpretationBox(ctx, 'Study Conclusion', result.conclusionText, tone)
+    interpretationBox(ctx, 'Study Conclusion', result.diagnosis?.conclusion ?? result.conclusionText, tone)
     criteriaReferenceTable(
       ctx,
       'Gage R&R Acceptance Criteria (AIAG)',
