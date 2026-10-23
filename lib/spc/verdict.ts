@@ -1,6 +1,4 @@
 import type { TKey } from '@/lib/i18n/translations'
-import { buildCapabilityDiagnosis } from '@/lib/spc/reportInterpretation'
-import { capabilityReason } from '@/lib/spc/capabilityReason'
 
 // ─────────────────────────────────────────────────────────────────────────
 // On-screen verdicts shared by every variable-chart tool (SPC, I-MR, X̄-R,
@@ -43,38 +41,5 @@ export function capabilityVerdict(r: VerdictInput, t: T): CapabilityVerdict | nu
   }
 }
 
-export interface ReasonInput {
-  LSL: number | null
-  USL: number | null
-  cl_x: number
-  mu: number
-  sigma: number
-  sdOverall: number
-  isNormal: boolean
-  n: number
-  violations_x: { rule: number }[]
-  violations_r: { rule: number }[]
-  dataAdequacy: { tier: 'low' | 'moderate' | 'adequate' }
-}
-
-/** The sentence under the capability verdict, from the PDF report's own diagnosis. */
-export function capabilityReasonFor(r: ReasonInput, target: number | null, t: T): string | null {
-  if (r.LSL === null && r.USL === null) return null
-  const diagnosis = buildCapabilityDiagnosis({
-    LSL: r.LSL,
-    USL: r.USL,
-    target,
-    center: r.cl_x,
-    mu: r.mu,
-    sigmaWithin: r.sigma,
-    sdOverall: r.sdOverall,
-    normal: r.isNormal,
-    signals: [
-      ...r.violations_x.map(v => ({ rule: v.rule, dispersionChart: false })),
-      ...r.violations_r.map(v => ({ rule: v.rule, dispersionChart: true })),
-    ],
-    n: r.n,
-    adequacyTier: r.dataAdequacy.tier,
-  })
-  return diagnosis ? capabilityReason(diagnosis.facts, r.isNormal, t) : null
-}
+// The reason sentence under the verdict is written on the server
+// (lib/spc/reportText.server.ts → screenReason) and arrives with the result.

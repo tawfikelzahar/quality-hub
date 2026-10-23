@@ -13,7 +13,7 @@ import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
 import ToolStyles from '@/components/tool/ToolStyles';
 import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
-import { capabilityVerdict, capabilityReasonFor } from '@/lib/spc/verdict';
+import { capabilityVerdict } from '@/lib/spc/verdict';
 import { EXAMPLE_XBAR_R } from '@/lib/spc/examples';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import AIInsightCard from '@/components/AIInsightCard';
@@ -231,7 +231,7 @@ export default function XbarRChartPage() {
   const subgroupSize = subgroups && subgroups.length > 0 ? subgroups[0].length : 0;
 
   const chartData = subgroups && subgroupSize >= 2 ? subgroups : null;
-  const { result, pending, failed } = useChartAnalysis('xbar-r', chartData, appliedLimits);
+  const { result, pending, failed, screenReason } = useChartAnalysis('xbar-r', chartData, appliedLimits);
 
   const xChartRef = useRef<ChartJSInstance<'line'>>(null);
   const rChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
@@ -568,7 +568,7 @@ export default function XbarRChartPage() {
   const compactSave = useCompactSave();
   const hasSpec = !!result && (result.LSL !== null || result.USL !== null);
   const verdict = result ? capabilityVerdict(result, t) : null;
-  const reason = result ? capabilityReasonFor(result, appliedLimits.target, t) : null;
+  const reason = result && screenReason ? (lang === 'ar' ? screenReason.ar : screenReason.en) : null;
   const signals: ViolationItem[] = result
     ? [
         ...result.violations_x.map((v) => ({ ...v, chart: messages.chartXTitle })),

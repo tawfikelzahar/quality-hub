@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { runVariableChartAnalysis, runXbarSAnalysis } from '@/lib/spc/engine.server'
 import { wireReplacer } from '@/lib/spc/wire'
+import { screenReason } from '@/lib/spc/reportText.server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/spc/chart — I-MR, X̄-R and X̄-S calculations, run on the server
@@ -65,7 +66,8 @@ export async function POST(request: NextRequest) {
   const input = { data: rows, N, LSL: lsl, USL: usl, target: tgt, sigmaConvention: 'direct' }
   try {
     const result = chart === 'xbar-s' ? runXbarSAnalysis(input) : runVariableChartAnalysis(input)
-    return new NextResponse(JSON.stringify({ result }, wireReplacer), {
+    const reason = screenReason(result, tgt)
+    return new NextResponse(JSON.stringify({ result, reason }, wireReplacer), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     })
   } catch {

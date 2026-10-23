@@ -12,7 +12,7 @@ import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
 import ToolStyles from '@/components/tool/ToolStyles';
 import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, ReadingsGrid, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
-import { capabilityVerdict, capabilityReasonFor } from '@/lib/spc/verdict';
+import { capabilityVerdict } from '@/lib/spc/verdict';
 import { EXAMPLE_IMR } from '@/lib/spc/examples';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
 import { useSubscription } from '@/lib/useSubscription';
@@ -205,7 +205,7 @@ export default function ImrChartPage() {
   }
 
   const chartData = useMemo(() => (values ? values.map((v) => [v]) : null), [values]);
-  const { result, pending, failed } = useChartAnalysis('imr', chartData, appliedLimits);
+  const { result, pending, failed, screenReason } = useChartAnalysis('imr', chartData, appliedLimits);
 
   const iChartRef = useRef<ChartJSInstance<'line'>>(null);
   const mrChartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null);
@@ -502,10 +502,9 @@ export default function ImrChartPage() {
   // ── Layout (no effect on any calculation) ───────────────────────────────
   const { t } = useLanguage();
   const compactSave = useCompactSave();
-  const targetNum = appliedLimits.target;
   const hasSpec = !!result && (result.LSL !== null || result.USL !== null);
   const verdict = result ? capabilityVerdict(result, t) : null;
-  const reason = result ? capabilityReasonFor(result, targetNum, t) : null;
+  const reason = result && screenReason ? (lang === 'ar' ? screenReason.ar : screenReason.en) : null;
   const signals: ViolationItem[] = result
     ? [
         ...result.violations_x.map((v) => ({ ...v, chart: messages.chartITitle })),

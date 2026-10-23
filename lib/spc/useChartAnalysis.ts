@@ -23,8 +23,10 @@ interface Done {
   data: number[][]
   limits: ChartLimits
   result: VariableChartResult | null
+  /** reason under the capability verdict, written on the server */
+  reason: { en: string | null; ar: string | null } | null
   /** why there is no result: 'rate' = too many requests, 'error' = anything else */
-  reason: 'rate' | 'error' | null
+  why: 'rate' | 'error' | null
 }
 
 export function useChartAnalysis(kind: ChartKind, data: number[][] | null, limits: ChartLimits) {
@@ -41,14 +43,17 @@ export function useChartAnalysis(kind: ChartKind, data: number[][] | null, limit
     })
       .then(async res => {
         if (!res.ok) {
-          setDone({ data, limits, result: null, reason: res.status === 429 ? 'rate' : 'error' })
+          setDone({ data, limits, result: null, reason: null, why: res.status === 429 ? 'rate' : 'error' })
           return
         }
-        const json = JSON.parse(await res.text(), wireReviver) as { result: VariableChartResult }
-        setDone({ data, limits, result: json.result, reason: null })
+        const json = JSON.parse(await res.text(), wireReviver) as {
+          result: VariableChartResult
+          reason?: { en: string | null; ar: string | null }
+        }
+        setDone({ data, limits, result: json.result, reason: json.reason ?? null, why: null })
       })
       .catch(() => {
-        if (!ctrl.signal.aborted) setDone({ data, limits, result: null, reason: 'error' })
+        if (!ctrl.signal.aborted) setDone({ data, limits, result: null, reason: null, why: 'error' })
       })
     return () => ctrl.abort()
   }, [kind, data, limits])
@@ -56,8 +61,9 @@ export function useChartAnalysis(kind: ChartKind, data: number[][] | null, limit
   const current = done && done.data === data && done.limits === limits ? done : null
   return {
     result: current?.result ?? null,
+    screenReason: current?.reason ?? null,
     pending: data !== null && current === null,
     /** false, or the reason the calculation did not come back */
-    failed: current !== null && current.result === null ? (current.reason ?? 'error') : (false as const),
+    failed: current !== null && current.result === null ? (current.why ?? 'error') : (false as const),
   }
 }

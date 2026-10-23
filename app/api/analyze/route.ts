@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
+import { screenReason } from '@/lib/spc/reportText.server'
 import { normCDF, normSF, normInv, andersonDarlingNormal } from '@/lib/stats/normal'
 import { rangeChartLimits } from '@/lib/spc/constants'
 import { nelsonRules, offsetViolations, testsFor, isTestSet, DEFAULT_TEST_SET, type TestSet } from '@/lib/spc/nelson'
@@ -179,7 +180,9 @@ export async function POST(request: NextRequest) {
     }
     const testSet: TestSet = isTestSet(body.testSet) ? body.testSet : DEFAULT_TEST_SET
     const result = runAnalysis({ data, N: N || 1, LSL: LSL ?? null, USL: USL ?? null, target: target ?? null, sigmaConvention, lastN, testSet })
-    return NextResponse.json({ ...result, testSet })
+    // Reason under the on-screen verdict, written on the server (lib/spc/reportText.server.ts)
+    const reason = screenReason(result, target ?? null)
+    return NextResponse.json({ ...result, testSet, screenReason: reason })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: 'Calculation error: ' + message }, { status: 500 })

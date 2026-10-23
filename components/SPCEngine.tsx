@@ -13,7 +13,7 @@ import Nav from '@/components/Nav'
 import ToolSidebar from '@/components/ToolSidebar'
 import ToolStyles from '@/components/tool/ToolStyles'
 import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, ReadingsGrid, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave } from '@/components/tool/ToolParts'
-import { capabilityVerdict, capabilityReasonFor } from '@/lib/spc/verdict'
+import { capabilityVerdict } from '@/lib/spc/verdict'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
@@ -40,13 +40,8 @@ import {
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign'
-import {
-  buildCapabilityDiagnosis,
-  buildStudyConclusion,
-  buildExecutiveSummary,
-  type RuleSignal,
-  type Tone,
-} from '@/lib/spc/reportInterpretation'
+import type { RuleSignal, Tone, CapabilityInput, ConclusionInput, SummaryInput, CapabilityDiagnosis, StudyConclusion } from '@/lib/spc/reportInterpretation'
+import { wireReplacer } from '@/lib/spc/wire'
 import { formatPValue } from '@/lib/stats/format'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -116,6 +111,8 @@ interface VariableResult {
   USL: number | null
   dataAdequacy: DataAdequacy
   testSet?: TestSet
+  /** reason under the capability verdict, written on the server */
+  screenReason?: { en: string | null; ar: string | null }
 }
 
 interface AttributeResult {
@@ -879,14 +876,13 @@ export default function SPCEngine() {
   }
 
   // ── Export: full report as PDF ── (Pro only)
-  const runExportPDF = () => {
+  const runExportPDF = async () => {
     if (!isPro) { goToPricing('spc', 'pdf'); return }
     if (!result) {
       setErrorMsg(t('spc_err_no_report'))
       return
     }
 
-    const ctx = createPdfReport('SPC Analysis Report', 'spc')
     const targetNum = target !== '' && isFinite(parseFloat(target)) ? parseFloat(target) : null
     const ruleSignals: RuleSignal[] = [
       ...(varResult?.violations_x.map(v => ({ rule: v.rule, dispersionChart: false })) ?? []),
@@ -895,10 +891,12 @@ export default function SPCEngine() {
     ]
     const cls = varResult && hasSpecLimits ? classifyCapability(pkVal) : null
 
-    // Interpretation is computed once up front: the page-1 summary and the
-    // detailed sections later in the report must say the same thing.
-    const diagnosis = varResult && cls
-      ? buildCapabilityDiagnosis({
+    // Interpretation is computed once up front, on the server (Pro only):
+    // the page-1 summary and the detailed sections later in the report must
+    // say the same thing. The inputs are exactly the ones the page used to
+    // pass to the interpretation functions itself.
+    const capabilityIn: CapabilityInput | null = varResult && cls
+      ? {
           LSL: varResult.LSL,
           USL: varResult.USL,
           target: targetNum,
@@ -910,11 +908,11 @@ export default function SPCEngine() {
           signals: ruleSignals,
           n: varResult.n,
           adequacyTier: varResult.dataAdequacy.tier,
-        })
+        }
       : null
     const usingCpkInConclusion = !!varResult && varResult.isNormal && varResult.Cpk !== null
-    const conclusion = varResult || attrResult
-      ? buildStudyConclusion({
+    const conclusionIn: ConclusionInput | null = varResult || attrResult
+      ? {
           classLabel: cls ? cls.label : null,
           indexName: cls && varResult ? (usingCpkInConclusion ? 'Cpk' : 'Ppk') : null,
           indexValue: cls ? pkVal : null,
@@ -928,8 +926,49 @@ export default function SPCEngine() {
           attribute: attrResult
             ? { chartLabel: attrResult.chartLabel, metricText: `${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}` }
             : null,
-        })
+        }
       : null
+    const adequacyInfo = (varResult ?? attrResult)?.dataAdequacy
+    const summaryIn: Omit<SummaryInput, 'headline'> | null = adequacyInfo && conclusionIn
+      ? {
+          signals: ruleSignals,
+          capabilityText: cls && pkVal !== null
+            ? `${cls.label} (${usingCpkInConclusion ? 'Cpk' : 'Ppk'} ${fmt(pkVal)})`
+            : attrResult
+            ? `${attrResult.chartLabel}: ${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}`
+            : null,
+          noSpecs: !!varResult && !hasSpecLimits,
+          n: adequacyInfo.n,
+          adequacyTier: adequacyInfo.tier,
+          unit: attrResult ? 'subgroups' : 'readings',
+        }
+      : null
+
+    let text: {
+      diagnosis: Omit<CapabilityDiagnosis, 'facts'> | null
+      conclusion: StudyConclusion | null
+      summary: { rows: Array<[string, string]>; tone: Tone } | null
+    }
+    try {
+      const res = await fetch('/api/spc/report-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ capability: capabilityIn, conclusion: conclusionIn, summary: summaryIn }, wireReplacer),
+      })
+      if (res.status === 403) { goToPricing('spc', 'pdf'); return }
+      if (!res.ok) {
+        setErrorMsg(res.status === 429 ? t('tool_rate_limited') : t('spc_err_report_failed'))
+        return
+      }
+      text = await res.json()
+    } catch {
+      setErrorMsg(t('spc_err_network'))
+      return
+    }
+    const diagnosis = text.diagnosis
+    const conclusion = text.conclusion
+
+    const ctx = createPdfReport('SPC Analysis Report', 'spc')
 
     if (cls) {
       classificationBanner(ctx, cls)
@@ -941,22 +980,8 @@ export default function SPCEngine() {
       )
     }
 
-    const adequacyInfo = (varResult ?? attrResult)?.dataAdequacy
-    if (adequacyInfo && conclusion) {
-      const summary = buildExecutiveSummary({
-        signals: ruleSignals,
-        capabilityText: cls && pkVal !== null
-          ? `${cls.label} (${usingCpkInConclusion ? 'Cpk' : 'Ppk'} ${fmt(pkVal)})`
-          : attrResult
-          ? `${attrResult.chartLabel}: ${attrResult.metricLabel} = ${fmt(attrResult.metric, 4)}`
-          : null,
-        headline: diagnosis ? diagnosis.headline : null,
-        noSpecs: !!varResult && !hasSpecLimits,
-        n: adequacyInfo.n,
-        adequacyTier: adequacyInfo.tier,
-        unit: attrResult ? 'subgroups' : 'readings',
-      })
-      summaryBox(ctx, 'Summary', summary.rows, conclusion.tone)
+    if (adequacyInfo && conclusion && text.summary) {
+      summaryBox(ctx, 'Summary', text.summary.rows, conclusion.tone)
     }
 
     if (varResult) {
@@ -1526,9 +1551,8 @@ export default function SPCEngine() {
   }, [mobileTab, result])
   // On-screen verdicts (shared with I-MR, X̄-R, X̄-S): same thresholds as the report,
   // and the reason sentence from the report's own diagnosis
-  const screenTarget = target !== '' && isFinite(parseFloat(target)) ? parseFloat(target) : null
   const screenVerdict = varResult ? capabilityVerdict(varResult, t) : null
-  const verdictReason = varResult ? capabilityReasonFor(varResult, screenTarget, t) : null
+  const verdictReason = varResult?.screenReason ? (lang === 'ar' ? varResult.screenReason.ar : varResult.screenReason.en) : null
   const compactSave = useCompactSave()
 
   const gridMode = dataType === 'variable' && N === 1
