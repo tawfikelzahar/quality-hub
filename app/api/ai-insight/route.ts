@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { guardApi } from '@/lib/apiGuard'
 import { createServerSupabase } from '@/lib/supabase-server'
 import {
   AI_DAILY_LIMIT,
@@ -22,6 +23,9 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  const refused = guardApi(request, { bucket: 'ai-insight', maxBytes: 256 * 1024, perMinute: 6, perHour: 60 })
+  if (refused) return refused
+
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { runVariableChartAnalysis, runXbarSAnalysis } from '@/lib/spc/engine.server'
 import { wireReplacer } from '@/lib/spc/wire'
 
@@ -29,6 +30,9 @@ function optionalNumber(v: unknown): number | null | undefined {
 }
 
 export async function POST(request: NextRequest) {
+  const refused = guardApi(request, { bucket: 'spc-chart', ...CALC_LIMITS })
+  if (refused) return refused
+
   let body: unknown
   try {
     body = await request.json()

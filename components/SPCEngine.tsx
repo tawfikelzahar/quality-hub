@@ -538,7 +538,7 @@ export default function SPCEngine() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setErrorMsg(json.error || t('spc_err_calc_failed'))
+        setErrorMsg(res.status === 429 ? t('tool_rate_limited') : json.error || t('spc_err_calc_failed'))
       } else {
         setResult(json)
         setDataEntryOpen(false)

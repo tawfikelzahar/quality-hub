@@ -906,7 +906,7 @@ export default function XbarSChartPage() {
                     <ViolationsCard items={signals} allTests={false} />
                   </>
                 )}
-                {failed && <div className="tl-error">{t('tool_calc_failed')}</div>}
+                {failed && <div className="tl-error">{t(failed === 'rate' ? 'tool_rate_limited' : 'tool_calc_failed')}</div>}
                 {!result && !error && !failed && <div className="tl-card tl-empty">{pending ? t('tool_calculating') : t('xr_empty')}</div>}
                 <p style={{ fontSize: 11, color: c.muted, opacity: 0.8, margin: 0 }}>{messages.footerNote}</p>
               </section>

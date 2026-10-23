@@ -312,7 +312,7 @@ export default function GageRR() {
       })
       const json = await res.json()
       if (!res.ok) {
-        setErrorMsg(json.error || t('grr_err_calc_failed'))
+        setErrorMsg(res.status === 429 ? t('tool_rate_limited') : json.error || t('grr_err_calc_failed'))
       } else {
         setResult(json)
       }

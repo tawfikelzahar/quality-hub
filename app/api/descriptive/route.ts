@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { computeDescriptiveStats } from '@/lib/descriptive/stats'
 
 export async function POST(request: NextRequest) {
+  const refused = guardApi(request, { bucket: 'descriptive', ...CALC_LIMITS })
+  if (refused) return refused
+
   // ملحوظة: نفس منطق /api/analyze — الحساب مفتوح لأي زائر، وتسجيل
   // الدخول بيتطلب بس وقت الـ Pro export (Excel) جوه DescriptiveStats.tsx.
   try {

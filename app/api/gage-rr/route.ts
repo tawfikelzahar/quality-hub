@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { createServerSupabase } from '@/lib/supabase-server'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -422,6 +423,9 @@ function runAnovaGageRR(input: GageInput, poolingAlpha: number) {
 
 
 export async function POST(request: NextRequest) {
+  const refused = guardApi(request, { bucket: 'gage-rr', ...CALC_LIMITS })
+  if (refused) return refused
+
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {

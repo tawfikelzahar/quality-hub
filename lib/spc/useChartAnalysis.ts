@@ -23,6 +23,8 @@ interface Done {
   data: number[][]
   limits: ChartLimits
   result: VariableChartResult | null
+  /** why there is no result: 'rate' = too many requests, 'error' = anything else */
+  reason: 'rate' | 'error' | null
 }
 
 export function useChartAnalysis(kind: ChartKind, data: number[][] | null, limits: ChartLimits) {
@@ -37,13 +39,16 @@ export function useChartAnalysis(kind: ChartKind, data: number[][] | null, limit
       body: JSON.stringify({ chart: kind, data, LSL: limits.lsl, USL: limits.usl, target: limits.target }),
       signal: ctrl.signal,
     })
-      .then(res => (res.ok ? res.text() : Promise.reject(new Error(String(res.status)))))
-      .then(text => {
-        const json = JSON.parse(text, wireReviver) as { result: VariableChartResult }
-        setDone({ data, limits, result: json.result })
+      .then(async res => {
+        if (!res.ok) {
+          setDone({ data, limits, result: null, reason: res.status === 429 ? 'rate' : 'error' })
+          return
+        }
+        const json = JSON.parse(await res.text(), wireReviver) as { result: VariableChartResult }
+        setDone({ data, limits, result: json.result, reason: null })
       })
       .catch(() => {
-        if (!ctrl.signal.aborted) setDone({ data, limits, result: null })
+        if (!ctrl.signal.aborted) setDone({ data, limits, result: null, reason: 'error' })
       })
     return () => ctrl.abort()
   }, [kind, data, limits])
@@ -52,6 +57,7 @@ export function useChartAnalysis(kind: ChartKind, data: number[][] | null, limit
   return {
     result: current?.result ?? null,
     pending: data !== null && current === null,
-    failed: current !== null && current.result === null,
+    /** false, or the reason the calculation did not come back */
+    failed: current !== null && current.result === null ? (current.reason ?? 'error') : (false as const),
   }
 }

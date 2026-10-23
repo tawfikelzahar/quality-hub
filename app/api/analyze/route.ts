@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { normCDF, normSF, normInv, andersonDarlingNormal } from '@/lib/stats/normal'
 import { rangeChartLimits } from '@/lib/spc/constants'
 import { nelsonRules, offsetViolations, testsFor, isTestSet, DEFAULT_TEST_SET, type TestSet } from '@/lib/spc/nelson'
@@ -158,6 +159,9 @@ function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention, testSet
 }
 
 export async function POST(request: NextRequest) {
+  const refused = guardApi(request, { bucket: 'analyze', ...CALC_LIMITS })
+  if (refused) return refused
+
   // ملحوظة: الحساب نفسه (analyze) مبقاش محتاج تسجيل دخول — الأداة بقت
   // متاحة لأي زائر. تسجيل الدخول مطلوب بس وقت الـ Save أو الـ Excel/PDF
   // export (اتعمل جوه SPCEngine.tsx مش هنا).

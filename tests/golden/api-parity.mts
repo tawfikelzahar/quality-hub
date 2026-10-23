@@ -28,7 +28,7 @@ let fail = 0
 for (const c of cases) {
   const input = { data: c.data, N: c.data[0].length, LSL: c.LSL, USL: c.USL, target: c.target, sigmaConvention: 'direct' }
   const local = c.chart === 'xbar-s' ? runS(input) : runVar(input)
-  const res = await fetch(base + '/api/spc/chart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chart: c.chart, ...c }) })
+  const res = await fetch(base + '/api/spc/chart', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: base }, body: JSON.stringify({ chart: c.chart, ...c }) })
   const text = await res.text()
   if (!res.ok) { fail++; console.log('FAIL', c.id, res.status, text); continue }
   const remote = JSON.parse(text, wireReviver).result
