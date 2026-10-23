@@ -73,12 +73,14 @@ function fPValue(f: number, df1: number, df2: number): number {
 // D4 — Range chart UCL constant, keyed by number of trials per part
 const D4: Record<number, number> = { 2: 3.267, 3: 2.575, 4: 2.282, 5: 2.114 }
 
-// 5.15σ = 99% Study Variation — the AIAG-recommended multiplier (Minitab default is 6 = 99.73%,
-// but 5.15 is what AIAG's MSA manual and most automotive-industry practice uses).
+// 6σ Study Variation. AIAG MSA 4th ed. (p. 123): percent of tolerance is found by
+// "substituting the value of tolerance divided by six" for TV; Appendix B (p. 199):
+// "k is normally taken to be 6". 5.15 belonged to the 2nd edition (1995). Minitab's
+// default is also 6.
 // K1/K2/K3 above already give 1-sigma EV/AV/GRR/PV; this multiplier is applied ONLY when
 // comparing against an external Tolerance — %Contribution-of-TV and NDC are scale-invariant
 // and don't need it.
-const SIGMA_MULTIPLIER = 5.15
+const SIGMA_MULTIPLIER = 6
 
 // K1 — Repeatability (EV) constant, keyed by number of trials
 const K1: Record<number, number> = { 2: 0.8862, 3: 0.5908 }
@@ -187,9 +189,9 @@ function runGageRR(input: GageInput) {
   }
 
   const tolerance = USL != null && LSL != null ? USL - LSL : null
-  // AIAG MSA 3rd/4th ed. K1/K2/K3 (used above) yield 1-sigma EV/AV/GRR/PV.
-  // %Tolerance must compare against the 5.15-sigma "Study Variation", i.e.
-  // %Tolerance = (5.15 × component) / Tolerance — NOT component / Tolerance directly.
+  // AIAG MSA 4th ed. K1/K2/K3 (used above) yield 1-sigma EV/AV/GRR/PV.
+  // %Tolerance compares the 6-sigma "Study Variation" with the tolerance, i.e.
+  // %Tolerance = (6 × component) / Tolerance = component / (Tolerance / 6) — AIAG MSA 4th ed. p. 123.
   // (This distinction doesn't affect %Contribution-of-TV or NDC, since the same
   // multiplier would cancel out in those ratios — it only matters for %Tolerance.)
   const studyVar = { EV: EV * SIGMA_MULTIPLIER, AV: AV * SIGMA_MULTIPLIER, GRR: GRR * SIGMA_MULTIPLIER, PV: PV * SIGMA_MULTIPLIER, TV: TV * SIGMA_MULTIPLIER }
@@ -367,7 +369,7 @@ function runAnovaGageRR(input: GageInput, poolingAlpha: number) {
     GRR: var_TV > 0 ? var_GRR / var_TV : 0,
     PV: var_TV > 0 ? var_PV / var_TV : 0,
   }
-  const pctStudyVar = { // std-dev-based, 5.15σ (99% spread) — Minitab "% Study Var"
+  const pctStudyVar = { // std-dev-based (ratio, independent of the 6σ multiplier) — Minitab "% Study Var"
     EV: TV > 0 ? EV / TV : 0,
     AV: TV > 0 ? AV / TV : 0,
     GRR: TV > 0 ? GRR / TV : 0,
