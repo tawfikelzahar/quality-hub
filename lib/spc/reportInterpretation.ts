@@ -57,6 +57,43 @@ export interface CapabilityDiagnosis {
   /** first sentence of the capability action — used in the page-1 summary */
   headline: string
   tone: Tone
+  /** The same numbers the sentences above are written from, so the screen can
+   *  say the same thing in English or Arabic. Read-only; changes nothing above. */
+  facts: CapabilityFacts
+}
+
+export type CapabilityFacts =
+  | {
+      sides: 'two'
+      idxName: 'Cpk' | 'Ppk'
+      /** mean used by the diagnosis (centre line when normal, overall mean otherwise) */
+      mean: number
+      meanOutside: boolean
+      /** share of the tolerance used by 6σ, in percent */
+      tolUsedPct: number
+      spreadOk: boolean
+      centeringOk: boolean
+      /** distance of the mean from mid-specification */
+      offset: number
+      nearer: 'LSL' | 'USL'
+      capable: boolean
+      target: TargetFacts | null
+    }
+  | {
+      sides: 'one'
+      idxName: 'Cpk' | 'Ppk'
+      mean: number
+      meanOutside: boolean
+      limitName: 'LSL' | 'USL'
+      k: number
+      ok: boolean
+      target: TargetFacts | null
+    }
+
+/** Mean minus target, and the same distance in σ (as in the "Offset from Target" row) */
+export interface TargetFacts {
+  off: number
+  sigmas: number
 }
 
 const CAPABLE = 1.33
@@ -162,6 +199,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
 
   let core: string
   let tone: Tone
+  let facts: CapabilityFacts
 
   if (LSL !== null && USL !== null) {
     // ── two-sided ──
@@ -195,6 +233,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
       tone: centeringOk ? 'good' : capable ? 'info' : 'warn',
     })
 
+    facts = { sides: 'two', idxName, mean: c, meanOutside, tolUsedPct: tolUsed * 100, spreadOk, centeringOk, offset, nearer, capable, target: null }
     const centerTo = target !== null ? `toward the target (${f(target)})` : `away from the ${nearer}`
     if (meanOutside) {
       core = `The process mean (${f(c)}) is outside the specification — contain suspect product and correct the process setting immediately.`
@@ -227,6 +266,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
     const limitName = LSL !== null ? 'LSL' : 'USL'
     const k = sides[0]
     const ok = k >= CAPABLE
+    facts = { sides: 'one', idxName, mean: c, meanOutside, limitName, k, ok, target: null }
     rows.push({
       dimension: 'Process Spread',
       result: 'Not assessable',
@@ -255,6 +295,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
 
   if (target !== null) {
     const off = c - target
+    facts.target = { off, sigmas: Math.abs(off) / s }
     rows.push({
       dimension: 'Offset from Target',
       result: `${off >= 0 ? '+' : ''}${f(off)}`,
@@ -282,7 +323,7 @@ export function buildCapabilityDiagnosis(input: CapabilityInput): CapabilityDiag
   if (stable && tone === 'good' && adequacyTier === 'low') tone = 'warn'
 
   const headline = core.split(/(?<=\.)\s/)[0]
-  return { basis, rows, recommendedAction, headline, tone }
+  return { basis, rows, recommendedAction, headline, tone, facts }
 }
 
 // ── Study conclusion ────────────────────────────────────────────────────
