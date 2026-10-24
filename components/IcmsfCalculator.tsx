@@ -32,6 +32,8 @@ import {
 const UNITS = ['CFU/g', 'CFU/ml', 'CFU/cm²'] as const
 type Unit = (typeof UNITS)[number]
 const EN = translations.en
+/** one source line in the reports; the full method stays on screen */
+const SOURCE_LINE = 'Source: ICMSF Table 6-1 (1974, as printed by NAP 1985) · organism examples: ICMSF 2020 · OC curve: binomial · risk curve: FAO/WHO lognormal model · m and M from your standard.'
 type Dict = Readonly<Record<string, string>>
 const say = (d: Dict, k: TKey) => d[k]
 
@@ -302,8 +304,7 @@ export default function IcmsfCalculator() {
       await sh.image(riskRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
       riskLines(EN).forEach(l => sh.note(l, 'neutral'))
     }
-    sh.sectionHeading('Method')
-    ;(['icmsf_method_1', 'icmsf_method_2', 'icmsf_method_3', 'icmsf_method_4'] as TKey[]).forEach(k => sh.note(say(EN, k), 'neutral'))
+    sh.note(SOURCE_LINE, 'neutral')
     sh.freezeHeader(2)
     await report.download('icmsf-sampling-plan.xlsx')
   }
@@ -322,6 +323,7 @@ export default function IcmsfCalculator() {
       ['Limits', limitsText(EN)],
       ['Rule', why(EN)],
     ])
+    calloutBox(ctx, SOURCE_LINE, 'info')
     if (mode === 'count' && unitRows.some(u => u.value !== null)) {
       const tone = (u: UnitClass | null) => (u === 'acceptable' ? REPORT_COLORS.good : u === 'marginal' ? REPORT_COLORS.warn : u === 'defective' ? REPORT_COLORS.bad : null)
       // entered units only, three per row (unit · result · class), so 20–60 units stay short
@@ -362,7 +364,6 @@ export default function IcmsfCalculator() {
       calloutBox(ctx, riskLines(EN).join(' '), 'info')
     }
     addSignOff(ctx)
-    dataTable(ctx, 'Method', [{ header: 'NOTE', width: w }], (['icmsf_method_1', 'icmsf_method_2', 'icmsf_method_3', 'icmsf_method_4'] as TKey[]).map(k => [say(EN, k)]))
     finalizeReport(ctx)
     ctx.pdf.save('icmsf-report.pdf')
   }
