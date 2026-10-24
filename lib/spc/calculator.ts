@@ -240,7 +240,7 @@ export function runVariableChartAnalysis({
 // data, pooled sigma, Nelson Rules, capability, Anderson-Darling), but the
 // dispersion chart tracks the subgroup standard deviation (S) instead of
 // the range (R). This is the standard alternative for larger subgroups
-// (conventionally n ≥ 10) where S is a statistically more efficient
+// (n ≥ 9, lib/spc/chartChoice.ts) where S is a statistically more efficient
 // estimator of spread than R. Control limits use the A3/B3/B4 constants
 // (derived here from c4func, matching the AIAG/Montgomery reference
 // tables) rather than the A2/D3/D4 constants used for R-charts.

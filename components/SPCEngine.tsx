@@ -21,6 +21,8 @@ import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
 import { useGridImport } from '@/lib/gridImport'
 import { DEFAULT_TEST_SET, describeTestSet, type TestSet } from '@/lib/spc/testSets'
+import { XBAR_S_MIN_N } from '@/lib/spc/chartChoice'
+import type { ChartKind } from '@/lib/spc/useChartAnalysis'
 import { SheetPicker } from '@/components/GridImportControls'
 import {
   createReport as createPdfReport,
@@ -111,8 +113,21 @@ interface VariableResult {
   USL: number | null
   dataAdequacy: DataAdequacy
   testSet?: TestSet
+  /** chart the server picked from the subgroup size (lib/spc/chartChoice.ts) */
+  chart?: ChartKind
   /** reason under the capability verdict, written on the server */
   screenReason?: { en: string | null; ar: string | null }
+}
+
+const CHART_NAME: Record<ChartKind, string> = { imr: 'I-MR', 'xbar-r': 'X̄-R', 'xbar-s': 'X̄-S' }
+
+// Names for the second (dispersion) chart: MR for I-MR, R for X̄-R, S for X̄-S.
+// Results saved before X̄-S was added carry no `chart` and were always R / MR.
+function dispersionNames(r: VariableResult) {
+  const kind: ChartKind = r.chart ?? (r.N === 1 ? 'imr' : 'xbar-r')
+  if (kind === 'imr') return { kind, short: 'MR', bar: 'MR̄', point: 'Moving Range', title: 'Moving Range (MR) Chart', titleKey: 'spc_rchart_mr' as const }
+  if (kind === 'xbar-s') return { kind, short: 'S', bar: 'S̄', point: 'S', title: 'S (Standard Deviation) Chart', titleKey: 'spc_rchart_s' as const }
+  return { kind, short: 'R', bar: 'R̄', point: 'Range', title: 'Range (R) Chart', titleKey: 'spc_rchart_r' as const }
 }
 
 interface AttributeResult {
@@ -360,7 +375,7 @@ export default function SPCEngine() {
 
   // ── Variable-mode row handlers ──────────────────────────────────────────
   const handleNChange = (newN: number) => {
-    const safe = Math.max(1, Math.min(10, newN))
+    const safe = Math.max(1, Math.min(25, newN))
     setN(safe)
     setVarRows(prev => prev.map(r => ({ ...r, vals: resizeVals(r.vals, safe) })))
   }
@@ -554,12 +569,16 @@ export default function SPCEngine() {
     let csv = ''
 
     if (dataType === 'variable' && varResult) {
-      const header = ['Subgroup', ...Array.from({ length: N }, (_, i) => `x${i + 1}`), 'Mean', 'Range'].join(',')
+      const disp = dispersionNames(varResult)
+      const useS = disp.kind === 'xbar-s'
+      const header = ['Subgroup', ...Array.from({ length: N }, (_, i) => `x${i + 1}`), 'Mean', useS ? 'StDev' : 'Range'].join(',')
       const rows = varRows.map((row, i) => {
         const nums = row.vals.map(v => parseFloat(v)).filter(v => !isNaN(v))
         const mean = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : ''
-        const range = nums.length ? Math.max(...nums) - Math.min(...nums) : ''
-        return [i + 1, ...row.vals, mean, range].join(',')
+        const spread = useS
+          ? (nums.length > 1 && typeof mean === 'number' ? Math.sqrt(nums.reduce((a, x) => a + (x - mean) ** 2, 0) / (nums.length - 1)) : '')
+          : (nums.length ? Math.max(...nums) - Math.min(...nums) : '')
+        return [i + 1, ...row.vals, mean, spread].join(',')
       })
       csv = [header, ...rows].join('\n')
 
@@ -569,9 +588,9 @@ export default function SPCEngine() {
       csv += `${varResult.N === 1 ? 'Individuals (X)' : 'X̄'} CL,${fmt(varResult.cl_x, 4)}\n`
       csv += `${varResult.N === 1 ? 'Individuals (X)' : 'X̄'} UCL,${fmt(varResult.ucl_x, 4)}\n`
       csv += `${varResult.N === 1 ? 'Individuals (X)' : 'X̄'} LCL,${fmt(varResult.lcl_x, 4)}\n`
-      csv += `${varResult.N === 1 ? 'MR̄' : 'R̄'} CL,${fmt(varResult.cl_r, 4)}\n`
-      csv += `${varResult.N === 1 ? 'MR̄' : 'R̄'} UCL,${fmt(varResult.ucl_r, 4)}\n`
-      csv += `${varResult.N === 1 ? 'MR̄' : 'R̄'} LCL,${fmt(Math.max(0, varResult.lcl_r), 4)}\n`
+      csv += `${disp.bar} CL,${fmt(varResult.cl_r, 4)}\n`
+      csv += `${disp.bar} UCL,${fmt(varResult.ucl_r, 4)}\n`
+      csv += `${disp.bar} LCL,${fmt(Math.max(0, varResult.lcl_r), 4)}\n`
       if (hasSpecLimits) {
         csv += `Cp,${fmt(varResult.Cp, 2)}\n`
         csv += `Cpk,${fmt(varResult.Cpk, 2)}\n`
@@ -618,13 +637,13 @@ export default function SPCEngine() {
     )
     overview.metaStrip([
       ['Generated on', nowStamp()],
-      ['Data type', dataType === 'variable' ? `Variable — subgroup size n = ${N}` : `Attribute — ${attrType.toUpperCase()} chart`],
+      ['Data type', dataType === 'variable' ? `Variable — subgroup size n = ${N} (${varResult ? CHART_NAME[dispersionNames(varResult).kind] : ''} chart)` : `Attribute — ${attrType.toUpperCase()} chart`],
       ['Standard', 'Nelson Rules (Western Electric derivative), AIAG SPC'],
     ])
 
     if (varResult) {
       const chartWord = varResult.N === 1 ? 'Individuals (X)' : 'X̄'
-      const clWord = varResult.N === 1 ? 'MR̄' : 'R̄'
+      const clWord = dispersionNames(varResult).bar
 
       overview.sectionHeading('Process Summary')
       overview.kpiRow([
@@ -864,7 +883,7 @@ export default function SPCEngine() {
     if (!isLoggedIn) { goToLogin('spc', 'png'); return }
     const run = () => [
       downloadChartImage(iChartRef.current, 'spc-control-chart.png'),
-      downloadChartImage(rChartRef.current, 'spc-range-chart.png'),
+      downloadChartImage(rChartRef.current, disp?.kind === 'xbar-s' ? 'spc-s-chart.png' : 'spc-range-chart.png'),
       downloadChartImage(distChartRef.current, 'spc-distribution-chart.png'),
       downloadChartImage(ecdfChartRef.current, 'spc-ecdf-chart.png'),
       downloadChartImage(attrChartRef.current, 'spc-attribute-chart.png'),
@@ -995,7 +1014,8 @@ export default function SPCEngine() {
         ['Observations', String(varResult.labels.length)],
         ['Subgroup Size', String(varResult.N)],
         ['Within Sigma Method', withinMethod],
-        ['Special-cause Tests', describeTestSet(varResult.testSet ?? DEFAULT_TEST_SET, varResult.N === 1 ? 'individuals' : 'xbar', varResult.N === 1 ? 'MR' : 'R')],
+        ['Chart', `${CHART_NAME[dispersionNames(varResult).kind]} chart`],
+        ['Special-cause Tests', describeTestSet(varResult.testSet ?? DEFAULT_TEST_SET, varResult.N === 1 ? 'individuals' : 'xbar', dispersionNames(varResult).short)],
         ['LSL', varResult.LSL !== null ? fmt(varResult.LSL, 3) : '—'],
         ['Target', target !== '' ? fmt(parseFloat(target), 3) : '—'],
         ['USL', varResult.USL !== null ? fmt(varResult.USL, 3) : '—'],
@@ -1079,7 +1099,7 @@ export default function SPCEngine() {
         ctx,
         'Process Stability Assessment',
         { chart: iChartRef.current, title: varResult.N === 1 ? 'Individuals (I) Chart' : 'X̄ Chart' },
-        { chart: rChartRef.current, title: varResult.N === 1 ? 'Moving Range (MR) Chart' : 'Range (R) Chart' }
+        { chart: rChartRef.current, title: dispersionNames(varResult).title }
       )
       calloutBox(
         ctx,
@@ -1171,7 +1191,7 @@ export default function SPCEngine() {
 
         calloutBox(
           ctx,
-          'Within PPM is based on within-process variation estimated from moving ranges, while Overall PPM is based on the total variation observed in the study data. The two estimates use different sigma values and may differ — this is expected and is not a check on each other.',
+          `Within PPM is based on within-process variation estimated from ${varResult.N === 1 ? 'the average moving range' : 'the pooled within-subgroup standard deviation'}, while Overall PPM is based on the total variation observed in the study data. The two estimates use different sigma values and may differ — this is expected and is not a check on each other.`,
           'info'
         )
 
@@ -1482,12 +1502,13 @@ export default function SPCEngine() {
   // Only the moving-range chart starts at observation 2; an R chart has a
   // range for every subgroup, including the first.
   const isMovingRange = varResult?.N === 1
+  const disp = varResult ? dispersionNames(varResult) : null
   const rangeLabels = varResult ? (isMovingRange ? varResult.labels.slice(1) : varResult.labels) : []
   const rangeValsTrimmed = isMovingRange ? rangeVals.slice(1) : rangeVals
 
   const allViolations = [
     ...(varResult?.violations_x.map(v => ({ ...v, chart: t('spc_chart_xbar_indiv') })) ?? []),
-    ...(varResult?.violations_r.map(v => ({ ...v, chart: t('spc_chart_r_mr') })) ?? []),
+    ...(varResult?.violations_r.map(v => ({ ...v, chart: disp?.short ?? t('spc_chart_r_mr') })) ?? []),
     ...(attrResult?.violations.map(v => ({ ...v, chart: attrResult.chartLabel })) ?? []),
   ]
 
@@ -1628,11 +1649,11 @@ export default function SPCEngine() {
                   className="tl-input"
                   type="number"
                   min={1}
-                  max={10}
+                  max={25}
                   value={N}
                   onChange={e => handleNChange(parseInt(e.target.value, 10) || 1)}
                 />
-                <div className="tl-hint">{t('spc_subgroup_hint')}</div>
+                <div className="tl-hint">{t(N === 1 ? 'spc_subgroup_hint_imr' : N >= XBAR_S_MIN_N ? 'spc_subgroup_hint_xs' : 'spc_subgroup_hint_xr')}</div>
               </div>
 
               <SpecLimits lsl={LSL} target={target} usl={USL} onLsl={setLSL} onTarget={setTarget} onUsl={setUSL} />
@@ -1923,16 +1944,16 @@ export default function SPCEngine() {
 
               <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
-                  {varResult.N === 1 ? t('spc_rchart_mr') : t('spc_rchart_r')}
+                  {disp && t(disp.titleKey)}
                 </div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  {varResult.N === 1 ? 'MR̄' : 'R̄'} = {fmt(varResult.cl_r)} · UCL = {fmt(varResult.ucl_r)} · LCL = {fmt(Math.max(0, varResult.lcl_r))}
+                  {disp?.bar} = {fmt(varResult.cl_r)} · UCL = {fmt(varResult.ucl_r)} · LCL = {fmt(Math.max(0, varResult.lcl_r))}
                 </div>
                 <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart
                     ref={rChartRef}
                     type="line"
-                    data={buildControlChart(rangeLabels, rangeValsTrimmed, varResult.ucl_r, varResult.cl_r, Math.max(0, varResult.lcl_r), violatedR, varResult.N === 1 ? 'Moving Range' : 'Range', varResult.N === 1 ? 'MR̄' : 'R̄')}
+                    data={buildControlChart(rangeLabels, rangeValsTrimmed, varResult.ucl_r, varResult.cl_r, Math.max(0, varResult.lcl_r), violatedR, disp?.point ?? 'Range', disp?.bar ?? 'R̄')}
                     options={lineChartOptions}
                   />
                 </div>

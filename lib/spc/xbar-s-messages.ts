@@ -61,7 +61,7 @@ export const messages: XbarSMessages = {
     'Build an X̄-S (Xbar-S) chart for subgrouped measurement data with larger subgroup sizes — process stability, Nelson Rules screening, and capability in one view.',
   dataSectionTitle: 'Input Data',
   dataSectionHelp:
-    'Upload a CSV or paste subgrouped data — one row per subgroup, with each column holding one measurement within that subgroup (typically 10 or more measurements per subgroup).',
+    'Upload a CSV or paste subgrouped data — one row per subgroup, with each column holding one measurement within that subgroup (typically 9 or more measurements per subgroup).',
   loadExampleButton: 'Load Example Data',
   clearDataButton: 'Clear',
   csvUploadLabel: 'Upload CSV',
@@ -118,5 +118,5 @@ export const messages: XbarSMessages = {
     'Control limits use the standard Xbar-S constants (A3, B3, B4), derived from the c4 bias-correction factor for the given subgroup size. Sigma is estimated from the pooled within-subgroup standard deviation, bias-corrected with c4. Control chart rules follow the Nelson Rules (1-8). Anderson-Darling: AD is reported as in standard statistical software; its p-value uses the Stephens (1974) small-sample adjustment.',
   whatIsTitle: 'When to use an Xbar-S chart',
   whatIsBody:
-    'Use an Xbar-S chart instead of Xbar-R when your subgroup size is larger — conventionally n ≥ 10. At larger subgroup sizes, the standard deviation (S) is a more statistically efficient estimator of within-subgroup spread than the range (R), which becomes less reliable as more points are added. For smaller subgroups (n < 10), an Xbar-R chart is simpler and works just as well. For a single measurement per unit with no subgroups, use an I-MR chart instead.',
+    'Use an Xbar-S chart instead of Xbar-R when your subgroup size is larger — from n = 9 upward. At larger subgroup sizes, the standard deviation (S) is a more statistically efficient estimator of within-subgroup spread than the range (R), which becomes less reliable as more points are added. For smaller subgroups (n ≤ 8), an Xbar-R chart is simpler and works just as well. For a single measurement per unit with no subgroups, use an I-MR chart instead.',
 }

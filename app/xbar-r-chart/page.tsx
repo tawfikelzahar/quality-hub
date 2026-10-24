@@ -12,7 +12,8 @@ import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
 import ToolStyles from '@/components/tool/ToolStyles';
-import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
+import { ToolHeader, HintLink, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
+import { XBAR_S_MIN_N } from '@/lib/spc/chartChoice';
 import { capabilityVerdict } from '@/lib/spc/verdict';
 import { EXAMPLE_XBAR_R } from '@/lib/spc/examples';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
@@ -634,7 +635,7 @@ export default function XbarRChartPage() {
         <ToolSidebar current="/xbar-r-chart" />
 
         <div className="tl-main">
-          <ToolHeader title={t('xbar_r_title')} intro={t('xr_intro')} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
+          <ToolHeader title={t('xbar_r_title')} intro={t('xr_intro')} route={{ text: t('route_attr_text'), href: '/spc', label: t('route_attr_link') }} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
           <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('xr_help_title')} steps={helpSteps} onExample={loadExample} />
           <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={grid.length} />
 
@@ -644,7 +645,9 @@ export default function XbarRChartPage() {
               <div>
                 <div className="tl-label">{t('spc_subgroup_size')}</div>
                 <input className="tl-input" type="number" min={2} max={25} value={sgSize} onChange={(e) => changeSize(Number(e.target.value))} />
-                <div className="tl-hint">{t('xr_n_hint')}</div>
+                {sgSize >= XBAR_S_MIN_N
+                  ? <HintLink text={t('xr_n_hint_big')} href="/xbar-s-chart" label={t('route_xs_link')} />
+                  : <div className="tl-hint">{t('xr_n_hint')}</div>}
               </div>
               <SpecLimits lsl={lsl} target={target} usl={usl} onLsl={setLsl} onTarget={setTarget} onUsl={setUsl} />
               <div className="tl-setup-analyze">

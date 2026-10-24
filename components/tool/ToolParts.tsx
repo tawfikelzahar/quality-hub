@@ -14,9 +14,17 @@ import type { CapabilityVerdict } from '@/lib/spc/verdict'
 export type MobileTab = 'setup' | 'data' | 'results'
 
 // ── Page header: title, intro, How to use, Try an example ───────────────
-export function ToolHeader({ title, intro, onHelp, onExample, exampleDisabled }: {
+export interface ToolRoute {
+  text: string
+  href: string
+  label: string
+}
+
+export function ToolHeader({ title, intro, route, onHelp, onExample, exampleDisabled }: {
   title: string
   intro: string
+  /** one line pointing to a related tool, under the intro */
+  route?: ToolRoute
   onHelp: () => void
   onExample: () => void
   exampleDisabled?: boolean
@@ -27,6 +35,12 @@ export function ToolHeader({ title, intro, onHelp, onExample, exampleDisabled }:
       <div style={{ minWidth: 0, flex: '1 1 320px' }}>
         <h1>{title}</h1>
         <p>{intro}</p>
+        {route && (
+          <p className="tl-route">
+            <span aria-hidden="true">⇄</span>
+            <span>{route.text} <a href={route.href}>{route.label}</a></span>
+          </p>
+        )}
       </div>
       <div className="tl-head-actions">
         <button type="button" className="tl-xbtn" onClick={onHelp} aria-haspopup="dialog">
@@ -36,6 +50,11 @@ export function ToolHeader({ title, intro, onHelp, onExample, exampleDisabled }:
       </div>
     </header>
   )
+}
+
+// ── Hint under a field, with a link to the chart that fits better ───────
+export function HintLink({ text, href, label }: ToolRoute) {
+  return <div className="tl-hint tl-hint-route">{text} <a href={href}>{label}</a></div>
 }
 
 // ── How to use: side panel ───────────────────────────────────────────────

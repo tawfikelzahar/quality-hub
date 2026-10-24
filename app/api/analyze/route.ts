@@ -4,6 +4,8 @@ import { screenReason } from '@/lib/spc/reportText.server'
 import { normCDF, normSF, normInv, andersonDarlingNormal } from '@/lib/stats/normal'
 import { rangeChartLimits } from '@/lib/spc/constants'
 import { nelsonRules, offsetViolations, testsFor, isTestSet, DEFAULT_TEST_SET, type TestSet } from '@/lib/spc/nelson'
+import { runXbarSAnalysis } from '@/lib/spc/engine.server'
+import { variableChartFor } from '@/lib/spc/chartChoice'
 
 function mean(arr: number[]) { return arr.reduce((a, b) => a + b, 0) / arr.length }
 function stdev(arr: number[], usePop = false) {
@@ -179,10 +181,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Please provide at least 3 rows of valid data.' }, { status: 400 })
     }
     const testSet: TestSet = isTestSet(body.testSet) ? body.testSet : DEFAULT_TEST_SET
-    const result = runAnalysis({ data, N: N || 1, LSL: LSL ?? null, USL: USL ?? null, target: target ?? null, sigmaConvention, lastN, testSet })
+    // Chart from the subgroup size (lib/spc/chartChoice.ts): I-MR for 1,
+    // X̄-R for 2–8, X̄-S for 9 or more. X̄-S uses the same calculator as the
+    // X̄-S chart page, so both pages give identical numbers.
+    const input = { data, N: N || 1, LSL: LSL ?? null, USL: USL ?? null, target: target ?? null, sigmaConvention, lastN, testSet }
+    const chart = variableChartFor(input.N)
+    const result = chart === 'xbar-s' ? runXbarSAnalysis(input) : runAnalysis(input)
     // Reason under the on-screen verdict, written on the server (lib/spc/reportText.server.ts)
     const reason = screenReason(result, target ?? null)
-    return NextResponse.json({ ...result, testSet, screenReason: reason })
+    return NextResponse.json({ ...result, chart, testSet, screenReason: reason })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json({ error: 'Calculation error: ' + message }, { status: 500 })

@@ -43,6 +43,10 @@ const CSS = `
   .tl-exports { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .tl-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px 20px; }
   .tl-head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tl-head .tl-route { display: flex; gap: 8px; align-items: baseline; margin-top: 8px; font-size: 13px; color: var(--qh-muted); }
+  .tl-route a, .tl-hint-route a { color: var(--qh-accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .tl-route a:hover, .tl-hint-route a:hover { text-decoration: underline; }
+  .tl-hint-route { color: var(--qh-amber); }
   .tl-head-actions .tl-xbtn span { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
   .tl-help-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(5,10,20,.55); display: flex; justify-content: flex-end; }
   .tl-help { width: min(440px, 100%); height: 100%; overflow-y: auto; box-sizing: border-box; padding: 22px 22px 32px; background: var(--qh-bg); border-inline-start: 1px solid var(--qh-border); box-shadow: -20px 0 60px rgba(0,0,0,.25); }
