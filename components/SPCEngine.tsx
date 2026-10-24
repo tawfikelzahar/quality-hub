@@ -1259,7 +1259,7 @@ export default function SPCEngine() {
       plugins: {
         legend: {
           display: true,
-          labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item: { text: string }) => !['CL', 'MR̄', 'R̄'].includes(item.text) },
+          labels: { color: c.muted, font: { size: 11 }, boxWidth: 14, filter: (item: { text: string }) => !['CL', 'MR̄', 'R̄', 'S̄'].includes(item.text) },
         },
         tooltip: {
           backgroundColor: c.surface,
