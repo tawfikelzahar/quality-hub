@@ -1,4 +1,5 @@
 import { calcOEE, lossTime, validate, type OEEInputs } from './calc'
+import { fixed } from '../stats/format'
 
 // ─────────────────────────────────────────────────────────────────────────
 // "What to work on first" card for the OEE tool (roadmap O4). Pro only, so
@@ -22,7 +23,7 @@ export interface OEEInsight {
 const BENCH: Record<Factor, number> = { availability: 90, performance: 95, quality: 99.9 }
 const FACTOR_OF: Record<LossKind, Factor> = { downtime: 'availability', speed: 'performance', quality: 'quality' }
 
-const n1 = (v: number) => v.toFixed(1)
+const n1 = (v: number) => fixed(v, 1)
 const int = (v: number) => Math.round(v).toLocaleString('en-US')
 // Arabic text keeps Western digits, like the rest of the site
 const ltr = (s: string) => `⁦${s}⁩`
@@ -50,7 +51,7 @@ export function buildOEEInsight(i: OEEInputs): OEEInsight | null {
   const other = gaps.find(g => g.f !== FACTOR_OF[top.kind])
 
   const partsDown = (lt.downtimeMin * 60) / i.cycleTime
-  const cycle = String(Number(i.cycleTime.toFixed(3)))
+  const cycle = String(Number(fixed(i.cycleTime, 3)))
 
   if (top.min <= 0) {
     return {

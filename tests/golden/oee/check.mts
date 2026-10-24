@@ -2,6 +2,7 @@
 // node --import ./tests/register.mjs --experimental-strip-types --no-warnings tests/golden/oee/check.mts
 import { calcOEE, validate, lossTime, type OEEInputs } from '../../../lib/oee/calc.ts'
 import { buildOEEInsight, type LossKind } from '../../../lib/oee/insight.server.ts'
+import { fixed } from '../../../lib/stats/format.ts'
 
 interface Case {
   id: string
@@ -35,11 +36,11 @@ const cases: Case[] = [
     // The tool's own example (roadmap O6): 480 min, 52 min down, 6 s cycle,
     // 3,800 made, 3,650 good → 52 min down · 48 min speed · 15 min quality
     // (150 parts × 6 s) · 365 min fully productive; OEE 76.04%. Quality loss is
-    // exactly 3.125% (15 ÷ 480); floating point shows it as 3.12, as the tool does.
+    // exactly 3.125% (15 ÷ 480): shown as 3.13 with fixed() (plain toFixed gave 3.12).
     id: 'OEE02',
     source: 'tool example (hand check)',
     inputs: { plannedTime: 480, breaks: 0, downtime: 52, cycleTime: 6, totalCount: 3800, goodCount: 3650 },
-    expected: { runTime: 428, oee: 76.04, downtimeLoss: 10.83, speedLoss: 10.00, qualityLoss: 3.12 },
+    expected: { runTime: 428, oee: 76.04, downtimeLoss: 10.83, speedLoss: 10.00, qualityLoss: 3.13 },
     time: { downtimeMin: 52, speedMin: 48, qualityMin: 15, productiveMin: 365, speedParts: 480, qualityParts: 150 },
     biggest: 'downtime',
     tol: 0.005,
@@ -55,14 +56,14 @@ for (const c of cases) {
   for (const [k, want] of Object.entries(c.expected)) {
     checks++
     const got = (r as unknown as Record<string, number>)[k]
-    const ok = Math.abs(Number(got.toFixed(2)) - want) <= c.tol
+    const ok = Math.abs(Number(fixed(got, 2)) - want) <= c.tol
     if (!ok) { fail++; console.log('DIFF', c.id, k, 'got', got, 'want', want) }
   }
   if (c.time) {
     const lt = lossTime(c.inputs, r) as unknown as Record<string, number>
     for (const [k, want] of Object.entries(c.time)) {
       checks++
-      if (Math.abs(Number(lt[k].toFixed(2)) - want) > c.tol) { fail++; console.log('DIFF', c.id, k, 'got', lt[k], 'want', want) }
+      if (Math.abs(Number(fixed(lt[k], 2)) - want) > c.tol) { fail++; console.log('DIFF', c.id, k, 'got', lt[k], 'want', want) }
     }
     // minutes add up to net planned time, and match the % losses
     checks++
@@ -75,7 +76,7 @@ for (const c of cases) {
     const ins = buildOEEInsight(c.inputs)
     const lt = lossTime(c.inputs, r)
     const min = { downtime: lt.downtimeMin, speed: lt.speedMin, quality: lt.qualityMin }[c.biggest]
-    const ok = !!ins && ins.biggest === c.biggest && ins.en.includes(min.toFixed(1)) && ins.ar.includes(min.toFixed(1))
+    const ok = !!ins && ins.biggest === c.biggest && ins.en.includes(fixed(min, 1)) && ins.ar.includes(fixed(min, 1))
     if (!ok) { fail++; console.log('DIFF', c.id, 'insight', ins?.biggest, 'want', c.biggest) }
   }
   // Losses (% of net planned time) and OEE must add up to 100

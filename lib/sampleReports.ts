@@ -44,6 +44,8 @@ import {
 } from '@/lib/pdf/reportDesign'
 import { createReport as createExcelReport, nowStamp, type Tone } from '@/lib/excelReport'
 import { SITE_SLUG } from './site'
+import { calcOEE } from './oee/calc'
+import { fixed } from './stats/format'
 
 export type SampleToolId = 'gage-rr' | 'spc' | 'oee'
 
@@ -707,30 +709,9 @@ const OEE_INPUTS = {
   goodCount: 3650,
 }
 
-// Same formulas as calcOEE() in components/OEECalculator.tsx, so the sample
-// shows exactly what the tool shows for these inputs. Losses are shares of
-// the net planned time and add up to 100 − OEE.
-const OEE_RESULT = (() => {
-  const i = OEE_INPUTS
-  const netPlanned = i.plannedTime - i.breaks
-  const runTime = netPlanned - i.downtime
-  const availability = (runTime / netPlanned) * 100
-  const performance = ((i.totalCount * i.cycleTime) / 60 / runTime) * 100
-  const performanceCapped = Math.min(performance, 100)
-  const quality = (i.goodCount / i.totalCount) * 100
-  const oee = (availability / 100) * (performanceCapped / 100) * (quality / 100) * 100
-  return {
-    netPlanned,
-    runTime,
-    availability,
-    performanceCapped,
-    quality,
-    oee,
-    downtimeLoss: (i.downtime / netPlanned) * 100,
-    speedLoss: Math.max(0, 100 - performance) * (runTime / netPlanned),
-    qualityLoss: Math.max(0, 100 - quality) * (runTime / netPlanned) * (performanceCapped / 100),
-  }
-})()
+// The tool's own calculation (lib/oee/calc.ts), so the sample shows exactly
+// what the tool shows for these inputs.
+const OEE_RESULT = calcOEE(OEE_INPUTS)!
 
 const OEE_BENCH = [
   { label: 'Availability', key: 'availability' as const, wc: 90 },
@@ -751,20 +732,20 @@ export function buildOeeSamplePdf() {
   classificationBanner(ctx, OEE_CLASSIFICATION, 'OEE Performance Classification')
 
   const studyRows: KVRow[] = [
-    ['Planned Production Time', `${i.plannedTime.toFixed(1)} min`],
-    ['Breaks (Planned)', `${i.breaks.toFixed(1)} min`],
-    ['Downtime (Unplanned)', `${i.downtime.toFixed(1)} min`],
-    ['Ideal Cycle Time', `${i.cycleTime.toFixed(2)} s/part`],
+    ['Planned Production Time', `${fixed(i.plannedTime, 1)} min`],
+    ['Breaks (Planned)', `${fixed(i.breaks, 1)} min`],
+    ['Downtime (Unplanned)', `${fixed(i.downtime, 1)} min`],
+    ['Ideal Cycle Time', `${fixed(i.cycleTime, 2)} s/part`],
     ['Total Count', String(i.totalCount)],
     ['Good Count', String(i.goodCount)],
   ]
   const metricRows: KVRow[] = [
-    ['Net Planned Time', `${r.netPlanned.toFixed(1)} min`],
-    ['Run Time', `${r.runTime.toFixed(1)} min`],
-    ['Availability', `${r.availability.toFixed(2)}%`],
-    ['Performance', `${r.performanceCapped.toFixed(2)}%`],
-    ['Quality', `${r.quality.toFixed(2)}%`],
-    ['OEE', `${r.oee.toFixed(2)}%`],
+    ['Net Planned Time', `${fixed(r.netPlanned, 1)} min`],
+    ['Run Time', `${fixed(r.runTime, 1)} min`],
+    ['Availability', `${fixed(r.availability, 2)}%`],
+    ['Performance', `${fixed(r.performanceCapped, 2)}%`],
+    ['Quality', `${fixed(r.quality, 2)}%`],
+    ['OEE', `${fixed(r.oee, 2)}%`],
   ]
   twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
 
@@ -780,7 +761,7 @@ export function buildOeeSamplePdf() {
     OEE_BENCH.map(b => {
       const yours = r[b.key]
       const gap = yours - b.wc
-      return [b.label, `${yours.toFixed(2)}%`, `${b.wc}%`, `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`]
+      return [b.label, `${fixed(yours, 2)}%`, `${b.wc}%`, `${gap >= 0 ? '+' : ''}${fixed(gap, 2)}%`]
     }),
     {
       cellColors: OEE_BENCH.map(b => {
@@ -808,7 +789,7 @@ export function buildOeeSamplePdf() {
       { value: 85, label: '85%' },
       { value: 100, label: '100%' },
     ],
-    caption: `OEE = ${r.oee.toFixed(2)}% - ${OEE_CLASSIFICATION.label} (World-class benchmark: OEE >= 85%)`,
+    caption: `OEE = ${fixed(r.oee, 2)}% - ${OEE_CLASSIFICATION.label} (World-class benchmark: OEE >= 85%)`,
   })
 
   dataTable(
@@ -820,13 +801,19 @@ export function buildOeeSamplePdf() {
       { header: 'IMPACT', width: ctx.pageWidth - ctx.margin * 2 - 360, align: 'right' },
     ],
     [
-      ['Downtime Loss', 'Breakdown + Changeover', `${r.downtimeLoss.toFixed(2)}%`],
-      ['Speed Loss', 'Minor Stops + Reduced Speed', `${r.speedLoss.toFixed(2)}%`],
-      ['Quality Loss', 'Defects + Startup Rejects', `${r.qualityLoss.toFixed(2)}%`],
+      ['Downtime Loss', 'Breakdown + Changeover', `${fixed(r.downtimeLoss, 2)}%`],
+      ['Speed Loss', 'Minor Stops + Reduced Speed', `${fixed(r.speedLoss, 2)}%`],
+      ['Quality Loss', 'Defects + Startup Rejects', `${fixed(r.qualityLoss, 2)}%`],
     ]
   )
 
-  const conclusion = `The line achieved an OEE of ${r.oee.toFixed(2)}%, classified as ${OEE_CLASSIFICATION.label.toLowerCase()}. Availability was ${r.availability.toFixed(1)}%, Performance ${r.performanceCapped.toFixed(1)}%, and Quality ${r.quality.toFixed(1)}%. The largest loss category was speed loss at ${r.speedLoss.toFixed(2)}% of net planned time — prioritize improvement efforts there. World-class benchmark is OEE >= 85% (A >= 90%, P >= 95%, Q >= 99.9%).`
+  const losses = [
+    { name: 'downtime', value: r.downtimeLoss },
+    { name: 'speed', value: r.speedLoss },
+    { name: 'quality', value: r.qualityLoss },
+  ]
+  const biggest = losses.reduce((a, b) => (b.value > a.value ? b : a))
+  const conclusion = `The line achieved an OEE of ${fixed(r.oee, 2)}%, classified as ${OEE_CLASSIFICATION.label.toLowerCase()}. Availability was ${fixed(r.availability, 1)}%, Performance ${fixed(r.performanceCapped, 1)}%, and Quality ${fixed(r.quality, 1)}%. The largest loss category was ${biggest.name} loss at ${fixed(biggest.value, 2)}% of net planned time — prioritize improvement efforts there. World-class benchmark is OEE >= 85% (A >= 90%, P >= 95%, Q >= 99.9%).`
   interpretationBox(ctx, 'Study Conclusion', conclusion, 'info')
 
   criteriaReferenceTable(
@@ -860,10 +847,10 @@ export async function buildOeeSampleExcel() {
 
   overview.sectionHeading('OEE Indices')
   overview.kpiRow([
-    { label: 'OEE (Overall)', value: `${r.oee.toFixed(2)}%`, tone: classTone },
-    { label: 'Availability', value: `${r.availability.toFixed(2)}%`, tone: 'neutral' },
-    { label: 'Performance', value: `${r.performanceCapped.toFixed(2)}%`, tone: 'neutral' },
-    { label: 'Quality', value: `${r.quality.toFixed(2)}%`, tone: 'neutral' },
+    { label: 'OEE (Overall)', value: `${fixed(r.oee, 2)}%`, tone: classTone },
+    { label: 'Availability', value: `${fixed(r.availability, 2)}%`, tone: 'neutral' },
+    { label: 'Performance', value: `${fixed(r.performanceCapped, 2)}%`, tone: 'neutral' },
+    { label: 'Quality', value: `${fixed(r.quality, 2)}%`, tone: 'neutral' },
   ])
 
   overview.table({
@@ -872,10 +859,10 @@ export async function buildOeeSampleExcel() {
       { header: 'Value (%)', key: 'value', align: 'right' },
     ],
     rows: [
-      ['OEE (Overall)', r.oee.toFixed(2)],
-      ['Availability', r.availability.toFixed(2)],
-      ['Performance', r.performanceCapped.toFixed(2)],
-      ['Quality (First Pass Yield)', r.quality.toFixed(2)],
+      ['OEE (Overall)', fixed(r.oee, 2)],
+      ['Availability', fixed(r.availability, 2)],
+      ['Performance', fixed(r.performanceCapped, 2)],
+      ['Quality (First Pass Yield)', fixed(r.quality, 2)],
     ],
   })
 
@@ -887,9 +874,9 @@ export async function buildOeeSampleExcel() {
       { header: 'Value (%)', key: 'value', align: 'right' },
     ],
     rows: [
-      ['Downtime Loss', 'Breakdown + Changeover', r.downtimeLoss.toFixed(2)],
-      ['Speed Loss', 'Minor Stops + Reduced Speed', r.speedLoss.toFixed(2)],
-      ['Quality Loss', 'Defects + Startup Rejects', r.qualityLoss.toFixed(2)],
+      ['Downtime Loss', 'Breakdown + Changeover', fixed(r.downtimeLoss, 2)],
+      ['Speed Loss', 'Minor Stops + Reduced Speed', fixed(r.speedLoss, 2)],
+      ['Quality Loss', 'Defects + Startup Rejects', fixed(r.qualityLoss, 2)],
     ],
     rowTones: [
       r.downtimeLoss >= 15 ? 'danger' : r.downtimeLoss >= 5 ? 'warning' : undefined,
@@ -909,7 +896,7 @@ export async function buildOeeSampleExcel() {
     rows: OEE_BENCH.map(b => {
       const yours = r[b.key]
       const gap = yours - b.wc
-      return [b.label, yours.toFixed(2), b.wc, `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}`]
+      return [b.label, fixed(yours, 2), b.wc, `${gap >= 0 ? '+' : ''}${fixed(gap, 2)}`]
     }),
     rowTones: OEE_BENCH.map(b => ((r[b.key] - b.wc) >= 0 ? 'good' : 'warning')),
   })

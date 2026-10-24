@@ -13,6 +13,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { calcOEE, classify, validate, type OEEInputs, type Classification } from '@/lib/oee/calc'
+import { fixed } from '@/lib/stats/format'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
 import {
   createReport as createPdfReport,
@@ -123,7 +124,7 @@ export default function OEECalculator() {
     datasets: [
       {
         label: t('oee_loss_pct_label'),
-        data: lossData.map(l => Number(l.value.toFixed(2))),
+        data: lossData.map(l => Number(fixed(l.value, 2))),
         backgroundColor: lossData.map(l => l.color),
         borderRadius: 4,
       },
@@ -154,7 +155,7 @@ export default function OEECalculator() {
         padding: 10,
         callbacks: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (ctx: any) => ` ${ctx.raw.toFixed(2)}%`,
+          label: (ctx: any) => ` ${fixed(ctx.raw, 2)}%`,
         },
       },
     },
@@ -178,19 +179,19 @@ export default function OEECalculator() {
     if (!result || !cls) return
     const lines = [
       'Metric,Value,Unit',
-      `OEE (Overall),${result.oee.toFixed(2)},%`,
-      `Availability,${result.availability.toFixed(2)},%`,
-      `Performance,${result.performanceCapped.toFixed(2)},%`,
-      `Quality (First Pass Yield),${result.quality.toFixed(2)},%`,
+      `OEE (Overall),${fixed(result.oee, 2)},%`,
+      `Availability,${fixed(result.availability, 2)},%`,
+      `Performance,${fixed(result.performanceCapped, 2)},%`,
+      `Quality (First Pass Yield),${fixed(result.quality, 2)},%`,
       '',
       'Six Big Losses,Value,Unit',
-      ...lossData.map(l => `${t(l.labelKey)},${l.value.toFixed(2)},%`),
+      ...lossData.map(l => `${t(l.labelKey)},${fixed(l.value, 2)},%`),
       '',
       'Benchmark,Your Value,World-Class,Gap',
       ...BENCH.map(b => {
         const yours = result[b.key]
         const gap = yours - b.wc
-        return `${t(b.labelKey)},${yours.toFixed(2)}%,${b.wc}%,${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`
+        return `${t(b.labelKey)},${fixed(yours, 2)}%,${b.wc}%,${gap >= 0 ? '+' : ''}${fixed(gap, 2)}%`
       }),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -217,10 +218,10 @@ export default function OEECalculator() {
 
     overview.sectionHeading('OEE Indices')
     overview.kpiRow([
-      { label: 'OEE (Overall)', value: `${result.oee.toFixed(2)}%`, tone: classTone },
-      { label: 'Availability', value: `${result.availability.toFixed(2)}%`, tone: 'neutral' },
-      { label: 'Performance', value: `${result.performanceCapped.toFixed(2)}%`, tone: 'neutral' },
-      { label: 'Quality', value: `${result.quality.toFixed(2)}%`, tone: 'neutral' },
+      { label: 'OEE (Overall)', value: `${fixed(result.oee, 2)}%`, tone: classTone },
+      { label: 'Availability', value: `${fixed(result.availability, 2)}%`, tone: 'neutral' },
+      { label: 'Performance', value: `${fixed(result.performanceCapped, 2)}%`, tone: 'neutral' },
+      { label: 'Quality', value: `${fixed(result.quality, 2)}%`, tone: 'neutral' },
     ])
 
     overview.table({
@@ -295,21 +296,21 @@ export default function OEECalculator() {
     classificationBanner(ctx, pdfCls, 'OEE Performance Classification')
 
     const studyRows: KVRow[] = [
-      ['Planned Production Time', `${inputs.plannedTime.toFixed(1)} min`],
-      ['Breaks (Planned)', `${inputs.breaks.toFixed(1)} min`],
-      ['Downtime (Unplanned)', `${inputs.downtime.toFixed(1)} min`],
-      ['Ideal Cycle Time', `${inputs.cycleTime.toFixed(2)} s/part`],
+      ['Planned Production Time', `${fixed(inputs.plannedTime, 1)} min`],
+      ['Breaks (Planned)', `${fixed(inputs.breaks, 1)} min`],
+      ['Downtime (Unplanned)', `${fixed(inputs.downtime, 1)} min`],
+      ['Ideal Cycle Time', `${fixed(inputs.cycleTime, 2)} s/part`],
       ['Total Count', String(inputs.totalCount)],
       ['Good Count', String(inputs.goodCount)],
     ]
 
     const metricRows: KVRow[] = [
-      ['Net Planned Time', `${result.netPlanned.toFixed(1)} min`],
-      ['Run Time', `${result.runTime.toFixed(1)} min`],
-      ['Availability', `${result.availability.toFixed(2)}%`],
-      ['Performance', `${result.performanceCapped.toFixed(2)}%`],
-      ['Quality', `${result.quality.toFixed(2)}%`],
-      ['OEE', `${result.oee.toFixed(2)}%`],
+      ['Net Planned Time', `${fixed(result.netPlanned, 1)} min`],
+      ['Run Time', `${fixed(result.runTime, 1)} min`],
+      ['Availability', `${fixed(result.availability, 2)}%`],
+      ['Performance', `${fixed(result.performanceCapped, 2)}%`],
+      ['Quality', `${fixed(result.quality, 2)}%`],
+      ['OEE', `${fixed(result.oee, 2)}%`],
     ]
 
     twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
@@ -326,7 +327,7 @@ export default function OEECalculator() {
       BENCH.map(b => {
         const yours = result[b.key]
         const gap = yours - b.wc
-        return [BENCH_ENGLISH[b.key], `${yours.toFixed(2)}%`, `${b.wc}%`, `${gap >= 0 ? '+' : ''}${gap.toFixed(2)}%`]
+        return [BENCH_ENGLISH[b.key], `${fixed(yours, 2)}%`, `${b.wc}%`, `${gap >= 0 ? '+' : ''}${fixed(gap, 2)}%`]
       }),
       {
         cellColors: BENCH.map(b => {
@@ -354,7 +355,7 @@ export default function OEECalculator() {
         { value: 85, label: '85%' },
         { value: 100, label: '100%' },
       ],
-      caption: `OEE = ${result.oee.toFixed(2)}% — ${pdfCls.label} (World-class benchmark: OEE ≥ 85%)`,
+      caption: `OEE = ${fixed(result.oee, 2)}% — ${pdfCls.label} (World-class benchmark: OEE ≥ 85%)`,
     })
 
     addChartImage(ctx, chartRef.current, 'Six Big Losses Breakdown')
@@ -368,9 +369,9 @@ export default function OEECalculator() {
         { header: 'IMPACT', width: ctx.pageWidth - ctx.margin * 2 - 360, align: 'right' },
       ],
       [
-        ['Downtime Loss', 'Breakdown + Changeover', `${result.downtimeLoss.toFixed(2)}%`],
-        ['Speed Loss', 'Minor Stops + Reduced Speed', `${result.speedLoss.toFixed(2)}%`],
-        ['Quality Loss', 'Defects + Startup Rejects', `${result.qualityLoss.toFixed(2)}%`],
+        ['Downtime Loss', 'Breakdown + Changeover', `${fixed(result.downtimeLoss, 2)}%`],
+        ['Speed Loss', 'Minor Stops + Reduced Speed', `${fixed(result.speedLoss, 2)}%`],
+        ['Quality Loss', 'Defects + Startup Rejects', `${fixed(result.qualityLoss, 2)}%`],
       ]
     )
 
@@ -381,7 +382,7 @@ export default function OEECalculator() {
     ]
     const biggest = losses.reduce((a, b) => (b.value > a.value ? b : a))
     const conclusionTone = cls.type === 'world-class' ? 'good' : cls.type === 'good' ? 'info' : cls.type === 'average' ? 'warn' : 'bad'
-    const conclusion = `The line achieved an OEE of ${result.oee.toFixed(2)}%, classified as ${pdfCls.label.toLowerCase()}. Availability was ${result.availability.toFixed(1)}%, Performance ${result.performanceCapped.toFixed(1)}%, and Quality ${result.quality.toFixed(1)}%. The largest loss category was ${biggest.name} loss at ${biggest.value.toFixed(2)}% of net planned time — prioritize improvement efforts there. World-class benchmark is OEE ≥ 85% (A ≥ 90%, P ≥ 95%, Q ≥ 99.9%).`
+    const conclusion = `The line achieved an OEE of ${fixed(result.oee, 2)}%, classified as ${pdfCls.label.toLowerCase()}. Availability was ${fixed(result.availability, 1)}%, Performance ${fixed(result.performanceCapped, 1)}%, and Quality ${fixed(result.quality, 1)}%. The largest loss category was ${biggest.name} loss at ${fixed(biggest.value, 2)}% of net planned time — prioritize improvement efforts there. World-class benchmark is OEE ≥ 85% (A ≥ 90%, P ≥ 95%, Q ≥ 99.9%).`
     interpretationBox(ctx, 'Study Conclusion', conclusion, conclusionTone)
 
     criteriaReferenceTable(
@@ -566,24 +567,24 @@ export default function OEECalculator() {
                   background: `${classColor[cls.type]}15`,
                 }}
               >
-                {t(cls.labelKey)} — OEE {result.oee.toFixed(2)}%
+                {t(cls.labelKey)} — OEE {fixed(result.oee, 2)}%
               </div>
 
               <div className="qh-stats-row" style={s.statsRow}>
                 <div style={s.statCard}>
-                  <div style={{ ...s.statVal, color: classColor[cls.type] }}>{result.oee.toFixed(1)}%</div>
+                  <div style={{ ...s.statVal, color: classColor[cls.type] }}>{fixed(result.oee, 1)}%</div>
                   <div style={s.statLabel}>{t('oee_stat_overall')}</div>
                 </div>
                 <div style={s.statCard}>
-                  <div style={s.statVal}>{result.availability.toFixed(1)}%</div>
+                  <div style={s.statVal}>{fixed(result.availability, 1)}%</div>
                   <div style={s.statLabel}>{t('oee_stat_availability')}</div>
                 </div>
                 <div style={s.statCard}>
-                  <div style={s.statVal}>{result.performanceCapped.toFixed(1)}%</div>
+                  <div style={s.statVal}>{fixed(result.performanceCapped, 1)}%</div>
                   <div style={s.statLabel}>{t('oee_stat_performance')}</div>
                 </div>
                 <div style={s.statCard}>
-                  <div style={s.statVal}>{result.quality.toFixed(1)}%</div>
+                  <div style={s.statVal}>{fixed(result.quality, 1)}%</div>
                   <div style={s.statLabel}>{t('oee_stat_quality_fpy')}</div>
                 </div>
               </div>
@@ -621,11 +622,11 @@ export default function OEECalculator() {
                               <div style={{ fontSize: 10, color: c.muted }}>{b.note}</div>
                             </td>
                             <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: yours >= b.wc ? 'var(--qh-good)' : c.text }}>
-                              {yours.toFixed(1)}%
+                              {fixed(yours, 1)}%
                             </td>
                             <td style={{ ...s.td, textAlign: 'right', color: c.muted }}>{b.wc}%</td>
                             <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: gap >= 0 ? 'var(--qh-good)' : c.danger }}>
-                              {gap >= 0 ? '+' : ''}{gap.toFixed(1)}%
+                              {gap >= 0 ? '+' : ''}{fixed(gap, 1)}%
                             </td>
                           </tr>
                         )
@@ -644,7 +645,7 @@ export default function OEECalculator() {
                       <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_unplanned')}</td><td style={s.td}>{inputs.downtime} {t('oee_unit_min')}</td></tr>
                       <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_idealcycle')}</td><td style={s.td}>{inputs.cycleTime} {t('oee_unit_secpart')}</td></tr>
                       <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_totalproduced')}</td><td style={s.td}>{Math.round(inputs.totalCount).toLocaleString()} {t('oee_unit_parts')}</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_goodparts')}</td><td style={s.td}>{Math.round(inputs.goodCount).toLocaleString()} {t('oee_unit_parts')} ({result.quality.toFixed(2)}%)</td></tr>
+                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_goodparts')}</td><td style={s.td}>{Math.round(inputs.goodCount).toLocaleString()} {t('oee_unit_parts')} ({fixed(result.quality, 2)}%)</td></tr>
                       <tr><td style={{ ...s.td, color: c.muted, borderBottom: 'none' }}>{t('oee_row_formula')}</td><td style={{ ...s.td, borderBottom: 'none' }}>OEE = A × P × Q</td></tr>
                     </tbody>
                   </table>

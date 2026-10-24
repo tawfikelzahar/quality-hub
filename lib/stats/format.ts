@@ -12,3 +12,13 @@ export function formatPEquals(p: number | null | undefined): string {
   const t = formatPValue(p)
   return t.startsWith('<') ? `p ${t}` : `p = ${t}`
 }
+
+/**
+ * Fixed decimals with half-up rounding of the intended value: 3.125 → "3.13".
+ * Plain toFixed works on the stored binary value, so a result like
+ * 15 / 480 × 100 (stored as 3.12499999…) would print as "3.12".
+ */
+export function fixed(v: number, digits: number): string {
+  if (!isFinite(v)) return String(v)
+  return Number(v.toPrecision(12)).toFixed(digits)
+}
