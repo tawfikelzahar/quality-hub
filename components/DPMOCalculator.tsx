@@ -217,7 +217,7 @@ export default function DPMOCalculator() {
       ...results.map(r => [csvCell(r.name), r.units, r.opportunities, r.defects, fixed(r.dpo, 6), fixed(r.dpmo, 1), fixed(r.yieldPct, 4), sig(r.sigma), Number.isFinite(r.sigma) ? bandOf(r.sigma).label : 'No defects'].join(',')),
       ...(multi ? [['"Overall (pooled)"', overall.units, '', overall.defects, fixed(overall.dpo, 6), fixed(overall.dpmo, 1), fixed(overall.yieldPct, 4), sig(overall.sigma), Number.isFinite(overall.sigma) ? bandOf(overall.sigma).label : 'No defects'].join(',')] : []),
     ]
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF', lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

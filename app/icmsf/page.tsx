@@ -279,7 +279,7 @@ export default function IcmsfPage() {
   function exportCSV() {
     if (!isLoggedIn) { goToLogin('icmsf', 'csv'); return; }
     if (!plan) return;
-    const blob = new Blob([csvRow()], { type: 'text/csv' });
+    const blob = new Blob(['\uFEFF', csvRow()], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

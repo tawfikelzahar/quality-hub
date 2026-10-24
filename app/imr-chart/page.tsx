@@ -237,7 +237,7 @@ export default function ImrChartPage() {
     const body = result.xbarVals
       .map((v, i) => [i + 1, v, result.rangeVals[i] ?? ''].join(','))
       .join('\n');
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF', header + body], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

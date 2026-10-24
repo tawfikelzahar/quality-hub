@@ -371,7 +371,7 @@ export default function RegressionPage() {
     const body = result.residuals
       .map((r) => [r.index + 1, r.x, r.y, r.fitted, r.residual, r.standardizedResidual].join(','))
       .join('\n');
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF', header + body], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

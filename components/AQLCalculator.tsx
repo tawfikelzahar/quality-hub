@@ -213,7 +213,7 @@ export default function AQLCalculator() {
       'Stage,Lot Size,Level,Inspection,Code Letter,Defect Class,AQL %,Plan Letter,Plan Sample (n),Sample to Inspect,Ac,Re,Found,Result,Lot Result',
       ...flat.map(r => [csvCell(r.stage), r.lot, r.level, r.type, r.code, csvCell(r.cls), r.aql, r.letter, r.n, r.inspect, r.ac, r.re, r.found ?? '', r.result, r.lotResult].join(',')),
     ]
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF', lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

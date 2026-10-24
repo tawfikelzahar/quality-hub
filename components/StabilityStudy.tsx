@@ -315,7 +315,7 @@ export default function StabilityStudy() {
     lines.push('')
     lines.push(`Recommended shelf life (months),${analysis.recommended !== null ? fmt(analysis.recommended, 1) : 'n/a'}`)
     lines.push(`Basis,${analysis.basis}`)
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF', lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url; a.download = 'stability-study-data.csv'; a.click()

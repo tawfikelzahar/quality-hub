@@ -27,6 +27,7 @@
 
 import jsPDF from 'jspdf'
 import { ARIMO_REGULAR, ARIMO_BOLD } from './fonts/arimo'
+import { NOTO_ARABIC_REGULAR, NOTO_ARABIC_BOLD } from './fonts/notoSansArabic'
 import { SITE } from '@/lib/site'
 import { BRAND_LOGO_PNG, BRAND_LOGO_ASPECT } from './brandLogo'
 import { getReportBranding, preparedByLine, fitBox } from '@/lib/reportBranding'
@@ -38,12 +39,52 @@ import { getReportBranding, preparedByLine, fitBox } from '@/lib/reportBranding'
  */
 export const PDF_FONT = 'Arimo'
 
+/**
+ * Font for strings that contain Arabic (names the user typed). It also has
+ * Latin, so a mixed string ("خط 3 · lot 1,000") is drawn in one font.
+ */
+export const PDF_FONT_ARABIC = 'NotoSansArabic'
+
 function registerReportFonts(pdf: jsPDF) {
   pdf.addFileToVFS('Arimo-Regular.ttf', ARIMO_REGULAR)
   pdf.addFont('Arimo-Regular.ttf', PDF_FONT, 'normal')
   pdf.addFileToVFS('Arimo-Bold.ttf', ARIMO_BOLD)
   pdf.addFont('Arimo-Bold.ttf', PDF_FONT, 'bold')
+  pdf.addFileToVFS('NotoSansArabic-Regular.ttf', NOTO_ARABIC_REGULAR)
+  pdf.addFont('NotoSansArabic-Regular.ttf', PDF_FONT_ARABIC, 'normal')
+  pdf.addFileToVFS('NotoSansArabic-Bold.ttf', NOTO_ARABIC_BOLD)
+  pdf.addFont('NotoSansArabic-Bold.ttf', PDF_FONT_ARABIC, 'bold')
   pdf.setFont(PDF_FONT, 'normal')
+}
+
+const AR = '\\u0600-\\u06FF\\u0750-\\u077F\\uFB50-\\uFDFF\\uFE70-\\uFEFF'
+const ARABIC_RE = new RegExp(`[${AR}]`)
+/**
+ * One Arabic name inside an English sentence: from an Arabic letter to the
+ * last Arabic letter, taking along spaces, digits and light punctuation in
+ * between ("خط 3 · وردية أولى") but never Latin words.
+ */
+const ARABIC_RUN = new RegExp(`[${AR}](?:[${AR}\\s\\d·.,:%()\\/\\-–]*[${AR}])?`, 'g')
+
+function withArabicFont<T>(pdf: jsPDF, fn: () => T): T {
+  const prev = pdf.getFont()
+  pdf.setFont(PDF_FONT_ARABIC, prev.fontStyle === 'bold' ? 'bold' : 'normal')
+  try {
+    return fn()
+  } finally {
+    pdf.setFont(prev.fontName, prev.fontStyle)
+  }
+}
+
+/** Runs fn with the Arabic font (same style and size) when text has Arabic letters. */
+function withFontFor<T>(pdf: jsPDF, text: string, fn: () => T): T {
+  return ARABIC_RE.test(text) ? withArabicFont(pdf, fn) : fn()
+}
+
+/** splitTextToSize with the font the text will be drawn in */
+function splitText(pdf: jsPDF, text: string, width: number): string[] {
+  const s = sanitizePdfText(text)
+  return withFontFor(pdf, s, () => pdf.splitTextToSize(s, width) as string[])
 }
 
 export type RGB = readonly [number, number, number]
@@ -169,7 +210,31 @@ type TextOpts = { align?: 'left' | 'center' | 'right' }
 
 /** Every text draw in this file goes through here so Unicode sanitization is applied exactly once. */
 function drawText(pdf: jsPDF, str: string, x: number, y: number, opts?: TextOpts) {
-  pdf.text(sanitizePdfText(str), x, y, opts)
+  const s = sanitizePdfText(str)
+  if (!ARABIC_RE.test(s)) {
+    pdf.text(s, x, y, opts)
+    return
+  }
+  // English text with Arabic names in it: each Arabic name is drawn as its
+  // own piece (jsPDF joins the letters and writes it right to left), the
+  // English around it stays left to right. Keeps "Start with خدش: 53.8%"
+  // from turning into "53.8 :خدش%".
+  const parts: { t: string; ar: boolean }[] = []
+  let last = 0
+  for (const m of s.matchAll(ARABIC_RUN)) {
+    if (m.index > last) parts.push({ t: s.slice(last, m.index), ar: false })
+    parts.push({ t: m[0], ar: true })
+    last = m.index + m[0].length
+  }
+  if (last < s.length) parts.push({ t: s.slice(last), ar: false })
+  const widths = parts.map(p => (p.ar ? withArabicFont(pdf, () => pdf.getTextWidth(p.t)) : pdf.getTextWidth(p.t)))
+  const total = widths.reduce((a, b) => a + b, 0)
+  let cx = opts?.align === 'right' ? x - total : opts?.align === 'center' ? x - total / 2 : x
+  parts.forEach((p, i) => {
+    if (p.ar) withArabicFont(pdf, () => pdf.text(p.t, cx, y))
+    else pdf.text(p.t, cx, y)
+    cx += widths[i]
+  })
 }
 
 /**
@@ -337,7 +402,7 @@ export function calloutBox(ctx: ReportContext, text: string, tone: CalloutTone =
   const { color, bg } = TONE_COLORS[tone]
   pdf.setFont(PDF_FONT, 'normal')
   pdf.setFontSize(9.5)
-  const lines = pdf.splitTextToSize(sanitizePdfText(text), pageWidth - margin * 2 - 24) as string[]
+  const lines = splitText(pdf, text, pageWidth - margin * 2 - 24)
   const h = lines.length * 13 + 14
   ensureSpace(ctx, h + 8)
   setFill(pdf, bg)
@@ -368,7 +433,7 @@ export function summaryBox(ctx: ReportContext, title: string, rows: Array<[strin
   const lineH = 13
   pdf.setFont(PDF_FONT, 'normal')
   pdf.setFontSize(9.5)
-  const wrapped = rows.map(([, text]) => pdf.splitTextToSize(sanitizePdfText(text), textW) as string[])
+  const wrapped = rows.map(([, text]) => splitText(pdf, text, textW))
   const h = wrapped.reduce((sum, l) => sum + l.length * lineH + 4, 0) + 14
   sectionHeading(ctx, title, h + 10)
   setFill(pdf, bg)
@@ -393,7 +458,7 @@ export function interpretationBox(ctx: ReportContext, title: string, text: strin
   const { color, bg } = TONE_COLORS[tone]
   pdf.setFont(PDF_FONT, 'normal')
   pdf.setFontSize(9.5)
-  const lines = pdf.splitTextToSize(sanitizePdfText(text), pageWidth - margin * 2 - 24) as string[]
+  const lines = splitText(pdf, text, pageWidth - margin * 2 - 24)
   const h = lines.length * 13.5 + 16
   sectionHeading(ctx, title, h + 10)
   // sectionHeading() switches the active font to bold 12.5pt to draw the
@@ -477,9 +542,9 @@ function drawKVTable(ctx: ReportContext, x: number, y: number, width: number, ro
     // each other or past the table's edge.
     pdf.setFont(PDF_FONT, 'normal')
     pdf.setFontSize(9)
-    const labelLines = pdf.splitTextToSize(sanitizePdfText(label), labelW - 8) as string[]
+    const labelLines = splitText(pdf, label, labelW - 8)
     pdf.setFont(PDF_FONT, 'bold')
-    const valueLines = pdf.splitTextToSize(sanitizePdfText(value), valueW) as string[]
+    const valueLines = splitText(pdf, value, valueW)
     const rowH = Math.max(baseRowH, Math.max(labelLines.length, valueLines.length) * lineH + 6)
 
     if (curY + rowH > ctx.pageHeight - ctx.margin - 26) {
@@ -540,7 +605,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
   const measure = (text: string, width: number, bold: boolean) => {
     pdf.setFont(PDF_FONT, bold ? 'bold' : 'normal')
     pdf.setFontSize(8.5)
-    return (pdf.splitTextToSize(sanitizePdfText(text), width - cellPadding) as string[]).length
+    return (splitText(pdf, text, width - cellPadding)).length
   }
   const headerH = Math.max(baseRowH, Math.max(...columns.map(c => measure(c.header, c.width, true))) * lineH + 7)
   const bodyH = rows.reduce((sum, row, i) => {
@@ -571,7 +636,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
     pdf.setFontSize(8.5)
     // Headers wrap too — defends against a header like "P-VALUE" or a
     // translated label being wider than its column.
-    const headerLines = columns.map(c => pdf.splitTextToSize(sanitizePdfText(c.header), c.width - cellPad) as string[])
+    const headerLines = columns.map(c => splitText(pdf, c.header, c.width - cellPad))
     const hRowH = Math.max(baseRowH, Math.max(...headerLines.map(l => l.length)) * lineH + 7)
     setFill(pdf, REPORT_COLORS.brand)
     pdf.rect(margin, ctx.y, totalWidth, hRowH, 'F')
@@ -597,7 +662,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
       const override = options?.cellColors?.[i]?.[j]
       pdf.setFont(PDF_FONT, override ? 'bold' : 'normal')
       pdf.setFontSize(8.5)
-      return pdf.splitTextToSize(sanitizePdfText(cell), c.width - cellPad) as string[]
+      return splitText(pdf, cell, c.width - cellPad)
     })
     const rowH = Math.max(baseRowH, Math.max(...cellLines.map(l => l.length)) * lineH + 7)
 

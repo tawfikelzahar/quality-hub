@@ -305,7 +305,7 @@ export default function XbarRChartPage() {
     const body = subgroups
       .map((row, i) => [i + 1, ...row, result.xbarVals[i], result.rangeVals[i]].join(','))
       .join('\n');
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF', header + body], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
