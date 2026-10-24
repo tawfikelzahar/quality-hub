@@ -2,6 +2,8 @@ import type { TKey } from '@/lib/i18n/translations'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Every live tool, grouped by the question a quality engineer is asking.
+// This is the reading order (sidebar, phones). The landing page re-orders
+// them on wide screens to balance its columns (LANDING_COLUMN_ORDER).
 // Used by the landing page (tools section) and the tool-page sidebar, so
 // adding a tool here shows it in both places.
 // ─────────────────────────────────────────────────────────────────────────
@@ -14,6 +16,7 @@ export interface ToolRow {
   keywords: string
   pro?: boolean
 }
+
 export interface ToolGroup {
   id: string
   labelKey: TKey
@@ -39,7 +42,18 @@ export const TOOL_GROUPS: ToolGroup[] = [
     questionKey: 'home_q_msa',
     rows: [
       { href: '/gage-rr', titleKey: 'gagerr_title', descKey: 'home_row_gagerr', keywords: 'gage gauge r&r grr msa aiag anova ndc repeatability reproducibility', pro: true },
+    ],
+  },
+  {
+    id: 'problem',
+    labelKey: 'home_q_problem_label',
+    questionKey: 'home_q_problem',
+    rows: [
       { href: '/descriptive', titleKey: 'descriptive_title', descKey: 'home_row_descriptive', keywords: 'descriptive mean median standard deviation histogram box plot normality' },
+      { href: '/pareto', titleKey: 'pareto_title', descKey: 'home_row_pareto', keywords: 'pareto 80/20 defects causes' },
+      { href: '/regression', titleKey: 'regression_title', descKey: 'home_row_regression', keywords: 'regression linear correlation anova prediction' },
+      { href: '/multiregression', titleKey: 'multiregression_title', descKey: 'home_row_multiregression', keywords: 'multiple regression vif anova prediction' },
+      { href: '/doe', titleKey: 'doe_title', descKey: 'home_row_doe', keywords: 'doe design of experiments factorial 2^k effects' },
     ],
   },
   {
@@ -49,17 +63,6 @@ export const TOOL_GROUPS: ToolGroup[] = [
     rows: [
       { href: '/aql', titleKey: 'aql_title', descKey: 'home_row_aql', keywords: 'aql iso 2859 z1.4 sampling inspection lot ac re' },
       { href: '/icmsf', titleKey: 'icmsf_title', descKey: 'home_row_icmsf', keywords: 'icmsf microbiological sampling food oc curve' },
-    ],
-  },
-  {
-    id: 'problem',
-    labelKey: 'home_q_problem_label',
-    questionKey: 'home_q_problem',
-    rows: [
-      { href: '/pareto', titleKey: 'pareto_title', descKey: 'home_row_pareto', keywords: 'pareto 80/20 defects causes' },
-      { href: '/regression', titleKey: 'regression_title', descKey: 'home_row_regression', keywords: 'regression linear correlation anova prediction' },
-      { href: '/multiregression', titleKey: 'multiregression_title', descKey: 'home_row_multiregression', keywords: 'multiple regression vif anova prediction' },
-      { href: '/doe', titleKey: 'doe_title', descKey: 'home_row_doe', keywords: 'doe design of experiments factorial 2^k effects' },
     ],
   },
   {
@@ -80,4 +83,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
     ],
   },
 ]
+/** Landing page: groups fill the columns top to bottom; these orders keep the column heights close */
+export const LANDING_COLUMN_ORDER: Record<2 | 3, string[]> = {
+  3: ['stability', 'msa', 'problem', 'life', 'sampling', 'performance'],
+  2: ['stability', 'sampling', 'life', 'problem', 'msa', 'performance'],
+}
+
 export const TOOL_COUNT = TOOL_GROUPS.reduce((n, g) => n + g.rows.length, 0)

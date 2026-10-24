@@ -7,7 +7,7 @@ import AuthStatus from '@/components/AuthStatus'
 import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
 import { useLanguage } from '@/lib/i18n/context'
-import { TOOL_GROUPS as GROUPS, TOOL_COUNT } from '@/lib/tools'
+import { TOOL_GROUPS, TOOL_COUNT, LANDING_COLUMN_ORDER } from '@/lib/tools'
 import { SITE } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -100,6 +100,21 @@ function useNarrow(): boolean {
   return narrow
 }
 
+/** How many columns the tools section shows (matches the .mz-groups media queries). */
+function useToolColumns(): 1 | 2 | 3 {
+  const [cols, setCols] = useState<1 | 2 | 3>(3)
+  useEffect(() => {
+    const one = window.matchMedia('(max-width: 720px)')
+    const two = window.matchMedia('(max-width: 1100px)')
+    const update = () => setCols(one.matches ? 1 : two.matches ? 2 : 3)
+    update()
+    one.addEventListener('change', update)
+    two.addEventListener('change', update)
+    return () => { one.removeEventListener('change', update); two.removeEventListener('change', update) }
+  }, [])
+  return cols
+}
+
 export default function Home() {
   const [theme, setTheme] = usePersistedTheme()
   const dark = theme === 'dark'
@@ -108,6 +123,14 @@ export default function Home() {
   const [query, setQuery] = useState('')
 
   const q = query.trim().toLowerCase()
+  // One column reads the groups in their natural order; two or three columns
+  // use an order that keeps the column heights close (groups flow top to bottom)
+  const cols = useToolColumns()
+  const GROUPS = useMemo(() => {
+    if (cols === 1) return TOOL_GROUPS
+    const order = LANDING_COLUMN_ORDER[cols]
+    return [...TOOL_GROUPS].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
+  }, [cols])
   const visibleGroups = useMemo(() => {
     if (!q) return GROUPS
     return GROUPS
@@ -118,7 +141,7 @@ export default function Home() {
         ),
       }))
       .filter(g => g.rows.length > 0)
-  }, [q, t])
+  }, [q, t, GROUPS])
 
   const fmt2 = (v: number) => v.toFixed(2)
   const fmt3 = (v: number) => v.toFixed(3)
@@ -163,7 +186,12 @@ export default function Home() {
         .mz-search { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border: 1px solid var(--qh-border); border-radius: 10px; background: var(--qh-bg); width: 320px; max-width: 100%; color: var(--qh-muted); }
         .mz-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--qh-text); font: inherit; font-size: 14px; }
         .mz-search:focus-within { border-color: var(--qh-accent); }
-        .mz-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; align-items: start; }
+        .mz-groups { column-count: 3; column-gap: 16px; }
+        .mz-groups > .mz-group { break-inside: avoid; display: block; margin-bottom: 16px; }
+        @media (max-width: 1100px) { .mz-groups { column-count: 2; } }
+        @media (max-width: 720px) { .mz-groups { column-count: 1; } }
+        .mz-hint { margin: 0; padding: 12px 0 18px; border-top: 1px solid var(--qh-border); font-size: 13px; line-height: 1.6; color: var(--qh-muted); }
+        .mz-hint a { color: var(--qh-text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
         .mz-group { padding: 0 22px; }
         .mz-group summary { list-style: none; cursor: pointer; padding: 20px 0 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
         .mz-group summary::-webkit-details-marker { display: none; }
@@ -337,11 +365,12 @@ export default function Home() {
                           <span className="mz-row-title" style={{display:'block',fontWeight:600,fontSize:15}}>{t(r.titleKey)}</span>
                           <span style={{display:'block',fontSize:13,color:'var(--qh-muted)',lineHeight:1.6}}>{t(r.descKey)}</span>
                         </span>
-                        {r.pro
-                          ? <span className="mz-pro">PRO</span>
-                          : <span style={{fontSize:12,color:'var(--qh-muted)',whiteSpace:'nowrap'}}>{t('home_free')}</span>}
+                        {r.pro && <span className="mz-pro">PRO</span>}
                       </Link>
                     ))}
+                    {g.id === 'stability' && !q && (
+                      <p className="mz-hint">{t('home_stability_hint')}</p>
+                    )}
                   </details>
                 ))}
               </div>
