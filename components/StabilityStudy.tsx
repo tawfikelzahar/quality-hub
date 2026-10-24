@@ -452,6 +452,8 @@ export default function StabilityStudy() {
     const ctx = createPdfReport('Stability Study — ICH Q1E', 'stability')
     calloutBox(ctx, verdictLine(), 'info')
     calloutBox(ctx, claimLine(), claimColor === 'var(--qh-good)' ? 'good' : 'warn')
+    // the conclusion and the chart share page 1; the details and the sign-off follow
+    if (chartRef.current) addChartImage(ctx, chartRef.current, 'Stability Trend', PDF_CHART, `Points: results, coloured by batch · solid: the model · dashed: ${inp.confidence}% confidence bound · red: limit · dotted: shelf life`)
     const w = ctx.pageWidth - ctx.margin * 2
     dataTable(ctx, 'Study', [{ header: 'ITEM', width: 130 }, { header: 'VALUE', width: w - 130 }], [
       ['Attribute', attr],
@@ -478,7 +480,6 @@ export default function StabilityStudy() {
       res.batches.map(b => [b.name, String(b.n), fixed(b.slope, 4), fixed(b.r2, 3), shelfCell(b.shelfLife, b.extrapolated)]),
       { cellColors: res.batches.map(b => [hexRgb(colorOf(b.name)), null, null, null, b.name === res.limiting ? REPORT_COLORS.warn : null]) },
     )
-    if (chartRef.current) addChartImage(ctx, chartRef.current, `Stability Trend  ·  solid: model · dashed: ${inp.confidence}% bound · red: limit · dotted: shelf life`, PDF_CHART)
     addSignOff(ctx)
     finalizeReport(ctx)
     ctx.pdf.save('stability-report.pdf')

@@ -966,19 +966,27 @@ export function chartSnapshot(chart: EmbeddableChart, size?: ChartRenderSize): {
 }
 
 /** Embeds a full-width Chart.js chart as a PNG, with a section-style title above it. */
-export function addChartImage(ctx: ReportContext, chart: EmbeddableChart | null, title: string, size?: ChartRenderSize) {
+/** note: one small grey line under the chart (e.g. what the lines mean) */
+export function addChartImage(ctx: ReportContext, chart: EmbeddableChart | null, title: string, size?: ChartRenderSize, note?: string) {
   if (!chart) return
   const { margin, pageWidth } = ctx
   const imgWidth = pageWidth - margin * 2
   const snap = chartSnapshot(chart, size)
   const imgHeight = snap.ratio * imgWidth
-  sectionHeading(ctx, title, imgHeight)
+  sectionHeading(ctx, title, imgHeight + (note ? 14 : 0))
   const { pdf } = ctx
   const imgData = snap.data
   // 'FAST' = lossless deflate. Without it jsPDF stores raw pixels: a single
   // retina chart was ~5 MB uncompressed vs ~25 KB compressed, same render.
   pdf.addImage(imgData, 'PNG', margin, ctx.y, imgWidth, imgHeight, undefined, 'FAST')
   ctx.y += imgHeight + 20
+  if (note) {
+    pdf.setFont(PDF_FONT, 'normal')
+    pdf.setFontSize(8)
+    setText(pdf, REPORT_COLORS.muted)
+    drawText(pdf, note, margin, ctx.y - 6)
+    ctx.y += 18
+  }
 }
 
 /**
