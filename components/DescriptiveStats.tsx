@@ -217,7 +217,7 @@ export default function DescriptiveStats() {
     },
     scales: {
       x: { type: 'category', offset: true, grid: { display: false }, ticks: { display: false } },
-      xCurve: { type: 'linear', position: 'bottom', offset: false, min: axisBounds?.min, max: axisBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+      xCurve: { type: 'linear', position: 'bottom', offset: false, min: axisBounds?.min, max: axisBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 }, includeBounds: false } },
       y: { beginAtZero: true, grid: { color: c.grid }, ticks: { color: c.muted, precision: 0 }, afterFit: fixYWidth },
     },
   }
@@ -247,7 +247,8 @@ export default function DescriptiveStats() {
     devicePixelRatio: 2,
     plugins: { legend: { display: false } },
     scales: {
-      x: { type: 'linear', min: axisBounds?.min, max: axisBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+      // round numbers only: the bin edges at both ends would crowd the next label
+      x: { type: 'linear', min: axisBounds?.min, max: axisBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 }, includeBounds: false } },
       y: { grid: { display: false }, ticks: { display: false }, afterFit: fixYWidth },
     },
   }
