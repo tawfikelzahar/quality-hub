@@ -110,7 +110,8 @@ export function buildGageDiagnosis(r: GageResultForDiagnosis): GageDiagnosis {
     const sourceText: Record<Exclude<Source, 'none'>, string> = {
       repeatability: 'Most of the measurement error comes from the gage itself: the same appraiser does not get the same reading on the same part.' + avZero,
       reproducibility: 'Most of the measurement error comes from differences between appraisers: each one is consistent, but they read the parts differently.',
-      both: 'Repeatability and reproducibility both contribute: the gage and the measuring method between appraisers both need attention.',
+      both: 'Repeatability and reproducibility contribute about equally to the measurement error.' +
+        (verdict === 'acceptable' ? '' : ' The gage and the measuring method between appraisers both need attention.'),
     }
     const label: Record<Exclude<Source, 'none'>, string> = {
       repeatability: 'Repeatability (equipment)',

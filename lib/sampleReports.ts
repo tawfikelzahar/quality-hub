@@ -36,6 +36,7 @@ import {
   capabilityGauge,
   interpretationBox,
   calloutBox,
+  summaryBox,
   criteriaReferenceTable,
   finalizeReport,
   REPORT_COLORS,
@@ -76,35 +77,52 @@ export const SAMPLE_REPORTS: SampleReportMeta[] = [
 
 // ─────────────────────────────────────────────────────────────────────────
 // Gage R&R sample — torque wrench measurement study
-// 3 appraisers × 10 parts × 3 trials, Average & Range method, AIAG MSA.
-// Tolerance = 6.0 (spec 48.5–54.5 N·m band, i.e. width 6). Numbers below
-// were computed by hand from the raw measurements in GAGE_RR_RAW.
+// 3 appraisers × 10 parts × 3 trials, Average & Range method, AIAG MSA 4th ed.
+// Spec 48.5–54.5 N·m (tolerance 6.0).
 //
-// Classification basis: GageRR.tsx's own API (app/api/gage-rr/route.ts)
-// classifies the gage using %GRR of TOLERANCE when a tolerance is given
-// (not %GRR of Total Variation) — okay if <10%, marginal 10-30%,
-// unacceptable >30%. This sample's %GRR of Tolerance is 6.93%, so it is
-// genuinely "okay" on the exact metric the report highlights; an earlier
-// version of this sample used data that computed to 28.5% of Tolerance
-// (Marginal per that same rule) while its banner and text both claimed
-// "Acceptable" — that mismatch is why these numbers were regenerated.
+// Every number and sentence below is what the Gage R&R engine itself
+// (POST /api/gage-rr, 6σ study variation per AIAG MSA 4th ed. p. 123)
+// returns for GAGE_RR_RAW — copied here because the engine runs on the
+// server and this page builds the file in the browser. Regenerate them
+// with the engine if the data or the engine changes.
 // ─────────────────────────────────────────────────────────────────────────
 
 const GAGE_RR_RAW: Record<string, number[][]> = {
   A: [
-    [48.90, 48.92, 48.91], [49.50, 49.51, 49.49], [50.10, 50.09, 50.11], [50.60, 50.62, 50.61],
-    [51.20, 51.19, 51.21], [49.20, 49.21, 49.19], [50.80, 50.79, 50.81], [49.80, 49.81, 49.79],
-    [51.00, 50.99, 51.01], [48.60, 48.61, 48.59],
+    [49.54, 49.62, 49.47],
+    [51.00, 50.94, 50.88],
+    [51.78, 51.82, 51.78],
+    [50.18, 50.25, 50.24],
+    [52.60, 52.59, 52.61],
+    [49.06, 49.07, 49.14],
+    [51.29, 51.20, 51.27],
+    [50.65, 50.58, 50.59],
+    [52.14, 52.23, 52.05],
+    [49.99, 49.81, 49.91],
   ],
   B: [
-    [48.91, 48.93, 48.92], [49.51, 49.52, 49.50], [50.11, 50.10, 50.12], [50.61, 50.63, 50.62],
-    [51.21, 51.20, 51.22], [49.21, 49.22, 49.20], [50.81, 50.80, 50.82], [49.81, 49.82, 49.80],
-    [51.01, 51.00, 51.02], [48.61, 48.62, 48.60],
+    [49.56, 49.73, 49.70],
+    [51.02, 50.88, 50.99],
+    [51.80, 51.81, 51.88],
+    [50.30, 50.25, 50.20],
+    [52.58, 52.74, 52.68],
+    [49.19, 49.29, 49.08],
+    [51.52, 51.56, 51.45],
+    [50.70, 50.59, 50.71],
+    [52.11, 52.14, 52.12],
+    [49.96, 50.03, 49.90],
   ],
   C: [
-    [48.89, 48.91, 48.90], [49.49, 49.50, 49.48], [50.09, 50.08, 50.10], [50.59, 50.61, 50.60],
-    [51.19, 51.18, 51.20], [49.19, 49.20, 49.18], [50.79, 50.78, 50.80], [49.79, 49.80, 49.78],
-    [50.99, 50.98, 51.00], [48.59, 48.60, 48.58],
+    [49.50, 49.50, 49.50],
+    [50.77, 50.81, 50.96],
+    [51.73, 51.79, 51.68],
+    [50.18, 50.05, 50.12],
+    [52.73, 52.53, 52.65],
+    [49.10, 49.06, 49.02],
+    [51.36, 51.26, 51.38],
+    [50.52, 50.57, 50.60],
+    [52.10, 51.98, 52.02],
+    [49.86, 49.81, 49.92],
   ],
 }
 
@@ -114,19 +132,39 @@ const GAGE_RR_RESULT = {
   numParts: 10,
   numTrials: 3,
   tolerance: 6.0,
-  EV: 0.061,
-  AV: 0.05284,
-  GRR: 0.08070,
-  PV: 4.212,
-  TV: 4.21277,
-  ndc: 43,
-  pctTV: { EV: 0.0145, AV: 0.0125, GRR: 0.0323, PV: 0.9995 },
-  pctTol: { EV: 0.0524, AV: 0.0454, GRR: 0.0693, PV: 3.6153 },
-  uclR: 0.05148,
-  rbarByAppraiser: { A: 0.02, B: 0.02, C: 0.02 },
+  EV: 0.06676,
+  AV: 0.0582,
+  GRR: 0.08857,
+  PV: 1.10809,
+  TV: 1.11162,
+  ndc: 17,
+  pctTV: { EV: 0.06006, AV: 0.05235, GRR: 0.07967, PV: 0.99682 },
+  pctTol: { EV: 0.06676, AV: 0.0582, GRR: 0.08857, PV: 1.10809 },
+  uclR: 0.29097,
+  rbarByAppraiser: { A: 0.1, B: 0.125, C: 0.114 },
   conclusion: 'okay' as const,
-  conclusionText:
-    '%GRR = 6.9% of Tolerance — well within the AIAG acceptable threshold of 10%. The measurement system contributes minimal noise relative to genuine part-to-part variation, and with ndc = 43 (AIAG requires ≥ 5), the gage reliably distinguishes between parts. This measurement system is acceptable for process control and capability studies.',
+  conclusionText: "The measurement system is acceptable: %GRR is 8.9% of Tolerance, below the 10% guideline. Both the gage (repeatability) and the differences between appraisers (reproducibility) contribute to the error. With ndc = 17, the gage can tell the parts apart. Keep it under periodic verification.",
+  diagnosis: {
+    summary: [
+    ["Verdict", "Acceptable — %GRR 8.9% of Tolerance"] as [string, string],
+    ["Main source", "Repeatability and reproducibility"] as [string, string],
+    ["Discrimination", "ndc = 17 (adequate)"] as [string, string],
+    ["Action", "The gage error is small against the tolerance, so the gage is suitable for accept / reject decisions on this characteristic."] as [string, string],
+    ],
+    rows: [
+    { dimension: "Measurement Error (%GRR)", result: "8.9% of Tolerance", assessment: "Below the 10% guideline: the gage error is small compared with the tolerance.", tone: 'good' as const },
+    { dimension: "Process Control Use", result: "8.0% of Total Variation", assessment: "Also below 10% of the total variation, so the gage is suitable for SPC and process improvement studies too.", tone: 'good' as const },
+    { dimension: "Main Source of Error", result: "Repeatability and reproducibility · EV 56.8% / AV 43.2% of GRR variance", assessment: "Repeatability and reproducibility contribute about equally to the measurement error.", tone: 'info' as const },
+    { dimension: "Discrimination (ndc)", result: "ndc = 17", assessment: "The gage separates the parts into 17 distinct groups: adequate (guideline: at least 5).", tone: 'good' as const },
+    { dimension: "Appraiser Consistency", result: "No ranges above the UCL", assessment: "Every appraiser repeats consistently across the parts.", tone: 'good' as const },
+    ],
+    recommendedAction: "The gage error is small against the tolerance, so the gage is suitable for accept / reject decisions on this characteristic. Keep it under periodic verification: calibration, and a repeat study after any change to the gage, the method or the appraisers.",
+    tone: 'good' as const,
+  },
+}
+
+function toneRgb(tone: string) {
+  return tone === 'good' ? REPORT_COLORS.good : tone === 'bad' ? REPORT_COLORS.bad : tone === 'warn' ? REPORT_COLORS.warn : null
 }
 
 function fmt(v: number, dp = 4): string {
@@ -144,6 +182,7 @@ export function buildGageRRSamplePdf() {
 
   const ctx = createPdfReport('Gage R&R Study Report (Sample)', 'gage-rr')
   classificationBanner(ctx, cls, 'Measurement System Assessment')
+  summaryBox(ctx, 'Summary', r.diagnosis.summary, 'good')
 
   const studyRows: KVRow[] = [
     ['Method', 'Average & Range'],
@@ -216,6 +255,18 @@ export function buildGageRRSamplePdf() {
     Object.entries(r.rbarByAppraiser).map(([a, rbar]) => [a, fmt(rbar, 3), fmt(r.uclR, 3)])
   )
 
+  dataTable(
+    ctx,
+    'Measurement System Diagnosis',
+    [
+      { header: 'DIMENSION', width: 120 },
+      { header: 'RESULT', width: 150 },
+      { header: 'ASSESSMENT', width: ctx.pageWidth - ctx.margin * 2 - 270 },
+    ],
+    r.diagnosis.rows.map(x => [x.dimension, x.result, x.assessment]),
+    { cellColors: r.diagnosis.rows.map(x => [null, null, toneRgb(x.tone)]) }
+  )
+  interpretationBox(ctx, 'Recommended Action', r.diagnosis.recommendedAction, 'good')
   interpretationBox(ctx, 'Study Conclusion', r.conclusionText, 'good')
   criteriaReferenceTable(
     ctx,
@@ -303,8 +354,9 @@ export async function buildGageRRSampleExcel() {
 // n=5 subgroup size, k=20 subgroups (100 individual readings), drawn from
 // a genuine Normal(250.067, 0.169) distribution so the Anderson-Darling
 // test below is numerically honest (not just a plausible-looking number).
-// Spec 249.18–250.94 g. Constants for n=5 (Montgomery/AIAG): A2=0.577,
-// D3=0, D4=2.114, d2=2.326. Mirrors the PDF sections added to
+// Spec 249.18–250.94 g. Numbers below are the site's own calculator output
+// for SPC_SUBGROUPS (lib/spc/calculator.ts): limits from R̄ (A2, D3, D4),
+// σ within = pooled SD / c4, as on the SPC pages. Mirrors the PDF sections added to
 // components/SPCEngine.tsx: data-adequacy callout, Anderson-Darling table,
 // formatted yield, and the capability diagnosis (spread vs. centering).
 // ─────────────────────────────────────────────────────────────────────────
@@ -330,22 +382,22 @@ const SPC_RESULT = {
   rbar: 0.3965,
   uclX: 250.2959,
   lclX: 249.8383,
-  uclR: 0.8382,
+  uclR: 0.8384,
   lclR: 0,
-  sigmaWithin: 0.1705,
+  sigmaWithin: 0.1663,
   sigmaOverall: 0.1685,
   lsl: 249.18,
   usl: 250.94,
-  cp: 1.721,
-  cpk: 1.707,
+  cp: 1.764,
+  cpk: 1.749,
   pp: 1.741,
   ppk: 1.727,
   oocX: [] as number[],
   oocR: [] as number[],
-  ad: { A2: 0.317, A2adj: 0.329, p: 0.517 },
+  ad: { A2: 0.317, A2adj: 0.319, p: 0.534 },
   isNormal: true,
   dataAdequacy: { n: 100, tier: 'adequate' as const, label: 'Adequate' },
-  ppmTotal: 0.31, // estimated overall defect PPM at this sigma level (~0 practically)
+  ppmTotal: 0.18, // estimated overall defect PPM (normal model, overall sigma)
 }
 
 function formatYieldPct(ppmTotal: number): string {
@@ -370,7 +422,7 @@ export function buildSpcSamplePdf() {
     ['Data Type', `Subgrouped measurements (n=${r.subgroupSize})`],
     ['Observations', String(r.n)],
     ['Subgroup Size', String(r.subgroupSize)],
-    ['Within Sigma Method', 'Average range / d2 (X̄-R)'],
+    ['Within Sigma Method', 'Pooled standard deviation / c4'],
     ['LSL', fmt(r.lsl, 3)],
     ['Target', fmt((r.lsl + r.usl) / 2, 3)],
     ['USL', fmt(r.usl, 3)],
