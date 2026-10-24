@@ -106,12 +106,14 @@ export function HelpPanel({ open, onClose, title, steps, onExample, showCapabili
 }
 
 // ── Phone tabs and action bar ─────────────────────────────────────────────
-export function PhoneTabs({ tab, onTab, dataCount }: { tab: MobileTab; onTab: (t: MobileTab) => void; dataCount: number | null }) {
+export function PhoneTabs({ tab, onTab, dataCount, hideSetup }: { tab: MobileTab; onTab: (t: MobileTab) => void; dataCount: number | null; hideSetup?: boolean }) {
   const { t } = useLanguage()
-  // dataCount null: the tool has no data grid (OEE), so only Setup and Results
+  // dataCount null: the tool has no data grid (OEE), so only Setup and Results.
+  // hideSetup: the tool has nothing to set up (Descriptive), so Data and Results.
+  const two = dataCount === null || hideSetup
   return (
-    <div className="tl-tabs" role="tablist" aria-label={t('spc_tabs_label')} style={dataCount === null ? { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } : undefined}>
-      <button type="button" role="tab" aria-selected={tab === 'setup'} onClick={() => onTab('setup')}>{t('spc_tab_setup')}</button>
+    <div className="tl-tabs" role="tablist" aria-label={t('spc_tabs_label')} style={two ? { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } : undefined}>
+      {!hideSetup && <button type="button" role="tab" aria-selected={tab === 'setup'} onClick={() => onTab('setup')}>{t('spc_tab_setup')}</button>}
       {dataCount !== null && <button type="button" role="tab" aria-selected={tab === 'data'} onClick={() => onTab('data')}>{t('spc_tab_data')} · {dataCount}</button>}
       <button type="button" role="tab" aria-selected={tab === 'results'} onClick={() => onTab('results')}>{t('spc_tab_results')}</button>
     </div>

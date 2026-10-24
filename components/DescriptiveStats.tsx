@@ -1,48 +1,55 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef, useEffect, type CSSProperties } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import { COLORS, usePersistedTheme, getSharedStyles, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
+import { COLORS, usePersistedTheme, getSharedStyles, tint } from '@/lib/theme'
 import { useGridImport } from '@/lib/gridImport'
 import { SheetPicker, PasteToast } from '@/components/GridImportControls'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import {
-  createReport as createPdfReport,
-  dataTable,
-  calloutBox,
-  addChartImage,
-  finalizeReport,
-} from '@/lib/pdf/reportDesign'
-
+import { createReport as createPdfReport, dataTable, calloutBox, addChartImage, finalizeReport } from '@/lib/pdf/reportDesign'
 import Nav from '@/components/Nav'
+import ToolSidebar from '@/components/ToolSidebar'
+import ToolStyles from '@/components/tool/ToolStyles'
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, ReadingsGrid, DataCardHead, useCompactSave, type MobileTab } from '@/components/tool/ToolParts'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { DescriptiveResult } from '@/lib/descriptive/stats'
-import { formatPValue } from '@/lib/stats/format'
+import { formatPValue, fixed } from '@/lib/stats/format'
 
-function parseValues(text: string): number[] {
-  return text
-    .split(/[\n,\t;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => parseFloat(s))
-    .filter((v) => Number.isFinite(v))
-}
+// ─────────────────────────────────────────────────────────────────────────
+// Descriptive Statistics on the shared tool layout (ToolParts / ToolStyles).
+// The statistics come from /api/descriptive (lib/descriptive/stats.ts on the
+// server); this page only draws them. The normal curve over the histogram is
+// drawing only (density at the result's mean and standard deviation).
+// ─────────────────────────────────────────────────────────────────────────
 
+// Example: golden set D02 (tests/golden/descriptive/datasets.json), n = 30
+const EXAMPLE = [
+  '24.921', '24.797', '25.060', '25.074', '24.969', '25.037', '25.171', '25.106', '25.071', '25.069',
+  '24.914', '25.096', '24.835', '24.967', '24.956', '24.827', '24.989', '25.164', '24.966', '24.879',
+  '24.991', '25.085', '25.019', '25.000', '24.859', '25.050', '25.049', '25.134', '25.149', '25.069',
+]
+
+/** Up to 4 decimals, at least 2 — as the old page showed values */
 function fmt(v: number | null | undefined, digits = 4): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return '—'
-  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: digits })
+  return Number(v.toPrecision(12)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: digits })
 }
-
-/** Fixed 3-decimal formatter (0.000) — used for the Anderson-Darling A² and p-value. */
 function fmt3(v: number | null | undefined): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return '—'
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+  return fixed(v, 3)
+}
+const ltr = (v: string) => `\u2066${v}\u2069`
+/** CSV number without float noise (0.11475, not 0.1147500000000008) */
+const csvNum = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? '' : String(Number(v.toPrecision(12))))
+
+function normalPdf(x: number, mu: number, sd: number): number {
+  return Math.exp(-0.5 * ((x - mu) / sd) ** 2) / (sd * Math.sqrt(2 * Math.PI))
 }
 
 export default function DescriptiveStats() {
@@ -51,106 +58,247 @@ export default function DescriptiveStats() {
   const { t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
+  const compactSave = useCompactSave()
 
-  const [rawText, setRawText] = useState('')
+  const [cells, setCells] = useState<string[]>([])
   const [result, setResult] = useState<DescriptiveResult | null>(null)
+  const [analyzed, setAnalyzed] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mobileTab, setMobileTab] = useState<MobileTab>('data')
+  const [helpOpen, setHelpOpen] = useState(false)
   const [loadedProjectName, setLoadedProjectName] = useState('')
   const [loadError, setLoadError] = useState('')
 
-  // Chart.js canvases used on screen and in the Excel/PDF exports.
   const histogramChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
   const boxPlotChartRef = useRef<ChartJSInstance<'bar' | 'line' | 'scatter'> | null>(null)
+  const ciChartRef = useRef<ChartJSInstance<'bar'> | null>(null)
 
-  const values = parseValues(rawText)
+  const values = useMemo(() => cells.map(v => parseFloat(v)).filter(v => Number.isFinite(v)), [cells])
 
-  // ── Load a saved project from the dashboard (?id=...) ─────────────────
-  // Only the raw input is restored (input_data.values) — the stats are
-  // recomputed via the normal calculate flow, same as every other tool's
-  // loader (never trusts a saved `results` blob over a fresh calculation).
-  useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
-    fetch(`/api/saved-analyses/${id}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then(async ({ analysis }) => {
-        const data = analysis.input_data as { values: number[] }
-        const loadedValues = data.values
-        setRawText(loadedValues.join('\n'))
-        setLoadedProjectName(analysis.name as string)
-        if (loadedValues.length < 2) return
-        setLoading(true)
-        try {
-          const res = await fetch('/api/descriptive', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ values: loadedValues }),
-          })
-          const json = await res.json()
-          if (res.ok) setResult(json as DescriptiveResult)
-        } finally {
-          setLoading(false)
-        }
-      })
-      .catch(() => setLoadError(t('ds_load_error')))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const handleCalculate = useCallback(async () => {
+  const runAnalysis = useCallback(async (vals: number[]) => {
     setError(null)
-    if (values.length < 2) {
-      setError(t('ds_err_min2'))
-      return
-    }
+    if (vals.length < 2) { setError(t('ds_err_min2')); return }
     setLoading(true)
     try {
       const res = await fetch('/api/descriptive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values }),
+        body: JSON.stringify({ values: vals }),
       })
       const json = await res.json()
       if (!res.ok) {
-        setError(json.error || t('ds_err_calc_failed'))
+        setError(res.status === 429 ? t('tool_rate_limited') : json.error || t('ds_err_calc_failed'))
         setResult(null)
       } else {
         setResult(json as DescriptiveResult)
+        setAnalyzed(vals)
+        setMobileTab('results')
       }
     } catch {
       setError(t('ds_err_network'))
     } finally {
       setLoading(false)
     }
-  }, [values, t])
+  }, [t])
 
-  // Grid → flat numeric list: Descriptive only ever needs one column of
-  // values, so every cell across every row/column of a paste or upload is
-  // flattened and filtered down to numbers — the header row and any blank
-  // rows are already stripped by useGridImport before onGrid runs.
+  // ── Load a saved project from the dashboard (?id=...) ─────────────────
+  // Only the raw input is restored; the stats are recomputed, never read
+  // from a saved results blob.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id')
+    if (!id) return
+    fetch(`/api/saved-analyses/${id}`)
+      .then(res => (res.ok ? res.json() : Promise.reject()))
+      .then(({ analysis }) => {
+        const loaded = (analysis.input_data as { values: number[] }).values
+        setCells(loaded.map(String))
+        setLoadedProjectName(analysis.name as string)
+        if (loaded.length >= 2) runAnalysis(loaded)
+      })
+      .catch(() => setLoadError(t('ds_load_error')))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // One column of values: every cell of a paste or upload is flattened to numbers
   const gridImport = useGridImport({
     onGrid: grid => {
-      const nums = grid
-        .flat()
-        .map(v => parseFloat(v))
-        .filter(v => Number.isFinite(v))
-      if (nums.length > 0) setRawText(nums.join('\n'))
+      const nums = grid.flat().map(v => parseFloat(v)).filter(v => Number.isFinite(v))
+      if (nums.length > 0) { setCells(nums.map(String)); setResult(null) }
     },
     onError: msg => setError(msg),
   })
+
+  const analyze = () => runAnalysis(values)
+  const loadExample = () => { setCells(EXAMPLE); runAnalysis(EXAMPLE.map(Number)) }
+  const clearAll = () => { setCells([]); setResult(null); setError(null) }
+
+  // ── Charts ───────────────────────────────────────────────────────────────
+  // Shared x-axis bounds so the box plot lines up under the histogram
+  const axisBounds = useMemo(() => {
+    if (!result) return null
+    const bins = result.histogram
+    if (bins.length) return { min: bins[0].x0, max: bins[bins.length - 1].x1 }
+    const span = (result.max - result.min) || 1
+    return { min: result.min - span * 0.05, max: result.max + span * 0.05 }
+  }, [result])
+  // Same y-axis width on the histogram and the box plot so their x axes line up
+  const Y_AXIS_WIDTH = 44
+  const fixYWidth = (scale: { width: number }) => { scale.width = Y_AXIS_WIDTH }
+
+  const histogramData = useMemo(() => {
+    if (!result || !axisBounds) return null
+    const bins = result.histogram
+    const w = bins.length ? bins[0].x1 - bins[0].x0 : 1
+    const curve: { x: number; y: number }[] = []
+    if (result.stdev > 0) {
+      for (let i = 0; i <= 120; i++) {
+        curve.push({ x: axisBounds.min + ((axisBounds.max - axisBounds.min) * i) / 120, y: result.n * w * normalPdf(axisBounds.min + ((axisBounds.max - axisBounds.min) * i) / 120, result.mean, result.stdev) })
+      }
+    }
+    // Bars on a category axis (one category per bin, touching); the curve on a
+    // hidden linear axis spanning exactly the same edges (x0 of the first bin
+    // to x1 of the last), so both line up.
+    return {
+      labels: bins.map(b => (b.x0 + b.x1) / 2),
+      datasets: [
+        {
+          type: 'bar' as const,
+          label: t('ds_frequency'),
+          data: bins.map(b => b.count),
+          xAxisID: 'x',
+          backgroundColor: tint(c.data, 55),
+          borderColor: c.data,
+          borderWidth: 1,
+          barPercentage: 1,
+          categoryPercentage: 1,
+          // the curve is not a bar, but Chart.js would still split the
+          // category between the two datasets without this
+          grouped: false,
+          order: 2,
+        },
+        {
+          type: 'line' as const,
+          label: t('ds_curve'),
+          data: curve,
+          xAxisID: 'xCurve',
+          // red, as in a graphical summary; also readable on the white report page
+          borderColor: c.danger,
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          order: 1,
+        },
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }, [result, axisBounds, c, t])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const histogramOptions: any = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    devicePixelRatio: 2,
+    parsing: true,
+    layout: watermarkLayout(),
+    plugins: {
+      watermark: watermarkOptions('light'),
+      legend: { position: 'bottom', labels: { color: c.muted, font: { size: 11 }, boxWidth: 12 } },
+      tooltip: {
+        filter: (item: { dataset: { type?: string } }) => item.dataset.type === 'bar',
+        callbacks: {
+          title: (items: { dataIndex: number }[]) => {
+            const b = result?.histogram[items[0]?.dataIndex ?? 0]
+            return b ? `${fmt(b.x0)} – ${fmt(b.x1)}` : ''
+          },
+        },
+      },
+    },
+    scales: {
+      x: { type: 'category', offset: true, grid: { display: false }, ticks: { display: false } },
+      xCurve: { type: 'linear', position: 'bottom', offset: false, min: axisBounds?.min, max: axisBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+      y: { beginAtZero: true, grid: { color: c.grid }, ticks: { color: c.muted, precision: 0 }, afterFit: fixYWidth },
+    },
+  }
+
+  // Box plot: one horizontal row — IQR box, whisker line, median tick, outliers
+  const boxPlotData = useMemo(() => {
+    if (!result) return null
+    const bp = result.boxPlot
+    return {
+      labels: ['row'],
+      datasets: [
+        { type: 'bar' as const, label: 'IQR (Q1–Q3)', data: [[bp.q1, bp.q3]], backgroundColor: tint(c.data, 20), borderColor: c.data, borderWidth: 2, barThickness: 34, order: 2 },
+        { type: 'line' as const, label: 'Whisker', data: [{ x: bp.lowerWhisker, y: 'row' }, { x: bp.upperWhisker, y: 'row' }], borderColor: c.muted, borderWidth: 1.5, pointRadius: 0, fill: false, order: 1 },
+        { type: 'scatter' as const, label: 'Median', data: [{ x: bp.median, y: 'row' }], pointStyle: 'line', rotation: 90, pointRadius: 17, borderColor: c.amber, borderWidth: 3, order: 0 },
+        { type: 'scatter' as const, label: 'Outliers', data: bp.outliers.map(o => ({ x: o, y: 'row' })), backgroundColor: c.danger, pointRadius: 4, order: 0 },
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }, [result, c])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const boxPlotOptions: any = {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    devicePixelRatio: 2,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { type: 'linear', min: axisBounds?.min, max: axisBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+      y: { grid: { display: false }, ticks: { display: false }, afterFit: fixYWidth },
+    },
+  }
+
+  // Interval plot: 95% CI for the mean and the median, side by side
+  const ciData = useMemo(() => {
+    if (!result || !result.ciMean) return null
+    const rows = [t('ds_stat_mean'), t('ds_stat_median')]
+    const ranges = [[result.ciMean.lower, result.ciMean.upper], result.ciMedian ? [result.ciMedian.lower, result.ciMedian.upper] : null]
+    return {
+      labels: rows,
+      datasets: [
+        { type: 'bar' as const, label: '95% CI', data: ranges, backgroundColor: tint(c.data, 22), borderColor: c.data, borderWidth: 1.5, barThickness: 18, order: 2 },
+        { type: 'scatter' as const, label: 'Estimate', data: [{ x: result.mean, y: rows[0] }, { x: result.median, y: rows[1] }], pointStyle: 'line', rotation: 90, pointRadius: 11, borderColor: c.amber, borderWidth: 3, order: 1 },
+      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any
+  }, [result, c, t])
+
+  const ciBounds = useMemo(() => {
+    if (!result?.ciMean) return null
+    const lo = Math.min(result.ciMean.lower, result.ciMedian?.lower ?? Infinity)
+    const hi = Math.max(result.ciMean.upper, result.ciMedian?.upper ?? -Infinity)
+    const pad = (hi - lo) * 0.15 || Math.abs(hi) * 0.01 || 1
+    return { min: lo - pad, max: hi + pad }
+  }, [result])
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ciOptions: any = {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    devicePixelRatio: 2,
+    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+    scales: {
+      x: { type: 'linear', min: ciBounds?.min, max: ciBounds?.max, grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
+      y: { grid: { display: false }, ticks: { color: c.text, font: { size: 12 } } },
+    },
+  }
+
+  // ── Exports (file content stays in English) ─────────────────────────────
+  const REPORT_TITLE = 'Descriptive Statistics — Study Report'
 
   const runExportExcel = useCallback(async () => {
     if (!isPro) { goToPricing('descriptive-stats', 'excel'); return }
     if (!result) return
     const report = createReport({ toolName: 'Descriptive Statistics' })
-
-    // ── Sheet 1: Overview ──
     const overview = report.addSheet('Overview')
     overview.titleBand('Descriptive Statistics Report', `N = ${result.n} data points`)
-    overview.metaStrip([
-      ['Generated on', nowStamp()],
-      ['Sample size (n)', result.n],
-    ])
+    overview.metaStrip([['Generated on', nowStamp()], ['Sample size (n)', result.n]])
 
     overview.sectionHeading('Central Tendency & Spread')
     overview.kpiRow([
@@ -238,7 +386,6 @@ export default function DescriptiveStats() {
     })
     overview.freezeHeader(2)
 
-    // ── Sheet 2: Histogram Data ──
     if (result.histogram.length > 0) {
       const histSheet = report.addSheet('Histogram')
       histSheet.titleBand('Histogram Bins', `${result.histogram.length} bins`)
@@ -253,117 +400,81 @@ export default function DescriptiveStats() {
       histSheet.freezeHeader(2)
     }
 
-    // ── Sheet 3: Charts ──
     const chartSheet = report.addSheet('Charts')
     await chartSheet.charts([
-      { ref: histogramChartRef, title: t('ds_histogram_boxplot') },
-      { ref: boxPlotChartRef, title: t('ds_boxplot_title') },
+      { ref: histogramChartRef, title: 'Histogram with Normal Curve' },
+      { ref: boxPlotChartRef, title: 'Box Plot' },
+      { ref: ciChartRef, title: '95% CI for Mean and Median' },
     ])
 
-    // ── Sheet 4: Raw Data ──
-    if (values.length > 0) {
+    if (analyzed.length > 0) {
       const rawSheet = report.addSheet('Raw Data')
-      rawSheet.titleBand('Raw Data', `${values.length} values`)
+      rawSheet.titleBand('Raw Data', `${analyzed.length} values`)
       rawSheet.table({
         headers: [
           { header: '#', key: 'i', align: 'center', width: 8 },
           { header: 'Value', key: 'v', align: 'right', numFmt: '0.0000' },
         ],
-        rows: values.map((v, i) => ({ i: i + 1, v })),
+        rows: analyzed.map((v, i) => ({ i: i + 1, v })),
       })
       rawSheet.freezeHeader(2)
     }
 
     await report.download('descriptive-statistics.xlsx')
-  }, [result, isPro, values, t])
+  }, [result, isPro, analyzed])
 
-  // ── Export: CSV ─────────────────────────────────────────────────────
-  const handleExportCSV = useCallback(() => {
+  const exportCSV = () => {
     if (!isLoggedIn) { goToLogin('descriptive-stats', 'csv'); return }
     if (!result) return
-    const header = '#,Value\n'
-    const body = values.map((v, i) => `${i + 1},${v}`).join('\n')
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
+    const lines = [
+      'Statistic,Value',
+      `N,${csvNum(result.n)}`,
+      `Mean,${csvNum(result.mean)}`,
+      `StDev,${csvNum(result.stdev)}`,
+      `Variance,${csvNum(result.variance)}`,
+      `CV (%),${csvNum(result.cv)}`,
+      `Skewness,${csvNum(result.skewness)}`,
+      `Kurtosis,${csvNum(result.kurtosis)}`,
+      `Minimum,${csvNum(result.min)}`,
+      `Q1,${csvNum(result.q1)}`,
+      `Median,${csvNum(result.median)}`,
+      `Q3,${csvNum(result.q3)}`,
+      `Maximum,${csvNum(result.max)}`,
+      `IQR,${csvNum(result.iqr)}`,
+      `Range,${csvNum(result.range)}`,
+      `AD (A²),${csvNum(result.andersonDarling?.statistic)}`,
+      `AD p-value,${result.andersonDarling ? formatPValue(result.andersonDarling.pValue) : ''}`,
+      '',
+      '#,Value',
+      ...analyzed.map((v, i) => `${i + 1},${v}`),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = 'descriptive-statistics.csv'
     a.click()
     URL.revokeObjectURL(url)
-  }, [isLoggedIn, result, values])
+  }
 
-  // ── Export: PNG (summary card, same style as Regression's PNG export) ─
-  const handleExportPNG = useCallback(() => {
+  const downloadChart = (chart: ChartJSInstance | null, name: string) => {
+    if (!chart) return false
+    const a = document.createElement('a')
+    a.href = chart.toBase64Image('image/png', 1)
+    a.download = name
+    a.click()
+    return true
+  }
+  const runExportPNG = () => {
     if (!isLoggedIn) { goToLogin('descriptive-stats', 'png'); return }
-    if (!result) return
-    const rows: [string, string][] = [
-      ['N', String(result.n)],
-      ['Mean', fmt(result.mean)],
-      ['StDev', fmt(result.stdev)],
-      ['Median', fmt(result.median)],
-      ['Min', fmt(result.min)],
-      ['Q1', fmt(result.q1)],
-      ['Q3', fmt(result.q3)],
-      ['Max', fmt(result.max)],
-      ['Range', fmt(result.range)],
-      ['IQR', fmt(result.iqr)],
-    ]
-    const width = 520
-    const rowH = 26
-    const height = 110 + rowH * rows.length + 20
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    downloadChart(histogramChartRef.current as ChartJSInstance | null, 'descriptive-histogram.png')
+    downloadChart(boxPlotChartRef.current as ChartJSInstance | null, 'descriptive-boxplot.png')
+  }
 
-    ctx.fillStyle = '#0A1120'
-    ctx.fillRect(0, 0, width, height)
-    ctx.fillStyle = '#e2e8f0'
-    ctx.font = 'bold 20px system-ui, sans-serif'
-    ctx.fillText(t('ds_pdf_report_title'), 16, 34)
-    ctx.fillStyle = '#6b89b4'
-    ctx.font = '12px system-ui, sans-serif'
-    ctx.fillText(`Generated: ${new Date().toLocaleDateString()}`, 16, 54)
-    ctx.fillText(`N = ${result.n}`, 16, 74)
-
-    let y = 96
-    ctx.fillStyle = '#1e2d40'
-    ctx.fillRect(16, y, width - 32, rowH)
-    ctx.fillStyle = '#e2e8f0'
-    ctx.font = 'bold 12px system-ui, sans-serif'
-    ctx.fillText('STATISTIC', 24, y + 17)
-    ctx.fillText('VALUE', width - 140, y + 17)
-    y += rowH
-
-    rows.forEach(([label, value], i) => {
-      ctx.fillStyle = i % 2 === 0 ? '#101A2C' : '#0A1120'
-      ctx.fillRect(16, y, width - 32, rowH)
-      ctx.fillStyle = '#cbd5e1'
-      ctx.font = '12px system-ui, sans-serif'
-      ctx.fillText(label, 24, y + 17)
-      ctx.fillText(value, width - 140, y + 17)
-      y += rowH
-    })
-
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'descriptive-statistics.png'
-      a.click()
-      URL.revokeObjectURL(url)
-    })
-  }, [isLoggedIn, result, t])
-
-  // ── Export: PDF ─────────────────────────────────────────────────────
   const runExportPDF = useCallback(() => {
     if (!isPro) { goToPricing('descriptive-stats', 'pdf'); return }
     if (!result) return
-
-    const ctx = createPdfReport(t('ds_pdf_report_title'), 'descriptive-stats')
-
+    const ctx = createPdfReport(REPORT_TITLE, 'descriptive-stats')
     calloutBox(ctx, `N = ${result.n}   Mean = ${fmt(result.mean)}   StDev = ${fmt(result.stdev)}`, 'info')
 
     dataTable(
@@ -398,388 +509,240 @@ export default function DescriptiveStats() {
         `Anderson-Darling: A² = ${fmt3(ad.statistic)}   p-value = ${formatPValue(ad.pValue)}   ${ad.normalAtAlpha05 ? 'Fail to reject normality (p ≥ 0.05)' : 'Reject normality (p < 0.05)'}`,
         ad.normalAtAlpha05 ? 'good' : 'warn'
       )
+    } else {
+      calloutBox(ctx, 'Normality test not run: it needs at least 8 data points.', 'info')
     }
 
-    addChartImage(ctx, histogramChartRef.current, t('ds_histogram_boxplot'))
-    addChartImage(ctx, boxPlotChartRef.current, t('ds_boxplot_title'))
+    if (result.ciMean || result.ciMedian || result.ciStdev) {
+      dataTable(
+        ctx,
+        '95% Confidence Intervals',
+        [
+          { header: 'STATISTIC', width: 160 },
+          { header: 'LOWER', width: 140, align: 'right' },
+          { header: 'UPPER', width: ctx.pageWidth - ctx.margin * 2 - 300, align: 'right' },
+        ],
+        [
+          ...(result.ciMean ? [['Mean', fmt(result.ciMean.lower), fmt(result.ciMean.upper)]] : []),
+          ...(result.ciMedian ? [['Median', fmt(result.ciMedian.lower), fmt(result.ciMedian.upper)]] : []),
+          ...(result.ciStdev ? [['StDev', fmt(result.ciStdev.lower), fmt(result.ciStdev.upper)]] : []),
+        ]
+      )
+    }
+
+    addChartImage(ctx, histogramChartRef.current, 'Histogram with Normal Curve')
+    addChartImage(ctx, boxPlotChartRef.current, 'Box Plot', { width: 1000, height: 180 })
 
     finalizeReport(ctx)
     ctx.pdf.save('descriptive-statistics.pdf')
-  }, [isPro, result, t])
+  }, [isPro, result])
 
-  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
-  // on the live view for everyone) is switched off just for that call.
-  const handleExportExcel = () => (isPro ? withWatermarksDisabled([histogramChartRef.current, boxPlotChartRef.current], runExportExcel) : runExportExcel())
-  const handleExportPDF = () => (isPro ? withWatermarksDisabled([histogramChartRef.current, boxPlotChartRef.current], runExportPDF) : runExportPDF())
+  const charts = () => [histogramChartRef.current, boxPlotChartRef.current, ciChartRef.current]
+  const exportExcel = () => (isPro ? withWatermarksDisabled(charts(), runExportExcel) : runExportExcel())
+  const exportPDF = () => (isPro ? withWatermarksDisabled(charts(), runExportPDF) : runExportPDF())
+  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled(charts(), runExportPNG) : runExportPNG())
 
-  const clearAll = () => {
-    setRawText('')
-    setResult(null)
-    setError(null)
-  }
-
-  // Shared x-axis bounds so the box plot lines up exactly under the
-  // histogram above it — Chart.js auto-scales each chart independently
-  // otherwise, which left the box plot's own [min,max] domain much
-  // narrower than the histogram's and made it look tiny and off to one side.
-  const axisBounds = useMemo(() => {
-    if (!result) return null
-    const span = (result.max - result.min) || 1
-    const pad = span * 0.05
-    return { min: result.min - pad, max: result.max + pad }
-  }, [result])
-
-  const histogramData = result
-    ? {
-        labels: result.histogram.map((b) => `${fmt(b.x0, 2)}–${fmt(b.x1, 2)}`),
-        datasets: [
-          {
-            label: t('ds_frequency'),
-            data: result.histogram.map((b) => b.count),
-            backgroundColor: c.bar,
-            borderRadius: 3,
-            barPercentage: 1.0,
-            categoryPercentage: 0.95,
-          },
-        ],
-      }
-    : null
-
-  // ── Box plot as one Chart.js horizontal bar chart: a single bar dataset
-  // for the IQR box (Q1→Q3, using Chart.js's native array-pair floating-bar
-  // data), a line dataset for the whisker span, a scatter dataset styled
-  // as a vertical tick for the median, and a scatter dataset for outliers.
-  // Verified directly against the Chart.js source (not just visually):
-  // with indexAxis 'y', the bar's floating-range data MUST be a plain
-  // [low, high] array keyed to a category label — the {x:[low,high], y}
-  // object form silently parses to null and collapses the axis. The other
-  // datasets are pinned to that same category label (not y:0) so every
-  // dataset lands on the identical row regardless of dataset type. ──────
-  const boxPlotData = useMemo(() => {
-    if (!result) return null
-    const bp = result.boxPlot
-    return {
-      labels: ['row'],
-      datasets: [
-        {
-          type: 'bar' as const,
-          label: 'IQR (Q1–Q3)',
-          data: [[bp.q1, bp.q3]],
-          backgroundColor: `${c.data}30`,
-          borderColor: c.data,
-          borderWidth: 2,
-          barThickness: 40,
-          order: 2,
-        },
-        {
-          type: 'line' as const,
-          label: 'Whisker',
-          data: [{ x: bp.lowerWhisker, y: 'row' }, { x: bp.upperWhisker, y: 'row' }],
-          borderColor: c.muted,
-          borderWidth: 1.5,
-          pointRadius: 0,
-          fill: false,
-          order: 1,
-        },
-        {
-          type: 'scatter' as const,
-          label: 'Median',
-          data: [{ x: bp.median, y: 'row' }],
-          pointStyle: 'line',
-          rotation: 90,
-          pointRadius: 20,
-          borderColor: c.amber,
-          borderWidth: 3,
-          order: 0,
-        },
-        {
-          type: 'scatter' as const,
-          label: 'Outliers',
-          data: bp.outliers.map((o) => ({ x: o, y: 'row' })),
-          backgroundColor: c.danger,
-          pointRadius: 4,
-          order: 0,
-        },
-      ],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any
-  }, [result, c])
-
-  const boxPlotOptions = useMemo(
-    () => ({
-      indexAxis: 'y' as const,
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false as const,
-      devicePixelRatio: 2,
-      layout: { padding: { left: 8, right: 8 } },
-      plugins: { legend: { display: false } },
-      scales: {
-        x: {
-          type: 'linear' as const,
-          min: axisBounds?.min,
-          max: axisBounds?.max,
-          grid: { color: c.grid },
-          ticks: { color: c.muted, font: { size: 10 } },
-        },
-        y: { grid: { display: false }, ticks: { display: false } },
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any),
-    [c, axisBounds]
-  )
+  // ── Page ──────────────────────────────────────────────────────────────────
+  const helpSteps = [
+    { t: t('ds_help_s1_t'), d: t('ds_help_s1_d') },
+    { t: t('ds_help_s2_t'), d: t('ds_help_s2_d') },
+    { t: t('ds_help_s3_t'), d: t('ds_help_s3_d') },
+    { t: t('ds_help_s4_t'), d: t('ds_help_s4_d') },
+  ]
+  const ad = result?.andersonDarling ?? null
+  const nc = ad ? (ad.normalAtAlpha05 ? 'var(--qh-good)' : 'var(--qh-amber)') : 'var(--qh-muted)'
+  const kpis: [string, number | null][] = result
+    ? [
+        [t('ds_stat_mean'), result.mean], [t('ds_stat_stdev'), result.stdev], [t('ds_stat_median'), result.median], [t('ds_stat_skewness'), result.skewness], [t('ds_stat_kurtosis'), result.kurtosis],
+        [t('ds_stat_min'), result.min], [t('ds_stat_q1'), result.q1], [t('ds_stat_q3'), result.q3], [t('ds_stat_max'), result.max], [t('ds_stat_iqr'), result.iqr],
+      ]
+    : []
 
   return (
     <div style={s.page}>
-      {/* Nav */}
+      <ToolStyles />
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_descriptive" />
 
-      {loadedProjectName && (
-        <div className="qh-main" style={{ paddingBottom: 0 }}>
-          <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px', margin: '0 20px' }}>
-            {t('ds_loaded_project')} {loadedProjectName}
-          </div>
-        </div>
-      )}
-      {loadError && (
-        <div className="qh-main" style={{ paddingBottom: 0 }}>
-          <div style={{ fontSize: 13, color: c.danger, margin: '8px 20px 0' }}>{loadError}</div>
-        </div>
-      )}
-
-      <div className="qh-body" style={s.body}>
-        {/* Left Panel — input */}
-        <div className="qh-left" style={s.left}>
-          <div>
-            <div style={s.sectionTitle}>{t('ds_data_input')}</div>
-            <textarea
-              style={{ ...(s.input as CSSProperties), minHeight: 220, resize: 'vertical', fontFamily: 'monospace' }}
-              placeholder={t('ds_placeholder')}
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-            />
-            <div style={{ fontSize: 11, color: c.muted, marginTop: 6 }}>
-              {values.length} {values.length === 1 ? t('ds_valid_value') : t('ds_valid_values')} {t('ds_detected')}
-            </div>
-            <div style={{ fontSize: 11, color: c.muted, marginTop: 2 }}>
-              Tip: you can also paste (Ctrl+V) anywhere on this page.
-            </div>
-
-            <button
-              type="button"
-              onClick={gridImport.openFilePicker}
-              style={{ ...(s.addBtn as CSSProperties), display: 'block', width: '100%', textAlign: 'center', marginTop: 10, cursor: 'pointer' }}
-            >
-              {t('ds_upload_csv')}
-            </button>
-            <gridImport.FileInput />
-            {gridImport.fileError && (
-              <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginTop: 6 }}>{gridImport.fileError}</div>
-            )}
-            <SheetPicker
-              sheetNames={gridImport.sheetNames}
-              activeSheet={gridImport.activeSheet}
-              onSelect={gridImport.selectSheet}
-              accentColor={c.accent}
-              textColor={c.text}
-              mutedColor={c.muted}
-              borderColor={c.border}
-            />
-
-            <button
-              style={{
-                ...(s.addBtn as CSSProperties),
-                marginTop: 10,
-                background: BRAND_GRADIENT,
-                border: 'none',
-                color: BRAND_GRADIENT_TEXT_COLOR,
-              }}
-              onClick={handleCalculate}
-              disabled={loading || values.length < 2}
-            >
-              {loading ? t('ds_calculating') : t('ds_calculate')}
-            </button>
-
-            {(rawText || result) && (
-              <button
-                style={{
-                  ...(s.addBtn as CSSProperties),
-                  marginTop: 8,
-                  background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',
-                  border: '1px dashed #ef4444',
-                  color: 'var(--qh-danger)',
-                }}
-                onClick={clearAll}
-              >
-                {t('ds_clear_all')}
-              </button>
-            )}
-
-            {error && (
-              <div style={{ marginTop: 10, fontSize: 12, color: c.danger, background: `${c.danger}15`, padding: '8px 10px', borderRadius: 8 }}>
-                {error}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Panel — results */}
-        <div className="qh-right" style={s.right}>
-          {!result && !loading && (
-            <div style={{ ...(s.card as CSSProperties), textAlign: 'center', color: c.muted, padding: 60 }}>
-              {t('ds_empty_state')}
+      {(loadedProjectName || loadError) && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          {loadedProjectName && (
+            <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+              {t('ds_loaded_project')} {loadedProjectName}
             </div>
           )}
+          {loadError && <div className="tl-error">{loadError}</div>}
+        </div>
+      )}
 
-          {result && (
-            <>
-              {/* Histogram + Box Plot */}
-              <div style={s.chartWrap}>
-                <div style={s.sectionTitle}>{t('ds_histogram_boxplot')}</div>
-                <div style={{ ...(s.chartInner as CSSProperties), height: 280 }}>
-                  {histogramData && (
-                    <Chart
-                      ref={histogramChartRef}
-                      type="bar"
-                      data={histogramData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        layout: watermarkLayout(),
-                        plugins: { legend: { display: false }, watermark: watermarkOptions('light') },
-                        scales: {
-                          x: { grid: { color: c.grid }, ticks: { color: c.muted, font: { size: 10 } } },
-                          y: { grid: { color: c.grid }, ticks: { color: c.muted }, beginAtZero: true },
-                        },
-                      }}
-                    />
-                  )}
-                </div>
-                {boxPlotData && (
-                  <div style={{ height: 90, position: 'relative', marginTop: 12 }}>
-                    {/* Mixed chart: bar (IQR) + line (whisker) + scatter (median/outliers), same relaxation used on the Regression pages */}
-                    <Chart ref={boxPlotChartRef} type="bar" data={boxPlotData} options={boxPlotOptions} />
-                  </div>
-                )}
+      <div className="tl-shell">
+        <ToolSidebar current="/descriptive" />
+
+        <div className="tl-main">
+          <ToolHeader
+            title={t('descriptive_title')}
+            intro={t('ds_intro')}
+            route={{ text: t('ds_route_text'), href: '/imr-chart', label: t('ds_route_link') }}
+            onHelp={() => setHelpOpen(true)}
+            onExample={loadExample}
+            exampleDisabled={loading}
+          />
+          <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('ds_help_title')} steps={helpSteps} onExample={loadExample} showCapability={false} tip={t('ds_help_tip')} />
+          <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={cells.length} hideSetup />
+
+          <div className="tl-top">
+            {/* ── DATA ─────────────────────────────────────────────────── */}
+            <section className="tl-panel tl-setup tl-card" data-active={mobileTab === 'data'} aria-label={t('spc_tab_data')}>
+              <div>
+                <DataCardHead
+                  countLabel={t('spc_readings_count').replace('{n}', String(values.length))}
+                  onUpload={gridImport.openFilePicker}
+                  onClear={clearAll}
+                  extra={<gridImport.FileInput />}
+                />
+                {gridImport.fileError && <div className="tl-error" style={{ marginBottom: 10 }}>{gridImport.fileError}</div>}
+                <SheetPicker
+                  sheetNames={gridImport.sheetNames}
+                  activeSheet={gridImport.activeSheet}
+                  onSelect={gridImport.selectSheet}
+                  accentColor={c.accent}
+                  textColor={c.text}
+                  mutedColor={c.muted}
+                  borderColor={c.border}
+                />
+                <ReadingsGrid
+                  values={cells}
+                  onChange={(i, v) => setCells(prev => prev.map((x, k) => (k === i ? v : x)))}
+                  onRemove={i => setCells(prev => prev.filter((_, k) => k !== i))}
+                  onAdd={() => setCells(prev => [...prev, ''])}
+                />
               </div>
+              <div className="tl-setup-analyze">
+                <button className="tl-analyze" onClick={analyze} disabled={loading}>{loading ? t('ds_calculating') : t('ds_analyze')}</button>
+              </div>
+              {error && <div className="tl-error">{error}</div>}
+            </section>
 
-              {/* Anderson-Darling Normality Test — free */}
-              {result.andersonDarling ? (
-                <div
-                  style={{
-                    ...(s.card as CSSProperties),
-                    background: `${c.amber}12`,
-                    border: `1px solid ${c.amber}40`,
-                  }}
-                >
-                  <div style={{ fontWeight: 700, color: c.amber, marginBottom: 4 }}>
-                    {t('ds_ad_test_name')}
+            {/* ── RESULTS ──────────────────────────────────────────────── */}
+            <section className="tl-panel tl-results tl-col" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
+              {result ? (
+                <>
+                  <div className="tl-verdicts">
+                    <div className="tl-verdict" style={{ background: tint(nc, 8), border: `1px solid ${tint(nc, 35)}` }}>
+                      <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(nc, 16), color: nc }}>{ad?.normalAtAlpha05 ? '✓' : ad ? '!' : '–'}</span>
+                      <div>
+                        <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('ds_verdict_normality')}</div>
+                        <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: ad ? nc : undefined }}>
+                          {ad ? (ad.normalAtAlpha05 ? t('ds_normal_yes') : t('ds_normal_no')) : t('ds_normal_need8')}
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>
+                          {ad ? <span dir="ltr">A² = {fmt3(ad.statistic)} · p {formatPValue(ad.pValue).startsWith('<') ? formatPValue(ad.pValue) : `= ${formatPValue(ad.pValue)}`}</span> : t('ds_normal_need8_sub')}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="tl-verdict" style={{ background: 'var(--qh-surface)', border: '1px solid var(--qh-border)' }}>
+                      <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(c.accent, 14), color: 'var(--qh-accent)' }}>x̄</span>
+                      <div>
+                        <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('ds_verdict_center')}</div>
+                        <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace" }} dir="ltr">{fmt(result.mean)} ± {fmt(result.stdev)}</div>
+                        <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>
+                          {t('ds_center_sub').replace('{n}', ltr(String(result.n))).replace('{min}', ltr(fmt(result.min))).replace('{max}', ltr(fmt(result.max)))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 13, color: c.text }}>
-                    A² = {fmt3(result.andersonDarling.statistic)} &nbsp; p-value = {formatPValue(result.andersonDarling.pValue)}
+
+                  <div className="tl-results-head">
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t('spc_tab_results')}</h2>
+                    <ExportRow
+                      isPro={isPro}
+                      isLoggedIn={isLoggedIn}
+                      hasResult={!!result}
+                      onCSV={exportCSV}
+                      onPNG={exportPNG}
+                      onExcel={exportExcel}
+                      onPDF={exportPDF}
+                      save={
+                        <SaveAnalysisButton
+                          theme={theme}
+                          tool="descriptive_stats"
+                          defaultName={`Descriptive Statistics — ${new Date().toLocaleDateString('en-US')}`}
+                          compact={compactSave}
+                          getPayload={() => (!result ? null : { input_data: { values: analyzed }, results: result })}
+                        />
+                      }
+                    />
                   </div>
-                  <div style={{ fontSize: 12, color: c.muted, marginTop: 6 }}>
-                    {result.andersonDarling.normalAtAlpha05
-                      ? t('ds_ad_normal')
-                      : t('ds_ad_not_normal')}
+
+                  <div className="tl-kpis">
+                    {kpis.map(([label, v]) => (
+                      <div key={label} className="tl-kpi"><span>{label}</span><b>{fmt(v)}</b></div>
+                    ))}
                   </div>
-                </div>
+
+                  <div className="tl-chart">
+                    <h3>{t('ds_hist_title')}</h3>
+                    <div className="tl-chart-sub">{t('ds_hist_sub')}</div>
+                    <div className="tl-chart-inner" style={{ height: 280 }}>
+                      {histogramData && <Chart ref={histogramChartRef} type="bar" data={histogramData} options={histogramOptions} />}
+                    </div>
+                    <div style={{ height: 80, position: 'relative', marginTop: 10 }}>
+                      {boxPlotData && <Chart ref={boxPlotChartRef} type="bar" data={boxPlotData} options={boxPlotOptions} />}
+                    </div>
+                  </div>
+
+                  <div className="tl-card">
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('ds_ci_title')}</div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="tl-table">
+                        <thead>
+                          <tr><th>{t('ds_ci_for')}</th><th className="num">{t('ds_ci_lower')}</th><th className="num">{t('ds_ci_upper')}</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr><td>{t('ds_stat_mean')}</td><td className="num">{fmt(result.ciMean?.lower)}</td><td className="num">{fmt(result.ciMean?.upper)}</td></tr>
+                          <tr>
+                            <td>{t('ds_stat_median')}</td>
+                            {result.ciMedian
+                              ? <><td className="num">{fmt(result.ciMedian.lower)}</td><td className="num">{fmt(result.ciMedian.upper)}</td></>
+                              : <td className="num" colSpan={2}>{t('ds_ci_need_n6')}</td>}
+                          </tr>
+                          <tr><td>{t('ds_stat_stdev')}</td><td className="num">{fmt(result.ciStdev?.lower)}</td><td className="num">{fmt(result.ciStdev?.upper)}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    {ciData && (
+                      <>
+                        <div style={{ height: 110, position: 'relative', marginTop: 12 }}>
+                          <Chart ref={ciChartRef} type="bar" data={ciData} options={ciOptions} />
+                        </div>
+                        <div className="tl-hint">{t('ds_ci_chart_note')}</div>
+                      </>
+                    )}
+                  </div>
+
+                  <details className="tl-more">
+                    <summary>{t('ds_more_title')}</summary>
+                    <div className="tl-more-body">
+                      <table className="tl-table">
+                        <tbody>
+                          <tr><td>{t('ds_stat_n')}</td><td className="num">{result.n}</td></tr>
+                          <tr><td>{t('ds_stat_variance')}</td><td className="num">{fmt(result.variance, 6)}</td></tr>
+                          <tr><td>{t('ds_stat_cv')}</td><td className="num">{fmt(result.cv, 2)}</td></tr>
+                          <tr><td>{t('ds_stat_range')}</td><td className="num">{fmt(result.range)}</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </>
               ) : (
-                <div style={s.card}>{t('ds_ad_need_8')}</div>
+                <div className="tl-card tl-empty">{t('ds_empty_state')}</div>
               )}
-
-              {/* Stats table — free */}
-              <div style={s.card}>
-                <div style={s.sectionTitle}>{t('ds_detailed_stats')}</div>
-                <table style={s.table}>
-                  <tbody>
-                    <StatRow label={t('ds_stat_n')} value={result.n.toString()} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_mean')} value={fmt(result.mean)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_stdev')} value={fmt(result.stdev)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_variance')} value={fmt(result.variance)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_cv')} value={fmt(result.cv, 2)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_skewness')} value={fmt(result.skewness)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_kurtosis')} value={fmt(result.kurtosis)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_min')} value={fmt(result.min)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_q1')} value={fmt(result.q1)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_median')} value={fmt(result.median)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_q3')} value={fmt(result.q3)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_max')} value={fmt(result.max)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_iqr')} value={fmt(result.iqr)} th={s.th} td={s.td} />
-                    <StatRow label={t('ds_stat_range')} value={fmt(result.range)} th={s.th} td={s.td} />
-                  </tbody>
-                </table>
-              </div>
-
-              {/* 95% Confidence Intervals — free */}
-              <div style={s.card}>
-                <div style={s.sectionTitle}>{t('ds_ci_title')}</div>
-                <table style={s.table}>
-                  <tbody>
-                    <StatRow
-                      label={t('ds_stat_mean')}
-                      value={result.ciMean ? `${fmt(result.ciMean.lower)} ${t('ds_range_to')} ${fmt(result.ciMean.upper)}` : '—'}
-                      th={s.th} td={s.td}
-                    />
-                    <StatRow
-                      label={t('ds_stat_median')}
-                      value={result.ciMedian ? `${fmt(result.ciMedian.lower)} ${t('ds_range_to')} ${fmt(result.ciMedian.upper)}` : t('ds_ci_need_n6')}
-                      th={s.th} td={s.td}
-                    />
-                    <StatRow
-                      label={t('ds_stat_stdev')}
-                      value={result.ciStdev ? `${fmt(result.ciStdev.lower)} ${t('ds_range_to')} ${fmt(result.ciStdev.upper)}` : '—'}
-                      th={s.th} td={s.td}
-                    />
-                  </tbody>
-                </table>
-              </div>
-
-              {/* ── Export & Save ─────────────────────────────────────── */}
-              <div style={s.card}>
-                <div style={s.sectionTitle}>{t('ds_export_section_title')}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
-                  <button style={s.exportBtn} onClick={handleExportCSV}>
-                    {isLoggedIn ? '📄' : '🔒'} {t('ds_export_csv')}
-                  </button>
-                  <button style={s.exportBtn} onClick={handleExportExcel}>
-                    {isPro ? t('ds_export_excel') : t('ds_export_excel_pro')}
-                  </button>
-                  <button style={s.exportBtn} onClick={handleExportPNG}>
-                    {isLoggedIn ? '🖼️' : '🔒'} {t('ds_export_png')}
-                  </button>
-                  <button style={s.exportBtn} onClick={handleExportPDF}>
-                    {isPro ? `📕 ${t('ds_export_pdf')}` : `🔒 ${t('ds_export_pdf_pro')}`}
-                  </button>
-                </div>
-                <div style={{ marginTop: 10 }}>
-                  <SaveAnalysisButton
-                    theme={theme}
-                    tool="descriptive_stats"
-                    defaultName={`${t('ds_pdf_report_title')} — ${new Date().toLocaleDateString('en-US')}`}
-                    getPayload={() => (!result ? null : { input_data: { values }, results: result })}
-                  />
-                </div>
-              </div>
-            </>
-          )}
+            </section>
+          </div>
         </div>
       </div>
+
+      <PhoneBar showResultActions={mobileTab === 'results' && !!result} loading={loading} onAnalyze={analyze} onEdit={() => setMobileTab('data')} analyzeLabel={t('ds_analyze')} />
       <PasteToast show={gridImport.pasteToast} />
     </div>
   )
 }
-
-function StatRow({ label, value, th, td }: { label: string; value: string; th: CSSProperties; td: CSSProperties }) {
-  return (
-    <tr>
-      <td style={{ ...td, color: (th as CSSProperties).color, fontWeight: 600 }}>{label}</td>
-      <td style={{ ...td, textAlign: 'right', fontFamily: 'monospace' }}>{value}</td>
-    </tr>
-  )
-}
-
-// ── Box plot rendered as a Chart.js floating-bar chart (see boxPlotData
-// above): a whisker bar, an IQR box, a thin median bar, and an outlier
-// scatter overlay. Chart.js v4 supports two-value [low, high] bar ranges
-// natively, so no external box-plot plugin is needed. ──────────────────
