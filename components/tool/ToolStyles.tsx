@@ -64,6 +64,15 @@ const CSS = `
   .tl-xbtn-pro { border-color: color-mix(in srgb, var(--qh-gold) 70%, transparent); color: var(--qh-gold); }
   .tl-pro { font-size: 10px; font-weight: 800; letter-spacing: .5px; color: var(--qh-onGold); background: var(--qh-gold); border-radius: 4px; padding: 1px 5px; }
   .tl-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+  .tl-kpis-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tl-kpi small { display: block; font-size: 12px; margin-top: 2px; }
+  .tl-chart-inner.tl-chart-bar { height: 170px; }
+  .tl-table td:first-child { white-space: nowrap; }
+  .tl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tl-table th { text-align: start; font-size: 12px; font-weight: 600; color: var(--qh-muted); padding: 8px 6px; border-bottom: 1px solid var(--qh-border); }
+  .tl-table td { padding: 8px 6px; border-bottom: 1px solid color-mix(in srgb, var(--qh-border) 60%, transparent); }
+  .tl-table tr:last-child td { border-bottom: 0; }
+  .tl-table .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .tl-kpi { background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 10px; padding: 10px 12px; min-width: 0; }
   .tl-kpi span { display: block; font-size: 12px; color: var(--qh-muted); }
   .tl-kpi b { display: block; font: 600 19px ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; margin-top: 2px; direction: ltr; text-align: start; }
@@ -113,6 +122,7 @@ const CSS = `
     .tl-setup { width: auto; position: static; }
     .tl-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .tl-chart-inner { height: 260px; }
+    .tl-chart-inner.tl-chart-bar { height: 170px; }
     .tl-card { padding: 16px; }
     .tl-setup-analyze { display: none; }
     .tl-col { width: 100%; gap: 14px; }

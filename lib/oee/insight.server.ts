@@ -89,7 +89,7 @@ export function buildOEEInsight(i: OEEInputs): OEEInsight | null {
 
   if (other) {
     en.push(`${FACTOR_EN[other.f]} is also ${n1(other.gap)} points under its ${BENCH[other.f]}% benchmark: ${TIP_EN[other.f]}.`)
-    ar.push(`كما أن ${FACTOR_AR[other.f]} أقل من معياره ${ltr(`${BENCH[other.f]}%`)} بفارق ${ltr(n1(other.gap))} نقطة، لذا ${TIP_AR[other.f]}.`)
+    ar.push(`كما أن ${FACTOR_AR[other.f]} أقل من المعيار ${ltr(`${BENCH[other.f]}%`)} بفارق ${ltr(n1(other.gap))} نقطة، لذا ${TIP_AR[other.f]}.`)
   }
 
   return { biggest: top.kind, en: en.join(' '), ar: ar.join(' ') }
@@ -98,7 +98,8 @@ export function buildOEEInsight(i: OEEInputs): OEEInsight | null {
 const LOSS_EN: Record<LossKind, string> = { downtime: 'downtime', speed: 'speed loss', quality: 'quality loss' }
 const LOSS_AR: Record<LossKind, string> = { downtime: 'التوقف', speed: 'خسارة السرعة', quality: 'خسارة الجودة' }
 const FACTOR_EN: Record<Factor, string> = { availability: 'Availability', performance: 'Performance', quality: 'Quality' }
-const FACTOR_AR: Record<Factor, string> = { availability: 'Availability', performance: 'Performance', quality: 'Quality' }
+// Same words as the page's cards (التوافر / الأداء / الجودة)
+const FACTOR_AR: Record<Factor, string> = { availability: 'التوافر', performance: 'الأداء', quality: 'الجودة' }
 const TIP_EN: Record<Factor, string> = {
   availability: 'track stop reasons and changeover time',
   performance: 'record short stops and compare the actual cycle with the ideal',

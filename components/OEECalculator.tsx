@@ -4,15 +4,18 @@ import { useEffect, useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import { COLORS, usePersistedTheme } from '@/lib/theme'
+import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import ToolSidebar from '@/components/ToolSidebar'
+import ToolStyles from '@/components/tool/ToolStyles'
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, useCompactSave, type MobileTab } from '@/components/tool/ToolParts'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
-import { calcOEE, classify, validate, type OEEInputs, type Classification } from '@/lib/oee/calc'
+import { calcOEE, classify, validate, lossTime, type OEEInputs, type OEEResult, type OEELossTime, type Classification } from '@/lib/oee/calc'
 import { fixed } from '@/lib/stats/format'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
 import {
@@ -31,29 +34,44 @@ import {
 } from '@/lib/pdf/reportDesign'
 
 // ─────────────────────────────────────────────────────────────────────────
-// OEE = Availability × Performance × Quality  (Nakajima / JIPM TPM standard)
-// World-class benchmark: A ≥ 90%, P ≥ 95%, Q ≥ 99.9%, OEE ≥ 85%
+// OEE tool page on the shared tool layout (ToolParts / ToolStyles).
+// Formulas: lib/oee/calc.ts (public, run in the browser). The "What to work
+// on first" card is Pro and written on the server (/api/oee/insight).
 // ─────────────────────────────────────────────────────────────────────────
 
+const EXAMPLE: OEEInputs = { plannedTime: 480, breaks: 0, downtime: 52, cycleTime: 6.0, totalCount: 3800, goodCount: 3650 }
+
 const BENCH = [
-  { key: 'availability', labelKey: 'oee_bench_availability', wc: 90, note: 'A ≥ 90%' },
-  { key: 'performanceCapped', labelKey: 'oee_bench_performance', wc: 95, note: 'P ≥ 95%' },
-  { key: 'quality', labelKey: 'oee_bench_quality', wc: 99.9, note: 'Q ≥ 99.9%' },
-  { key: 'oee', labelKey: 'oee_bench_oee', wc: 85, note: 'OEE ≥ 85%' },
+  { key: 'oee', labelKey: 'oee_stat_overall', wc: 85 },
+  { key: 'availability', labelKey: 'oee_stat_availability', wc: 90 },
+  { key: 'performanceCapped', labelKey: 'oee_stat_performance', wc: 95 },
+  { key: 'quality', labelKey: 'oee_stat_quality_fpy', wc: 99.9 },
 ] as const
 
 const BENCH_ENGLISH: Record<(typeof BENCH)[number]['key'], string> = {
+  oee: 'OEE',
   availability: 'Availability',
   performanceCapped: 'Performance',
   quality: 'Quality',
-  oee: 'OEE',
+}
+
+const CLASS_SHORT: Record<Classification, TKey> = {
+  'world-class': 'oee_cls_worldclass',
+  good: 'oee_cls_good',
+  average: 'oee_cls_average',
+  poor: 'oee_cls_poor',
+}
+
+const CLASS_COLOR: Record<Classification, string> = {
+  'world-class': 'var(--qh-good)',
+  good: 'var(--qh-accent)',
+  average: 'var(--qh-amber)',
+  poor: 'var(--qh-danger)',
 }
 
 /**
- * PDF reports stay in English regardless of the UI language, matching the
- * convention used elsewhere (exported file content stays in English for
- * interoperability) — so this maps the 4-tier OEE classification to a
- * report Classification directly, rather than routing through t().
+ * PDF reports stay in English regardless of the UI language (exported file
+ * content stays in English for interoperability).
  */
 function oeeClassificationForPdf(type: Classification): PdfClassification {
   if (type === 'world-class') return { label: 'WORLD-CLASS PERFORMANCE', color: REPORT_COLORS.good, bg: REPORT_COLORS.goodBg }
@@ -62,23 +80,52 @@ function oeeClassificationForPdf(type: Classification): PdfClassification {
   return { label: 'SIGNIFICANT LOSSES', color: REPORT_COLORS.bad, bg: REPORT_COLORS.badBg }
 }
 
+const int = (v: number) => Math.round(v).toLocaleString('en-US')
+/** minutes for a sentence: one decimal, without a trailing ".0" (115, 52.5) */
+const min1 = (v: number) => String(Number(fixed(v, 1)))
+/** keeps a number or signed value in one piece inside Arabic text */
+const ltr = (v: string) => `\u2066${v}\u2069`
+
+interface LossRow {
+  kind: 'downtime' | 'speed' | 'quality'
+  nameEn: string
+  descEn: string
+  shortKey: TKey
+  min: number
+  pct: number
+  parts: number
+  rejected: boolean
+}
+
+function lossRows(i: OEEInputs, r: OEEResult, lt: OEELossTime): LossRow[] {
+  return [
+    { kind: 'downtime', nameEn: 'Downtime Loss', descEn: 'Breakdown + Changeover', shortKey: 'oee_loss_downtime_short', min: lt.downtimeMin, pct: r.downtimeLoss, parts: (lt.downtimeMin * 60) / i.cycleTime, rejected: false },
+    { kind: 'speed', nameEn: 'Speed Loss', descEn: 'Minor Stops + Reduced Speed', shortKey: 'oee_loss_speed_short', min: lt.speedMin, pct: r.speedLoss, parts: lt.speedParts, rejected: false },
+    { kind: 'quality', nameEn: 'Quality Loss', descEn: 'Defects + Startup Rejects', shortKey: 'oee_loss_quality_short', min: lt.qualityMin, pct: r.qualityLoss, parts: lt.qualityParts, rejected: true },
+  ]
+}
+
+type InsightState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'done'; key: string; en: string; ar: string }
+
 export default function OEECalculator() {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
   const c = COLORS[theme]
+  const s = getSharedStyles(theme)
+  const compactSave = useCompactSave()
   const chartRef = useRef<ChartJSInstance<'bar'>>(null)
 
-  const [inputs, setInputs] = useState<OEEInputs>({
-    plannedTime: 480,
-    breaks: 0,
-    downtime: 52,
-    cycleTime: 6.0,
-    totalCount: 3800,
-    goodCount: 3650,
-  })
+  const [inputs, setInputs] = useState<OEEInputs>(EXAMPLE)
+  const [mobileTab, setMobileTab] = useState<MobileTab>('setup')
+  const [helpOpen, setHelpOpen] = useState(false)
   const [loadedProjectName, setLoadedProjectName] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [insight, setInsight] = useState<InsightState>({ status: 'idle' })
 
   // ── Load a saved project from the dashboard (?id=...) ──────────────────
   useEffect(() => {
@@ -103,33 +150,31 @@ export default function OEECalculator() {
   const errorKey = validate(inputs)
   const result = errorKey ? null : calcOEE(inputs)
   const cls = result ? classify(result.oee) : null
+  const lt = result ? lossTime(inputs, result) : null
+  const rows = result && lt ? lossRows(inputs, result, lt) : []
+  const lostMin = lt ? lt.downtimeMin + lt.speedMin + lt.qualityMin : 0
+  const inputKey = JSON.stringify(inputs)
 
-  const classColor: Record<Classification, string> = {
-    'world-class': c.good,
-    good: c.data,
-    average: c.amber,
-    poor: c.danger,
-  }
+  // ── "What to work on first" (Pro, server) — refreshed as the inputs settle ──
+  useEffect(() => {
+    if (!isPro || errorKey) return
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      setInsight({ status: 'loading' })
+      fetch('/api/oee/insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: inputKey,
+        signal: ctrl.signal,
+      })
+        .then(res => (res.ok ? res.json() : Promise.reject()))
+        .then((j: { en: string; ar: string }) => setInsight({ status: 'done', key: inputKey, en: j.en, ar: j.ar }))
+        .catch(() => { if (!ctrl.signal.aborted) setInsight({ status: 'error' }) })
+    }, 400)
+    return () => { clearTimeout(timer); ctrl.abort() }
+  }, [isPro, errorKey, inputKey])
 
-  const lossData = result
-    ? [
-        { labelKey: 'oee_loss_downtime' as TKey, subKey: 'oee_loss_downtime_sub' as TKey, value: result.downtimeLoss, color: c.danger },
-        { labelKey: 'oee_loss_speed' as TKey, subKey: 'oee_loss_speed_sub' as TKey, value: result.speedLoss, color: c.amber },
-        { labelKey: 'oee_loss_quality' as TKey, subKey: 'oee_loss_quality_sub' as TKey, value: result.qualityLoss, color: c.data },
-      ]
-    : []
-
-  const chartData = {
-    labels: lossData.map(l => t(l.labelKey)),
-    datasets: [
-      {
-        label: t('oee_loss_pct_label'),
-        data: lossData.map(l => Number(fixed(l.value, 2))),
-        backgroundColor: lossData.map(l => l.color),
-        borderRadius: 4,
-      },
-    ],
-  }
+  const insightText = insight.status === 'done' && insight.key === inputKey ? (lang === 'ar' ? insight.ar : insight.en) : null
 
   // Pro exports read chart canvases via toBase64Image(); the watermark (kept
   // on the live view for everyone) is switched off just for that call.
@@ -137,15 +182,28 @@ export default function OEECalculator() {
   const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
   const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
 
+  // ── Where the time went: one stacked bar, minutes ────────────────────────
+  const timeData = {
+    labels: [''],
+    datasets: [
+      { label: t('oee_productive'), data: [lt?.productiveMin ?? 0], backgroundColor: c.good, maxBarThickness: 44 },
+      { label: t('oee_loss_downtime_short'), data: [lt?.downtimeMin ?? 0], backgroundColor: c.danger, maxBarThickness: 44 },
+      { label: t('oee_loss_speed_short'), data: [lt?.speedMin ?? 0], backgroundColor: c.amber, maxBarThickness: 44 },
+      { label: t('oee_loss_quality_short'), data: [lt?.qualityMin ?? 0], backgroundColor: c.data, maxBarThickness: 44 },
+    ],
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartOptions: any = {
+  const timeOptions: any = {
     indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
+    animation: false,
+    devicePixelRatio: 2,
     layout: watermarkLayout(),
     plugins: {
       watermark: watermarkOptions('light'),
-      legend: { display: false },
+      legend: { position: 'bottom', labels: { color: c.muted, font: { size: 11 }, boxWidth: 12 } },
       tooltip: {
         backgroundColor: c.surface,
         borderColor: c.border,
@@ -154,29 +212,30 @@ export default function OEECalculator() {
         bodyColor: c.muted,
         padding: 10,
         callbacks: {
+          title: () => '',
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (ctx: any) => ` ${fixed(ctx.raw, 2)}%`,
+          label: (ctx: any) => ` ${ctx.dataset.label}: ${fixed(ctx.raw, 1)} ${t('oee_unit_min')}`,
         },
       },
     },
     scales: {
       x: {
+        stacked: true,
         min: 0,
-        ticks: { color: c.muted, font: { size: 11 }, callback: (v: number) => `${v}%` },
+        max: result?.netPlanned,
+        ticks: { color: c.muted, font: { size: 11 } },
         grid: { color: c.grid },
         border: { color: c.border },
+        title: { display: true, text: t('oee_unit_min'), color: c.muted, font: { size: 11 } },
       },
-      y: {
-        ticks: { color: c.text, font: { size: 12, weight: 600 } },
-        grid: { display: false },
-        border: { color: c.border },
-      },
+      y: { stacked: true, display: false },
     },
   }
 
+  // ── Exports ───────────────────────────────────────────────────────────────
   const exportCSV = () => {
     if (!isLoggedIn) { goToLogin('oee', 'csv'); return }
-    if (!result || !cls) return
+    if (!result || !cls || !lt) return
     const lines = [
       'Metric,Value,Unit',
       `OEE (Overall),${fixed(result.oee, 2)},%`,
@@ -184,14 +243,16 @@ export default function OEECalculator() {
       `Performance,${fixed(result.performanceCapped, 2)},%`,
       `Quality (First Pass Yield),${fixed(result.quality, 2)},%`,
       '',
-      'Six Big Losses,Value,Unit',
-      ...lossData.map(l => `${t(l.labelKey)},${fixed(l.value, 2)},%`),
+      'Time,Minutes,Parts,% of net planned time',
+      // plain integers: a thousands comma would split the CSV column
+      `Fully productive,${fixed(lt.productiveMin, 1)},${Math.round(inputs.goodCount)},${fixed(result.oee, 2)}`,
+      ...rows.map(l => `${l.nameEn},${fixed(l.min, 1)},${Math.round(l.parts)} ${l.rejected ? 'rejected' : 'not made'},${fixed(l.pct, 2)}`),
       '',
       'Benchmark,Your Value,World-Class,Gap',
       ...BENCH.map(b => {
         const yours = result[b.key]
         const gap = yours - b.wc
-        return `${t(b.labelKey)},${fixed(yours, 2)}%,${b.wc}%,${gap >= 0 ? '+' : ''}${fixed(gap, 2)}%`
+        return `${BENCH_ENGLISH[b.key]},${fixed(yours, 2)}%,${b.wc}%,${gap >= 0 ? '+' : ''}${fixed(gap, 2)}%`
       }),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -203,14 +264,26 @@ export default function OEECalculator() {
     URL.revokeObjectURL(url)
   }
 
+  /** The Pro card text for the report (English); null if it can't be had */
+  const insightForReport = async (): Promise<string | null> => {
+    if (insight.status === 'done' && insight.key === inputKey) return insight.en
+    try {
+      const res = await fetch('/api/oee/insight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: inputKey })
+      if (!res.ok) return null
+      return ((await res.json()) as { en: string }).en
+    } catch {
+      return null
+    }
+  }
+
   const runExportExcel = async () => {
     if (!isPro) { goToPricing('oee', 'excel'); return }
-    if (!result || !cls) return
+    if (!result || !cls || !lt) return
     const report = createReport({ toolName: 'OEE Calculator' })
     const classTone: Tone = cls.type === 'world-class' || cls.type === 'good' ? 'good' : cls.type === 'average' ? 'warning' : 'danger'
 
     const overview = report.addSheet('Overview')
-    overview.titleBand('OEE (Overall Equipment Effectiveness) Report', t(cls.labelKey))
+    overview.titleBand('OEE (Overall Equipment Effectiveness) Report', oeeClassificationForPdf(cls.type).label)
     overview.metaStrip([
       ['Generated on', nowStamp()],
       ['Standard', 'Nakajima / JIPM TPM — OEE = Availability × Performance × Quality'],
@@ -224,34 +297,25 @@ export default function OEECalculator() {
       { label: 'Quality', value: `${fixed(result.quality, 2)}%`, tone: 'neutral' },
     ])
 
-    overview.table({
-      headers: [
-        { header: 'Metric', key: 'metric', align: 'left', width: 26 },
-        { header: 'Value (%)', key: 'value', align: 'right', numFmt: '0.00' },
-      ],
-      rows: [
-        { metric: 'OEE (Overall)', value: result.oee },
-        { metric: 'Availability', value: result.availability },
-        { metric: 'Performance', value: result.performanceCapped },
-        { metric: 'Quality (First Pass Yield)', value: result.quality },
-      ],
-    })
-
-    // ── OEE / Six Big Losses chart image (same canvas as PNG/PDF export) ──
-    overview.sectionHeading('Six Big Losses Breakdown (Chart)')
+    overview.sectionHeading('Where the Planned Time Went (Chart)')
     if (chartRef.current) {
-      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
+      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 5 })
     }
 
-    overview.sectionHeading('Six Big Losses')
+    overview.sectionHeading('Where the Planned Time Went')
     overview.table({
       headers: [
-        { header: 'Loss Category', key: 'cat', align: 'left', width: 22 },
-        { header: 'Description', key: 'desc', align: 'left', width: 36 },
-        { header: 'Value (%)', key: 'value', align: 'right', numFmt: '0.00' },
+        { header: 'Time', key: 'cat', align: 'left', width: 22 },
+        { header: 'Description', key: 'desc', align: 'left', width: 30 },
+        { header: 'Minutes', key: 'min', align: 'right', numFmt: '0.0' },
+        { header: 'Parts', key: 'parts', align: 'right', numFmt: '#,##0' },
+        { header: '% of net planned time', key: 'pct', align: 'right', numFmt: '0.00' },
       ],
-      rows: lossData.map(l => ({ cat: t(l.labelKey), desc: t(l.subKey), value: l.value })),
-      rowTones: lossData.map(l => l.value >= 15 ? 'danger' : l.value >= 5 ? 'warning' : undefined),
+      rows: [
+        { cat: 'Fully productive', desc: 'Good parts × ideal cycle time', min: lt.productiveMin, parts: inputs.goodCount, pct: result.oee },
+        ...rows.map(l => ({ cat: l.nameEn, desc: `${l.descEn} (${l.rejected ? 'parts rejected' : 'parts not made'})`, min: l.min, parts: Math.round(l.parts), pct: Number(l.pct.toPrecision(12)) })),
+      ],
+      rowTones: [undefined, ...rows.map(l => (l.pct >= 15 ? 'danger' as const : l.pct >= 5 ? 'warning' as const : undefined))],
     })
 
     overview.sectionHeading('Benchmark vs World-Class')
@@ -264,13 +328,16 @@ export default function OEECalculator() {
       ],
       rows: BENCH.map(b => {
         const yours = result[b.key]
-        const gap = yours - b.wc
-        return { metric: t(b.labelKey), yours, wc: b.wc, gap }
+        return { metric: BENCH_ENGLISH[b.key], yours, wc: b.wc, gap: yours - b.wc }
       }),
-      rowTones: BENCH.map(b => (result[b.key] - b.wc) >= 0 ? 'good' : 'warning'),
+      rowTones: BENCH.map(b => (result[b.key] - b.wc >= 0 ? 'good' : 'warning')),
     })
 
-    overview.note(`Classification: ${t(cls.labelKey)}`, classTone)
+    const next = await insightForReport()
+    if (next) {
+      overview.sectionHeading('What to Work on First')
+      overview.note(next, classTone)
+    }
     overview.freezeHeader(2)
 
     await report.download('oee-analysis.xlsx')
@@ -283,13 +350,14 @@ export default function OEECalculator() {
     const url = chart.toBase64Image('image/png', 1)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'oee-six-losses-chart.png'
+    a.download = 'oee-time-chart.png'
     a.click()
   }
 
-  const runExportPDF = () => {
+  const runExportPDF = async () => {
     if (!isPro) { goToPricing('oee', 'pdf'); return }
-    if (!result || !cls) return
+    if (!result || !cls || !lt) return
+    const next = await insightForReport()
 
     const pdfCls = oeeClassificationForPdf(cls.type)
     const ctx = createPdfReport('OEE Analysis Report', 'oee')
@@ -300,10 +368,9 @@ export default function OEECalculator() {
       ['Breaks (Planned)', `${fixed(inputs.breaks, 1)} min`],
       ['Downtime (Unplanned)', `${fixed(inputs.downtime, 1)} min`],
       ['Ideal Cycle Time', `${fixed(inputs.cycleTime, 2)} s/part`],
-      ['Total Count', String(inputs.totalCount)],
-      ['Good Count', String(inputs.goodCount)],
+      ['Total Count', int(inputs.totalCount)],
+      ['Good Count', int(inputs.goodCount)],
     ]
-
     const metricRows: KVRow[] = [
       ['Net Planned Time', `${fixed(result.netPlanned, 1)} min`],
       ['Run Time', `${fixed(result.runTime, 1)} min`],
@@ -312,7 +379,6 @@ export default function OEECalculator() {
       ['Quality', `${fixed(result.quality, 2)}%`],
       ['OEE', `${fixed(result.oee, 2)}%`],
     ]
-
     twoColumnTables(ctx, 'Study Information', studyRows, 'Key Metrics', metricRows)
 
     dataTable(
@@ -329,12 +395,7 @@ export default function OEECalculator() {
         const gap = yours - b.wc
         return [BENCH_ENGLISH[b.key], `${fixed(yours, 2)}%`, `${b.wc}%`, `${gap >= 0 ? '+' : ''}${fixed(gap, 2)}%`]
       }),
-      {
-        cellColors: BENCH.map(b => {
-          const gap = result[b.key] - b.wc
-          return [null, null, null, gap >= 0 ? REPORT_COLORS.good : REPORT_COLORS.bad]
-        }),
-      }
+      { cellColors: BENCH.map(b => [null, null, null, result[b.key] - b.wc >= 0 ? REPORT_COLORS.good : REPORT_COLORS.bad]) }
     )
 
     capabilityGauge(ctx, {
@@ -358,32 +419,29 @@ export default function OEECalculator() {
       caption: `OEE = ${fixed(result.oee, 2)}% — ${pdfCls.label} (World-class benchmark: OEE ≥ 85%)`,
     })
 
-    addChartImage(ctx, chartRef.current, 'Six Big Losses Breakdown')
+    addChartImage(ctx, chartRef.current, 'Where the Planned Time Went', { width: 1000, height: 220 })
 
     dataTable(
       ctx,
       'Loss Detail',
       [
-        { header: 'LOSS CATEGORY', width: 140 },
-        { header: 'DESCRIPTION', width: 220 },
-        { header: 'IMPACT', width: ctx.pageWidth - ctx.margin * 2 - 360, align: 'right' },
+        { header: 'TIME', width: 120 },
+        { header: 'DESCRIPTION', width: 160 },
+        { header: 'MINUTES', width: 70, align: 'right' },
+        { header: 'PARTS', width: 90, align: 'right' },
+        { header: '% OF TIME', width: ctx.pageWidth - ctx.margin * 2 - 440, align: 'right' },
       ],
       [
-        ['Downtime Loss', 'Breakdown + Changeover', `${fixed(result.downtimeLoss, 2)}%`],
-        ['Speed Loss', 'Minor Stops + Reduced Speed', `${fixed(result.speedLoss, 2)}%`],
-        ['Quality Loss', 'Defects + Startup Rejects', `${fixed(result.qualityLoss, 2)}%`],
+        ['Fully productive', 'Good parts x ideal cycle', fixed(lt.productiveMin, 1), int(inputs.goodCount), `${fixed(result.oee, 2)}%`],
+        ...rows.map(l => [l.nameEn, l.descEn, fixed(l.min, 1), `${int(l.parts)} ${l.rejected ? 'rejected' : 'not made'}`, `${fixed(l.pct, 2)}%`]),
       ]
     )
 
-    const losses = [
-      { name: 'downtime', value: result.downtimeLoss },
-      { name: 'speed', value: result.speedLoss },
-      { name: 'quality', value: result.qualityLoss },
-    ]
-    const biggest = losses.reduce((a, b) => (b.value > a.value ? b : a))
+    const biggest = rows.reduce((a, b) => (b.min > a.min ? b : a))
     const conclusionTone = cls.type === 'world-class' ? 'good' : cls.type === 'good' ? 'info' : cls.type === 'average' ? 'warn' : 'bad'
-    const conclusion = `The line achieved an OEE of ${fixed(result.oee, 2)}%, classified as ${pdfCls.label.toLowerCase()}. Availability was ${fixed(result.availability, 1)}%, Performance ${fixed(result.performanceCapped, 1)}%, and Quality ${fixed(result.quality, 1)}%. The largest loss category was ${biggest.name} loss at ${fixed(biggest.value, 2)}% of net planned time — prioritize improvement efforts there. World-class benchmark is OEE ≥ 85% (A ≥ 90%, P ≥ 95%, Q ≥ 99.9%).`
+    const conclusion = `The line achieved an OEE of ${fixed(result.oee, 2)}%, classified as ${pdfCls.label.toLowerCase()}. Availability was ${fixed(result.availability, 1)}%, Performance ${fixed(result.performanceCapped, 1)}%, and Quality ${fixed(result.quality, 1)}%. ${fixed(lostMin, 1)} of ${fixed(result.netPlanned, 1)} planned minutes were lost; the largest loss was ${biggest.kind} at ${fixed(biggest.min, 1)} min (${fixed(biggest.pct, 2)}% of net planned time). World-class benchmark is OEE ≥ 85% (A ≥ 90%, P ≥ 95%, Q ≥ 99.9%).`
     interpretationBox(ctx, 'Study Conclusion', conclusion, conclusionTone)
+    if (next) interpretationBox(ctx, 'What to Work on First', next, 'info')
 
     criteriaReferenceTable(
       ctx,
@@ -401,264 +459,197 @@ export default function OEECalculator() {
     ctx.pdf.save('oee-report.pdf')
   }
 
-  const s: Record<string, React.CSSProperties> = {
-    page: {
-      display: 'flex', flexDirection: 'column', minHeight: '100vh',
-      background: c.bg, color: c.text,
-      fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: 14,
-    },
-    nav: {
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 32px', height: 56,
-      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
-      backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${c.border}`,
-      flexShrink: 0,
-    },
-    navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
-    navRight: { display: 'flex', alignItems: 'center', gap: 14 },
-    logo: {
-      display: 'flex', alignItems: 'center', gap: 9,
-      textDecoration: 'none', color: c.text,
-      fontWeight: 800, fontSize: 15,
-    },
-    logoIcon: {
-      width: 30, height: 30,
-      background: 'var(--qh-accent)',
-      borderRadius: 7, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', color: 'var(--qh-onAccent)', fontWeight: 900, fontSize: 13,
-    },
-    separator: { color: 'rgba(255,255,255,.12)', fontSize: 20 },
-    breadcrumb: { fontSize: 13, color: c.muted, fontWeight: 500 },
-    themeBtn: {
-      background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : c.surface2,
-      border: `1px solid ${c.border}`,
-      borderRadius: 20, padding: '5px 14px',
-      color: c.text, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-    },
-    body: { display: 'flex', flex: 1, overflow: 'hidden' },
-    left: {
-      width: 320, flexShrink: 0,
-      background: c.surface,
-      borderRight: `1px solid ${c.border}`,
-      overflowY: 'auto', padding: 20,
-      display: 'flex', flexDirection: 'column', gap: 20,
-    },
-    right: { flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 20 },
-    sectionTitle: { fontSize: 11, fontWeight: 700, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 },
-    card: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20 },
-    input: {
-      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
-      border: `1px solid ${c.border}`, borderRadius: 7,
-      color: c.text, padding: '7px 10px', fontSize: 13, outline: 'none', width: '100%',
-    },
-    label: { fontSize: 10, color: c.muted, marginBottom: 4 },
-    field: { marginBottom: 14 },
-    exportBtn: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 8, color: c.text, padding: '9px 10px',
-      cursor: 'pointer', fontSize: 12, fontWeight: 600,
-      display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-    },
-    statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 },
-    statCard: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 10, padding: '14px 16px', textAlign: 'center' as const,
-    },
-    statVal: { fontSize: 22, fontWeight: 800, color: c.accent },
-    statLabel: { fontSize: 11, color: c.muted, marginTop: 4 },
-    chartWrap: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20 },
-    chartInner: { height: 220, position: 'relative' as const },
-    table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 },
-    th: {
-      textAlign: 'left' as const, padding: '10px 12px',
-      color: c.muted, fontWeight: 600, fontSize: 11,
-      borderBottom: `1px solid ${c.border}`,
-      textTransform: 'uppercase' as const, letterSpacing: 0.5,
-    },
-    td: { padding: '10px 12px', borderBottom: `1px solid ${c.border}40` },
-    banner: {
-      padding: '14px 18px', borderRadius: 10,
-      fontWeight: 700, fontSize: 14,
-      border: '1.5px solid',
-    },
-  }
-
-  const fields: { key: keyof OEEInputs; labelKey: TKey; step?: string }[] = [
-    { key: 'plannedTime', labelKey: 'oee_field_planned' },
-    { key: 'breaks', labelKey: 'oee_field_breaks' },
-    { key: 'downtime', labelKey: 'oee_field_downtime' },
-    { key: 'cycleTime', labelKey: 'oee_field_cycletime', step: '0.1' },
-    { key: 'totalCount', labelKey: 'oee_field_total' },
-    { key: 'goodCount', labelKey: 'oee_field_good' },
+  // ── Page ──────────────────────────────────────────────────────────────────
+  const timeFields: { key: keyof OEEInputs; labelKey: TKey }[] = [
+    { key: 'plannedTime', labelKey: 'oee_f_planned' },
+    { key: 'breaks', labelKey: 'oee_f_breaks' },
+    { key: 'downtime', labelKey: 'oee_f_downtime' },
   ]
+  const partFields: { key: keyof OEEInputs; labelKey: TKey; step?: string }[] = [
+    { key: 'cycleTime', labelKey: 'oee_f_cycle', step: '0.1' },
+    { key: 'totalCount', labelKey: 'oee_f_total' },
+    { key: 'goodCount', labelKey: 'oee_f_good' },
+  ]
+  const field = (f: { key: keyof OEEInputs; labelKey: TKey; step?: string }) => (
+    <label key={f.key} className="tl-field">
+      <span>{t(f.labelKey)}</span>
+      <input type="number" step={f.step ?? '1'} min={0} placeholder="0" value={inputs[f.key] || ''} onChange={e => setField(f.key, e.target.value)} />
+    </label>
+  )
+
+  const helpSteps = [
+    { t: t('oee_help_s1_t'), d: t('oee_help_s1_d') },
+    { t: t('oee_help_s2_t'), d: t('oee_help_s2_d') },
+    { t: t('oee_help_s3_t'), d: t('oee_help_s3_d') },
+    { t: t('oee_help_s4_t'), d: t('oee_help_s4_d') },
+  ]
+  const loadExample = () => { setInputs(EXAMPLE); setMobileTab('results') }
+  const vc = cls ? CLASS_COLOR[cls.type] : 'var(--qh-accent)'
 
   return (
     <div style={s.page}>
+      <ToolStyles />
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_oee" />
 
-      {loadedProjectName && (
-        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
-          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
-        </div>
-      )}
-      {loadError && (
-        <div style={{ margin: '0 32px', fontSize: 13, color: c.danger, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
-          {loadError}
-        </div>
-      )}
-
-      <div className="qh-body" style={s.body}>
-        <div className="qh-left" style={s.left}>
-          <div>
-            <div style={s.sectionTitle}>{t('oee_production_data')}</div>
-            {fields.map(f => (
-              <div key={f.key} style={s.field}>
-                <div style={s.label}>{t(f.labelKey)}</div>
-                <input
-                  style={s.input}
-                  type="number"
-                  step={f.step ?? '1'}
-                  min={0}
-                  value={inputs[f.key] || ''}
-                  onChange={e => setField(f.key, e.target.value)}
-                />
-              </div>
-            ))}
-            <div style={{ fontSize: 10, color: c.muted, lineHeight: 1.6, marginTop: 4 }}>
-              {t('oee_hint')}
-            </div>
-            {errorKey && (
-              <div style={{ color: c.danger, fontSize: 12, marginTop: 10, fontWeight: 600 }}>
-                {t(errorKey)}
-              </div>
-            )}
-          </div>
-
-          {result && (
-            <div>
-              <div style={s.sectionTitle}>{t('common_export_section')}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
-                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
-                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
-                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <SaveAnalysisButton
-                  theme={theme}
-                  tool="oee"
-                  defaultName={`OEE — ${new Date().toLocaleDateString('en-US')}`}
-                  getPayload={() => ({ input_data: inputs, results: result })}
-                />
-              </div>
+      {(loadedProjectName || loadError) && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          {loadedProjectName && (
+            <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+              {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
             </div>
           )}
+          {loadError && <div className="tl-error">{loadError}</div>}
         </div>
+      )}
 
-        <div className="qh-right" style={s.right}>
-          {result && cls ? (
-            <>
-              <div
-                style={{
-                  ...s.banner,
-                  color: classColor[cls.type],
-                  borderColor: classColor[cls.type],
-                  background: `${classColor[cls.type]}15`,
-                }}
-              >
-                {t(cls.labelKey)} — OEE {fixed(result.oee, 2)}%
+      <div className="tl-shell">
+        <ToolSidebar current="/oee" />
+
+        <div className="tl-main">
+          <ToolHeader title={t('oee_title')} intro={t('oee_intro')} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
+          <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('oee_help_title')} steps={helpSteps} onExample={loadExample} showCapability={false} tip={t('oee_help_tip')} />
+          <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={null} />
+
+          <div className="tl-top">
+            {/* ── SETUP ──────────────────────────────────────────────────── */}
+            <section className="tl-panel tl-setup tl-card" data-active={mobileTab === 'setup'} aria-label={t('spc_tab_setup')}>
+              <div>
+                <div className="tl-label">{t('oee_group_time')}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{timeFields.map(field)}</div>
               </div>
-
-              <div className="qh-stats-row" style={s.statsRow}>
-                <div style={s.statCard}>
-                  <div style={{ ...s.statVal, color: classColor[cls.type] }}>{fixed(result.oee, 1)}%</div>
-                  <div style={s.statLabel}>{t('oee_stat_overall')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fixed(result.availability, 1)}%</div>
-                  <div style={s.statLabel}>{t('oee_stat_availability')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fixed(result.performanceCapped, 1)}%</div>
-                  <div style={s.statLabel}>{t('oee_stat_performance')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fixed(result.quality, 1)}%</div>
-                  <div style={s.statLabel}>{t('oee_stat_quality_fpy')}</div>
-                </div>
+              <div>
+                <div className="tl-label">{t('oee_group_parts')}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>{partFields.map(field)}</div>
               </div>
+              {errorKey ? <div className="tl-error">{t(errorKey)}</div> : <div className="tl-hint" style={{ marginTop: 0 }}>{t('oee_live_hint')}</div>}
+            </section>
 
-              <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t('oee_sixlosses_title')}</div>
-                <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  {t('oee_sixlosses_sub')}
-                </div>
-                <div className="qh-chart-inner" style={s.chartInner}>
-                  <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
-                </div>
-              </div>
+            {/* ── RESULTS ──────────────────────────────────────────────── */}
+            <section className="tl-panel tl-results tl-col" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
+              {result && cls && lt ? (
+                <>
+                  <div className="tl-verdict" style={{ background: tint(vc, 8), border: `1px solid ${tint(vc, 35)}` }}>
+                    <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(vc, 16), color: vc }}>{cls.type === 'world-class' ? '✓' : '!'}</span>
+                    <div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 12px' }}>
+                        <span style={{ fontSize: 26, fontWeight: 700, direction: 'ltr' }}>{fixed(result.oee, 1)}%</span>
+                        <span style={{ fontSize: 17, fontWeight: 600, color: vc }}>{t(CLASS_SHORT[cls.type])}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6, marginTop: 2 }}>
+                        {t('oee_verdict_sub').replace('{lost}', ltr(min1(lostMin))).replace('{net}', ltr(min1(result.netPlanned)))}
+                      </div>
+                    </div>
+                  </div>
 
-              <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('oee_bench_title')}</div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={s.table}>
-                    <thead>
-                      <tr>
-                        <th style={s.th}>{t('oee_col_metric')}</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>{t('oee_col_yourvalue')}</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>{t('oee_col_worldclass')}</th>
-                        <th style={{ ...s.th, textAlign: 'right' }}>{t('oee_col_gap')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {BENCH.map(b => {
-                        const yours = result[b.key]
-                        const gap = yours - b.wc
-                        return (
-                          <tr key={b.key}>
-                            <td style={s.td}>
-                              {t(b.labelKey)}
-                              <div style={{ fontSize: 10, color: c.muted }}>{b.note}</div>
-                            </td>
-                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: yours >= b.wc ? 'var(--qh-good)' : c.text }}>
-                              {fixed(yours, 1)}%
-                            </td>
-                            <td style={{ ...s.td, textAlign: 'right', color: c.muted }}>{b.wc}%</td>
-                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700, color: gap >= 0 ? 'var(--qh-good)' : c.danger }}>
-                              {gap >= 0 ? '+' : ''}{fixed(gap, 1)}%
-                            </td>
+                  <div className="tl-results-head">
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t('spc_tab_results')}</h2>
+                    <ExportRow
+                      isPro={isPro}
+                      isLoggedIn={isLoggedIn}
+                      hasResult={!!result}
+                      onCSV={exportCSV}
+                      onPNG={exportPNG}
+                      onExcel={exportExcel}
+                      onPDF={exportPDF}
+                      save={
+                        <SaveAnalysisButton
+                          theme={theme}
+                          tool="oee"
+                          defaultName={`OEE — ${new Date().toLocaleDateString('en-US')}`}
+                          compact={compactSave}
+                          getPayload={() => ({ input_data: inputs, results: result })}
+                        />
+                      }
+                    />
+                  </div>
+
+                  <div className="tl-kpis tl-kpis-4">
+                    {BENCH.map(b => {
+                      const v = result[b.key]
+                      const gap = v - b.wc
+                      const ok = gap >= 0
+                      return (
+                        <div key={b.key} className="tl-kpi">
+                          <span>{t(b.labelKey)}</span>
+                          <b style={b.key === 'oee' ? { color: vc } : undefined}>{fixed(v, 1)}%</b>
+                          <small style={{ color: ok ? 'var(--qh-good)' : 'var(--qh-danger)' }}>
+                            {t(ok ? 'oee_vs_above' : 'oee_vs_below').replace('{d}', ltr(fixed(Math.abs(gap), 1))).replace('{wc}', ltr(String(b.wc)))}
+                          </small>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="tl-chart">
+                    <h3>{t('oee_time_title').replace('{n}', fixed(result.netPlanned, 0))}</h3>
+                    <div className="tl-chart-sub">{t('oee_time_sub')}</div>
+                    <div className="tl-chart-inner tl-chart-bar">
+                      <Chart ref={chartRef} type="bar" data={timeData} options={timeOptions} />
+                    </div>
+                    <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                      <table className="tl-table">
+                        <thead>
+                          <tr>
+                            <th>{t('oee_col_loss')}</th>
+                            <th className="num">{t('oee_col_min')}</th>
+                            <th className="num">{t('oee_col_parts')}</th>
+                            <th className="num">{t('oee_col_pct')}</th>
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                        </thead>
+                        <tbody>
+                          {rows.map((l, i) => (
+                            <tr key={l.kind}>
+                              <td>
+                                <span aria-hidden="true" style={{ color: [c.danger, c.amber, c.data][i] }}>■</span> {t(l.shortKey)}
+                              </td>
+                              <td className="num">{fixed(l.min, 1)}</td>
+                              <td className="num">{t(l.rejected ? 'oee_parts_rejected' : 'oee_parts_notmade').replace('{n}', int(l.parts))}</td>
+                              <td className="num">{fixed(l.pct, 2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
 
-              <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('oee_conditions_title')}</div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={s.table}>
-                    <tbody>
-                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_plannedtime')}</td><td style={s.td}>{inputs.plannedTime} {t('oee_unit_min')} ({t('oee_unit_net')}: {result.netPlanned} {t('oee_unit_min')})</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_unplanned')}</td><td style={s.td}>{inputs.downtime} {t('oee_unit_min')}</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_idealcycle')}</td><td style={s.td}>{inputs.cycleTime} {t('oee_unit_secpart')}</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_totalproduced')}</td><td style={s.td}>{Math.round(inputs.totalCount).toLocaleString()} {t('oee_unit_parts')}</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted }}>{t('oee_row_goodparts')}</td><td style={s.td}>{Math.round(inputs.goodCount).toLocaleString()} {t('oee_unit_parts')} ({fixed(result.quality, 2)}%)</td></tr>
-                      <tr><td style={{ ...s.td, color: c.muted, borderBottom: 'none' }}>{t('oee_row_formula')}</td><td style={{ ...s.td, borderBottom: 'none' }}>OEE = A × P × Q</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ ...s.card, textAlign: 'center', padding: 60, color: c.muted }}>
-              {errorKey ? t(errorKey) : t('oee_empty_state')}
-            </div>
-          )}
+                  <div className="tl-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontWeight: 700, fontSize: 15 }}>{t('oee_next_title')}</span>
+                      <span className="tl-pro">PRO</span>
+                    </div>
+                    {isPro ? (
+                      insightText ? (
+                        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.8 }}>{insightText}</p>
+                      ) : insight.status === 'error' ? (
+                        <div style={{ fontSize: 13, color: 'var(--qh-danger)' }}>{t('oee_next_error')}</div>
+                      ) : (
+                        <div style={{ fontSize: 13, color: 'var(--qh-muted)' }}>{t('oee_next_loading')}</div>
+                      )
+                    ) : (
+                      <>
+                        <p aria-hidden="true" style={{ margin: 0, fontSize: 14, lineHeight: 1.8, opacity: 0.45, userSelect: 'none' }}>{t('oee_next_sample')}</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                          <span style={{ fontSize: 13, color: 'var(--qh-muted)' }}>{t('oee_next_locked')}</span>
+                          <button type="button" className="tl-xbtn tl-xbtn-pro" onClick={() => goToPricing('oee', 'insight')}>{t('oee_next_getpro')}</button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="tl-card tl-empty">{errorKey ? t(errorKey) : t('oee_empty_state')}</div>
+              )}
+            </section>
+          </div>
         </div>
       </div>
+
+      <PhoneBar
+        showResultActions={mobileTab === 'results' && !!result}
+        onAnalyze={() => { setMobileTab('results'); window.scrollTo({ top: 0 }) }}
+        onEdit={() => setMobileTab('setup')}
+        analyzeLabel={t('oee_bar_results')}
+      />
     </div>
   )
 }
