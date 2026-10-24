@@ -263,10 +263,201 @@ export function poolabilityTest(
   };
 }
 
-// ── Common ICH storage conditions (informational label only) ──────────────
-export const STORAGE_CONDITIONS = [
-  { key: 'long-term', label: 'Long-term — 25°C / 60% RH' },
-  { key: 'intermediate', label: 'Intermediate — 30°C / 65% RH' },
-  { key: 'accelerated', label: 'Accelerated — 40°C / 75% RH' },
-  { key: 'custom', label: 'Custom' },
-] as const;
+export { STORAGE_CONDITIONS } from './options';
+
+// ─────────────────────────────────────────────────────────────────────────
+// Full ICH Q1E analysis for /api/stability (24 Oct 2026, approved by Tawfik)
+// ─────────────────────────────────────────────────────────────────────────
+// • Confidence bound: one-sided at the chosen level when one acceptance
+//   limit is given; two-sided (each side (1 + level) / 2) when both are
+//   given — ICH Q1E, as implemented in JMP's Stability Analysis.
+//   The earlier version used the two-sided t for a single limit, i.e. a
+//   one-sided 97.5% bound, which shortened every shelf life.
+// • Model (α = 0.25): equal slopes first; if they differ → each batch on its
+//   own line (worst batch). If slopes are common → equal intercepts; if they
+//   differ → common slope with an intercept per batch (worst batch, pooled
+//   MSE); otherwise one line through all data.
+// Checked against expirest (CRAN, LeBlond et al. 2011 data) and the JMP
+// Stability example — tests/golden/stability/check.mts.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type StabilityModel = 'single' | 'pooled' | 'common-slope' | 'separate';
+
+export interface StabilityInput {
+  batches: { name: string; points: StabilityPoint[] }[];
+  lower: number | null;
+  upper: number | null;
+  /** confidence level, 0–1 (e.g. 0.95) */
+  confidence: number;
+}
+
+export interface StabilityBatchOut {
+  name: string;
+  n: number;
+  /** own regression (descriptive) */
+  slope: number;
+  intercept: number;
+  r2: number;
+  /** line used by the chosen model for this batch */
+  modelSlope: number;
+  modelIntercept: number;
+  /** shelf life of this batch under the chosen model (null: not reached within the search range) */
+  shelfLife: number | null;
+  extrapolated: boolean;
+}
+
+export interface StabilityResult {
+  model: StabilityModel | null;
+  sided: 'one' | 'two';
+  tCrit: number;
+  df: number;
+  maxObserved: number;
+  poolability: PoolabilityResult | null;
+  batches: StabilityBatchOut[];
+  /** one line through all data (shown for reference even when not chosen) */
+  pooled: { slope: number; intercept: number; r2: number; shelfLife: number | null; extrapolated: boolean } | null;
+  recommended: number | null;
+  /** batch that sets the shelf life (null when one line is used) */
+  limiting: string | null;
+  extrapolated: boolean;
+  /** confidence bound of the line that sets the shelf life, for the chart */
+  bound: { t: number; lower: number | null; upper: number | null }[];
+}
+
+const SEARCH_MAX = 120;
+
+/** First time in [0, SEARCH_MAX] where the bound reaches a limit (fine grid, then bisection). */
+function firstCrossing(crosses: (t: number) => boolean): number | null {
+  if (crosses(0)) return 0;
+  const step = 0.05;
+  let prev = 0;
+  for (let t = step; t <= SEARCH_MAX + 1e-9; t += step) {
+    if (crosses(t)) {
+      let lo = prev, hi = t;
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        if (crosses(mid)) hi = mid; else lo = mid;
+      }
+      return hi;
+    }
+    prev = t;
+  }
+  return null;
+}
+
+interface Line {
+  a: number;
+  b: number;
+  /** variance factor of the fitted mean at t, without σ²: 1/n + (t − x̄)²/Sxx */
+  v: (t: number) => number;
+  mse: number;
+  df: number;
+}
+
+export function analyzeStability(input: StabilityInput): StabilityResult | null {
+  const batches = input.batches.filter((b) => b.points.length >= 2);
+  if (batches.length === 0) return null;
+  const two = input.lower !== null && input.upper !== null;
+  const sideLevel = two ? (1 + input.confidence) / 2 : input.confidence;
+  /** t for a one-sided bound at sideLevel */
+  const tCache = new Map<number, number>();
+  const tFor = (df: number) => {
+    if (df <= 0) return 0;
+    let v = tCache.get(df);
+    if (v === undefined) { v = tCritical(2 * sideLevel - 1, df); tCache.set(df, v); }
+    return v;
+  };
+  const maxObserved = Math.max(...batches.flatMap((b) => b.points.map((p) => p.time)));
+
+  const own = batches.map((b) => linearRegression(b.points));
+  if (own.some((r) => !r)) return null;
+  const regs = own as RegressionResult[];
+  const all = batches.flatMap((b) => b.points);
+  const pooledReg = linearRegression(all);
+  const poolability = batches.length >= 2 ? poolabilityTest(batches as BatchData[]) : null;
+
+  // model choice
+  let model: StabilityModel;
+  if (batches.length === 1) model = 'single';
+  else if (!poolability) model = 'separate';
+  else if (!poolability.slopesPoolable) model = 'separate';
+  else if (!poolability.interceptsPoolable) model = 'common-slope';
+  else model = 'pooled';
+
+  const lineFromReg = (r: RegressionResult): Line => ({
+    a: r.intercept, b: r.slope, mse: r.mse, df: r.df,
+    v: (t) => 1 / r.n + (t - r.meanX) ** 2 / r.sxx,
+  });
+
+  let lines: Line[];
+  if (model === 'pooled') {
+    lines = [lineFromReg(pooledReg as RegressionResult)];
+  } else if (model === 'common-slope') {
+    let sxx = 0, sxy = 0, N = 0;
+    const stats = batches.map((b) => {
+      const n = b.points.length;
+      const mx = b.points.reduce((s, p) => s + p.time, 0) / n;
+      const my = b.points.reduce((s, p) => s + p.value, 0) / n;
+      for (const p of b.points) { sxx += (p.time - mx) ** 2; sxy += (p.time - mx) * (p.value - my); }
+      N += n;
+      return { n, mx, my, pts: b.points };
+    });
+    const slope = sxy / sxx;
+    let sse = 0;
+    for (const s of stats) for (const p of s.pts) sse += (p.value - s.my - slope * (p.time - s.mx)) ** 2;
+    const df = N - batches.length - 1;
+    const mse = df > 0 ? sse / df : 0;
+    lines = stats.map((s) => ({ a: s.my - slope * s.mx, b: slope, mse, df, v: (t: number) => 1 / s.n + (t - s.mx) ** 2 / sxx }));
+  } else {
+    lines = regs.map(lineFromReg);
+  }
+
+  const lowerAt = (l: Line, t: number) => l.a + l.b * t - tFor(l.df) * Math.sqrt(l.mse * l.v(t));
+  const upperAt = (l: Line, t: number) => l.a + l.b * t + tFor(l.df) * Math.sqrt(l.mse * l.v(t));
+  const life = (l: Line): number | null => {
+    if (input.lower === null && input.upper === null) return null;
+    return firstCrossing((t) =>
+      (input.lower !== null && lowerAt(l, t) <= input.lower) || (input.upper !== null && upperAt(l, t) >= input.upper));
+  };
+  const lives = lines.map(life);
+
+  const out: StabilityBatchOut[] = batches.map((b, i) => {
+    const line = model === 'pooled' ? lines[0] : lines[i];
+    const sl = model === 'pooled' ? lives[0] : lives[i];
+    return {
+      name: b.name, n: b.points.length, slope: regs[i].slope, intercept: regs[i].intercept, r2: regs[i].r2,
+      modelSlope: line.b, modelIntercept: line.a, shelfLife: sl, extrapolated: sl !== null && sl > maxObserved,
+    };
+  });
+
+  let recommended: number | null = null;
+  let limiting: string | null = null;
+  let limitLine: Line = lines[0];
+  if (model === 'pooled' || model === 'single') {
+    recommended = lives[0];
+    limitLine = lines[0];
+    limiting = model === 'single' ? batches[0].name : null;
+  } else {
+    lives.forEach((v, i) => {
+      if (v !== null && (recommended === null || v < recommended)) { recommended = v; limiting = batches[i].name; limitLine = lines[i]; }
+    });
+  }
+
+  const pooledLife = pooledReg ? life(lineFromReg(pooledReg)) : null;
+  const tEnd = Math.max(maxObserved * 1.15, (recommended ?? 0) * 1.15, 6);
+  const bound = Array.from({ length: 61 }, (_, i) => {
+    const t = (tEnd * i) / 60;
+    return {
+      t,
+      lower: input.lower !== null ? lowerAt(limitLine, t) : null,
+      upper: input.upper !== null ? upperAt(limitLine, t) : null,
+    };
+  });
+
+  return {
+    model, sided: two ? 'two' : 'one', tCrit: tFor(limitLine.df), df: limitLine.df, maxObserved, poolability,
+    batches: out,
+    pooled: pooledReg ? { slope: pooledReg.slope, intercept: pooledReg.intercept, r2: pooledReg.r2, shelfLife: pooledLife, extrapolated: pooledLife !== null && pooledLife > maxObserved } : null,
+    recommended, limiting, extrapolated: recommended !== null && (recommended as number) > maxObserved, bound,
+  };
+}

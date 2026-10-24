@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -11,15 +11,8 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
-import {
-  type BatchData,
-  type TrendDirection,
-  linearRegression,
-  tCritical,
-  findShelfLife,
-  poolabilityTest,
-  STORAGE_CONDITIONS,
-} from '@/lib/stability/calc'
+import type { BatchData, TrendDirection, StabilityResult } from '@/lib/stability/calc'
+import { STORAGE_CONDITIONS } from '@/lib/stability/options'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import {
   createReport as createPdfReport,
@@ -153,63 +146,54 @@ export default function StabilityStudy() {
     setValues([[null], [null], [null]])
   }
 
-  // ── Core analysis ───────────────────────────────────────────────────────
-  const analysis = useMemo(() => {
-    const specLimit = direction === 'decreasing' ? parseFloat(specLower) : parseFloat(specUpper)
-    const hasSpec = !Number.isNaN(specLimit)
-    const confLevel = confidence / 100
-
-    const batches: BatchData[] = batchNames
-      .map((name, bIdx) => ({
-        id: `b${bIdx}`,
-        name,
-        points: timePoints
-          .map((t, tIdx) => ({ time: t, value: values[tIdx]?.[bIdx] ?? null }))
-          .filter((p): p is { time: number; value: number } => p.value !== null),
-      }))
-      .filter((b) => b.points.length >= 2)
-
-    const maxObservedMonth = Math.max(0, ...batches.flatMap((b) => b.points.map((p) => p.time)))
-
-    const individual = batches.map((b) => {
-      const reg = linearRegression(b.points)
-      if (!reg) return { batch: b, reg: null, shelfLife: null as number | null, extrapolated: false, tCrit: 0 }
-      const tCrit = tCritical(confLevel, reg.df)
-      const sl = hasSpec ? findShelfLife(reg, tCrit, specLimit, direction, maxObservedMonth) : { shelfLifeMonths: null, extrapolated: false }
-      return { batch: b, reg, shelfLife: sl.shelfLifeMonths, extrapolated: sl.extrapolated, tCrit }
-    })
-
-    const allPoints = batches.flatMap((b) => b.points)
-    const pooledReg = batches.length >= 1 ? linearRegression(allPoints) : null
-    const pooledTCrit = pooledReg ? tCritical(confLevel, pooledReg.df) : 0
-    const pooledShelfLifeRaw = pooledReg && hasSpec
-      ? findShelfLife(pooledReg, pooledTCrit, specLimit, direction, maxObservedMonth)
-      : { shelfLifeMonths: null, extrapolated: false }
-
-    const poolability = batches.length >= 2 ? poolabilityTest(batches) : null
-
-    const validIndividualShelfLives = individual
-      .map((r) => r.shelfLife)
-      .filter((v): v is number => v !== null)
-
-    let recommended: number | null = null
-    let basis: 'pooled' | 'individual-min' | 'none' = 'none'
-    if (poolability?.fullyPoolable && pooledShelfLifeRaw.shelfLifeMonths !== null) {
-      recommended = pooledShelfLifeRaw.shelfLifeMonths
-      basis = 'pooled'
-    } else if (batches.length === 1 && individual[0]?.shelfLife !== null) {
-      recommended = individual[0].shelfLife
-      basis = 'individual-min'
-    } else if (validIndividualShelfLives.length > 0) {
-      recommended = Math.min(...validIndividualShelfLives)
-      basis = 'individual-min'
-    }
-
-    return {
-      hasSpec, specLimit, batches, individual, pooledReg, pooledTCrit, pooledShelfLifeRaw,
-      poolability, recommended, basis, maxObservedMonth,
-    }
-  }, [batchNames, values, timePoints, direction, specLower, specUpper, confidence])
+  // ── Core analysis (server: /api/stability, ICH Q1E) ─────────────────────
+  const specLimit = direction === 'decreasing' ? parseFloat(specLower) : parseFloat(specUpper)
+  const hasSpec = !Number.isNaN(specLimit)
+  const batchesIn: BatchData[] = batchNames
+    .map((name, bIdx) => ({
+      id: `b${bIdx}`,
+      name,
+      points: timePoints
+        .map((t, tIdx) => ({ time: t, value: values[tIdx]?.[bIdx] ?? null }))
+        .filter((p): p is { time: number; value: number } => p.value !== null),
+    }))
+    .filter((b) => b.points.length >= 2)
+  const requestKey = JSON.stringify({
+    batches: batchesIn.map(b => ({ name: b.name, points: b.points })),
+    lower: hasSpec && direction === 'decreasing' ? specLimit : null,
+    upper: hasSpec && direction === 'increasing' ? specLimit : null,
+    confidence: confidence / 100,
+  })
+  const [reply, setReply] = useState<{ key: string; result: StabilityResult | null } | null>(null)
+  useEffect(() => {
+    if (batchesIn.length === 0) return
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      fetch('/api/stability', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestKey, signal: ctrl.signal })
+        .then(async res => setReply({ key: requestKey, result: res.ok ? ((await res.json()) as { result: StabilityResult | null }).result : null }))
+        .catch(() => { if (!ctrl.signal.aborted) setReply({ key: requestKey, result: null }) })
+    }, 200)
+    return () => { clearTimeout(timer); ctrl.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey])
+  const res = batchesIn.length > 0 && reply ? reply.result : null
+  const analysis = {
+    hasSpec,
+    specLimit,
+    batches: res ? batchesIn : [],
+    individual: res ? res.batches.map((b, i) => ({
+      batch: batchesIn[i],
+      reg: { slope: b.slope, intercept: b.intercept, r2: b.r2 },
+      shelfLife: b.shelfLife,
+      extrapolated: b.extrapolated,
+    })) : [],
+    pooledReg: res && res.batches.length > 1 ? res.pooled : null,
+    pooledShelfLifeRaw: { shelfLifeMonths: res?.pooled?.shelfLife ?? null, extrapolated: res?.pooled?.extrapolated ?? false },
+    poolability: res?.poolability ?? null,
+    recommended: res?.recommended ?? null,
+    basis: (!res || res.recommended === null ? 'none' : res.model === 'pooled' ? 'pooled' : 'individual-min') as 'pooled' | 'individual-min' | 'none',
+    maxObservedMonth: res?.maxObserved ?? 0,
+  }
 
   // ── Chart data ───────────────────────────────────────────────────────
   const chartXMax = Math.max(analysis.maxObservedMonth * 1.15, (analysis.recommended ?? 0) * 1.15, 6)
@@ -496,7 +480,7 @@ export default function StabilityStudy() {
     interpretationBox(
       ctx,
       'Methodology',
-      'Shelf life is estimated using ICH Q1E linear regression with a one-sided confidence interval at the specified confidence level. When multiple batches are available, a poolability test (ANCOVA on slopes and intercepts) determines whether batch data can be pooled into a single regression or whether the shelf life must be based on the most limiting individual batch.',
+      'Shelf life per ICH Q1E: the time at which the one-sided confidence bound (at the stated level) of the mean regression line reaches the acceptance limit. With several batches, slopes and then intercepts are tested at α = 0.25 to choose one line through all data, a common slope with an intercept per batch, or a line per batch; the shortest batch shelf life is used when batches are not pooled.',
       'info',
     )
 

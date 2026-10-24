@@ -630,7 +630,7 @@ export const translations = {
     stab_not_poolable: 'Not poolable',
     stab_pool_yes: 'Batches may be pooled into a single regression — the pooled shelf life above is used.',
     stab_pool_no:
-      'Batches show a significant difference in slope and/or intercept — the shortest individual-batch shelf life is used (conservative, per ICH Q1E).',
+      'Batches are not pooled into one line (ICH Q1E, α = 0.25). Different slopes: each batch keeps its own line. Common slope but different intercepts: one slope with an intercept per batch. The shortest batch shelf life is used.',
 
     // ── DPMO & Sigma Calculator ──
     dpmo_band_worldclass: 'World Class',
@@ -2021,7 +2021,7 @@ export const translations = {
     stab_not_poolable: 'غير قابل للتجميع',
     stab_pool_yes: 'يمكن تجميع الدفعات في انحدار واحد — يُستخدم العمر الافتراضي المجمَّع أعلاه.',
     stab_pool_no:
-      'تُظهر الدفعات فرقًا معنويًا في الميل و/أو نقطة التقاطع — يُستخدم أقصر عمر افتراضي لدفعة فردية (نهج متحفظ، وفقًا لـ ICH Q1E).',
+      'لا تُجمع الدفعات في خط واحد (ICH Q1E، α = 0.25). إذا اختلفت الميول فلكل دفعة خطها، وإذا تساوى الميل واختلفت نقطة البداية فميل مشترك مع نقطة بداية لكل دفعة. يُستخدم أقصر عمر افتراضي بين الدفعات.',
 
     // ── DPMO & Sigma Calculator ──
     dpmo_band_worldclass: 'مستوى عالمي',
