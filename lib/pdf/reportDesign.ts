@@ -1088,6 +1088,8 @@ export function addSignOff(ctx: ReportContext) {
   const branding = getReportBranding()
   if (branding && (branding.signPrepared || branding.signApproved)) {
     drawSignatureBlock(ctx, branding.preparedBy.trim(), branding.signPrepared, branding.signApproved)
+    // room before the next section heading (the block ends right under its labels)
+    ctx.y += 22
   }
 }
 

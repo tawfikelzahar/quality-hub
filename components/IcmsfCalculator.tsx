@@ -244,7 +244,7 @@ export default function IcmsfCalculator() {
     if (!r) return
     const lines = [
       'Hazard,Conditions,Case,Plan,n,c,Limits,Lot Result',
-      [csvCell(hazardEn), csvCell(condEn), r.caseNumber, `${r.planClass}-class`, r.n, r.c, csvCell(limitsText(EN)), csvCell(headline(EN))].join(','),
+      [csvCell(hazardEn), csvCell(condEn), r.caseNumber, `${r.planClass}-class`, r.n, r.c, csvCell(limitsText(EN)), csvCell(r.decision ? headline(EN) : 'Decision pending')].join(','),
       '',
       ...(mode === 'presence'
         ? ['Positive Units', String(body.positives ?? '')]
@@ -273,7 +273,7 @@ export default function IcmsfCalculator() {
     ])
     sh.sectionHeading('Lot Decision')
     sh.kpiRow([
-      { label: 'Lot', value: headline(EN), tone: r.decision === 'accept' ? 'good' : r.decision === 'reject' ? 'danger' : 'neutral' },
+      { label: 'Lot', value: r.decision ? headline(EN) : 'Decision pending', tone: r.decision === 'accept' ? 'good' : r.decision === 'reject' ? 'danger' : 'neutral' },
       { label: 'Case', value: String(r.caseNumber), tone: 'neutral' },
       { label: 'n · c', value: `${r.n} · ${r.c}`, tone: 'neutral' },
     ])
@@ -312,7 +312,7 @@ export default function IcmsfCalculator() {
     if (!isPro) { goToPricing('icmsf', 'pdf'); return }
     if (!r) return
     const ctx = createPdfReport('ICMSF Sampling Plan & Lot Decision', 'icmsf')
-    calloutBox(ctx, `${headline(EN)}. ${sub(EN)}`, r.decision === 'accept' ? 'good' : r.decision === 'reject' ? 'bad' : 'info')
+    calloutBox(ctx, `${r.decision ? headline(EN) : 'Decision pending'}. ${sub(EN)}`, r.decision === 'accept' ? 'good' : r.decision === 'reject' ? 'bad' : 'info')
     const w = ctx.pageWidth - ctx.margin * 2
     dataTable(ctx, 'Sampling Plan', [{ header: 'ITEM', width: 130 }, { header: 'VALUE', width: w - 130 }], [
       ['Hazard', `${hazardEn} (ICMSF examples: ${examples(inp.hazard)})`],
@@ -324,9 +324,32 @@ export default function IcmsfCalculator() {
     ])
     if (mode === 'count' && unitRows.some(u => u.value !== null)) {
       const tone = (u: UnitClass | null) => (u === 'acceptable' ? REPORT_COLORS.good : u === 'marginal' ? REPORT_COLORS.warn : u === 'defective' ? REPORT_COLORS.bad : null)
-      dataTable(ctx, `Sample Units (${inp.unit})`, [{ header: 'UNIT', width: 60, align: 'center' }, { header: 'RESULT', width: 120, align: 'right' }, { header: 'CLASS', width: w - 180 }],
-        unitRows.map(u => [String(u.i), u.value === null ? '-' : countText(u.value), u.cls ? clsLabel(u.cls, EN) : '-']),
-        { cellColors: unitRows.map(u => [null, null, tone(u.cls)]) })
+      // entered units only, three per row (unit · result · class), so 20–60 units stay short
+      const done = unitRows.filter(u => u.value !== null)
+      const PER = 3
+      const colW = w / PER
+      const cols = Array.from({ length: PER }, () => [
+        { header: '#', width: colW * 0.17, align: 'center' as const },
+        { header: 'RESULT', width: colW * 0.35, align: 'right' as const },
+        { header: 'CLASS', width: colW * 0.48 },
+      ]).flat()
+      const lines = Math.ceil(done.length / PER)
+      const rowsOut: string[][] = []
+      const colors: (typeof REPORT_COLORS.good | null)[][] = []
+      for (let li = 0; li < lines; li++) {
+        const row: string[] = []
+        const col: (typeof REPORT_COLORS.good | null)[] = []
+        for (let k = 0; k < PER; k++) {
+          const u = done[k * lines + li]
+          row.push(u ? String(u.i) : '', u ? countText(u.value as number) : '', u && u.cls ? clsLabel(u.cls, EN) : '')
+          col.push(null, null, u ? tone(u.cls) : null)
+        }
+        rowsOut.push(row)
+        colors.push(col)
+      }
+      dataTable(ctx, `Sample Units (${inp.unit})`, cols, rowsOut, { cellColors: colors })
+      const missing = r.n - done.length
+      if (missing > 0) calloutBox(ctx, `${missing} of ${r.n} units not entered yet.`, 'info')
     } else if (mode === 'presence') {
       calloutBox(ctx, `Positive units found: ${body.positives ?? '-'} of ${r.n} (c = ${r.c}).`, 'info')
     }
