@@ -10,7 +10,7 @@ import {
   type InspectionLevel,
   type InspectionType,
 } from './tables';
-import { messages } from './messages';
+import type { AqlStageRequest, AqlStageResult, Decision } from './options';
 
 export interface ResolvedPlan {
   /** The code letter your Lot Size + Level naturally map to */
@@ -24,8 +24,6 @@ export interface ResolvedPlan {
   actualSampleSize: number;
   ac: number;
   re: number;
-  /** Explanation shown to the user when the plan had to switch code letters */
-  switchNote: string | null;
   /** True if requiredSampleSize >= lot size, meaning the whole lot must be inspected (per ISO 2859-1) */
   fullLotInspection: boolean;
   /** True only when there is no verified data at all for this AQL (still-unverified low-AQL columns) */
@@ -93,7 +91,6 @@ export function getPlan(
     usedLetter: PlanLetter,
     requiredSampleSize: number,
     ac: number,
-    switchNote: string | null,
   ): ResolvedPlan => {
     const fullLotInspection = lotSize !== undefined && requiredSampleSize >= lotSize;
     return {
@@ -104,7 +101,6 @@ export function getPlan(
       actualSampleSize: fullLotInspection ? (lotSize as number) : requiredSampleSize,
       ac,
       re: ac + 1,
-      switchNote,
       fullLotInspection,
       noVerifiedData: false,
     };
@@ -118,7 +114,6 @@ export function getPlan(
     actualSampleSize: lotSize !== undefined ? Math.min(baseSampleSize, lotSize) : baseSampleSize,
     ac: -1,
     re: -1,
-    switchNote: null,
     fullLotInspection: lotSize !== undefined && baseSampleSize >= lotSize,
     noVerifiedData: true,
   });
@@ -133,11 +128,7 @@ export function getPlan(
   const resolved = resolvedTable[letter][aqlIndex];
   if (!resolved) return noData();
   const resolvedSampleSize = sampleSizeFor(resolved.letter, inspectionType);
-  const note =
-    resolved.letter === letter
-      ? null
-      : messages.switchNote(letter, resolved.letter, resolvedSampleSize);
-  return build(resolved.letter, resolvedSampleSize, resolved.ac, note);
+  return build(resolved.letter, resolvedSampleSize, resolved.ac);
 }
 
 export interface DefectClassInput {
@@ -168,7 +159,7 @@ export interface InspectionRowResult {
   codeLetter: CodeLetter | null;
   sampleSize: number | null;
   defects: DefectClassResult[];
-  error: string | null;
+  error: 'lot' | null;
 }
 
 const MIN_LOT_SIZE = 2;
@@ -180,7 +171,7 @@ export function computeRow(row: InspectionRowInput): InspectionRowResult {
       codeLetter: null,
       sampleSize: null,
       defects: row.defects.map((d) => ({ ...d, plan: null })),
-      error: messages.lotSizeTooSmall(MIN_LOT_SIZE),
+      error: 'lot',
     };
   }
 
@@ -191,7 +182,7 @@ export function computeRow(row: InspectionRowInput): InspectionRowResult {
       codeLetter: null,
       sampleSize: null,
       defects: row.defects.map((d) => ({ ...d, plan: null })),
-      error: messages.codeLetterNotFound,
+      error: 'lot',
     };
   }
 
@@ -202,4 +193,51 @@ export function computeRow(row: InspectionRowInput): InspectionRowResult {
   }));
 
   return { ...row, codeLetter, sampleSize, defects, error: null };
+}
+
+/**
+ * ISO 2859-1:2026, 11.2 — single sampling, integer acceptance number:
+ * found ≤ Ac → acceptable · found ≥ Re → not acceptable (Re = Ac + 1).
+ */
+export function decide(found: number, ac: number): Decision {
+  return found <= ac ? 'accept' : 'reject';
+}
+
+/**
+ * One inspection stage for /api/aql: plan per defect class, the decision
+ * per class when the found count is given, and the lot decision. Each class
+ * has its own plan (7.4); the lot is not accepted when any class is not
+ * accepted, and accepted only when every class is entered and accepted.
+ */
+export function evaluateStage(req: AqlStageRequest): AqlStageResult {
+  const row = computeRow({
+    id: '',
+    stageName: '',
+    lotSize: req.lotSize,
+    level: req.level,
+    inspectionType: req.inspectionType,
+    defects: req.classes.map((c, i) => ({ id: String(i), name: '', aql: c.aql })),
+  });
+  if (row.error || !row.codeLetter) {
+    return { error: 'lot', codeLetter: null, sampleSize: null, classes: [], lot: null };
+  }
+  const classes = row.defects.map((d, i) => {
+    const p = d.plan!;
+    const found = req.classes[i].found;
+    return {
+      letter: p.usedLetter,
+      n: p.requiredSampleSize,
+      inspect: p.actualSampleSize,
+      fullLot: p.fullLotInspection,
+      ac: p.ac,
+      re: p.re,
+      decision: found === null ? null : decide(found, p.ac),
+    };
+  });
+  const lot: Decision | null = classes.some(c => c.decision === 'reject')
+    ? 'reject'
+    : classes.length > 0 && classes.every(c => c.decision === 'accept')
+      ? 'accept'
+      : null;
+  return { error: null, codeLetter: row.codeLetter, sampleSize: row.sampleSize, classes, lot };
 }

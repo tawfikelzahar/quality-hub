@@ -7,7 +7,7 @@ SaaS platform of statistical quality control tools for quality engineers and man
 - **SPC Engine** (`/spc`) — Variable data (I-MR, X̄-R) and attribute data (p/np/c/u) control charts, capability analysis (Cp/Cpk/Pp/Ppk/Cpm), sigma level/Z-bench, Nelson Rule violations, Anderson-Darling normality test.
 - **Pareto Chart** (`/pareto`) — Pareto analysis with CSV/Excel/PNG/PDF export.
 - **DPMO & Sigma Calculator** (`/dpmo`) — Defects per million opportunities and sigma level (Acklam algorithm, 1.5σ shift).
-- **AQL Sampling Plan Calculator** (`/aql`) — ISO 2859-1 / ANSI Z1.4 sampling plans.
+- **AQL Sampling Plan Calculator** (`/aql`) — ISO 2859-1:2026 single sampling plans and lot decision.
 - **Gage R&R** (`/gage-rr`) — AIAG Average & Range method (3 appraisers × 10 parts × 3 trials).
 - **Stability Study** (`/stability`) — Stability/shelf-life analysis.
 

@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'AQL Sampling Plan Calculator — ISO 2859-1',
+  title: 'AQL Sampling Plan Calculator — ISO 2859-1:2026',
   description:
-    'Free AQL sampling plan calculator verified cell-by-cell against ISO 2859-1. Get sample size, Ac/Re values, and inspection level in seconds.',
+    'Free AQL sampling plan calculator checked cell by cell against ISO 2859-1:2026. Get the code letter, sample size and Ac/Re for each defect class, then the lot decision.',
   alternates: { canonical: '/aql' },
 }
 

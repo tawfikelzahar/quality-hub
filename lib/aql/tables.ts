@@ -1,4 +1,5 @@
-// ISO 2859-1 / ANSI ASQ Z1.4 reference data
+// ISO 2859-1:2026 reference data (server only — see lib/aql/options.ts for
+// what the page may import)
 //
 // ─────────────────────────────────────────────────────────────────────────
 // HOW THIS FILE WAS FIXED — session 2 (Normal, values)
@@ -303,8 +304,3 @@ export const AC_TABLES: Record<InspectionType, Record<CodeLetter, number[]>> = {
   Reduced: AC_REDUCED,
 };
 
-export const DEFAULT_DEFECT_CLASSES = [
-  { name: 'Critical', aql: 0.065 },
-  { name: 'Major', aql: 2.5 },
-  { name: 'Minor', aql: 4.0 },
-];

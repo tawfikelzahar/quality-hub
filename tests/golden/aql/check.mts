@@ -7,7 +7,7 @@
 // in the table key (light grey → first plan below in the column, dark grey
 // → last plan above) and compares every cell the site can be asked for.
 import { readFileSync } from 'node:fs'
-import { getCodeLetter, getPlan, computeRow } from '../../../lib/aql/calculator.ts'
+import { getCodeLetter, getPlan, computeRow, evaluateStage } from '../../../lib/aql/calculator.ts'
 import { AQL_VALUES, CODE_LETTERS, CODE_LETTER_TABLE, sampleSizeFor, AC_TABLES, type InspectionType, type InspectionLevel } from '../../../lib/aql/tables.ts'
 
 const ref = JSON.parse(readFileSync(new URL('./iso2859-1-2026.json', import.meta.url), 'utf8'))
@@ -116,6 +116,27 @@ eq('F', 'Tightened R 0.015 → Q (dark grey)', getPlan('R', 0.015, 'Tightened')!
   eq('V', 'lot 1 rejected', bad.error !== null, true)
   const good = computeRow({ id: 'x', stageName: 's', lotSize: 1000, level: 'II', inspectionType: 'Normal', defects: [{ id: 'd', name: 'Major', aql: 2.5 }] })
   eq('V', 'lot 1000 Major 2.5', [good.codeLetter, good.sampleSize, good.defects[0].plan!.ac], ['J', 80, 5])
+}
+
+// D — decision (ISO 2859-1:2026, 11.2): found ≤ Ac acceptable, found ≥ Re
+// not acceptable; lot not accepted when any class is not accepted
+{
+  // lot 1000, II, normal → J; Critical 0.065 → L n 200 0/1 · Major 2.5 → 5/6 · Minor 4.0 → 7/8
+  const base = { lotSize: 1000, level: 'II' as const, inspectionType: 'Normal' as const }
+  const a = evaluateStage({ ...base, classes: [{ aql: 0.065, found: 0 }, { aql: 2.5, found: 5 }, { aql: 4.0, found: 7 }] })
+  eq('D', 'plans', a.classes.map(c => [c.letter, c.n, c.ac, c.re]), [['L', 200, 0, 1], ['J', 80, 5, 6], ['J', 80, 7, 8]])
+  eq('D', 'all at Ac → accepted', [a.classes.map(c => c.decision), a.lot], [['accept', 'accept', 'accept'], 'accept'])
+  const b = evaluateStage({ ...base, classes: [{ aql: 0.065, found: 0 }, { aql: 2.5, found: 3 }, { aql: 4.0, found: 8 }] })
+  eq('D', 'Minor at Re → lot not accepted', [b.classes.map(c => c.decision), b.lot], [['accept', 'accept', 'reject'], 'reject'])
+  const c = evaluateStage({ ...base, classes: [{ aql: 0.065, found: 1 }, { aql: 2.5, found: null }, { aql: 4.0, found: 0 }] })
+  eq('D', 'one critical → not accepted even with a class missing', [c.classes.map(x => x.decision), c.lot], [['reject', null, 'accept'], 'reject'])
+  const d = evaluateStage({ ...base, classes: [{ aql: 0.065, found: 0 }, { aql: 2.5, found: null }, { aql: 4.0, found: 0 }] })
+  eq('D', 'class missing, none failed → no decision', d.lot, null)
+  const e = evaluateStage({ ...base, lotSize: 1, classes: [{ aql: 2.5, found: 0 }] })
+  eq('D', 'lot 1 → error', [e.error, e.lot], ['lot', null])
+  // lot 26, II → D; AQL 0.10 normal is shaded down to K (n 125) → inspect all 26
+  const f = evaluateStage({ lotSize: 26, level: 'II', inspectionType: 'Normal', classes: [{ aql: 0.10, found: 0 }] })
+  eq('D', 'full lot: inspect 26 of n 125, Ac 0', [f.codeLetter, f.classes[0].letter, f.classes[0].n, f.classes[0].inspect, f.classes[0].fullLot, f.classes[0].decision], ['D', 'K', 125, 26, true, 'accept'])
 }
 
 console.log(`AQL golden: ${checks - fail}/${checks} pass`)
