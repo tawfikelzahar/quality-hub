@@ -28,7 +28,8 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
   const [preparedBy, setPreparedBy] = useState('')
   const [jobTitle, setJobTitle] = useState('')
   const [company, setCompany] = useState('')
-  const [showSignatures, setShowSignatures] = useState(true)
+  const [signPrepared, setSignPrepared] = useState(true)
+  const [signApproved, setSignApproved] = useState(true)
   const [logoPath, setLogoPath] = useState<string | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -46,7 +47,7 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
       if (!user) return
       const { data } = await supabase
         .from('report_branding')
-        .select('prepared_by, job_title, company, logo_path, show_signatures')
+        .select('*')
         .eq('user_id', user.id)
         .maybeSingle()
       const row = data as BrandingRow | null
@@ -55,7 +56,8 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
       setPreparedBy(row?.prepared_by ?? fallbackName)
       setJobTitle(row?.job_title ?? '')
       setCompany(row?.company ?? '')
-      setShowSignatures(row?.show_signatures ?? true)
+      setSignPrepared(row?.show_signatures ?? true)
+      setSignApproved(row?.show_approved ?? row?.show_signatures ?? true)
       setLogoPath(row?.logo_path ?? null)
       setLogoPreview(logoPublicUrl(row?.logo_path ?? null))
     })()
@@ -78,7 +80,7 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
     return {
       preparedBy, jobTitle, company,
       logoDataUrl: img?.dataUrl ?? null, logoWidth: img?.width ?? 0, logoHeight: img?.height ?? 0,
-      showSignatures,
+      signPrepared, signApproved,
     }
   }
 
@@ -98,15 +100,23 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
         path = newPath
       }
       if (logoPath && logoPath !== path) await supabase.storage.from(LOGO_BUCKET).remove([logoPath])
-      const { error } = await supabase.from('report_branding').upsert({
+      const row = {
         user_id: user.id,
         prepared_by: preparedBy.trim() || null,
         job_title: jobTitle.trim() || null,
         company: company.trim() || null,
         logo_path: path,
-        show_signatures: showSignatures,
+        show_signatures: signPrepared,
+        show_approved: signApproved,
         updated_at: new Date().toISOString(),
-      })
+      }
+      let { error } = await supabase.from('report_branding').upsert(row)
+      if (error && /show_approved/.test(error.message)) {
+        // 008_report_branding_signoff.sql not run yet: save the rest, keep "Approved by" with "Prepared by"
+        const { show_approved: _skip, ...rest } = row
+        void _skip
+        ;({ error } = await supabase.from('report_branding').upsert(rest))
+      }
       if (error) throw error
       setLogoPath(path)
       setLogoFile(null)
@@ -175,10 +185,17 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
             <div style={{ fontSize: 11.5, color: c.muted, marginTop: 6 }}>{t('rb_logo_hint')}</div>
           </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: c.text, cursor: 'pointer' }}>
-            <input id="rb-signatures" type="checkbox" checked={showSignatures} onChange={e => setShowSignatures(e.target.checked)} />
-            {t('rb_signatures')}
-          </label>
+          <fieldset style={{ border: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+            <legend style={{ fontSize: 12, fontWeight: 600, color: c.muted, marginBottom: 6, padding: 0 }}>{t('rb_signatures')}</legend>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: c.text, cursor: 'pointer' }}>
+              <input id="rb-sign-prepared" type="checkbox" checked={signPrepared} onChange={e => setSignPrepared(e.target.checked)} />
+              {t('rb_sign_prepared')}
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: c.text, cursor: 'pointer' }}>
+              <input id="rb-sign-approved" type="checkbox" checked={signApproved} onChange={e => setSignApproved(e.target.checked)} />
+              {t('rb_sign_approved')}
+            </label>
+          </fieldset>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button type="button" style={{ ...s.ctaBtn, border: 'none', cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }} disabled={busy} onClick={save}>

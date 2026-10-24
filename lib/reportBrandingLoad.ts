@@ -11,6 +11,8 @@ export interface BrandingRow {
   company: string | null
   logo_path: string | null
   show_signatures: boolean | null
+  /** added by 008_report_branding_signoff.sql; missing until it runs */
+  show_approved?: boolean | null
 }
 
 /** Public URL of a stored logo (bucket is public-read). */
@@ -32,7 +34,8 @@ export async function brandingFromRow(row: BrandingRow | null): Promise<ReportBr
     logoDataUrl: img?.dataUrl ?? null,
     logoWidth: img?.width ?? 0,
     logoHeight: img?.height ?? 0,
-    showSignatures: row.show_signatures ?? true,
+    signPrepared: row.show_signatures ?? true,
+    signApproved: row.show_approved ?? row.show_signatures ?? true,
   }
 }
 
@@ -50,7 +53,7 @@ export async function refreshReportBranding(): Promise<void> {
     if (profile?.subscription_status !== 'pro') { setReportBranding(null); return }
     const { data: row } = await supabase
       .from('report_branding')
-      .select('prepared_by, job_title, company, logo_path, show_signatures')
+      .select('*')
       .eq('user_id', user.id)
       .maybeSingle()
     setReportBranding(await brandingFromRow(row as BrandingRow | null))

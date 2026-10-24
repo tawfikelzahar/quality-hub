@@ -22,7 +22,10 @@ export interface ReportBranding {
   /** natural size of the logo, for aspect-correct placement */
   logoWidth: number
   logoHeight: number
-  showSignatures: boolean
+  /** "Prepared by" signature line at the end of the PDF */
+  signPrepared: boolean
+  /** "Approved by" signature line at the end of the PDF */
+  signApproved: boolean
 }
 
 let current: ReportBranding | null = null

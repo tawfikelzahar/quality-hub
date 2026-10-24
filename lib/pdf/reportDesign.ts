@@ -987,7 +987,9 @@ export function criteriaReferenceTable(
 /** Draws the footer (hairline + copyright + page numbers) on every page. Call once, right before pdf.save(). */
 export function finalizeReport(ctx: ReportContext) {
   const branding = getReportBranding()
-  if (branding && branding.showSignatures) drawSignatureBlock(ctx, branding.preparedBy.trim())
+  if (branding && (branding.signPrepared || branding.signApproved)) {
+    drawSignatureBlock(ctx, branding.preparedBy.trim(), branding.signPrepared, branding.signApproved)
+  }
   const { pdf, margin, pageWidth, pageHeight } = ctx
   const pageCount = pdf.getNumberOfPages()
   const year = new Date().getFullYear()
@@ -1006,8 +1008,8 @@ export function finalizeReport(ctx: ReportContext) {
   }
 }
 
-/** "Prepared by / Approved by" sign-off at the end of a branded report. */
-function drawSignatureBlock(ctx: ReportContext, preparedBy: string) {
+/** Sign-off at the end of a branded report: "Prepared by" and/or "Approved by", each optional. */
+function drawSignatureBlock(ctx: ReportContext, preparedBy: string, withPrepared: boolean, withApproved: boolean) {
   ensureSpace(ctx, 92)
   const { pdf, margin, pageWidth } = ctx
   const colW = (pageWidth - margin * 2 - 30) / 2
@@ -1017,7 +1019,10 @@ function drawSignatureBlock(ctx: ReportContext, preparedBy: string) {
   setText(pdf, REPORT_COLORS.brandDark)
   drawText(pdf, 'Sign-off', margin, y)
   y += 24
-  const cols: [string, string][] = [['Prepared by', preparedBy], ['Approved by', '']]
+  const cols: [string, string][] = [
+    ...(withPrepared ? [['Prepared by', preparedBy] as [string, string]] : []),
+    ...(withApproved ? [['Approved by', ''] as [string, string]] : []),
+  ]
   cols.forEach(([label, name], i) => {
     const x = margin + i * (colW + 30)
     pdf.setFont(PDF_FONT, 'bold')
