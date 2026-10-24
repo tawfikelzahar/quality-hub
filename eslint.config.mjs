@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
           { name: "@/lib/spc/calculator", allowTypeImports: true, message: "The calculator runs on the server. Use useChartAnalysis (lib/spc/useChartAnalysis.ts)." },
           { name: "@/lib/spc/engine.server", message: "Server only." },
           { name: "@/lib/spc/reportText.server", message: "Server only." },
+          { name: "@/lib/oee/insight.server", message: "Server only (/api/oee/insight, Pro)." },
           { name: "@/lib/spc/reportInterpretation", allowTypeImports: true, message: "The interpretation runs on the server (lib/spc/reportText.server.ts, /api/spc/report-text)." },
           { name: "@/lib/spc/capabilityReason", allowTypeImports: true, message: "The verdict reason is written on the server and arrives with the result." },
           { name: "@/lib/spc/nelson", allowTypeImports: true, message: "Rules stay on the server. For test-set labels use @/lib/spc/testSets." },

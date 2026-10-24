@@ -1,6 +1,7 @@
 // OEE golden test — no server needed:
 // node --import ./tests/register.mjs --experimental-strip-types --no-warnings tests/golden/oee/check.mts
 import { calcOEE, validate, lossTime, type OEEInputs } from '../../../lib/oee/calc.ts'
+import { buildOEEInsight, type LossKind } from '../../../lib/oee/insight.server.ts'
 
 interface Case {
   id: string
@@ -9,6 +10,8 @@ interface Case {
   expected: Record<string, number>
   /** losses in minutes / parts (lossTime) */
   time?: Record<string, number>
+  /** largest loss the "What to work on first" card must name */
+  biggest?: LossKind
   /** decimals the source reports */
   tol: number
 }
@@ -25,6 +28,7 @@ const cases: Case[] = [
     expected: { netPlanned: 420, runTime: 373, availability: 88.81, performance: 86.11, quality: 97.80, oee: 74.79 },
     // Fully productive time = good count × ideal cycle = 18,848 s (page definition)
     time: { downtimeMin: 47, productiveMin: 314.13, qualityParts: 423 },
+    biggest: 'speed',
     tol: 0.005,
   },
   {
@@ -37,6 +41,7 @@ const cases: Case[] = [
     inputs: { plannedTime: 480, breaks: 0, downtime: 52, cycleTime: 6, totalCount: 3800, goodCount: 3650 },
     expected: { runTime: 428, oee: 76.04, downtimeLoss: 10.83, speedLoss: 10.00, qualityLoss: 3.12 },
     time: { downtimeMin: 52, speedMin: 48, qualityMin: 15, productiveMin: 365, speedParts: 480, qualityParts: 150 },
+    biggest: 'downtime',
     tol: 0.005,
   },
 ]
@@ -64,6 +69,14 @@ for (const c of cases) {
     const tsum = lt.downtimeMin + lt.speedMin + lt.qualityMin + lt.productiveMin
     const pctOk = Math.abs(lt.speedMin / r.netPlanned * 100 - r.speedLoss) < 1e-9 && Math.abs(lt.qualityMin / r.netPlanned * 100 - r.qualityLoss) < 1e-9
     if (Math.abs(tsum - r.netPlanned) > 1e-9 || !pctOk) { fail++; console.log('DIFF', c.id, 'minutes sum', tsum, 'pct match', pctOk) }
+  }
+  if (c.biggest) {
+    checks++
+    const ins = buildOEEInsight(c.inputs)
+    const lt = lossTime(c.inputs, r)
+    const min = { downtime: lt.downtimeMin, speed: lt.speedMin, quality: lt.qualityMin }[c.biggest]
+    const ok = !!ins && ins.biggest === c.biggest && ins.en.includes(min.toFixed(1)) && ins.ar.includes(min.toFixed(1))
+    if (!ok) { fail++; console.log('DIFF', c.id, 'insight', ins?.biggest, 'want', c.biggest) }
   }
   // Losses (% of net planned time) and OEE must add up to 100
   checks++
