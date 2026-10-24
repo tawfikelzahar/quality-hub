@@ -6,6 +6,7 @@ import {
   type HazardLevel,
   type IcmsfCase,
 } from './tables';
+import type { IcmsfRequest, IcmsfResult, IcmsfRiskRequest, IcmsfRiskResult, IcmsfRiskPoint, UnitClass, Decision } from './options';
 
 // ─────────────────────────────────────────────────────────────────────────
 // METHODOLOGY SOURCE
@@ -287,4 +288,122 @@ export function generateThreeClassOcCurve(
     points.push(threeClassAcceptanceAt(input, Math.min(x, max)));
   }
   return points;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Server entry points (/api/icmsf, /api/icmsf/risk) — added 24 Oct 2026
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Two-class plan with a count limit m, lognormal concentration (FAO/WHO
+ * FOSTAT "Two-class Concentration" sheet): a unit is defective when its
+ * concentration is above m, P = 1 − NORMDIST(m, mean, SD); the lot is
+ * accepted when at most c of n units are defective, BINOMDIST(c, n, P).
+ * Checked against ICMSF's published example (Dahms): n 10, c 0,
+ * m 100 CFU/g, SD 0.8 → mean 30 CFU/g rejected 95% of the time.
+ */
+export function twoClassConcentrationAt(n: number, c: number, sd: number, m: number, logMean: number): ThreeClassConcentrationPoint {
+  const pAcceptableRegion = normDist(m, logMean, sd);
+  const pUnacceptableRegion = 1 - pAcceptableRegion;
+  const pAccept = probabilityOfAcceptance(n, c, pUnacceptableRegion);
+  return {
+    logMean,
+    arithmeticMean: logMeanToArithmeticMean(logMean, sd),
+    pAcceptableRegion,
+    pMarginalRegion: 0,
+    pUnacceptableRegion,
+    pAccept,
+    pReject: 1 - pAccept,
+  };
+}
+
+/**
+ * Plan, unit classes and lot decision for one lot.
+ *   3-class: unit ≤ m acceptable · m < unit ≤ M marginal · unit > M defective.
+ *            Not accepted when any unit is above M, or more than c are marginal.
+ *   2-class: unit > m (or positive) is defective; not accepted when more than c.
+ * Accepted only when all n results are in and none of the above happened.
+ */
+export function evaluateIcmsf(req: IcmsfRequest): IcmsfResult {
+  const k = getIcmsfCase(req.hazard, req.condition);
+  const { n, c, planClass } = k;
+  const mode = planClass === 3 ? 'count' : req.mode;
+  const limitsOk =
+    mode === 'presence'
+      ? true
+      : planClass === 3
+        ? req.m !== null && req.M !== null && req.m >= 0 && req.M > req.m
+        : req.m !== null && req.m >= 0;
+
+  let units: (UnitClass | null)[] = [];
+  let marginal = 0;
+  let defective = 0;
+  let entered = 0;
+  if (mode === 'presence') {
+    if (req.positives !== null) {
+      defective = req.positives;
+      entered = n;
+    }
+  } else if (limitsOk) {
+    units = Array.from({ length: n }, (_, i) => {
+      const x = req.results[i] ?? null;
+      if (x === null) return null;
+      entered++;
+      if (planClass === 3) {
+        if (x > (req.M as number)) { defective++; return 'defective' as const; }
+        if (x > (req.m as number)) { marginal++; return 'marginal' as const; }
+        return 'acceptable' as const;
+      }
+      if (x > (req.m as number)) { defective++; return 'defective' as const; }
+      return 'acceptable' as const;
+    });
+  }
+
+  let decision: Decision | null = null;
+  let reason: IcmsfResult['reason'] = null;
+  if (planClass === 3 && defective > 0) { decision = 'reject'; reason = 'over_M'; }
+  else if ((planClass === 3 ? marginal : defective) > c) { decision = 'reject'; reason = 'over_c'; }
+  else if (entered >= n && (mode === 'presence' || limitsOk)) decision = 'accept';
+
+  const oc = planClass === 2 ? Array.from({ length: 101 }, (_, p) => probabilityOfAcceptance(n, c, p / 100)) : null;
+  const riskPa = planClass === 2 ? probabilityOfAcceptance(n, c, Math.min(100, Math.max(0, req.riskP)) / 100) : null;
+
+  return { caseNumber: k.case, planClass, n, c, limitsOk, units, marginal, defective, entered, decision, reason, oc, riskPa };
+}
+
+/**
+ * Probability of acceptance against the lot mean concentration (lognormal,
+ * SD on the log10 scale) — 3-class with m and M, or 2-class with a count m.
+ * m and M arrive as CFU per unit and are converted to log10 here.
+ * Returns null when the limits don't fit the plan.
+ */
+export function evaluateRisk(req: IcmsfRiskRequest): IcmsfRiskResult | null {
+  const k = getIcmsfCase(req.hazard, req.condition);
+  if (!(req.m > 0) || !(req.sd > 0)) return null;
+  if (k.planClass === 3 && !(req.M !== null && req.M > req.m)) return null;
+  const lm = Math.log10(req.m);
+  const lM = k.planClass === 3 ? Math.log10(req.M as number) : lm;
+  const at = (mu: number) =>
+    k.planClass === 3
+      ? threeClassAcceptanceAt({ n: k.n, c: k.c, sd: req.sd, m: lm, M: lM }, mu)
+      : twoClassConcentrationAt(k.n, k.c, req.sd, lm, mu);
+  const strip = (p: ThreeClassConcentrationPoint): IcmsfRiskPoint => ({
+    logMean: p.logMean, arithmeticMean: p.arithmeticMean, pAcceptableRegion: p.pAcceptableRegion,
+    pMarginalRegion: p.pMarginalRegion, pUnacceptableRegion: p.pUnacceptableRegion, pAccept: p.pAccept,
+  });
+  const min = lm - 3;
+  const max = lM + 1;
+  const curve = Array.from({ length: 101 }, (_, i) => strip(at(min + ((max - min) * i) / 100)));
+  // pAccept falls as the mean rises: find where it crosses 95% and 5%
+  const cross = (target: number): number | null => {
+    let lo = lm - 8;
+    let hi = lM + 8;
+    if (at(lo).pAccept < target || at(hi).pAccept > target) return null;
+    for (let i = 0; i < 80; i++) {
+      const mid = (lo + hi) / 2;
+      if (at(mid).pAccept > target) lo = mid; else hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+  return { curve, point: strip(at(req.point)), accept95: cross(0.95), reject95: cross(0.05) };
 }

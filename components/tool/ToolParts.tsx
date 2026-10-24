@@ -180,7 +180,7 @@ export function ResultsHead({ nPoints, ad, isNormal, hasSpec, children }: {
   )
 }
 
-export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel, onPDF, save, pngLabel }: {
+export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel, onPDF, save, pngLabel, pngDisabled }: {
   isPro: boolean
   isLoggedIn: boolean
   hasResult: boolean
@@ -191,13 +191,15 @@ export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel,
   save: ReactNode
   /** label of the PNG button when the image is not a chart */
   pngLabel?: string
+  /** no image to export (e.g. no chart on screen) */
+  pngDisabled?: boolean
 }) {
   const { t } = useLanguage()
   return (
     <div id="tl-export" className="tl-exports">
       {!isLoggedIn && <span style={{ fontSize: 12, color: 'var(--qh-muted)' }}>{t('spc_free_with_account')}</span>}
       <button className="tl-xbtn" onClick={onCSV} disabled={!hasResult}>CSV</button>
-      <button className="tl-xbtn" onClick={onPNG} disabled={!hasResult}>{pngLabel ?? t('spc_x_png')}</button>
+      <button className="tl-xbtn" onClick={onPNG} disabled={!hasResult || pngDisabled}>{pngLabel ?? t('spc_x_png')}</button>
       <button className="tl-xbtn tl-xbtn-pro" onClick={onExcel}>Excel{!isPro && <span className="tl-pro">PRO</span>}</button>
       <button className="tl-xbtn tl-xbtn-pro" onClick={onPDF} disabled={!hasResult}>{t('spc_x_pdf')}{!isPro && <span className="tl-pro">PRO</span>}</button>
       {save}

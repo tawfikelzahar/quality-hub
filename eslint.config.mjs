@@ -18,6 +18,8 @@ const eslintConfig = defineConfig([
           { name: "@/lib/spc/reportText.server", message: "Server only." },
           { name: "@/lib/oee/insight.server", message: "Server only (/api/oee/insight, Pro)." },
           { name: "@/lib/aql/calculator", allowTypeImports: true, message: "AQL plans come from /api/aql. For choices and reply types use @/lib/aql/options." },
+          { name: "@/lib/icmsf/calculator", allowTypeImports: true, message: "ICMSF plans and risk curves come from /api/icmsf. Use @/lib/icmsf/options." },
+          { name: "@/lib/icmsf/tables", allowTypeImports: true, message: "Table 6-1 stays on the server (/api/icmsf). Use @/lib/icmsf/options." },
           { name: "@/lib/aql/tables", allowTypeImports: true, message: "The verified ISO tables stay on the server (/api/aql). Use @/lib/aql/options." },
           { name: "@/lib/spc/reportInterpretation", allowTypeImports: true, message: "The interpretation runs on the server (lib/spc/reportText.server.ts, /api/spc/report-text)." },
           { name: "@/lib/spc/capabilityReason", allowTypeImports: true, message: "The verdict reason is written on the server and arrives with the result." },

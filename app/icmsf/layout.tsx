@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: 'ICMSF Microbiological Sampling Plan Calculator',
   description:
-    'Free ICMSF microbiological sampling plan tool. Select your Case from hazard level and conditions of use, enter your m/M limits, get n/c and an Operating Characteristic curve. Methodology aligned with Codex Alimentarius CAC/GL 21.',
+    'Free ICMSF microbiological sampling plan tool. Pick the hazard (with ICMSF organism examples) and conditions of use to get the Case and n, c, m, M, then the lot decision from your unit results, with the OC curve.',
   alternates: { canonical: '/icmsf' },
 }
 
