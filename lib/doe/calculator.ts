@@ -1,305 +1,222 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Design of Experiments — Full Factorial 2^k analysis engine.
+// Two-level full factorial analysis (2^k, full model). Server only:
+// /api/doe calls it, ESLint keeps it out of the browser.
 //
-// Standard textbook formulation (Montgomery, "Design and Analysis of
-// Experiments", Ch. 6), matching what Minitab/JMP report for a two-level
-// full factorial: coded (-1/+1) design matrix in standard (Yates) order,
-// contrasts -> effects -> sums of squares, then an ANOVA using pooled
-// replication error. The effect/SS formulas here were verified numerically
-// against Montgomery's published 2^4 filtration-rate example (Ch. 6) —
-// every effect value (A=21.625, AC=-18.125, AD=16.625, D=14.625, C=9.875,
-// B=3.125, BC=2.375, AB=0.125, etc.) matched to the last decimal — and
-// against a hand-checkable 2^2 example, before being wired into this file.
+// Method (Montgomery, Design and Analysis of Experiments, Ch. 6):
+//  • effect = contrast of the design-point means ÷ 2^(k−1)
+//  • SS = r · contrast² ÷ 2^k · coefficient (coded units) = effect ÷ 2
+//  • replicated (r ≥ 2): pure error from the replicates, F and t tests with
+//    exact distributions, standardized effect = coef ÷ SE coef,
+//    SE coef = √(MSE ÷ N), reference line t(1 − α/2, error df)
+//  • one replicate: no error term, so the active effects come from Lenth's
+//    pseudo standard error: s0 = 1.5 · median|effect|,
+//    PSE = 1.5 · median{|effect| < 2.5 · s0}, ME = t(1 − α/2, m/3) · PSE
+//    (Lenth 1989, the same steps and degrees of freedom the leading
+//    statistical packages document for their effects plots)
 //
-// Shares the same normal/F-distribution approximations used in
-// lib/regression/calculator.ts, so p-values read consistently across the
-// whole app.
+// Checked in tests/golden/doe/check.mts against Montgomery Example 6.1
+// (plasma etch, 2^3, 2 replicates) with SAS PROC GLM printed SS and p-values,
+// and Example 6.2 (filtration rate, 2^4, 1 replicate: published effects,
+// Lenth PSE = 2.625).
 // ─────────────────────────────────────────────────────────────────────────
 
-export const MIN_FACTORS = 2
-export const MAX_FACTORS = 5
-export const MAX_RUN_LABEL_FACTORS = 5
+import { LETTERS, MAX_FACTORS, MIN_FACTORS, codedLevel, type FactorDef } from './design'
+import { fSF, tQuantile, tTwoSidedP } from '../stats/dist'
 
-export interface FactorDef {
-  name: string // e.g. "A", "B" — or a custom label like "Temperature"
-  low: number
-  high: number
-}
+export const DOE_ALPHA = 0.05
 
-export interface DesignRow {
-  runOrder: number // 1-indexed physical run order (after optional randomization)
-  standardOrder: number // 1-indexed Yates standard order (fixed reference order)
-  coded: Record<string, 1 | -1> // e.g. { A: -1, B: 1 }
-  actual: Record<string, number> // decoded to the factor's real low/high units
-  replicate: number // which replicate (1..r) this row belongs to
-}
-
-export interface EffectRow {
-  term: string // e.g. "A", "AB", "ABC"
-  factors: string[]
-  contrast: number
+export interface DoeTerm {
+  /** letters, e.g. "AC" */
+  term: string
+  /** factor indexes in the term */
+  idx: number[]
+  /** 1 = main effect, 2 = two-factor interaction … */
+  order: number
   effect: number
+  /** coded coefficient = effect / 2 */
+  coef: number
   ss: number
-}
-
-export interface AnovaRow {
-  source: string
-  df: number
-  ss: number
-  ms: number
-  fStat: number | null
+  /** % of total SS */
+  contribution: number
+  /** replicated only */
+  seCoef: number | null
+  tValue: number | null
+  fValue: number | null
   pValue: number | null
+  /** the value the Pareto chart draws: |t| when replicated, |effect| otherwise */
+  paretoValue: number
+  significant: boolean
 }
 
 export interface DoeResult {
-  factors: FactorDef[]
   k: number
   replicates: number
-  runsPerReplicate: number // 2^k
+  runsPerReplicate: number
   totalRuns: number
-  designMatrix: DesignRow[]
-  effects: EffectRow[] // sorted by |effect| descending
-  anova: AnovaRow[]
+  factors: FactorDef[]
+  alpha: number
+  /** 'anova' when there is pure error (r ≥ 2), 'lenth' for one replicate */
+  method: 'anova' | 'lenth'
+  /** main effects first, then two-factor interactions … (A, B, C, AB, AC, BC, ABC) */
+  terms: DoeTerm[]
+  error: { df: number; ss: number; ms: number } | null
+  total: { df: number; ss: number }
+  model: { df: number; ss: number; ms: number; fValue: number | null; pValue: number | null }
   grandMean: number
-  sst: number
-  sse: number
-  dfError: number
-  mse: number
+  /** √MSE, replicated only */
+  s: number | null
   r2: number
-  r2Adj: number
-  /** Regression equation coefficients in CODED units: intercept + sum(coef_i * x_i) */
-  regressionCoded: { term: string; coefficient: number }[]
+  r2Adj: number | null
+  r2Pred: number | null
+  /** Lenth's method (one replicate) */
+  lenth: { s0: number; pse: number; df: number; me: number } | null
+  /** where the Pareto chart draws its line: t critical or Lenth's ME */
+  paretoLine: number
+  /** terms judged significant / active, largest first */
+  significant: string[]
+  mainEffects: { idx: number; low: number; high: number }[]
+  /** mean response for each pair of factors: means[i][j], i = level of a (0 low, 1 high), j = level of b */
+  interactions: { a: number; b: number; means: [[number, number], [number, number]] }[]
+  /** fitted equation in the factors' own units */
+  uncoded: { idx: number[]; coef: number }[]
 }
 
-export type DoeError =
-  | 'too-few-factors'
-  | 'too-many-factors'
-  | 'invalid-levels'
-  | 'missing-responses'
-  | 'no-replication'
+export type DoeError = 'factors' | 'levels' | 'responses' | 'unequal' | 'no-variation' | 'zero-error'
 
-export function validateFactors(factors: FactorDef[]): DoeError | null {
-  if (factors.length < MIN_FACTORS) return 'too-few-factors'
-  if (factors.length > MAX_FACTORS) return 'too-many-factors'
-  for (const f of factors) {
-    if (!Number.isFinite(f.low) || !Number.isFinite(f.high) || f.low === f.high) {
-      return 'invalid-levels'
-    }
+const median = (v: number[]) => {
+  const s = [...v].sort((a, b) => a - b)
+  const m = Math.floor(s.length / 2)
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+}
+
+/** All subsets of 0..k−1 except the empty one, main effects first, then by position (A, B, C, AB, AC, BC, ABC). */
+function termIndexes(k: number): number[][] {
+  const out: number[][] = []
+  const walk = (start: number, size: number, cur: number[]) => {
+    if (cur.length === size) { out.push([...cur]); return }
+    for (let i = start; i < k; i++) { cur.push(i); walk(i + 1, size, cur); cur.pop() }
   }
-  return null
+  for (let size = 1; size <= k; size++) walk(0, size, [])
+  return out
 }
 
 /**
- * Builds the coded (+-1) design matrix in standard/Yates order for k
- * factors, replicated `replicates` times. Standard order: the first factor
- * alternates fastest (period 2), the second alternates every 2 rows, etc.
- * — the same convention used in Minitab's "Standard Order" column and in
- * the textbook contrast-table derivation verified above.
+ * responses[p] = the replicate values at design point p (standard order,
+ * 0-based). Every point needs the same number of values.
  */
-export function buildDesignMatrix(factors: FactorDef[], replicates: number): DesignRow[] {
+export function analyzeFactorial(factors: FactorDef[], responses: number[][], alpha = DOE_ALPHA): DoeResult | DoeError {
   const k = factors.length
-  const runsPerRep = Math.pow(2, k)
-  const rows: DesignRow[] = []
+  if (k < MIN_FACTORS || k > MAX_FACTORS) return 'factors'
+  if (factors.some(f => !Number.isFinite(f.low) || !Number.isFinite(f.high) || f.low === f.high)) return 'levels'
+  const P = 2 ** k
+  if (responses.length !== P || responses.some(r => r.length === 0 || r.some(v => !Number.isFinite(v)))) return 'responses'
+  const r = responses[0].length
+  if (responses.some(x => x.length !== r)) return 'unequal'
 
-  let runOrder = 1
-  for (let rep = 1; rep <= replicates; rep++) {
-    for (let run = 0; run < runsPerRep; run++) {
-      const coded: Record<string, 1 | -1> = {}
-      const actual: Record<string, number> = {}
-      factors.forEach((f, idx) => {
-        const bit = Math.floor(run / Math.pow(2, idx)) % 2
-        const level: 1 | -1 = bit === 0 ? -1 : 1
-        coded[f.name] = level
-        actual[f.name] = level === -1 ? f.low : f.high
+  const N = P * r
+  const means = responses.map(x => x.reduce((a, v) => a + v, 0) / r)
+  const grandMean = means.reduce((a, v) => a + v, 0) / P
+  const sst = responses.flat().reduce((a, v) => a + (v - grandMean) ** 2, 0)
+  if (!(sst > 1e-12 * Math.max(1, grandMean * grandMean))) return 'no-variation'
+
+  const sse = responses.reduce((a, x, p) => a + x.reduce((b, v) => b + (v - means[p]) ** 2, 0), 0)
+  const dfE = P * (r - 1)
+  const replicated = dfE > 0
+  if (replicated && !(sse > 1e-12 * sst)) return 'zero-error'
+  const mse = replicated ? sse / dfE : NaN
+  const seCoef = replicated ? Math.sqrt(mse / N) : null
+  const tCrit = replicated ? tQuantile(1 - alpha / 2, dfE) : null
+
+  const terms: DoeTerm[] = termIndexes(k).map(idx => {
+    let contrast = 0
+    for (let p = 0; p < P; p++) contrast += idx.reduce((s, i) => s * codedLevel(p, i), 1) * means[p]
+    const effect = contrast / (P / 2)
+    const coef = effect / 2
+    const ss = (r * contrast * contrast) / P
+    const tValue = seCoef ? coef / seCoef : null
+    const pValue = tValue !== null ? tTwoSidedP(tValue, dfE) : null
+    return {
+      term: idx.map(i => LETTERS[i]).join(''), idx, order: idx.length, effect, coef, ss,
+      contribution: (ss / sst) * 100,
+      seCoef, tValue, fValue: tValue !== null ? tValue * tValue : null, pValue,
+      paretoValue: tValue !== null ? Math.abs(tValue) : Math.abs(effect),
+      significant: pValue !== null ? pValue < alpha : false,
+    }
+  })
+
+  let lenth: DoeResult['lenth'] = null
+  if (!replicated) {
+    const abs = terms.map(t => Math.abs(t.effect))
+    const s0 = 1.5 * median(abs)
+    const kept = abs.filter(a => a < 2.5 * s0)
+    const pse = 1.5 * median(kept.length ? kept : abs)
+    const df = terms.length / 3
+    const me = tQuantile(1 - alpha / 2, df) * pse
+    lenth = { s0, pse, df, me }
+    for (const t of terms) t.significant = pse > 0 && Math.abs(t.effect) > me
+  }
+
+  const ssModel = sst - sse
+  const dfModel = P - 1
+  const model = {
+    df: dfModel, ss: ssModel, ms: ssModel / dfModel,
+    fValue: replicated ? ssModel / dfModel / mse : null,
+    pValue: replicated ? fSF(ssModel / dfModel / mse, dfModel, dfE) : null,
+  }
+  const r2 = ssModel / sst
+  // every point has leverage 1/r in the full model, so PRESS = SSE · (r / (r − 1))²
+  const r2Pred = replicated ? 1 - (sse * (r / (r - 1)) ** 2) / sst : null
+  const r2Adj = replicated ? 1 - (sse / dfE) / (sst / (N - 1)) : null
+
+  const mainEffects = factors.map((_, i) => {
+    let lo = 0, hi = 0
+    for (let p = 0; p < P; p++) { if (codedLevel(p, i) < 0) lo += means[p]; else hi += means[p] }
+    return { idx: i, low: lo / (P / 2), high: hi / (P / 2) }
+  })
+  const interactions: DoeResult['interactions'] = []
+  for (let a = 0; a < k; a++) for (let b = a + 1; b < k; b++) {
+    const sum = [[0, 0], [0, 0]]
+    for (let p = 0; p < P; p++) sum[codedLevel(p, a) < 0 ? 0 : 1][codedLevel(p, b) < 0 ? 0 : 1] += means[p]
+    const q = P / 4
+    interactions.push({ a, b, means: [[sum[0][0] / q, sum[0][1] / q], [sum[1][0] / q, sum[1][1] / q]] })
+  }
+
+  // uncoded: x = (X − centre) / half-range, expand every coded product
+  const centre = factors.map(f => (f.low + f.high) / 2)
+  const half = factors.map(f => (f.high - f.low) / 2)
+  const acc = new Map<string, number>()
+  const add = (idx: number[], v: number) => { const key = idx.join(','); acc.set(key, (acc.get(key) ?? 0) + v) }
+  add([], grandMean)
+  for (const t of terms) {
+    const n = t.idx.length
+    for (let mask = 0; mask < 1 << n; mask++) {
+      const keep: number[] = []
+      let v = t.coef
+      t.idx.forEach((i, j) => {
+        if (mask & (1 << j)) { keep.push(i); v /= half[i] } else v *= -centre[i] / half[i]
       })
-      rows.push({
-        runOrder: runOrder++,
-        standardOrder: run + 1 + rep * 0, // standard order repeats each replicate block; see note below
-        coded,
-        actual,
-        replicate: rep,
-      })
+      add(keep, v)
     }
   }
+  const uncoded = [[] as number[], ...terms.map(t => t.idx)].map(idx => ({ idx, coef: acc.get(idx.join(',')) ?? 0 }))
 
-  // Standard order is really "which of the 2^k coded combinations this is",
-  // repeated once per replicate block — fix up numbering explicitly rather
-  // than relying on the loop arithmetic above (kept the loop simple/clear).
-  rows.forEach((row, i) => {
-    row.standardOrder = (i % runsPerRep) + 1
-  })
-
-  return rows
-}
-
-/** Fisher-Yates shuffle of run order only (standardOrder / coded / actual
- * values are untouched) — used for the optional "randomize run order"
- * checkbox, since real experiments should not be run in standard order. */
-export function randomizeRunOrder(rows: DesignRow[]): DesignRow[] {
-  const shuffled = [...rows]
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-  }
-  return shuffled.map((row, i) => ({ ...row, runOrder: i + 1 }))
-}
-
-function allCombinations(names: string[]): string[][] {
-  const result: string[][] = []
-  const n = names.length
-  for (let mask = 1; mask < (1 << n); mask++) {
-    const combo: string[] = []
-    for (let i = 0; i < n; i++) if (mask & (1 << i)) combo.push(names[i])
-    result.push(combo)
-  }
-  return result
-}
-
-// ── Normal / F-distribution helpers (same approximations as lib/regression) ──
-function erf(x: number): number {
-  const sign = x < 0 ? -1 : 1
-  const ax = Math.abs(x)
-  const a1 = 0.254829592
-  const a2 = -0.284496736
-  const a3 = 1.421413741
-  const a4 = -1.453152027
-  const a5 = 1.061405429
-  const p = 0.3275911
-  const t = 1 / (1 + p * ax)
-  const y = 1 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-ax * ax)
-  return sign * y
-}
-
-function normalCdf(z: number): number {
-  return 0.5 * (1 + erf(z / Math.SQRT2))
-}
-
-/** Wilson-Hilferty cube-root normal approximation of the F distribution —
- * same closed-form approach used in lib/regression/calculator.ts, avoiding
- * a full incomplete-beta implementation while staying accurate for the
- * df ranges typical of a factorial study's replication error. */
-function fDistPValue(f: number, df1: number, df2: number): number {
-  if (f <= 0) return 1
-  if (df2 <= 0) return NaN
-  const a = 2 / (9 * df1)
-  const b = 2 / (9 * df2)
-  const z =
-    (Math.pow(f, 1 / 3) * (1 - b) - (1 - a)) / Math.sqrt(a + b * Math.pow(f, 2 / 3))
-  const p = 1 - normalCdf(z)
-  return Math.min(1, Math.max(0, p))
-}
-
-/**
- * Runs the full analysis: effects (via Yates contrasts on design-point
- * means), ANOVA (using pooled within-design-point replication error when
- * replicates > 1), R², and the coded regression equation.
- *
- * `responses` must have one array of replicate values per design point, in
- * STANDARD order (same order as buildDesignMatrix's first `2^k` rows),
- * i.e. responses[i] = the replicate values observed at design point i+1.
- */
-export function runFullFactorial(factors: FactorDef[], responses: number[][]): DoeResult {
-  const k = factors.length
-  const runsPerRep = Math.pow(2, k)
-  if (responses.length !== runsPerRep) {
-    throw new Error(`Expected ${runsPerRep} design points, got ${responses.length}`)
-  }
-  const replicates = responses[0]?.length ?? 0
-  const totalRuns = runsPerRep * replicates
-
-  // coded matrix for the 2^k design points (no replication needed here —
-  // effects are computed on the per-point means)
-  const codedPoints: Record<string, 1 | -1>[] = []
-  for (let run = 0; run < runsPerRep; run++) {
-    const point: Record<string, 1 | -1> = {}
-    factors.forEach((f, idx) => {
-      const bit = Math.floor(run / Math.pow(2, idx)) % 2
-      point[f.name] = bit === 0 ? -1 : 1
-    })
-    codedPoints.push(point)
-  }
-
-  const pointMeans = responses.map((reps) => reps.reduce((s, v) => s + v, 0) / reps.length)
-  const grandMean = pointMeans.reduce((s, v) => s + v, 0) / runsPerRep
-
-  const names = factors.map((f) => f.name)
-  const combos = allCombinations(names)
-
-  const effects: EffectRow[] = combos.map((combo) => {
-    const contrast = codedPoints.reduce((sum, point, i) => {
-      const sign = combo.reduce((s, name) => s * point[name], 1)
-      return sum + sign * pointMeans[i]
-    }, 0)
-    const effect = contrast / (runsPerRep / 2)
-    // SS scaled by replicate count: SS = r * contrast^2 / 2^k
-    const ss = replicates > 0 ? (replicates * contrast * contrast) / runsPerRep : (contrast * contrast) / runsPerRep
-    return { term: combo.join(''), factors: combo, contrast, effect, ss }
-  })
-
-  effects.sort((a, b) => Math.abs(b.effect) - Math.abs(a.effect))
-
-  // Total sum of squares over ALL individual observations (not point means)
-  const allValues = responses.flat()
-  const overallMean = allValues.reduce((s, v) => s + v, 0) / allValues.length
-  const sst = allValues.reduce((s, v) => s + (v - overallMean) ** 2, 0)
-
-  // Pure replication error: sum of squared deviations from each design
-  // point's own mean, pooled across all points.
-  let sse = 0
-  responses.forEach((reps, i) => {
-    const m = pointMeans[i]
-    reps.forEach((v) => (sse += (v - m) ** 2))
-  })
-  const dfError = runsPerRep * (replicates - 1)
-  const mse = dfError > 0 ? sse / dfError : NaN
-
-  const anova: AnovaRow[] = effects.map((e) => {
-    const df = 1
-    const ms = e.ss / df
-    const fStat = dfError > 0 ? ms / mse : null
-    const pValue = fStat !== null ? fDistPValue(fStat, df, dfError) : null
-    return { source: e.term, df, ss: e.ss, ms, fStat, pValue }
-  })
-
-  if (dfError > 0) {
-    anova.push({ source: 'Error', df: dfError, ss: sse, ms: mse, fStat: null, pValue: null })
-  }
-  anova.push({ source: 'Total', df: totalRuns - 1, ss: sst, ms: NaN, fStat: null, pValue: null })
-
-  const ssModel = effects.reduce((s, e) => s + e.ss, 0)
-  const r2 = sst > 0 ? ssModel / sst : 0
-  const dfModel = effects.length
-  const r2Adj =
-    dfError > 0 && totalRuns - dfModel - 1 > 0
-      ? 1 - (1 - r2) * (totalRuns - 1) / (totalRuns - dfModel - 1)
-      : r2
-
-  // Coded regression equation: coefficient = effect / 2 (standard convention
-  // for a 2-level factorial fit in coded units)
-  const regressionCoded: { term: string; coefficient: number }[] = [
-    { term: 'Intercept', coefficient: grandMean },
-    ...effects.map((e) => ({ term: e.term, coefficient: e.effect / 2 })),
-  ]
-
-  const designMatrix = buildDesignMatrix(factors, replicates)
+  const significant = terms.filter(t => t.significant).sort((a, b) => b.paretoValue - a.paretoValue).map(t => t.term)
 
   return {
-    factors,
-    k,
-    replicates,
-    runsPerReplicate: runsPerRep,
-    totalRuns,
-    designMatrix,
-    effects,
-    anova,
-    grandMean,
-    sst,
-    sse,
-    dfError,
-    mse,
-    r2,
-    r2Adj,
-    regressionCoded,
+    k, replicates: r, runsPerReplicate: P, totalRuns: N, factors, alpha,
+    method: replicated ? 'anova' : 'lenth',
+    terms,
+    error: replicated ? { df: dfE, ss: sse, ms: mse } : null,
+    total: { df: N - 1, ss: sst },
+    model, grandMean,
+    s: replicated ? Math.sqrt(mse) : null,
+    r2, r2Adj, r2Pred, lenth,
+    paretoLine: replicated ? (tCrit as number) : (lenth as NonNullable<typeof lenth>).me,
+    significant, mainEffects, interactions, uncoded,
   }
 }
 
+/** Prediction from the uncoded equation (used by the golden test). */
+export function predictUncoded(res: DoeResult, x: number[]): number {
+  return res.uncoded.reduce((a, u) => a + u.coef * u.idx.reduce((p, i) => p * x[i], 1), 0)
+}

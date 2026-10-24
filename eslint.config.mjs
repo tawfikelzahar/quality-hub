@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
           { name: "@/lib/spc/reportInterpretation", allowTypeImports: true, message: "The interpretation runs on the server (lib/spc/reportText.server.ts, /api/spc/report-text)." },
           { name: "@/lib/spc/capabilityReason", allowTypeImports: true, message: "The verdict reason is written on the server and arrives with the result." },
           { name: "@/lib/spc/nelson", allowTypeImports: true, message: "Rules stay on the server. For test-set labels use @/lib/spc/testSets." },
+          { name: "@/lib/doe/calculator", allowTypeImports: true, message: "The factorial analysis comes from /api/doe. For the design matrix use @/lib/doe/design." },
+          { name: "@/lib/stats/dist", message: "Formulas stay on the server." },
           { name: "@/lib/stats/normal", allowTypeImports: true, message: "Formulas stay on the server. For p-value text use @/lib/stats/format." },
         ],
       }],

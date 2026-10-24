@@ -380,9 +380,28 @@ export default function IcmsfCalculator() {
     a.click()
   }
   const charts = () => [ocRef.current, riskRef.current]
-  const exportExcel = () => (isPro ? withWatermarksDisabled(charts(), runExcel) : runExcel())
-  const exportPDF = () => (isPro ? withWatermarksDisabled(charts(), runPDF) : runPDF())
-  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled(charts(), runPNG) : runPNG())
+  /** exports are in English: the charts' axis titles switch for the snapshot (S6) */
+  const withEnglishAxes = async <T,>(fn: () => T | Promise<T>): Promise<T> => {
+    type Sc = { x?: { title?: { text?: string } }; y?: { title?: { text?: string } } }
+    const jobs: { ch: ChartJSInstance<'line'>; title: { text?: string }; text: string; keep?: string }[] = []
+    const add = (ch: ChartJSInstance<'line'> | null, axis: 'x' | 'y', text: string) => {
+      const title = (ch?.options.scales as Sc | undefined)?.[axis]?.title
+      if (ch && title) jobs.push({ ch, title, text, keep: title.text })
+    }
+    add(ocRef.current, 'x', EN.icmsf_oc_x)
+    add(ocRef.current, 'y', EN.icmsf_oc_y)
+    add(riskRef.current, 'x', EN.icmsf_risk_x.replace('{unit}', inp.unit))
+    add(riskRef.current, 'y', EN.icmsf_oc_y)
+    jobs.forEach(j => { j.title.text = j.text; j.ch.update('none') })
+    try {
+      return await fn()
+    } finally {
+      jobs.forEach(j => { j.title.text = j.keep; j.ch.update('none') })
+    }
+  }
+  const exportExcel = () => (isPro ? withWatermarksDisabled(charts(), () => withEnglishAxes(runExcel)) : runExcel())
+  const exportPDF = () => (isPro ? withWatermarksDisabled(charts(), () => withEnglishAxes(runPDF)) : runPDF())
+  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled(charts(), () => withEnglishAxes(runPNG)) : runPNG())
 
   const helpSteps = [1, 2, 3, 4].map(k => ({ t: t(`icmsf_help_s${k}_t` as TKey), d: t(`icmsf_help_s${k}_d` as TKey) }))
   const mBad = mode === 'count' && body.m === null
