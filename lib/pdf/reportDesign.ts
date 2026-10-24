@@ -117,6 +117,8 @@ export interface ReportContext {
   y: number
   reportTitle: string
   toolName: string
+  /** set by addSignOff() so finalizeReport() doesn't draw the sign-off a second time */
+  signedOff?: boolean
 }
 
 function setFill(pdf: jsPDF, rgb: RGB) {
@@ -992,9 +994,7 @@ export function criteriaReferenceTable(
 /** Draws the footer (hairline + copyright + page numbers) on every page. Call once, right before pdf.save(). */
 export function finalizeReport(ctx: ReportContext) {
   const branding = getReportBranding()
-  if (branding && (branding.signPrepared || branding.signApproved)) {
-    drawSignatureBlock(ctx, branding.preparedBy.trim(), branding.signPrepared, branding.signApproved)
-  }
+  if (!ctx.signedOff) addSignOff(ctx)
   const { pdf, margin, pageWidth, pageHeight } = ctx
   const pageCount = pdf.getNumberOfPages()
   const year = new Date().getFullYear()
@@ -1010,6 +1010,19 @@ export function finalizeReport(ctx: ReportContext) {
     drawText(pdf, branding ? `Generated with ${SITE.name} · ${SITE.domain}` : `© ${year} ${SITE.name} · ${SITE.domain}`, margin, fy + 13)
     drawText(pdf, ctx.reportTitle, pageWidth / 2, fy + 13, { align: 'center' })
     drawText(pdf, `Page ${i} of ${pageCount}`, pageWidth - margin, fy + 13, { align: 'right' })
+  }
+}
+
+/**
+ * Draws the sign-off now instead of at the very end — for reports whose last
+ * section is reference material (e.g. the AQL switching rules), so the
+ * signature sits under the results. Does nothing without branding.
+ */
+export function addSignOff(ctx: ReportContext) {
+  ctx.signedOff = true
+  const branding = getReportBranding()
+  if (branding && (branding.signPrepared || branding.signApproved)) {
+    drawSignatureBlock(ctx, branding.preparedBy.trim(), branding.signPrepared, branding.signApproved)
   }
 }
 

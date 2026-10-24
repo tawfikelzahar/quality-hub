@@ -12,7 +12,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
-import { createReport as createPdfReport, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import {
   AQL_OPTIONS, LEVELS, TYPES, MIN_LOT_SIZE, MAX_LOT_SIZE, MAX_STAGES, MAX_CLASSES, DEFAULT_DEFECT_CLASSES, levelName,
   type InspectionLevel, type InspectionType, type AqlStageRequest, type AqlStageResult, type Decision,
@@ -197,6 +197,7 @@ export default function AQLCalculator() {
     v.r.error
       ? []
       : v.r.classes.map((cr, j) => ({
+          stageIndex: i,
           stage: stageTitle(v, i), lot: v.req.lotSize, level: levelName(v.st.level), type: v.st.type, code: v.r.codeLetter ?? '',
           cls: v.st.classes[j]?.name || `#${j + 1}`, aql: aqlText(v.req.classes[j].aql), letter: cr.letter, n: cr.n, inspect: cr.inspect,
           ac: cr.ac, re: cr.re, found: v.req.classes[j].found, result: cr.decision === 'accept' ? 'Accept' : cr.decision === 'reject' ? 'Not accepted' : '',
@@ -209,7 +210,7 @@ export default function AQLCalculator() {
     if (!isLoggedIn) { goToLogin('aql', 'csv'); return }
     if (!flat.length) return
     const lines = [
-      'Stage,Lot Size,Level,Inspection,Code Letter,Defect Class,AQL %,Plan Letter,Sample (n),Inspect,Ac,Re,Found,Result,Lot Result',
+      'Stage,Lot Size,Level,Inspection,Code Letter,Defect Class,AQL %,Plan Letter,Plan Sample (n),Sample to Inspect,Ac,Re,Found,Result,Lot Result',
       ...flat.map(r => [csvCell(r.stage), r.lot, r.level, r.type, r.code, csvCell(r.cls), r.aql, r.letter, r.n, r.inspect, r.ac, r.re, r.found ?? '', r.result, r.lotResult].join(',')),
     ]
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
@@ -249,8 +250,8 @@ export default function AQLCalculator() {
         { header: 'Defect Class', key: 'cls', align: 'left', width: 16 },
         { header: 'AQL %', key: 'aql', align: 'right' },
         { header: 'Plan Letter', key: 'letter', align: 'center' },
-        { header: 'Sample (n)', key: 'n', align: 'right', numFmt: '#,##0' },
-        { header: 'Inspect', key: 'inspect', align: 'right', numFmt: '#,##0' },
+        { header: 'Plan Sample (n)', key: 'n', align: 'right', numFmt: '#,##0', width: 14 },
+        { header: 'Sample to Inspect', key: 'inspect', align: 'right', numFmt: '#,##0', width: 15 },
         { header: 'Ac', key: 'ac', align: 'center' },
         { header: 'Re', key: 're', align: 'center' },
         { header: 'Found', key: 'found', align: 'center' },
@@ -285,36 +286,38 @@ export default function AQLCalculator() {
     })
     const w = ctx.pageWidth - ctx.margin * 2
     const tone = (d: Decision | null) => (d === 'accept' ? REPORT_COLORS.good : d === 'reject' ? REPORT_COLORS.bad : null)
-    dataTable(
-      ctx,
-      'Sampling Plan',
-      [
-        { header: 'STAGE', width: w - 432 },
-        { header: 'LOT', width: 40, align: 'right' },
-        { header: 'LEVEL', width: 42, align: 'center' },
-        { header: 'CLASS', width: 56 },
-        { header: 'AQL %', width: 42, align: 'right' },
-        { header: 'LETTER', width: 48, align: 'center' },
-        { header: 'INSPECT', width: 50, align: 'right' },
-        { header: 'AC', width: 28, align: 'right' },
-        { header: 'RE', width: 28, align: 'right' },
-        { header: 'FOUND', width: 46, align: 'right' },
-        { header: 'RESULT', width: 52 },
-      ],
-      flat.map(r => [`${r.stage} (${r.type})`, int(r.lot), r.level, r.cls, r.aql, r.letter, int(r.inspect), String(r.ac), String(r.re), r.found === null ? '-' : String(r.found), r.result || '-']),
-      { cellColors: flat.map(r => [null, null, null, null, null, null, null, null, null, null, tone(r.decision)]) },
-    )
+    // one table per stage: the stage details go in the title, not in every row
     view.forEach((v, i) => {
-      const notes = v.r.error ? [] : stageNotes(EN, v)
-      if (notes.length) calloutBox(ctx, `${stageTitle(v, i)}: ${notes.join(' ')}`, 'warn')
+      if (v.r.error) return
+      const rows = flat.filter(r => r.stageIndex === i)
+      dataTable(
+        ctx,
+        `${stageTitle(v, i)} · lot ${int(v.req.lotSize)} · level ${levelName(v.st.level)} · ${v.st.type} · code letter ${v.r.codeLetter}`,
+        [
+          { header: 'CLASS', width: w - 356 },
+          { header: 'AQL %', width: 50, align: 'right' },
+          { header: 'LETTER', width: 50, align: 'center' },
+          { header: 'SAMPLE (n)', width: 64, align: 'right' },
+          { header: 'AC', width: 34, align: 'right' },
+          { header: 'RE', width: 34, align: 'right' },
+          { header: 'FOUND', width: 50, align: 'right' },
+          { header: 'RESULT', width: 74 },
+        ],
+        rows.map(r => [r.cls, r.aql, r.letter, `${int(r.inspect)}${r.inspect < r.n ? ' (100%)' : ''}`, String(r.ac), String(r.re), r.found === null ? '-' : String(r.found), r.result || '-']),
+        { cellColors: rows.map(r => [null, null, null, null, null, null, null, tone(r.decision)]) },
+      )
+      const notes = stageNotes(EN, v)
+      if (notes.length) calloutBox(ctx, notes.join(' '), 'warn')
     })
+    calloutBox(ctx, EN.aql_source, 'info')
+    // signature under the results; the switching rules are reference material after it
+    addSignOff(ctx)
     dataTable(
       ctx,
-      'Switching Rules (ISO 2859-1:2026, 9.3 to 9.5)',
+      'Reference: Switching Rules (ISO 2859-1:2026, 9.3 to 9.5)',
       [{ header: 'SWITCH', width: 130 }, { header: 'WHEN', width: w - 130 }],
       [...RULES.map(r => [say(EN, r.t).replace('→', 'to'), say(EN, r.d)]), [EN.aql_score_t, EN.aql_score_d]],
     )
-    calloutBox(ctx, EN.aql_source, 'info')
     finalizeReport(ctx)
     ctx.pdf.save('aql-report.pdf')
   }
@@ -325,7 +328,7 @@ export default function AQLCalculator() {
     if (!flat.length) return
     const cols = [
       { h: 'Stage', w: 170 }, { h: 'Lot', w: 70 }, { h: 'Level', w: 50 }, { h: 'Class', w: 110 }, { h: 'AQL %', w: 60 },
-      { h: 'Letter', w: 55 }, { h: 'Inspect', w: 65 }, { h: 'Ac', w: 40 }, { h: 'Re', w: 40 }, { h: 'Found', w: 55 }, { h: 'Result', w: 105 },
+      { h: 'Letter', w: 55 }, { h: 'Sample (n)', w: 85 }, { h: 'Ac', w: 40 }, { h: 'Re', w: 40 }, { h: 'Found', w: 55 }, { h: 'Result', w: 105 },
     ]
     const width = cols.reduce((a, b) => a + b.w, 0) + 40
     const rowH = 28
@@ -389,8 +392,11 @@ export default function AQLCalculator() {
         .aq-letter b { font: 700 20px ui-monospace, 'SF Mono', Menlo, monospace; }
         .aq-letter small { color: var(--qh-muted); font-size: 12px; margin-inline-start: 6px; }
         .aq-name::placeholder { color: var(--qh-text); opacity: 1; }
-        .aq-name { background: transparent; border: 0; border-bottom: 1px dashed var(--qh-border); color: var(--qh-text); font: inherit; font-size: 16px; font-weight: 700; outline: none; padding: 2px 0; min-width: 0; flex: 1; }
-        .aq-name:focus { border-bottom-color: var(--qh-accent); }
+        .aq-name-wrap { flex: 0 1 auto; min-width: 0; max-width: 100%; margin-inline-end: auto; display: inline-flex; align-items: center; gap: 8px; cursor: text; border-bottom: 1px dashed var(--qh-border); padding-bottom: 2px; }
+        .aq-name-wrap:focus-within { border-bottom-color: var(--qh-accent); }
+        .aq-name { field-sizing: content; background: transparent; border: 0; color: var(--qh-text); font: inherit; font-size: 16px; font-weight: 700; outline: none; padding: 2px 0; min-width: 0; max-width: 100%; }
+        .aq-pen { color: var(--qh-muted); font-size: 15px; }
+        .aq-name-wrap:hover .aq-pen, .aq-name-wrap:focus-within .aq-pen { color: var(--qh-accent); }
         .tl-sg select.aq-aql { width: auto; background: transparent; border: 1px solid var(--qh-border); border-radius: 6px; color: var(--qh-text); padding: 5px 6px; font: 600 13px ui-monospace, 'SF Mono', Menlo, monospace; }
         .tl-sg td.aq-v { font: 600 13px ui-monospace, 'SF Mono', Menlo, monospace; white-space: nowrap; }
         .tl-sg td.aq-v small { display: block; font: 500 10px system-ui, sans-serif; color: var(--qh-amber); }
@@ -403,6 +409,15 @@ export default function AQLCalculator() {
         .aq-rule span { font-size: 13px; color: color-mix(in srgb, var(--qh-text) 80%, var(--qh-bg)); line-height: 1.6; }
         .tl-sg input.aq-cls { min-width: 100px; }
         .tl-sg input.aq-found { min-width: 56px; }
+        @media (min-width: 769px) {
+          .aq-classes { table-layout: fixed; }
+          .aq-classes .aq-w-aql { width: 110px; }
+          .aq-classes .aq-w-n { width: 96px; }
+          .aq-classes .aq-w-num { width: 56px; }
+          .aq-classes .aq-w-found { width: 96px; }
+          .aq-classes .aq-w-res { width: 130px; }
+          .aq-classes th:last-child { width: 36px; }
+        }
         @media (max-width: 768px) {
           .aq-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .aq-res { display: none; }
@@ -441,7 +456,10 @@ export default function AQLCalculator() {
               return (
                 <div key={st.id} className="tl-card">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                    <input className="aq-name" value={st.name} placeholder={nameOf('', si, translations[lang])} aria-label={t('aql_stage_name')} onChange={e => patchStage(st.id, { name: e.target.value })} />
+                    <label className="aq-name-wrap" title={t('aql_stage_rename')}>
+                      <input className="aq-name" value={st.name} placeholder={nameOf('', si, translations[lang])} size={Math.max(8, (st.name || nameOf('', si, translations[lang])).length + 1)} aria-label={t('aql_stage_name')} onChange={e => patchStage(st.id, { name: e.target.value })} />
+                      <span className="aq-pen" aria-hidden="true">✎</span>
+                    </label>
                     {stages.length > 1 && <button type="button" className="tl-xbtn tl-xbtn-sm" onClick={() => removeStage(st.id)}>{t('aql_remove_stage')}</button>}
                   </div>
                   <div className="aq-fields">
@@ -469,16 +487,16 @@ export default function AQLCalculator() {
                   </div>
                   {lotBad && <div className="tl-error" style={{ marginBottom: 12 }}>{t('aql_err_lot')}</div>}
                   <div className="tl-sg-wrap" style={{ maxHeight: 'none' }}>
-                    <table className="tl-sg">
+                    <table className="tl-sg aq-classes">
                       <thead>
                         <tr>
                           <th style={{ textAlign: 'start' }}>{t('aql_col_class')}</th>
-                          <th>{t('aql_col_aql')}</th>
-                          <th>{t('aql_col_n')}</th>
-                          <th>{t('aql_col_ac')}</th>
-                          <th>{t('aql_col_re')}</th>
-                          <th>{t('aql_col_found')}</th>
-                          <th className="aq-res">{t('aql_col_result')}</th>
+                          <th className="aq-w-aql">{t('aql_col_aql')}</th>
+                          <th className="aq-w-n">{t('aql_col_n')}</th>
+                          <th className="aq-w-num">{t('aql_col_ac')}</th>
+                          <th className="aq-w-num">{t('aql_col_re')}</th>
+                          <th className="aq-w-found">{t('aql_col_found')}</th>
+                          <th className="aq-res aq-w-res">{t('aql_col_result')}</th>
                           <th aria-label={t('spc_remove')} style={{ width: 28 }}></th>
                         </tr>
                       </thead>
@@ -603,7 +621,7 @@ export default function AQLCalculator() {
                           <th>{t('aql_col_class')}</th>
                           <th className="num">{t('aql_col_aql')}</th>
                           <th style={{ textAlign: 'center' }}>{t('aql_col_letter')}</th>
-                          <th className="num">{t('aql_col_inspect')}</th>
+                          <th className="num">{t('aql_col_n')}</th>
                           <th className="num">{t('aql_col_ac')}</th>
                           <th className="num">{t('aql_col_re')}</th>
                           <th className="num">{t('aql_col_found')}</th>
