@@ -232,7 +232,7 @@ export default function DescriptiveStats() {
         { type: 'bar' as const, label: 'IQR (Q1–Q3)', data: [[bp.q1, bp.q3]], backgroundColor: tint(c.data, 20), borderColor: c.data, borderWidth: 2, barThickness: 34, order: 2 },
         { type: 'line' as const, label: 'Whisker', data: [{ x: bp.lowerWhisker, y: 'row' }, { x: bp.upperWhisker, y: 'row' }], borderColor: c.muted, borderWidth: 1.5, pointRadius: 0, fill: false, order: 1 },
         { type: 'scatter' as const, label: 'Median', data: [{ x: bp.median, y: 'row' }], pointStyle: 'line', rotation: 90, pointRadius: 17, borderColor: c.amber, borderWidth: 3, order: 0 },
-        { type: 'scatter' as const, label: 'Outliers', data: bp.outliers.map(o => ({ x: o, y: 'row' })), backgroundColor: c.danger, pointRadius: 4, order: 0 },
+        { type: 'scatter' as const, label: 'Outliers', data: bp.outliers.map(o => ({ x: o, y: 'row' })), backgroundColor: c.danger, pointRadius: 4, order: 0, clip: false },
       ],
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any
