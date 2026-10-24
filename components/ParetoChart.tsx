@@ -1,232 +1,219 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import * as XLSX from 'xlsx'
-import { COLORS, usePersistedTheme } from '@/lib/theme'
+import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import ToolSidebar from '@/components/ToolSidebar'
+import ToolStyles from '@/components/tool/ToolStyles'
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, DataCardHead, useCompactSave, type MobileTab } from '@/components/tool/ToolParts'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { SheetPicker, PasteToast } from '@/components/GridImportControls'
+import { useGridImport } from '@/lib/gridImport'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import {
-  createReport as createPdfReport,
-  addChartImage,
-  dataTable,
-  calloutBox,
-  finalizeReport,
-  REPORT_COLORS,
-} from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addChartImage, dataTable, calloutBox, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { paretoAnalysis, PARETO_DEFAULT_COMBINE, VITAL_FEW_PCT } from '@/lib/pareto/calc'
+import { fixed } from '@/lib/stats/format'
 
-interface DataRow {
+// ─────────────────────────────────────────────────────────────────────────
+// Pareto page on the shared tool layout. The analysis (sorting, duplicates,
+// "Other", vital few) is lib/pareto/calc.ts; this page edits rows and draws.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface Row {
   id: string
   label: string
-  value: number
+  value: string
 }
 
-function generateId() {
-  return Math.random().toString(36).slice(2, 9)
-}
+const newId = () => Math.random().toString(36).slice(2, 9)
+const toRows = (pairs: [string, number | string][]): Row[] => pairs.map(([label, value]) => ({ id: newId(), label, value: String(value) }))
 
-// Parses CSV or pasted TSV (tab-separated, from Excel/Sheets copy)
-function parseDelimited(text: string): DataRow[] {
-  const lines = text.trim().split('\n').filter(Boolean)
-  const rows: DataRow[] = []
-  for (const line of lines) {
-    // Try tab first (Excel paste), then comma (CSV)
-    const delimiter = line.includes('\t') ? '\t' : ','
-    const parts = line.split(delimiter)
-    if (parts.length >= 2) {
-      const label = parts[0].trim().replace(/^"|"$/g, '')
-      const value = parseFloat(parts[1].trim())
-      if (label && !isNaN(value) && value > 0 && !isNaN(Number(label)) === false) {
-        rows.push({ id: generateId(), label, value })
-      }
-    }
-  }
-  return rows
-}
+const EXAMPLE: [string, number][] = [
+  ['Dimensional error', 42],
+  ['Surface defect', 28],
+  ['Wrong material', 15],
+  ['Assembly fault', 9],
+  ['Packaging damage', 6],
+]
 
-function parseExcelFile(file: File): Promise<DataRow[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = e => {
-      try {
-        const data = e.target?.result
-        const workbook = XLSX.read(data, { type: 'binary' })
-        const sheetName = workbook.SheetNames[0]
-        const sheet = workbook.Sheets[sheetName]
-        const json: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
-        const rows: DataRow[] = []
-        for (const row of json) {
-          if (Array.isArray(row) && row.length >= 2) {
-            const label = String(row[0] ?? '').trim()
-            const value = parseFloat(String(row[1] ?? ''))
-            if (label && !isNaN(value) && value > 0) {
-              rows.push({ id: generateId(), label, value })
-            }
-          }
-        }
-        resolve(rows)
-      } catch {
-        reject(new Error('Could not read Excel file'))
-      }
-    }
-    reader.onerror = () => reject(new Error('Could not read file'))
-    reader.readAsBinaryString(file)
-  })
-}
+const int = (v: number) => Number(v.toPrecision(12)).toLocaleString('en-US')
+const ltr = (v: string) => `⁦${v}⁩`
+const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`
 
 export default function ParetoChart() {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
-  const [rows, setRows] = useState<DataRow[]>([
-    { id: generateId(), label: 'Dimensional Error', value: 42 },
-    { id: generateId(), label: 'Surface Defect', value: 28 },
-    { id: generateId(), label: 'Wrong Material', value: 15 },
-    { id: generateId(), label: 'Assembly Fault', value: 9 },
-    { id: generateId(), label: 'Packaging Damage', value: 6 },
-  ])
-  const [dragOver, setDragOver] = useState(false)
-  const [fileError, setFileError] = useState('')
-  const [pasteToast, setPasteToast] = useState(false)
-  const [loadedProjectName, setLoadedProjectName] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
-  const chartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null)
   const c = COLORS[theme]
+  const s = getSharedStyles(theme)
+  const compactSave = useCompactSave()
+  const chartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null)
 
-  const sorted = [...rows]
-    .filter(r => r.label.trim() && r.value > 0)
-    .sort((a, b) => b.value - a.value)
+  const [rows, setRows] = useState<Row[]>(() => toRows(EXAMPLE))
+  const [combineOn, setCombineOn] = useState(true)
+  const [combineAt, setCombineAt] = useState(String(PARETO_DEFAULT_COMBINE))
+  const [mobileTab, setMobileTab] = useState<MobileTab>('data')
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
+  const [loadError, setLoadError] = useState('')
 
-  const total = sorted.reduce((s, r) => s + r.value, 0)
-
-  const cumulative: number[] = []
-  let running = 0
-  for (const r of sorted) {
-    running += r.value
-    cumulative.push(total > 0 ? Math.round((running / total) * 100) : 0)
-  }
-
-  const vitalFewCount = cumulative.findIndex(v => v >= 80) + 1
-  const vitalFew = vitalFewCount > 0 ? vitalFewCount : sorted.length
-
- const addRow = () => {
-    setRows(prev => [...prev, { id: generateId(), label: '', value: 0 }])
-  }
-
-  const clearAll = () => {
-    if (rows.length === 0) return
-    const confirmed = window.confirm(t('pareto_confirm_clear'))
-    if (confirmed) {
-      setRows([])
-    }
-  }
-  const updateRow = (id: string, field: 'label' | 'value', val: string) => {
-    setRows(prev =>
-      prev.map(r =>
-        r.id === id
-          ? { ...r, [field]: field === 'value' ? parseFloat(val) || 0 : val }
-          : r
-      )
-    )
-  }
-
-  const removeRow = (id: string) => {
-    setRows(prev => prev.filter(r => r.id !== id))
-  }
-
-  // ── Global Ctrl+V paste handler ──
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement
-      // Don't hijack paste while typing inside a text input/textarea
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
-
-      const text = e.clipboardData?.getData('text')
-      if (!text) return
-      const parsed = parseDelimited(text)
-      if (parsed.length > 0) {
-        e.preventDefault()
-        setRows(parsed)
-        setFileError('')
-        setPasteToast(true)
-        setTimeout(() => setPasteToast(false), 2000)
-      }
-    }
-    window.addEventListener('paste', handlePaste)
-    return () => window.removeEventListener('paste', handlePaste)
-  }, [])
-
-  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  // ── Load a saved project (?id=...). Old saves are a plain row array. ──
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id')
     if (!id) return
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
       .then(({ analysis }) => {
-        setRows(analysis.input_data as DataRow[])
+        const input = analysis.input_data as { label: string; value: number }[] | { rows: { label: string; value: number }[]; combine: number | null }
+        const list = Array.isArray(input) ? input : input.rows
+        setRows(toRows(list.map(r => [r.label, r.value])))
+        if (!Array.isArray(input)) {
+          setCombineOn(input.combine !== null)
+          if (input.combine !== null) setCombineAt(String(input.combine))
+        }
         setLoadedProjectName(analysis.name as string)
       })
-      .catch(() =>
-        setFileError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
-      )
+      .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── File upload (CSV or Excel) ──
-  const handleFile = useCallback((file: File) => {
-    setFileError('')
-    const isCSV = file.name.endsWith('.csv')
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+  // Paste anywhere / upload: first column = category, second = count
+  const gridImport = useGridImport({
+    minCellsPerRow: 2,
+    onGrid: grid => {
+      const next = grid
+        .filter(r => r.length >= 2 && r[0].trim() !== '' && Number.isFinite(parseFloat(r[1])))
+        .map(r => [r[0].trim(), parseFloat(r[1])] as [string, number])
+      if (next.length > 0) setRows(toRows(next))
+    },
+    onError: () => undefined,
+  })
 
-    if (!isCSV && !isExcel) {
-      setFileError(t('pareto_err_filetype'))
-      return
-    }
+  const combine = combineOn ? Math.min(99.9, Math.max(1, parseFloat(combineAt) || PARETO_DEFAULT_COMBINE)) : null
+  const input = rows.map(r => ({ label: r.label, value: parseFloat(r.value) }))
+  const result = paretoAnalysis(input, combine)
+  const items = result?.items ?? []
+  const other = items.find(it => it.other)
+  const labelOf = (it: { label: string; other: boolean }) => (it.other ? t('pareto_other') : it.label)
 
-    if (isCSV) {
-      const reader = new FileReader()
-      reader.onload = e => {
-        const text = e.target?.result as string
-        const parsed = parseDelimited(text)
-        if (parsed.length === 0) {
-          setFileError(t('pareto_err_novaliddata'))
-          return
-        }
-        setRows(parsed)
-      }
-      reader.readAsText(file)
-    } else {
-      parseExcelFile(file)
-        .then(parsed => {
-          if (parsed.length === 0) {
-            setFileError(t('pareto_err_novaliddata_excel'))
-            return
-          }
-          setRows(parsed)
-        })
-        .catch(() => setFileError(t('pareto_err_readexcel')))
-    }
-  }, [t])
+  const updateRow = (id: string, field: 'label' | 'value', v: string) => setRows(prev => prev.map(r => (r.id === id ? { ...r, [field]: v } : r)))
+  const removeRow = (id: string) => setRows(prev => prev.filter(r => r.id !== id))
+  const addRow = () => setRows(prev => [...prev, { id: newId(), label: '', value: '' }])
+  const clearAll = () => setRows([])
+  const loadExample = () => { setRows(toRows(EXAMPLE)); setCombineOn(true); setCombineAt(String(PARETO_DEFAULT_COMBINE)); setMobileTab('results') }
 
-  // ── Export: Data as CSV ── (free — requires a login so we capture an email)
+  // ── Chart: bars (vital few full colour), cumulative line, 80% line ──
+  const chartData = {
+    labels: items.map(labelOf),
+    datasets: [
+      {
+        type: 'bar' as const,
+        label: t('pareto_axis_frequency'),
+        data: items.map(it => it.count),
+        backgroundColor: items.map(it => (it.vital ? c.bar : tint(c.bar, 40))),
+        borderColor: c.bar,
+        borderWidth: 1,
+        barPercentage: 1,
+        categoryPercentage: 0.85,
+        yAxisID: 'y',
+        order: 3,
+      },
+      {
+        type: 'line' as const,
+        label: t('pareto_axis_cumulative'),
+        data: items.map(it => Number(it.cum.toFixed(1))),
+        borderColor: c.line,
+        backgroundColor: c.line,
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0,
+        yAxisID: 'y2',
+        order: 1,
+        fill: false,
+      },
+      {
+        type: 'line' as const,
+        label: `${VITAL_FEW_PCT}%`,
+        data: items.map(() => VITAL_FEW_PCT),
+        borderColor: c.danger,
+        borderWidth: 1.2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        yAxisID: 'y2',
+        order: 2,
+        fill: false,
+      },
+    ],
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chartOptions: any = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    devicePixelRatio: 2,
+    interaction: { mode: 'index', intersect: false },
+    layout: watermarkLayout(),
+    plugins: {
+      watermark: watermarkOptions('light'),
+      legend: { position: 'bottom', labels: { color: c.muted, font: { size: 11 }, boxWidth: 12 } },
+      tooltip: {
+        backgroundColor: c.surface,
+        borderColor: c.border,
+        borderWidth: 1,
+        titleColor: c.text,
+        bodyColor: c.muted,
+        padding: 10,
+        filter: (item: { datasetIndex: number }) => item.datasetIndex !== 2,
+        callbacks: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          label: (ctx: any) => {
+            const it = items[ctx.dataIndex]
+            if (!it) return ''
+            if (ctx.datasetIndex === 1) return ` ${t('pareto_tooltip_cumulative')}: ${fixed(it.cum, 1)}%`
+            return ` ${t('pareto_tooltip_count')}: ${int(it.count)} (${fixed(it.pct, 1)}%)`
+          },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          afterBody: (list: any[]) => {
+            const it = items[list[0]?.dataIndex]
+            if (it?.other && it.members) return ['', t('pareto_other_members').replace('{list}', it.members.join(', '))]
+            return it?.vital ? ['', t('pareto_tooltip_vitalfew')] : []
+          },
+        },
+      },
+    },
+    scales: {
+      x: { ticks: { color: c.muted, font: { size: 11 }, maxRotation: 35, autoSkip: false }, grid: { display: false }, border: { color: c.border } },
+      y: { position: 'left', beginAtZero: true, max: result ? result.total : undefined, ticks: { color: c.muted, font: { size: 11 } }, grid: { color: c.grid }, border: { color: c.border }, title: { display: true, text: t('pareto_axis_frequency'), color: c.muted, font: { size: 11 } } },
+      y2: { position: 'right', min: 0, max: 100, ticks: { color: c.line, font: { size: 11 }, callback: (v: number) => `${v}%` }, grid: { drawOnChartArea: false }, border: { color: c.line }, title: { display: true, text: t('pareto_axis_cumulative'), color: c.line, font: { size: 11 } } },
+    },
+  }
+
+  // ── Exports (file content in English) ──
+  const nameEn = (it: { label: string; other: boolean }) => (it.other ? 'Other' : it.label)
+  const statusEn = (it: { vital: boolean }) => (it.vital ? 'Vital Few' : 'Useful Many')
+  const otherNote = other?.members ? `"Other" combines ${other.members.length} categories after the cumulative percent passed ${combine}%: ${other.members.join(', ')}.` : null
+
   const exportCSV = () => {
     if (!isLoggedIn) { goToLogin('pareto', 'csv'); return }
-    const header = 'Category,Count,Percent of Total,Cumulative Percent,Status\n'
-    const body = sorted
-      .map((r, i) => {
-        const pct = total > 0 ? Math.round((r.value / total) * 100) : 0
-        const status = i < vitalFew ? 'Vital Few' : 'Useful Many'
-        return `"${r.label}",${r.value},${pct}%,${cumulative[i]}%,${status}`
-      })
-      .join('\n')
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
+    if (!result) return
+    const lines = [
+      'Rank,Category,Count,Percent of Total,Cumulative Percent,Status',
+      ...items.map((it, i) => `${i + 1},${csvCell(nameEn(it))},${it.count},${fixed(it.pct, 1)},${fixed(it.cum, 1)},${statusEn(it)}`),
+      '',
+      `Total,${result.total}`,
+      ...(other?.members ? [`Other = ${csvCell(other.members.join('; '))}`] : []),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -235,540 +222,308 @@ export default function ParetoChart() {
     URL.revokeObjectURL(url)
   }
 
-  // ── Export: Data as Excel ── (Pro only)
   const runExportExcel = async () => {
     if (!isPro) { goToPricing('pareto', 'excel'); return }
+    if (!result) return
     const report = createReport({ toolName: 'Pareto Chart' })
-
     const overview = report.addSheet('Overview')
-    overview.titleBand('Pareto Analysis Report', `${sorted.length} categories — 80/20 rule`)
+    overview.titleBand('Pareto Analysis Report', `${result.categories} categories — vital few at ${VITAL_FEW_PCT}%`)
     overview.metaStrip([
       ['Generated on', nowStamp()],
-      ['Total count', total],
+      ['Total count', result.total],
+      ['Other', combine === null ? 'Not grouped' : `Grouped after ${combine}% cumulative`],
     ])
-
     overview.sectionHeading('At a Glance')
     overview.kpiRow([
-      { label: 'Vital Few', value: vitalFew, sub: 'categories drive 80%', tone: 'accent' },
-      { label: 'Total Categories', value: sorted.length, tone: 'neutral' },
-      { label: 'Total Count', value: total, tone: 'neutral' },
+      { label: 'Vital Few', value: result.vitalFew, sub: `categories = ${fixed(result.vitalCum, 1)}%`, tone: 'accent' },
+      { label: 'Categories', value: result.categories, tone: 'neutral' },
+      { label: 'Total Count', value: result.total, tone: 'neutral' },
+      { label: 'Top Category', value: `${fixed(items[0].pct, 1)}%`, sub: nameEn(items[0]), tone: 'neutral' },
     ])
-
     overview.sectionHeading('Category Breakdown')
     overview.table({
       headers: [
-        { header: 'Category', key: 'category', align: 'left', width: 26 },
-        { header: 'Count', key: 'count', align: 'right', numFmt: '#,##0' },
-        { header: 'Percent of Total', key: 'pct', align: 'right', numFmt: '0"%"' },
-        { header: 'Cumulative Percent', key: 'cum', align: 'right', numFmt: '0"%"' },
+        { header: 'Rank', key: 'rank', align: 'center', width: 8 },
+        { header: 'Category', key: 'category', align: 'left', width: 28 },
+        { header: 'Count', key: 'count', align: 'right', numFmt: '#,##0.##' },
+        { header: 'Percent of Total', key: 'pct', align: 'right', numFmt: '0.0' },
+        { header: 'Cumulative Percent', key: 'cum', align: 'right', numFmt: '0.0' },
         { header: 'Status', key: 'status', align: 'center', width: 16 },
       ],
-      rows: sorted.map((r, i) => ({
-        category: r.label,
-        count: r.value,
-        pct: total > 0 ? Math.round((r.value / total) * 100) : 0,
-        cum: cumulative[i],
-        status: i < vitalFew ? 'Vital Few' : 'Useful Many',
-      })),
-      rowTones: sorted.map((_, i) => i < vitalFew ? 'accent' : undefined),
+      rows: items.map((it, i) => ({ rank: i + 1, category: nameEn(it), count: it.count, pct: Number(it.pct.toPrecision(12)), cum: Number(it.cum.toPrecision(12)), status: statusEn(it) })),
+      rowTones: items.map(it => (it.vital ? 'accent' : undefined)),
     })
-
-    // ── Pareto chart image (bars + cumulative line, same canvas as
-    // PNG/PDF export) — the 80/20 shape is the whole point of this tool. ──
+    if (otherNote) overview.note(otherNote, 'neutral')
     overview.sectionHeading('Pareto Chart')
-    if (chartRef.current) {
-      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
-    }
-
+    if (chartRef.current) await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 17, heightCm: 8 })
     overview.freezeHeader(2)
-
     await report.download('pareto-data.xlsx')
   }
 
-  // ── Export: Chart as PNG ── (free — requires a login so we capture an email)
   const runExportPNG = () => {
     if (!isLoggedIn) { goToLogin('pareto', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
-    const url = chart.toBase64Image('image/png', 1)
     const a = document.createElement('a')
-    a.href = url
+    a.href = chart.toBase64Image('image/png', 1)
     a.download = 'pareto-chart.png'
     a.click()
   }
 
- // ── Export: Chart + Table as PDF ── (Pro only)
   const runExportPDF = () => {
     if (!isPro) { goToPricing('pareto', 'pdf'); return }
-    const chart = chartRef.current
-    if (!chart) return
-
+    if (!result) return
     const ctx = createPdfReport('Pareto Analysis Report', 'pareto')
-
     calloutBox(
       ctx,
-      `Total: ${total}  |  Categories: ${sorted.length}  |  Vital Few: ${vitalFew} categories = 80% of problems`,
-      'info',
+      `${result.vitalFew} of ${items.length} categories cause ${fixed(result.vitalCum, 1)}% of the problems. Start with ${nameEn(items[0])}: ${fixed(items[0].pct, 1)}% of all ${int(result.total)} counts.`,
+      'info'
     )
-
-    addChartImage(ctx, chart, 'Pareto Chart')
-
-    const columns = [
-      { header: 'Category', width: 190 },
-      { header: 'Count', width: 70, align: 'right' as const },
-      { header: '% Total', width: 80, align: 'right' as const },
-      { header: 'Cumulative', width: 90, align: 'right' as const },
-      { header: 'Status', width: ctx.pageWidth - ctx.margin * 2 - 430, align: 'center' as const },
-    ]
-    const rows = sorted.map((r, i) => [
-      r.label,
-      String(r.value),
-      `${total > 0 ? Math.round((r.value / total) * 100) : 0}%`,
-      `${cumulative[i]}%`,
-      i < vitalFew ? 'Vital Few' : 'Useful Many',
-    ])
-    const cellColors = sorted.map((_, i) =>
-      i < vitalFew
-        ? [null, null, null, null, REPORT_COLORS.warn] as (typeof REPORT_COLORS.warn | null)[]
-        : [null, null, null, null, null]
+    addChartImage(ctx, chartRef.current, 'Pareto Chart')
+    const w = ctx.pageWidth - ctx.margin * 2
+    dataTable(
+      ctx,
+      'Category Breakdown',
+      [
+        { header: '#', width: 30, align: 'center' },
+        { header: 'CATEGORY', width: w - 400 },
+        { header: 'COUNT', width: 70, align: 'right' },
+        { header: '% TOTAL', width: 80, align: 'right' },
+        { header: 'CUMULATIVE', width: 100, align: 'right' },
+        { header: 'STATUS', width: 120, align: 'center' },
+      ],
+      items.map((it, i) => [String(i + 1), nameEn(it), int(it.count), `${fixed(it.pct, 1)}%`, `${fixed(it.cum, 1)}%`, statusEn(it)]),
+      { cellColors: items.map(it => (it.vital ? [null, null, null, null, null, REPORT_COLORS.warn] : [null, null, null, null, null, null])) }
     )
-    dataTable(ctx, 'Category Breakdown', columns, rows, { cellColors })
-
+    if (otherNote) calloutBox(ctx, otherNote, 'info')
     finalizeReport(ctx)
     ctx.pdf.save('pareto-report.pdf')
   }
 
-  const chartData = {
-    labels: sorted.map(r => r.label),
-    datasets: [
-      {
-        type: 'bar' as const,
-        label: t('pareto_axis_frequency'),
-        data: sorted.map(r => r.value),
-        backgroundColor: sorted.map((_, i) =>
-          i < vitalFew ? c.bar : `${c.bar}55`
-        ),
-        borderRadius: 4,
-        yAxisID: 'y',
-        order: 2,
-      },
-      {
-        type: 'line' as const,
-        label: t('pareto_axis_cumulative'),
-        data: cumulative,
-        borderColor: c.line,
-        backgroundColor: `${c.line}22`,
-        borderWidth: 2.5,
-        pointBackgroundColor: c.line,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        tension: 0.3,
-        yAxisID: 'y2',
-        order: 1,
-        fill: false,
-      },
-    ],
-  }
-
-  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
-  // on the live view for everyone) is switched off just for that call.
   const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
   const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
-  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartOptions: any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    layout: watermarkLayout(),
-    plugins: {
-      watermark: watermarkOptions('light'),
-      legend: {
-        labels: {
-          color: c.text,
-          font: { size: 12 },
-          boxWidth: 14,
-        },
-      },
-      tooltip: {
-        backgroundColor: c.surface,
-        borderColor: c.border,
-        borderWidth: 1,
-        titleColor: c.text,
-        bodyColor: c.muted,
-        padding: 10,
-        callbacks: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (ctx: any) => {
-            if (ctx.dataset.type === 'line')
-              return ` ${t('pareto_tooltip_cumulative')}: ${ctx.parsed.y}%`
-            return ` ${t('pareto_tooltip_count')}: ${ctx.parsed.y} (${total > 0 ? Math.round((ctx.parsed.y / total) * 100) : 0}%)`
-          },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          afterBody: (items: any[]) => {
-            const i = items[0]?.dataIndex
-            if (i !== undefined && i < vitalFew)
-              return ['', t('pareto_tooltip_vitalfew')]
-            return []
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        ticks: { color: c.muted, font: { size: 11 }, maxRotation: 30 },
-        grid: { color: c.grid },
-        border: { color: c.border },
-      },
-      y: {
-        position: 'left',
-        ticks: { color: c.muted, font: { size: 11 } },
-        grid: { color: c.grid },
-        border: { color: c.border },
-        title: { display: true, text: t('pareto_axis_frequency'), color: c.muted, font: { size: 11 } },
-      },
-      y2: {
-        position: 'right',
-        min: 0,
-        max: 100,
-        ticks: {
-          color: c.line,
-          font: { size: 11 },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          callback: (v: any) => `${v}%`,
-        },
-        grid: { drawOnChartArea: false },
-        border: { color: c.line },
-        title: { display: true, text: t('pareto_axis_cumulative'), color: c.line, font: { size: 11 } },
-      },
-    },
-  }
-
-  const s: Record<string, React.CSSProperties> = {
-    page: {
-      display: 'flex', flexDirection: 'column', minHeight: '100vh',
-      background: c.bg, color: c.text,
-      fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: 14,
-    },
-    nav: {
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 32px', height: 56,
-      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
-      backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${c.border}`,
-      flexShrink: 0,
-    },
-    navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
-    navRight: { display: 'flex', alignItems: 'center', gap: 14 },
-    logo: {
-      display: 'flex', alignItems: 'center', gap: 9,
-      textDecoration: 'none', color: c.text,
-      fontWeight: 800, fontSize: 15,
-    },
-    logoIcon: {
-      width: 30, height: 30,
-      background: 'var(--qh-accent)',
-      borderRadius: 7, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', color: 'var(--qh-onAccent)', fontWeight: 900, fontSize: 13,
-    },
-    separator: { color: 'rgba(255,255,255,.12)', fontSize: 20 },
-    breadcrumb: { fontSize: 13, color: c.muted, fontWeight: 500 },
-    themeBtn: {
-      background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : c.surface2,
-      border: `1px solid ${c.border}`,
-      borderRadius: 20, padding: '5px 14px',
-      color: c.text, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-    },
-    body: { display: 'flex', flex: 1, overflow: 'hidden' },
-    left: {
-      width: 300, flexShrink: 0,
-      background: c.surface,
-      borderRight: `1px solid ${c.border}`,
-      overflowY: 'auto', padding: 20,
-      display: 'flex', flexDirection: 'column', gap: 20,
-    },
-    right: { flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 20 },
-    sectionTitle: { fontSize: 11, fontWeight: 700, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 },
-    card: {
-      background: c.surface, border: `1px solid ${c.border}`,
-      borderRadius: 12, padding: 20,
-    },
-    inputRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
-    input: {
-      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
-      border: `1px solid ${c.border}`, borderRadius: 7,
-      color: c.text, padding: '7px 10px', fontSize: 13, outline: 'none',
-    },
-    removeBtn: {
-      background: 'transparent', border: 'none', color: 'var(--qh-danger)',
-      cursor: 'pointer', fontSize: 16, padding: '0 4px', lineHeight: 1,
-    },
-    addBtn: {
-      background: `${c.accent}15`, border: `1px dashed ${c.accent}`,
-      borderRadius: 8, color: c.accent, padding: '8px 0',
-      width: '100%', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-      marginTop: 4,
-    },
-    dropzone: {
-      border: `2px dashed ${dragOver ? c.accent : c.border}`,
-      borderRadius: 10, padding: '20px 16px',
-      textAlign: 'center' as const,
-      background: dragOver ? `${c.accent}08` : 'transparent',
-      transition: 'all 0.2s', cursor: 'pointer',
-    },
-    exportBtn: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 8, color: c.text, padding: '9px 10px',
-      cursor: 'pointer', fontSize: 12, fontWeight: 600,
-      display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-    },
-    statsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 },
-    statCard: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 10, padding: '14px 16px', textAlign: 'center' as const,
-    },
-    statVal: { fontSize: 24, fontWeight: 800, color: c.accent },
-    statLabel: { fontSize: 11, color: c.muted, marginTop: 4 },
-    chartWrap: {
-      background: c.surface, border: `1px solid ${c.border}`,
-      borderRadius: 12, padding: 20,
-    },
-    chartInner: { height: 380, position: 'relative' as const },
-    vitalBadge: {
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      background: `${c.amber}18`, border: `1px solid ${c.amber}40`,
-      borderRadius: 20, padding: '4px 12px',
-      fontSize: 12, color: c.amber, fontWeight: 600,
-    },
-    table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 },
-    th: {
-      textAlign: 'left' as const, padding: '10px 12px',
-      color: c.muted, fontWeight: 600, fontSize: 11,
-      borderBottom: `1px solid ${c.border}`,
-      textTransform: 'uppercase' as const, letterSpacing: 0.5,
-    },
-    td: { padding: '10px 12px', borderBottom: `1px solid ${c.border}40` },
-    toast: {
-      position: 'fixed' as const, bottom: 24, left: '50%',
-      transform: 'translateX(-50%)',
-      background: c.accent, color: c.onAccent,
-      padding: '10px 20px', borderRadius: 8,
-      fontSize: 13, fontWeight: 700, zIndex: 100,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-    },
-  }
+  // ── Page ──
+  const helpSteps = [
+    { t: t('pareto_help_s1_t'), d: t('pareto_help_s1_d') },
+    { t: t('pareto_help_s2_t'), d: t('pareto_help_s2_d') },
+    { t: t('pareto_help_s3_t'), d: t('pareto_help_s3_d') },
+    { t: t('pareto_help_s4_t'), d: t('pareto_help_s4_d') },
+  ]
+  const top = items[0]
+  const vc = 'var(--qh-accent)'
 
   return (
     <div style={s.page}>
-      {/* Nav */}
+      <ToolStyles />
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_pareto" />
 
-      {loadedProjectName && (
-        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
-          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+      {(loadedProjectName || loadError) && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          {loadedProjectName && (
+            <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+              {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+            </div>
+          )}
+          {loadError && <div className="tl-error">{loadError}</div>}
         </div>
       )}
 
-      <div className="qh-body" style={s.body}>
-        {/* Left Panel */}
-        <div className="qh-left" style={s.left}>
+      <div className="tl-shell">
+        <ToolSidebar current="/pareto" />
 
-          {/* Manual Input */}
-          <div>
-            <div style={s.sectionTitle}>{t('pareto_manual_input')}</div>
-            {rows.map(row => (
-              <div key={row.id} style={s.inputRow}>
-                <input
-                  style={{ ...s.input, flex: 2 }}
-                  placeholder={t('pareto_placeholder_category')}
-                  value={row.label}
-                  onChange={e => updateRow(row.id, 'label', e.target.value)}
+        <div className="tl-main">
+          <ToolHeader title={t('pareto_title')} intro={t('pareto_intro')} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
+          <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('pareto_help_title')} steps={helpSteps} onExample={loadExample} showCapability={false} tip={t('pareto_help_tip')} />
+          <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={rows.length} hideSetup />
+
+          <div className="tl-top">
+            {/* ── DATA + OPTIONS ──────────────────────────────────────── */}
+            <section className="tl-panel tl-setup" data-active={mobileTab === 'data'} aria-label={t('spc_tab_data')} style={{ gap: 14 }}>
+              <div className="tl-card">
+                <DataCardHead
+                  countLabel={t('pareto_data_count').replace('{n}', String(rows.length))}
+                  onUpload={gridImport.openFilePicker}
+                  onClear={clearAll}
+                  extra={<gridImport.FileInput />}
                 />
-                <input
-                  style={{ ...s.input, flex: 1, width: 70 }}
-                  type="number"
-                  placeholder="0"
-                  value={row.value || ''}
-                  onChange={e => updateRow(row.id, 'value', e.target.value)}
+                {gridImport.fileError && <div className="tl-error" style={{ marginBottom: 10 }}>{gridImport.fileError}</div>}
+                <SheetPicker
+                  sheetNames={gridImport.sheetNames}
+                  activeSheet={gridImport.activeSheet}
+                  onSelect={gridImport.selectSheet}
+                  accentColor={c.accent}
+                  textColor={c.text}
+                  mutedColor={c.muted}
+                  borderColor={c.border}
                 />
-                <button style={s.removeBtn} onClick={() => removeRow(row.id)}>×</button>
-              </div>
-            ))}
-           <button style={s.addBtn} onClick={addRow}>{t('pareto_add_row')}</button>
-            {rows.length > 0 && (
-              <button
-                style={{
-                  ...s.addBtn,
-                  background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',
-                  border: '1px dashed #ef4444',
-                  color: 'var(--qh-danger)',
-                  marginTop: 8,
-                }}
-                onClick={clearAll}
-              >
-                {t('pareto_clear_all')}
-              </button>
-            )}
-          </div>
-
-          {/* File Upload + Paste */}
-          <div>
-            <div style={s.sectionTitle}>{t('pareto_upload_paste')}</div>
-            <div
-              style={s.dropzone}
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => {
-                e.preventDefault(); setDragOver(false)
-                const f = e.dataTransfer.files[0]
-                if (f) handleFile(f)
-              }}
-              onClick={() => fileRef.current?.click()}
-            >
-              <div style={{ fontSize: 28, marginBottom: 8 }}>📂</div>
-              <div style={{ color: c.text, fontWeight: 600, fontSize: 13 }}>
-                {t('pareto_dropzone_title')}
-              </div>
-              <div style={{ color: c.muted, fontSize: 11, marginTop: 6 }}>
-                {t('pareto_dropzone_sub')}
-              </div>
-              {fileError && (
-                <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginTop: 8 }}>{fileError}</div>
-              )}
-            </div>
-            <input
-              ref={fileRef} type="file" accept=".csv,.xlsx,.xls"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
-            />
-            <div style={{ fontSize: 11, color: c.muted, marginTop: 10, lineHeight: 1.6 }}>
-              {t('pareto_format_hint')}<br />
-              <code style={{ color: c.accent }}>
-                Dimensional Error, 42<br />
-                Surface Defect, 28
-              </code>
-            </div>
-          </div>
-
-          {/* Export */}
-          <div>
-            <div style={s.sectionTitle}>{t('common_export_section')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
-              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
-              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
-              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <SaveAnalysisButton
-                theme={theme}
-                tool="pareto"
-                defaultName={`Pareto — ${new Date().toLocaleDateString('en-US')}`}
-                getPayload={() =>
-                  sorted.length === 0
-                    ? null
-                    : { input_data: rows, results: { sorted, total, cumulative, vitalFewCount } }
-                }
-              />
-            </div>
-          </div>
-
-        </div>
-
-        {/* Right Panel */}
-        <div className="qh-right" style={s.right}>
-
-          {/* Stats */}
-          <div className="qh-stats-row" style={s.statsRow}>
-            <div style={s.statCard}>
-              <div style={s.statVal}>{total}</div>
-              <div style={s.statLabel}>{t('pareto_stat_total_defects')}</div>
-            </div>
-            <div style={{ ...s.statCard }}>
-              <div style={{ ...s.statVal, color: c.amber }}>{vitalFew}</div>
-              <div style={s.statLabel}>{t('pareto_stat_vitalfew_cat')}</div>
-            </div>
-            <div style={s.statCard}>
-              <div style={s.statVal}>{sorted.length}</div>
-              <div style={s.statLabel}>{t('pareto_stat_total_cat')}</div>
-            </div>
-          </div>
-
-          {/* Chart */}
-          <div className="qh-chart-wrap" style={s.chartWrap}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: c.text }}>{t('pareto_analysis_title')}</div>
-                <div style={{ color: c.muted, fontSize: 12, marginTop: 3 }}>
-                  {t('pareto_analysis_sub')}
+                <div className="tl-sg-wrap">
+                  <table className="tl-sg">
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'start' }}>{t('pareto_col_category')}</th>
+                        <th style={{ width: 76 }}>{t('pareto_col_count')}</th>
+                        <th aria-label={t('spc_remove')} style={{ width: 28 }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(r => (
+                        <tr key={r.id}>
+                          <td>
+                            <input
+                              value={r.label}
+                              placeholder={t('pareto_placeholder_category')}
+                              aria-label={t('pareto_col_category')}
+                              onChange={e => updateRow(r.id, 'label', e.target.value)}
+                              style={{ textAlign: 'start', fontFamily: 'inherit', fontWeight: 500, minWidth: 0 }}
+                            />
+                          </td>
+                          <td>
+                            <input type="number" min={0} value={r.value} aria-label={t('pareto_col_count')} onChange={e => updateRow(r.id, 'value', e.target.value)} style={{ minWidth: 0 }} />
+                          </td>
+                          <td><button type="button" className="tl-sg-x" aria-label={t('spc_remove')} onClick={() => removeRow(r.id)}>✕</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
+                <div style={{ marginTop: 10 }}>
+                  <button type="button" className="tl-xbtn tl-add" onClick={addRow}>{t('pareto_add_category')}</button>
+                </div>
+                <div className="tl-paste">{t('pareto_paste_hint')}</div>
               </div>
-              <span style={s.vitalBadge}>
-                ⭐ {vitalFew} {t('pareto_vitalfew_of')} {sorted.length} {t('pareto_vitalfew_suffix')}
-              </span>
-            </div>
 
-            {sorted.length > 0 ? (
-              <div className="qh-chart-inner" style={s.chartInner}>
-                <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
+              <div className="tl-card">
+                <div className="tl-label">{t('pareto_options')}</div>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, lineHeight: 1.5, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={combineOn} onChange={e => setCombineOn(e.target.checked)} style={{ marginTop: 3 }} />
+                  <span>{t('pareto_combine')}</span>
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, paddingInlineStart: 24, fontSize: 13 }}>
+                  <input
+                    className="tl-input"
+                    type="number"
+                    min={1}
+                    max={99.9}
+                    step={1}
+                    value={combineAt}
+                    disabled={!combineOn}
+                    onChange={e => setCombineAt(e.target.value)}
+                    style={{ width: 72, padding: '4px 8px' }}
+                    aria-label={t('pareto_combine')}
+                  />
+                  <span>%</span>
+                </div>
+                <div className="tl-hint">{t('pareto_combine_note')}</div>
               </div>
-            ) : (
-              <div style={{ height: 380, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.muted }}>
-                {t('pareto_empty_chart')}
-              </div>
-            )}
+            </section>
+
+            {/* ── RESULTS ──────────────────────────────────────────────── */}
+            <section className="tl-panel tl-results tl-col" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
+              {result && top ? (
+                <>
+                  <div className="tl-verdict" style={{ background: tint(vc, 8), border: `1px solid ${tint(vc, 35)}` }}>
+                    <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(vc, 16), color: vc }}>★</span>
+                    <div>
+                      <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('pareto_verdict_label')}</div>
+                      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>
+                        {t('pareto_verdict_title').replace('{k}', ltr(String(result.vitalFew))).replace('{n}', ltr(String(items.length))).replace('{p}', ltr(fixed(result.vitalCum, 1)))}
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>
+                        {t('pareto_verdict_sub').replace('{top}', labelOf(top)).replace('{p}', ltr(fixed(top.pct, 1))).replace('{total}', ltr(int(result.total)))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="tl-results-head">
+                    <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t('spc_tab_results')}</h2>
+                    <ExportRow
+                      isPro={isPro}
+                      isLoggedIn={isLoggedIn}
+                      hasResult={!!result}
+                      onCSV={exportCSV}
+                      onPNG={exportPNG}
+                      onExcel={exportExcel}
+                      onPDF={exportPDF}
+                      save={
+                        <SaveAnalysisButton
+                          theme={theme}
+                          tool="pareto"
+                          defaultName={`Pareto — ${new Date().toLocaleDateString('en-US')}`}
+                          compact={compactSave}
+                          getPayload={() => ({
+                            input_data: { rows: rows.map(r => ({ label: r.label, value: parseFloat(r.value) || 0 })), combine },
+                            results: result,
+                          })}
+                        />
+                      }
+                    />
+                  </div>
+
+                  <div className="tl-kpis tl-kpis-4">
+                    <div className="tl-kpi"><span>{t('pareto_kpi_total')}</span><b>{int(result.total)}</b></div>
+                    <div className="tl-kpi"><span>{t('pareto_kpi_categories')}</span><b>{result.categories}</b></div>
+                    <div className="tl-kpi"><span>{t('pareto_kpi_vital')}</span><b style={{ color: 'var(--qh-accent)' }}>{result.vitalFew}</b></div>
+                    <div className="tl-kpi"><span>{t('pareto_kpi_top')}</span><b>{fixed(top.pct, 1)}%</b></div>
+                  </div>
+
+                  <div className="tl-chart">
+                    <h3>{t('pareto_chart_title')}</h3>
+                    <div className="tl-chart-sub">{t('pareto_chart_sub')}</div>
+                    <div className="tl-chart-inner">
+                      <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
+                    </div>
+                    {other?.members && <div className="tl-hint">{t('pareto_other_members').replace('{list}', other.members.join(lang === 'ar' ? '، ' : ', '))}</div>}
+                  </div>
+
+                  <div className="tl-card">
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('pareto_breakdown_table')}</div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="tl-table">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>{t('pareto_col_category')}</th>
+                            <th className="num">{t('pareto_col_count')}</th>
+                            <th className="num">{t('pareto_col_pct')}</th>
+                            <th className="num">{t('pareto_col_cum')}</th>
+                            <th>{t('pareto_col_status')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((it, i) => (
+                            <tr key={i}>
+                              <td>{i + 1}</td>
+                              <td style={{ whiteSpace: 'normal', fontWeight: it.vital ? 600 : 400 }}>{labelOf(it)}</td>
+                              <td className="num">{int(it.count)}</td>
+                              <td className="num">{fixed(it.pct, 1)}</td>
+                              <td className="num">{fixed(it.cum, 1)}</td>
+                              <td style={{ color: it.vital ? 'var(--qh-accent)' : 'var(--qh-muted)', fontWeight: it.vital ? 600 : 400 }}>
+                                {it.vital ? t('pareto_vitalfew') : t('pareto_usefulmany')}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="tl-card tl-empty">{t('pareto_empty_chart')}</div>
+              )}
+            </section>
           </div>
-
-          {/* Table */}
-          {sorted.length > 0 && (
-            <div style={s.card}>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, color: c.text }}>
-                {t('pareto_breakdown_table')}
-              </div>
-              <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
-              <table style={s.table}>
-                <thead>
-                  <tr>
-                    <th style={s.th}>{t('pareto_col_rank')}</th>
-                    <th style={s.th}>{t('pareto_col_category')}</th>
-                    <th style={s.th}>{t('pareto_col_count')}</th>
-                    <th style={s.th}>{t('pareto_col_pcttotal')}</th>
-                    <th style={s.th}>{t('pareto_col_cumulative')}</th>
-                    <th style={s.th}>{t('pareto_col_status')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((r, i) => (
-                    <tr key={r.id} style={{ background: i < vitalFew ? `${c.amber}08` : 'transparent' }}>
-                      <td style={{ ...s.td, color: c.muted }}>#{i + 1}</td>
-                      <td style={{ ...s.td, fontWeight: 600 }}>{r.label}</td>
-                      <td style={s.td}>{r.value}</td>
-                      <td style={s.td}>{total > 0 ? Math.round((r.value / total) * 100) : 0}%</td>
-                      <td style={{ ...s.td, color: c.line, fontWeight: 600 }}>{cumulative[i]}%</td>
-                      <td style={s.td}>
-                        {i < vitalFew ? (
-                          <span style={{ ...s.vitalBadge, fontSize: 11, padding: '3px 8px' }}>
-                            ⭐ {t('pareto_vitalfew')}
-                          </span>
-                        ) : (
-                          <span style={{ color: c.muted, fontSize: 11 }}>{t('pareto_usefulmany')}</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              </div>
-            </div>
-          )}
-
         </div>
       </div>
 
-      {pasteToast && (
-        <div style={s.toast}>{t('pareto_toast')}</div>
-      )}
+      <PhoneBar
+        showResultActions={mobileTab === 'results' && !!result}
+        onAnalyze={() => { setMobileTab('results'); window.scrollTo({ top: 0 }) }}
+        onEdit={() => setMobileTab('data')}
+        analyzeLabel={t('pareto_bar_results')}
+      />
+      <PasteToast show={gridImport.pasteToast} />
     </div>
   )
 }
