@@ -94,6 +94,11 @@ function validate(i: OEEInputs): TKey | null {
   if (i.downtime >= i.plannedTime - i.breaks) return 'oee_err_downtime'
   if (i.goodCount > i.totalCount) return 'oee_err_goodparts'
   if (i.cycleTime <= 0) return 'oee_err_cycletime'
+  // Performance above 100% is physically impossible: the ideal cycle time is
+  // too long, or the counts include parts made outside the run time. Stop
+  // instead of quietly capping it, which would give a plausible-looking OEE.
+  const runTime = i.plannedTime - i.breaks - i.downtime
+  if (i.totalCount > 0 && (i.totalCount * i.cycleTime) / 60 > runTime * 1.000001) return 'oee_err_perf_over'
   return null
 }
 

@@ -707,17 +707,30 @@ const OEE_INPUTS = {
   goodCount: 3650,
 }
 
-const OEE_RESULT = {
-  netPlanned: 480,
-  runTime: 428,
-  availability: 89.17,
-  performanceCapped: 88.79,
-  quality: 96.05,
-  oee: 76.04,
-  downtimeLoss: 10.83,
-  speedLoss: 11.21,
-  qualityLoss: 3.95,
-}
+// Same formulas as calcOEE() in components/OEECalculator.tsx, so the sample
+// shows exactly what the tool shows for these inputs. Losses are shares of
+// the net planned time and add up to 100 − OEE.
+const OEE_RESULT = (() => {
+  const i = OEE_INPUTS
+  const netPlanned = i.plannedTime - i.breaks
+  const runTime = netPlanned - i.downtime
+  const availability = (runTime / netPlanned) * 100
+  const performance = ((i.totalCount * i.cycleTime) / 60 / runTime) * 100
+  const performanceCapped = Math.min(performance, 100)
+  const quality = (i.goodCount / i.totalCount) * 100
+  const oee = (availability / 100) * (performanceCapped / 100) * (quality / 100) * 100
+  return {
+    netPlanned,
+    runTime,
+    availability,
+    performanceCapped,
+    quality,
+    oee,
+    downtimeLoss: (i.downtime / netPlanned) * 100,
+    speedLoss: Math.max(0, 100 - performance) * (runTime / netPlanned),
+    qualityLoss: Math.max(0, 100 - quality) * (runTime / netPlanned) * (performanceCapped / 100),
+  }
+})()
 
 const OEE_BENCH = [
   { label: 'Availability', key: 'availability' as const, wc: 90 },
