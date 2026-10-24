@@ -585,6 +585,8 @@ export interface DataTableColumn {
 export interface DataTableOptions {
   /** Optional per-cell text color override, same [row][col] shape as `rows`. Falls back to ink when omitted/null. */
   cellColors?: (RGB | null)[][]
+  /** let even a short table start at the bottom of a page and continue on the next (header repeated) */
+  allowSplit?: boolean
 }
 
 /**
@@ -613,7 +615,7 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
     return sum + Math.max(baseRowH, maxLines * lineH + 7)
   }, 0)
   const usablePage = ctx.pageHeight - ctx.margin * 2 - 26
-  const keepTogether = headerH + bodyH <= usablePage * 0.6
+  const keepTogether = !options?.allowSplit && headerH + bodyH <= usablePage * 0.6
   const reserve = keepTogether ? headerH + bodyH : baseRowH * 2
 
   if (title) {

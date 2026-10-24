@@ -32,6 +32,8 @@ import {
 const UNITS = ['CFU/g', 'CFU/ml', 'CFU/cm²'] as const
 type Unit = (typeof UNITS)[number]
 const EN = translations.en
+/** charts in the PDF: full width, a little shorter than on screen, so a lot fits on one page with the sign-off */
+const PDF_CHART = { width: 900, height: 170 }
 /** one source line in the reports; the full method stays on screen */
 const SOURCE_LINE = 'Source: ICMSF Table 6-1 (1974, as printed by NAP 1985) · organism examples: ICMSF 2020 · OC curve: binomial · risk curve: FAO/WHO lognormal model · m and M from your standard.'
 type Dict = Readonly<Record<string, string>>
@@ -322,8 +324,8 @@ export default function IcmsfCalculator() {
       ['n · c', `${r.n} · ${r.c}`],
       ['Limits', limitsText(EN)],
       ['Rule', why(EN)],
+      ['Source', SOURCE_LINE.replace('Source: ', '')],
     ])
-    calloutBox(ctx, SOURCE_LINE, 'info')
     if (mode === 'count' && unitRows.some(u => u.value !== null)) {
       const tone = (u: UnitClass | null) => (u === 'acceptable' ? REPORT_COLORS.good : u === 'marginal' ? REPORT_COLORS.warn : u === 'defective' ? REPORT_COLORS.bad : null)
       // entered units only, three per row (unit · result · class), so 20–60 units stay short
@@ -349,18 +351,18 @@ export default function IcmsfCalculator() {
         rowsOut.push(row)
         colors.push(col)
       }
-      dataTable(ctx, `Sample Units (${inp.unit})`, cols, rowsOut, { cellColors: colors })
+      dataTable(ctx, `Sample Units (${inp.unit})`, cols, rowsOut, { cellColors: colors, allowSplit: true })
       const missing = r.n - done.length
       if (missing > 0) calloutBox(ctx, `${missing} of ${r.n} units not entered yet.`, 'info')
     } else if (mode === 'presence') {
       calloutBox(ctx, `Positive units found: ${body.positives ?? '-'} of ${r.n} (c = ${r.c}).`, 'info')
     }
     if (ocRef.current && r.oc) {
-      addChartImage(ctx, ocRef.current, 'Operating Characteristic (OC) Curve')
+      addChartImage(ctx, ocRef.current, 'Operating Characteristic (OC) Curve', PDF_CHART)
       if (r.riskPa !== null) calloutBox(ctx, fill(EN.icmsf_check, { p: fixed(body.riskP, 1), pa: pct(r.riskPa) }), 'info')
     }
     if (risk.r && riskRef.current) {
-      addChartImage(ctx, riskRef.current, 'Risk by Concentration (lognormal, FAO/WHO model)')
+      addChartImage(ctx, riskRef.current, 'Risk by Concentration (lognormal, FAO/WHO model)', PDF_CHART)
       calloutBox(ctx, riskLines(EN).join(' '), 'info')
     }
     addSignOff(ctx)
