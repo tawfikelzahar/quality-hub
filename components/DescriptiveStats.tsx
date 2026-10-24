@@ -245,6 +245,9 @@ export default function DescriptiveStats() {
     maintainAspectRatio: false,
     animation: false,
     devicePixelRatio: 2,
+    // the tall median marker would otherwise make Chart.js pad both sides,
+    // pulling this axis out of line with the histogram above
+    layout: { autoPadding: false },
     plugins: { legend: { display: false } },
     scales: {
       // round numbers only: the bin edges at both ends would crowd the next label
