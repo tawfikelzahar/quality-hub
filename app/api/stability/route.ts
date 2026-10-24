@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
-import { analyzeStability, type StabilityInput } from '@/lib/stability/calc'
+import { analyzeStability, shelfLifeClaim, type StabilityInput } from '@/lib/stability/calc'
+import { storageKindOf } from '@/lib/stability/options'
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/stability — ICH Q1E shelf life: model choice (α 0.25), the
-// confidence bound and the shelf life per batch. The calculation stays on
+// confidence bound, the shelf life per batch and what the label may claim
+// (2.4 extrapolation limits for the storage condition). The calculation stays on
 // the server; this route only checks the payload.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -31,12 +33,15 @@ export async function POST(request: NextRequest) {
       Array.isArray((x as { points?: unknown }).points) && ((x as { points: unknown[] }).points).length <= MAX_POINTS &&
       ((x as { points: unknown[] }).points).every(p => p && typeof p === 'object' && fin((p as { time?: unknown }).time) && (p as { time: number }).time >= 0 && fin((p as { value?: unknown }).value))) &&
     (b.lower === null || fin(b.lower)) && (b.upper === null || fin(b.upper)) &&
-    typeof b.confidence === 'number' && [0.9, 0.95, 0.99].includes(b.confidence)
+    typeof b.confidence === 'number' && [0.9, 0.95, 0.99].includes(b.confidence) &&
+    (b.storage === undefined || (typeof b.storage === 'string' && b.storage.length <= 40))
   if (!ok) return NextResponse.json({ error: 'invalid' }, { status: 400 })
   if (b.lower !== null && b.upper !== null && (b.lower as number) >= (b.upper as number)) {
     return NextResponse.json({ error: 'limits' }, { status: 400 })
   }
 
-  const result = analyzeStability(b as unknown as StabilityInput)
-  return NextResponse.json({ result }, { headers: { 'Cache-Control': 'no-store' } })
+  const input: StabilityInput = { batches: batches as StabilityInput['batches'], lower: b.lower as number | null, upper: b.upper as number | null, confidence: b.confidence as number }
+  const result = analyzeStability(input)
+  const claim = result ? shelfLifeClaim(result, storageKindOf(String(b.storage ?? 'custom')), input.lower !== null || input.upper !== null) : null
+  return NextResponse.json({ result, claim }, { headers: { 'Cache-Control': 'no-store' } })
 }

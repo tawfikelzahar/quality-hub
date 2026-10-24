@@ -11,7 +11,8 @@
 //  • JMP Stability example (Stability.jmp = expirest exp4), lower spec 95:
 //      equal slopes p = 0.8043 → different intercepts, common slope → 23.475
 import { readFileSync } from 'node:fs'
-import { analyzeStability, linearRegression, tCritical, type StabilityInput } from '../../../lib/stability/calc.ts'
+import { analyzeStability, linearRegression, tCritical, shelfLifeClaim, type StabilityInput, type StabilityResult } from '../../../lib/stability/calc.ts'
+import { storageKindOf } from '../../../lib/stability/options.ts'
 
 const D = JSON.parse(readFileSync(new URL('./datasets.json', import.meta.url), 'utf8'))
 
@@ -85,6 +86,29 @@ const run = (set: string, keep: string[], lower: number, extra: Partial<Stabilit
   eq('S', 'two-sided is shorter', (two.recommended as number) < (r.recommended as number), true)
   // no limit → no shelf life
   eq('S', 'no limit', analyzeStability({ batches: [pts], lower: null, upper: null, confidence: 0.95 })!.recommended, null)
+}
+
+// C — what the label may claim, ICH Q1E 2.4 (text checked against the FDA/HHS Q1E PDF)
+{
+  const fake = (maxObserved: number, recommended: number | null) => ({ maxObserved, recommended } as StabilityResult)
+  // room temperature: min(2X, X + 12)
+  eq('C', '12 months of data, room: up to 24', shelfLifeClaim(fake(12, 40), 'room', true).maxAllowed, 24)
+  eq('C', '36 months of data, room: up to 48 (12 beyond)', shelfLifeClaim(fake(36, 60), 'room', true).maxAllowed, 48)
+  // refrigerator: min(1.5X, X + 6)
+  eq('C', '6 months of data, fridge: up to 9', shelfLifeClaim(fake(6, 20), 'refrigerated', true).maxAllowed, 9)
+  eq('C', '24 months of data, fridge: up to 30 (6 beyond)', shelfLifeClaim(fake(24, 40), 'refrigerated', true).maxAllowed, 30)
+  // freezer: no extrapolation
+  eq('C', 'freezer: data only', shelfLifeClaim(fake(18, 30), 'frozen', true).maxAllowed, 18)
+  // claim = shorter of bound and rule; whole months rounded down
+  const a = shelfLifeClaim(fake(36, 26.2241), 'room', true)
+  eq('C', 'bound inside the data sets the claim', [a.claim, a.limitedBy, a.wholeMonths, a.step6], [26.2241, 'data', 26, 24])
+  const b = shelfLifeClaim(fake(12, 40), 'room', true)
+  eq('C', 'rule caps a long bound', [b.claim, b.limitedBy, b.wholeMonths], [24, 'rule', 24])
+  const n = shelfLifeClaim(fake(24, null), 'refrigerated', true)
+  eq('C', 'bound not reached: the rule sets the claim', [n.claim, n.limitedBy], [30, 'rule'])
+  eq('C', 'no limit: no claim', shelfLifeClaim(fake(24, null), 'room', false).claim, null)
+  eq('C', 'accelerated sets no rule', shelfLifeClaim(fake(6, 10), 'support', true).maxAllowed, null)
+  eq('C', 'storage keys', ['long-term', 'long-term-30', 'refrigerated', 'frozen', 'accelerated', 'custom', 'x'].map(storageKindOf), ['room', 'room', 'refrigerated', 'frozen', 'support', 'other', 'other'])
 }
 
 console.log(`Stability golden: ${checks - fail}/${checks} pass`)

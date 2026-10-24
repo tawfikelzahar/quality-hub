@@ -461,3 +461,57 @@ export function analyzeStability(input: StabilityInput): StabilityResult | null 
     recommended, limiting, extrapolated: recommended !== null && (recommended as number) > maxObserved, bound,
   };
 }
+
+// ── What the label may claim — ICH Q1E 2.4 (extrapolation beyond the data) ──
+// Room temperature (2.4.1.2): "up to twice as long as, but not more than 12
+// months beyond, the period covered by long-term data". Refrigerator
+// (2.4.2): "up to one-and-a-half times as long as, but should not be more
+// than 6 months beyond". Freezer (2.4.3): based on long-term data, no
+// extrapolation. Intermediate and accelerated data support the shelf life;
+// they do not set it.
+export interface ShelfLifeClaim {
+  storage: import('./options').StorageKind;
+  /** months covered by the data (longest time point) */
+  covered: number;
+  /** most ICH Q1E allows from these data (null: no rule for this condition) */
+  maxAllowed: number | null;
+  /** from the confidence bound (null: not reached within the search range) */
+  statistical: number | null;
+  /** the shorter of the two; null when there is no limit or no rule and no crossing */
+  claim: number | null;
+  /** what sets the claim: the bound (data) or the extrapolation rule */
+  limitedBy: 'data' | 'rule' | null;
+  /** the claim rounded down to whole months */
+  wholeMonths: number | null;
+  /** rounded down to a multiple of 6 months — a common labelling habit, not an ICH rule */
+  step6: number | null;
+}
+
+export function shelfLifeClaim(r: StabilityResult, storage: import('./options').StorageKind, hasLimit: boolean): ShelfLifeClaim {
+  const c = r.maxObserved;
+  const maxAllowed =
+    storage === 'room' ? Math.min(2 * c, c + 12)
+      : storage === 'refrigerated' ? Math.min(1.5 * c, c + 6)
+        : storage === 'frozen' ? c
+          : null;
+  const statistical = hasLimit ? r.recommended : null;
+  let claim: number | null = null;
+  let limitedBy: ShelfLifeClaim['limitedBy'] = null;
+  if (hasLimit) {
+    if (maxAllowed === null) {
+      claim = statistical;
+      limitedBy = statistical === null ? null : 'data';
+    } else if (statistical === null || statistical > maxAllowed) {
+      claim = maxAllowed;
+      limitedBy = 'rule';
+    } else {
+      claim = statistical;
+      limitedBy = 'data';
+    }
+  }
+  return {
+    storage, covered: c, maxAllowed, statistical, claim, limitedBy,
+    wholeMonths: claim === null ? null : Math.floor(claim + 1e-9),
+    step6: claim === null ? null : Math.floor(claim / 6 + 1e-9) * 6,
+  };
+}
