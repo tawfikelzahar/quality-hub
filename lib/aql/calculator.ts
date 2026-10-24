@@ -6,6 +6,7 @@ import {
   RESOLVED_TIGHTENED,
   sampleSizeFor,
   type CodeLetter,
+  type PlanLetter,
   type InspectionLevel,
   type InspectionType,
 } from './tables';
@@ -16,7 +17,7 @@ export interface ResolvedPlan {
   baseLetter: CodeLetter;
   baseSampleSize: number;
   /** The code letter whose plan actually applies (may differ from baseLetter if the ISO switching rule redirected here) */
-  usedLetter: CodeLetter;
+  usedLetter: PlanLetter;
   /** The sample size called for by the resolved plan itself, before checking it against the lot size */
   requiredSampleSize: number;
   /** The number of units that will actually be inspected: requiredSampleSize, capped at the lot size */
@@ -89,7 +90,7 @@ export function getPlan(
   const baseSampleSize = sampleSizeFor(letter, inspectionType);
 
   const build = (
-    usedLetter: CodeLetter,
+    usedLetter: PlanLetter,
     requiredSampleSize: number,
     ac: number,
     switchNote: string | null,

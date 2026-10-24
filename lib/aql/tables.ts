@@ -46,12 +46,36 @@
 // RESOLVED_NORMAL / RESOLVED_TIGHTENED / RESOLVED_REDUCED are what
 // calculator.ts actually uses — no scanning/guessing logic left anywhere.
 // ─────────────────────────────────────────────────────────────────────────
+// HOW THIS FILE WAS FIXED — session 5 (24 Oct 2026, Tightened + Reduced
+// shading direction, approved by Tawfik)
+// ─────────────────────────────────────────────────────────────────────────
+// The 2026 tables mark cells with no plan by shading, not arrows:
+//   light grey = use the FIRST plan BELOW in the same column
+//   dark grey  = use the LAST plan ABOVE in the same column
+// Session 4 read 26 light-grey cells as "go up": the second empty cell to
+// the right of every "0 1" (14 in Tightened, 12 in Reduced). They now go
+// down to the 1/2 plan, as the table says — e.g. Tightened J at AQL 0.40
+// is L (n=200) Ac 1 Re 2, not H (n=50) Ac 0 Re 1. Letter S (n=3150,
+// Tightened only) was missing and is now reachable (Q and R at AQL 0.025).
+// Normal was already right (0 differences).
+// All three RESOLVED_* tables were regenerated from the reference extract
+// tests/golden/aql/iso2859-1-2026.json; tests/golden/aql/check.mts
+// re-resolves that extract on every run and compares cell by cell.
+// ─────────────────────────────────────────────────────────────────────────
 
 export type InspectionLevel = 'S1' | 'S2' | 'S3' | 'S4' | 'I' | 'II' | 'III';
 export type InspectionType = 'Normal' | 'Tightened' | 'Reduced';
 export type CodeLetter =
   | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H'
   | 'J' | 'K' | 'L' | 'M' | 'N' | 'P' | 'Q' | 'R';
+
+/**
+ * Letters a plan can come from. Same as CodeLetter plus S (n = 3150), which
+ * exists only in the tightened table (Table 3) and carries a single plan
+ * (Ac 1 Re 2 at AQL 0.025). Table 1 never gives S as a code letter; a
+ * lookup only reaches it by following a shaded cell down.
+ */
+export type PlanLetter = CodeLetter | 'S';
 
 export const CODE_LETTERS: CodeLetter[] = [
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R',
@@ -77,8 +101,12 @@ export const SAMPLE_SIZES_REDUCED: Record<CodeLetter, number> = {
   J: 32, K: 50, L: 80, M: 125, N: 200, P: 315, Q: 500, R: 800,
 };
 
+/** Sample size of letter S (tightened inspection only, Table 3). */
+export const SAMPLE_SIZE_S_TIGHTENED = 3150;
+
 /** Sample size (n) for a given code letter under a given inspection type. */
-export function sampleSizeFor(letter: CodeLetter, inspectionType: InspectionType): number {
+export function sampleSizeFor(letter: PlanLetter, inspectionType: InspectionType): number {
+  if (letter === 'S') return SAMPLE_SIZE_S_TIGHTENED;
   return inspectionType === 'Reduced' ? SAMPLE_SIZES_REDUCED[letter] : SAMPLE_SIZES[letter];
 }
 
@@ -142,7 +170,7 @@ export const CODE_LETTER_TABLE: [number, number, CodeLetter, CodeLetter, CodeLet
 //   - { letter, ac }: the code letter whose plan actually applies here
 //     (may be a different letter than the row itself, if the official
 //     table's arrow redirects here) and its acceptance number (Re = ac+1).
-export const RESOLVED_NORMAL: Record<CodeLetter, Array<{ letter: CodeLetter; ac: number } | null>> = {
+export const RESOLVED_NORMAL: Record<CodeLetter, Array<{ letter: PlanLetter; ac: number } | null>> = {
   A: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'A', ac: 0 }],
   B: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'A', ac: 0 }],
   C: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'D', ac: 1 }],
@@ -191,23 +219,23 @@ export const AC_NORMAL: Record<CodeLetter, number[]> = {
 // AC_REDUCED below are the raw own-row values (-1 = arrow), kept for
 // reference/debugging only, same as AC_NORMAL above.
 
-export const RESOLVED_TIGHTENED: Record<CodeLetter, Array<{ letter: CodeLetter; ac: number } | null>> = {
+export const RESOLVED_TIGHTENED: Record<CodeLetter, Array<{ letter: PlanLetter; ac: number } | null>> = {
   A: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }],
   B: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }],
-  C: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }],
-  D: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'E', ac: 1 }],
-  E: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'F', ac: 1 }, { letter: 'E', ac: 1 }],
-  F: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'G', ac: 1 }, { letter: 'F', ac: 1 }, { letter: 'F', ac: 2 }],
-  G: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'H', ac: 1 }, { letter: 'G', ac: 1 }, { letter: 'G', ac: 2 }, { letter: 'G', ac: 3 }],
-  H: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'J', ac: 1 }, { letter: 'H', ac: 1 }, { letter: 'H', ac: 2 }, { letter: 'H', ac: 3 }, { letter: 'H', ac: 5 }],
-  J: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'K', ac: 1 }, { letter: 'J', ac: 1 }, { letter: 'J', ac: 2 }, { letter: 'J', ac: 3 }, { letter: 'J', ac: 5 }, { letter: 'J', ac: 8 }],
-  K: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'L', ac: 1 }, { letter: 'K', ac: 1 }, { letter: 'K', ac: 2 }, { letter: 'K', ac: 3 }, { letter: 'K', ac: 5 }, { letter: 'K', ac: 8 }, { letter: 'K', ac: 12 }],
-  L: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'M', ac: 1 }, { letter: 'L', ac: 1 }, { letter: 'L', ac: 2 }, { letter: 'L', ac: 3 }, { letter: 'L', ac: 5 }, { letter: 'L', ac: 8 }, { letter: 'L', ac: 12 }, { letter: 'L', ac: 18 }],
-  M: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'N', ac: 1 }, { letter: 'M', ac: 1 }, { letter: 'M', ac: 2 }, { letter: 'M', ac: 3 }, { letter: 'M', ac: 5 }, { letter: 'M', ac: 8 }, { letter: 'M', ac: 12 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
-  N: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'P', ac: 1 }, { letter: 'N', ac: 1 }, { letter: 'N', ac: 2 }, { letter: 'N', ac: 3 }, { letter: 'N', ac: 5 }, { letter: 'N', ac: 8 }, { letter: 'N', ac: 12 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
-  P: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'Q', ac: 1 }, { letter: 'P', ac: 1 }, { letter: 'P', ac: 2 }, { letter: 'P', ac: 3 }, { letter: 'P', ac: 5 }, { letter: 'P', ac: 8 }, { letter: 'P', ac: 12 }, { letter: 'P', ac: 18 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
-  Q: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'R', ac: 1 }, { letter: 'Q', ac: 1 }, { letter: 'Q', ac: 2 }, { letter: 'Q', ac: 3 }, { letter: 'Q', ac: 5 }, { letter: 'Q', ac: 8 }, { letter: 'Q', ac: 12 }, { letter: 'Q', ac: 18 }, { letter: 'P', ac: 18 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
-  R: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'R', ac: 1 }, { letter: 'R', ac: 2 }, { letter: 'R', ac: 3 }, { letter: 'R', ac: 5 }, { letter: 'R', ac: 8 }, { letter: 'R', ac: 12 }, { letter: 'R', ac: 18 }, { letter: 'Q', ac: 18 }, { letter: 'P', ac: 18 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
+  C: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'E', ac: 1 }],
+  D: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'F', ac: 1 }, { letter: 'E', ac: 1 }],
+  E: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'G', ac: 1 }, { letter: 'F', ac: 1 }, { letter: 'E', ac: 1 }],
+  F: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'H', ac: 1 }, { letter: 'G', ac: 1 }, { letter: 'F', ac: 1 }, { letter: 'F', ac: 2 }],
+  G: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'J', ac: 1 }, { letter: 'H', ac: 1 }, { letter: 'G', ac: 1 }, { letter: 'G', ac: 2 }, { letter: 'G', ac: 3 }],
+  H: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'K', ac: 1 }, { letter: 'J', ac: 1 }, { letter: 'H', ac: 1 }, { letter: 'H', ac: 2 }, { letter: 'H', ac: 3 }, { letter: 'H', ac: 5 }],
+  J: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'L', ac: 1 }, { letter: 'K', ac: 1 }, { letter: 'J', ac: 1 }, { letter: 'J', ac: 2 }, { letter: 'J', ac: 3 }, { letter: 'J', ac: 5 }, { letter: 'J', ac: 8 }],
+  K: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'M', ac: 1 }, { letter: 'L', ac: 1 }, { letter: 'K', ac: 1 }, { letter: 'K', ac: 2 }, { letter: 'K', ac: 3 }, { letter: 'K', ac: 5 }, { letter: 'K', ac: 8 }, { letter: 'K', ac: 12 }],
+  L: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'N', ac: 1 }, { letter: 'M', ac: 1 }, { letter: 'L', ac: 1 }, { letter: 'L', ac: 2 }, { letter: 'L', ac: 3 }, { letter: 'L', ac: 5 }, { letter: 'L', ac: 8 }, { letter: 'L', ac: 12 }, { letter: 'L', ac: 18 }],
+  M: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'P', ac: 1 }, { letter: 'N', ac: 1 }, { letter: 'M', ac: 1 }, { letter: 'M', ac: 2 }, { letter: 'M', ac: 3 }, { letter: 'M', ac: 5 }, { letter: 'M', ac: 8 }, { letter: 'M', ac: 12 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
+  N: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'Q', ac: 1 }, { letter: 'P', ac: 1 }, { letter: 'N', ac: 1 }, { letter: 'N', ac: 2 }, { letter: 'N', ac: 3 }, { letter: 'N', ac: 5 }, { letter: 'N', ac: 8 }, { letter: 'N', ac: 12 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
+  P: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'R', ac: 1 }, { letter: 'Q', ac: 1 }, { letter: 'P', ac: 1 }, { letter: 'P', ac: 2 }, { letter: 'P', ac: 3 }, { letter: 'P', ac: 5 }, { letter: 'P', ac: 8 }, { letter: 'P', ac: 12 }, { letter: 'P', ac: 18 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
+  Q: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'S', ac: 1 }, { letter: 'R', ac: 1 }, { letter: 'Q', ac: 1 }, { letter: 'Q', ac: 2 }, { letter: 'Q', ac: 3 }, { letter: 'Q', ac: 5 }, { letter: 'Q', ac: 8 }, { letter: 'Q', ac: 12 }, { letter: 'Q', ac: 18 }, { letter: 'P', ac: 18 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
+  R: [{ letter: 'R', ac: 0 }, { letter: 'Q', ac: 0 }, { letter: 'S', ac: 1 }, { letter: 'R', ac: 1 }, { letter: 'R', ac: 2 }, { letter: 'R', ac: 3 }, { letter: 'R', ac: 5 }, { letter: 'R', ac: 8 }, { letter: 'R', ac: 12 }, { letter: 'R', ac: 18 }, { letter: 'Q', ac: 18 }, { letter: 'P', ac: 18 }, { letter: 'N', ac: 18 }, { letter: 'M', ac: 18 }, { letter: 'L', ac: 18 }],
 };
 
 // Table II-B — Tightened Inspection, own-row values only (-1 = arrow cell).
@@ -230,21 +258,21 @@ export const AC_TIGHTENED: Record<CodeLetter, number[]> = {
   R: [0, -1, -1, 1, 2, 3, 5, 8, 12, 18, -1, -1, -1, -1, -1],
 };
 
-export const RESOLVED_REDUCED: Record<CodeLetter, Array<{ letter: CodeLetter; ac: number } | null>> = {
+export const RESOLVED_REDUCED: Record<CodeLetter, Array<{ letter: PlanLetter; ac: number } | null>> = {
   A: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'A', ac: 0 }],
   B: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'A', ac: 0 }],
-  C: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'A', ac: 0 }],
-  D: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'E', ac: 1 }],
-  E: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'F', ac: 1 }, { letter: 'E', ac: 1 }],
-  F: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'G', ac: 1 }, { letter: 'F', ac: 1 }, { letter: 'F', ac: 2 }],
-  G: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'H', ac: 1 }, { letter: 'G', ac: 1 }, { letter: 'G', ac: 2 }, { letter: 'G', ac: 3 }],
-  H: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'J', ac: 1 }, { letter: 'H', ac: 1 }, { letter: 'H', ac: 2 }, { letter: 'H', ac: 3 }, { letter: 'H', ac: 5 }],
-  J: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'K', ac: 1 }, { letter: 'J', ac: 1 }, { letter: 'J', ac: 2 }, { letter: 'J', ac: 3 }, { letter: 'J', ac: 5 }, { letter: 'J', ac: 6 }],
-  K: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'L', ac: 1 }, { letter: 'K', ac: 1 }, { letter: 'K', ac: 2 }, { letter: 'K', ac: 3 }, { letter: 'K', ac: 5 }, { letter: 'K', ac: 6 }, { letter: 'K', ac: 8 }],
-  L: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'M', ac: 1 }, { letter: 'L', ac: 1 }, { letter: 'L', ac: 2 }, { letter: 'L', ac: 3 }, { letter: 'L', ac: 5 }, { letter: 'L', ac: 6 }, { letter: 'L', ac: 8 }, { letter: 'L', ac: 10 }],
-  M: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'N', ac: 1 }, { letter: 'M', ac: 1 }, { letter: 'M', ac: 2 }, { letter: 'M', ac: 3 }, { letter: 'M', ac: 5 }, { letter: 'M', ac: 6 }, { letter: 'M', ac: 8 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
-  N: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'P', ac: 1 }, { letter: 'N', ac: 1 }, { letter: 'N', ac: 2 }, { letter: 'N', ac: 3 }, { letter: 'N', ac: 5 }, { letter: 'N', ac: 6 }, { letter: 'N', ac: 8 }, { letter: 'N', ac: 10 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
-  P: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'Q', ac: 1 }, { letter: 'P', ac: 1 }, { letter: 'P', ac: 2 }, { letter: 'P', ac: 3 }, { letter: 'P', ac: 5 }, { letter: 'P', ac: 6 }, { letter: 'P', ac: 8 }, { letter: 'P', ac: 10 }, { letter: 'N', ac: 10 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
+  C: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'B', ac: 0 }, { letter: 'E', ac: 1 }],
+  D: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'C', ac: 0 }, { letter: 'F', ac: 1 }, { letter: 'E', ac: 1 }],
+  E: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'D', ac: 0 }, { letter: 'G', ac: 1 }, { letter: 'F', ac: 1 }, { letter: 'E', ac: 1 }],
+  F: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'E', ac: 0 }, { letter: 'H', ac: 1 }, { letter: 'G', ac: 1 }, { letter: 'F', ac: 1 }, { letter: 'F', ac: 2 }],
+  G: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'F', ac: 0 }, { letter: 'J', ac: 1 }, { letter: 'H', ac: 1 }, { letter: 'G', ac: 1 }, { letter: 'G', ac: 2 }, { letter: 'G', ac: 3 }],
+  H: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'G', ac: 0 }, { letter: 'K', ac: 1 }, { letter: 'J', ac: 1 }, { letter: 'H', ac: 1 }, { letter: 'H', ac: 2 }, { letter: 'H', ac: 3 }, { letter: 'H', ac: 5 }],
+  J: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'H', ac: 0 }, { letter: 'L', ac: 1 }, { letter: 'K', ac: 1 }, { letter: 'J', ac: 1 }, { letter: 'J', ac: 2 }, { letter: 'J', ac: 3 }, { letter: 'J', ac: 5 }, { letter: 'J', ac: 6 }],
+  K: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'J', ac: 0 }, { letter: 'M', ac: 1 }, { letter: 'L', ac: 1 }, { letter: 'K', ac: 1 }, { letter: 'K', ac: 2 }, { letter: 'K', ac: 3 }, { letter: 'K', ac: 5 }, { letter: 'K', ac: 6 }, { letter: 'K', ac: 8 }],
+  L: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'K', ac: 0 }, { letter: 'N', ac: 1 }, { letter: 'M', ac: 1 }, { letter: 'L', ac: 1 }, { letter: 'L', ac: 2 }, { letter: 'L', ac: 3 }, { letter: 'L', ac: 5 }, { letter: 'L', ac: 6 }, { letter: 'L', ac: 8 }, { letter: 'L', ac: 10 }],
+  M: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'L', ac: 0 }, { letter: 'P', ac: 1 }, { letter: 'N', ac: 1 }, { letter: 'M', ac: 1 }, { letter: 'M', ac: 2 }, { letter: 'M', ac: 3 }, { letter: 'M', ac: 5 }, { letter: 'M', ac: 6 }, { letter: 'M', ac: 8 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
+  N: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'M', ac: 0 }, { letter: 'Q', ac: 1 }, { letter: 'P', ac: 1 }, { letter: 'N', ac: 1 }, { letter: 'N', ac: 2 }, { letter: 'N', ac: 3 }, { letter: 'N', ac: 5 }, { letter: 'N', ac: 6 }, { letter: 'N', ac: 8 }, { letter: 'N', ac: 10 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
+  P: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'R', ac: 1 }, { letter: 'Q', ac: 1 }, { letter: 'P', ac: 1 }, { letter: 'P', ac: 2 }, { letter: 'P', ac: 3 }, { letter: 'P', ac: 5 }, { letter: 'P', ac: 6 }, { letter: 'P', ac: 8 }, { letter: 'P', ac: 10 }, { letter: 'N', ac: 10 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
   Q: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'R', ac: 1 }, { letter: 'Q', ac: 1 }, { letter: 'Q', ac: 2 }, { letter: 'Q', ac: 3 }, { letter: 'Q', ac: 5 }, { letter: 'Q', ac: 6 }, { letter: 'Q', ac: 8 }, { letter: 'Q', ac: 10 }, { letter: 'P', ac: 10 }, { letter: 'N', ac: 10 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
   R: [{ letter: 'Q', ac: 0 }, { letter: 'P', ac: 0 }, { letter: 'N', ac: 0 }, { letter: 'R', ac: 1 }, { letter: 'R', ac: 2 }, { letter: 'R', ac: 3 }, { letter: 'R', ac: 5 }, { letter: 'R', ac: 6 }, { letter: 'R', ac: 8 }, { letter: 'R', ac: 10 }, { letter: 'Q', ac: 10 }, { letter: 'P', ac: 10 }, { letter: 'N', ac: 10 }, { letter: 'M', ac: 10 }, { letter: 'L', ac: 10 }],
 };
