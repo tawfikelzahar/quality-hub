@@ -462,22 +462,34 @@ export function analyzeStability(input: StabilityInput): StabilityResult | null 
   };
 }
 
-// ── What the label may claim — ICH Q1E 2.4 (extrapolation beyond the data) ──
-// Room temperature (2.4.1.2): "up to twice as long as, but not more than 12
-// months beyond, the period covered by long-term data". Refrigerator
-// (2.4.2): "up to one-and-a-half times as long as, but should not be more
-// than 6 months beyond". Freezer (2.4.3): based on long-term data, no
-// extrapolation. Intermediate and accelerated data support the shelf life;
-// they do not set it.
+// ── What the label may claim — ICH Q1E 2.4 and 2.5 (going beyond the data) ──
+// Checked against the ICH Q1E PDF (database.ich.org). The data are analysed
+// statistically here, so the "analysis performed" branch applies. X = the
+// period covered by long-term data.
+//  Room temperature (2.4):
+//   no significant change at accelerated (2.4.1.2) → up to 2X, ≤ X + 12
+//   significant change at accelerated, none at intermediate (2.4.2.1) → up to 1.5X, ≤ X + 6
+//   significant change at intermediate (2.4.2.2) → not beyond X
+//  Refrigerator (2.5.1):
+//   no significant change at accelerated (2.5.1.1) → up to 1.5X, ≤ X + 6
+//   significant change at accelerated (2.5.1.2) → no extrapolation
+//  Freezer (2.5.2): based on long-term data → not beyond X
+//  Accelerated result not known → not beyond X (nothing allows more).
+// Intermediate and accelerated data support the shelf life; they do not set it.
+export type AccelResult = import('./options').AccelResult;
+
 export interface ShelfLifeClaim {
   storage: import('./options').StorageKind;
+  accel: AccelResult;
   /** months covered by the data (longest time point) */
   covered: number;
+  /** extrapolation rule that applies: 2X/+12, 1.5X/+6, none (data only), or no rule for this condition */
+  rule: '2x12' | '1.5x6' | 'none' | null;
   /** most ICH Q1E allows from these data (null: no rule for this condition) */
   maxAllowed: number | null;
   /** from the confidence bound (null: not reached within the search range) */
   statistical: number | null;
-  /** the shorter of the two; null when there is no limit or no rule and no crossing */
+  /** the shorter of the two; null when there is no limit, or no rule and no crossing */
   claim: number | null;
   /** what sets the claim: the bound (data) or the extrapolation rule */
   limitedBy: 'data' | 'rule' | null;
@@ -487,13 +499,17 @@ export interface ShelfLifeClaim {
   step6: number | null;
 }
 
-export function shelfLifeClaim(r: StabilityResult, storage: import('./options').StorageKind, hasLimit: boolean): ShelfLifeClaim {
+export function claimRule(storage: import('./options').StorageKind, accel: AccelResult): ShelfLifeClaim['rule'] {
+  if (storage === 'room') return accel === 'none' ? '2x12' : accel === 'accelerated' ? '1.5x6' : 'none';
+  if (storage === 'refrigerated') return accel === 'none' ? '1.5x6' : 'none';
+  if (storage === 'frozen') return 'none';
+  return null;
+}
+
+export function shelfLifeClaim(r: StabilityResult, storage: import('./options').StorageKind, hasLimit: boolean, accel: AccelResult = 'unknown'): ShelfLifeClaim {
   const c = r.maxObserved;
-  const maxAllowed =
-    storage === 'room' ? Math.min(2 * c, c + 12)
-      : storage === 'refrigerated' ? Math.min(1.5 * c, c + 6)
-        : storage === 'frozen' ? c
-          : null;
+  const rule = claimRule(storage, accel);
+  const maxAllowed = rule === '2x12' ? Math.min(2 * c, c + 12) : rule === '1.5x6' ? Math.min(1.5 * c, c + 6) : rule === 'none' ? c : null;
   const statistical = hasLimit ? r.recommended : null;
   let claim: number | null = null;
   let limitedBy: ShelfLifeClaim['limitedBy'] = null;
@@ -510,7 +526,7 @@ export function shelfLifeClaim(r: StabilityResult, storage: import('./options').
     }
   }
   return {
-    storage, covered: c, maxAllowed, statistical, claim, limitedBy,
+    storage, accel, covered: c, rule, maxAllowed, statistical, claim, limitedBy,
     wholeMonths: claim === null ? null : Math.floor(claim + 1e-9),
     step6: claim === null ? null : Math.floor(claim / 6 + 1e-9) * 6,
   };

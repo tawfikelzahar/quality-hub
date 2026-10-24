@@ -88,26 +88,36 @@ const run = (set: string, keep: string[], lower: number, extra: Partial<Stabilit
   eq('S', 'no limit', analyzeStability({ batches: [pts], lower: null, upper: null, confidence: 0.95 })!.recommended, null)
 }
 
-// C — what the label may claim, ICH Q1E 2.4 (text checked against the FDA/HHS Q1E PDF)
+// C — what the label may claim, ICH Q1E 2.4 / 2.5 (checked against the ICH Q1E PDF, database.ich.org)
 {
   const fake = (maxObserved: number, recommended: number | null) => ({ maxObserved, recommended } as StabilityResult)
-  // room temperature: min(2X, X + 12)
-  eq('C', '12 months of data, room: up to 24', shelfLifeClaim(fake(12, 40), 'room', true).maxAllowed, 24)
-  eq('C', '36 months of data, room: up to 48 (12 beyond)', shelfLifeClaim(fake(36, 60), 'room', true).maxAllowed, 48)
-  // refrigerator: min(1.5X, X + 6)
-  eq('C', '6 months of data, fridge: up to 9', shelfLifeClaim(fake(6, 20), 'refrigerated', true).maxAllowed, 9)
-  eq('C', '24 months of data, fridge: up to 30 (6 beyond)', shelfLifeClaim(fake(24, 40), 'refrigerated', true).maxAllowed, 30)
-  // freezer: no extrapolation
-  eq('C', 'freezer: data only', shelfLifeClaim(fake(18, 30), 'frozen', true).maxAllowed, 18)
-  // claim = shorter of bound and rule; whole months rounded down
-  const a = shelfLifeClaim(fake(36, 26.2241), 'room', true)
-  eq('C', 'bound inside the data sets the claim', [a.claim, a.limitedBy, a.wholeMonths, a.step6], [26.2241, 'data', 26, 24])
-  const b = shelfLifeClaim(fake(12, 40), 'room', true)
+  const max = (x: number, st: Parameters<typeof shelfLifeClaim>[1], ac: Parameters<typeof shelfLifeClaim>[3]) => shelfLifeClaim(fake(x, 999), st, true, ac).maxAllowed
+  // room temperature
+  eq('C', 'room, no change at accelerated (2.4.1.2): 12 → 24', max(12, 'room', 'none'), 24)
+  eq('C', 'room, no change at accelerated: 36 → 48 (12 beyond)', max(36, 'room', 'none'), 48)
+  eq('C', 'room, change at accelerated only (2.4.2.1): 6 → 9', max(6, 'room', 'accelerated'), 9)
+  eq('C', 'room, change at accelerated only: 24 → 30 (6 beyond)', max(24, 'room', 'accelerated'), 30)
+  eq('C', 'room, change at intermediate (2.4.2.2): data only', max(24, 'room', 'intermediate'), 24)
+  eq('C', 'room, accelerated not known: data only', max(24, 'room', 'unknown'), 24)
+  // refrigerator
+  eq('C', 'fridge, no change at accelerated (2.5.1.1): 6 → 9', max(6, 'refrigerated', 'none'), 9)
+  eq('C', 'fridge, no change at accelerated: 24 → 30 (6 beyond)', max(24, 'refrigerated', 'none'), 30)
+  eq('C', 'fridge, change at accelerated (2.5.1.2): no extrapolation', max(24, 'refrigerated', 'accelerated'), 24)
+  eq('C', 'fridge, change at intermediate: no extrapolation', max(24, 'refrigerated', 'intermediate'), 24)
+  // freezer (2.5.2) and supporting conditions
+  eq('C', 'freezer: data only', max(18, 'frozen', 'none'), 18)
+  eq('C', 'accelerated storage sets no rule', max(6, 'support', 'none'), null)
+  eq('C', 'custom sets no rule', max(6, 'other', 'none'), null)
+  // claim = shorter of bound and rule; whole months and 6-month steps rounded down
+  const a = shelfLifeClaim(fake(36, 26.2241), 'room', true, 'none')
+  eq('C', 'bound inside the data sets the claim', [a.claim, a.limitedBy, a.wholeMonths, a.step6, a.rule], [26.2241, 'data', 26, 24, '2x12'])
+  const b = shelfLifeClaim(fake(12, 40), 'room', true, 'none')
   eq('C', 'rule caps a long bound', [b.claim, b.limitedBy, b.wholeMonths], [24, 'rule', 24])
-  const n = shelfLifeClaim(fake(24, null), 'refrigerated', true)
+  const u = shelfLifeClaim(fake(24, 30.03), 'room', true, 'unknown')
+  eq('C', 'unknown accelerated: capped at the data', [u.claim, u.limitedBy, u.rule], [24, 'rule', 'none'])
+  const n = shelfLifeClaim(fake(24, null), 'refrigerated', true, 'none')
   eq('C', 'bound not reached: the rule sets the claim', [n.claim, n.limitedBy], [30, 'rule'])
-  eq('C', 'no limit: no claim', shelfLifeClaim(fake(24, null), 'room', false).claim, null)
-  eq('C', 'accelerated sets no rule', shelfLifeClaim(fake(6, 10), 'support', true).maxAllowed, null)
+  eq('C', 'no limit: no claim', shelfLifeClaim(fake(24, null), 'room', false, 'none').claim, null)
   eq('C', 'storage keys', ['long-term', 'long-term-30', 'refrigerated', 'frozen', 'accelerated', 'custom', 'x'].map(storageKindOf), ['room', 'room', 'refrigerated', 'frozen', 'support', 'other', 'other'])
 }
 

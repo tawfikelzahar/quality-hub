@@ -24,3 +24,11 @@ export type StorageKey = (typeof STORAGE_CONDITIONS)[number]['key'];
 
 export const storageKindOf = (key: string): StorageKind =>
   STORAGE_CONDITIONS.find((s) => s.key === key)?.kind ?? 'other';
+
+/**
+ * Result of the accelerated (and intermediate) study — decides how far ICH
+ * Q1E lets the shelf life go beyond the long-term data. "Significant change"
+ * as defined in ICH Q1A(R2) 2.1.7.1 / 2.2.7.1.
+ */
+export const ACCEL_RESULTS = ['unknown', 'none', 'accelerated', 'intermediate'] as const;
+export type AccelResult = (typeof ACCEL_RESULTS)[number];

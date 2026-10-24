@@ -20,7 +20,7 @@ import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPEquals } from '@/lib/stats/format'
-import { STORAGE_CONDITIONS, storageKindOf } from '@/lib/stability/options'
+import { STORAGE_CONDITIONS, ACCEL_RESULTS, storageKindOf, type AccelResult } from '@/lib/stability/options'
 import type { StabilityResult, ShelfLifeClaim } from '@/lib/stability/calc'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ const MAX_BATCHES = 20
 const MAX_MONTHS = 60
 /** charts in the PDF: full width, a little shorter than on screen */
 const PDF_CHART = { width: 900, height: 240 }
-const SOURCE_LINE = 'Source: ICH Q1E (2003) — regression and confidence bound, poolability at α = 0.25, extrapolation limits in 2.4 · storage conditions: ICH Q1A(R2).'
+const SOURCE_LINE = 'Source: ICH Q1E (2003) — regression and confidence bound, poolability at α = 0.25, extrapolation limits in 2.4–2.5 · storage conditions and significant change: ICH Q1A(R2).'
 // categorical, avoids the verdict colours (green/amber/red)
 const BATCH_COLORS = ['#5B8FD9', '#9A7FE0', '#2BA39A', '#D9659A', '#7A8BA6', '#5FB0D9']
 
@@ -49,6 +49,8 @@ interface Inputs {
   attribute: string
   unit: string
   storage: string
+  /** accelerated (and intermediate) study result */
+  accel: AccelResult
   confidence: 90 | 95 | 99
   lower: string
   upper: string
@@ -61,7 +63,7 @@ interface Inputs {
 // Realistic assay decline, 24 months, three batches: a common slope with a
 // start per batch, the bound reaches 95.0% at about 30 months.
 const EXAMPLE: Inputs = {
-  attribute: 'Assay', unit: '%', storage: 'long-term', confidence: 95, lower: '95.0', upper: '',
+  attribute: 'Assay', unit: '%', storage: 'long-term', accel: 'none', confidence: 95, lower: '95.0', upper: '',
   months: ['0', '3', '6', '9', '12', '18', '24'],
   names: ['A2401', 'A2402', 'A2403'],
   values: [
@@ -142,6 +144,7 @@ export default function StabilityStudy() {
           attribute: str(d.attribute ?? d.attributeName) || 'Assay',
           unit: d.unit === undefined ? '%' : str(d.unit),
           storage: STORAGE_CONDITIONS.some(x => x.key === d.storageCondition) ? String(d.storageCondition) : 'long-term',
+          accel: ACCEL_RESULTS.includes(d.accel as AccelResult) ? (d.accel as AccelResult) : 'unknown',
           confidence: conf, lower, upper,
           months, names, values: months.map((_, i) => values[i] ?? names.map(() => '')),
         })
@@ -205,7 +208,7 @@ export default function StabilityStudy() {
   const batches = allBatches.filter(b => b.points.length >= 2)
   const filled = allBatches.reduce((a, b) => a + b.points.length, 0)
   const body = batches.length && !limitsBad
-    ? { batches: batches.map(b => ({ name: b.name, points: b.points })), lower, upper, confidence: inp.confidence / 100, storage: inp.storage }
+    ? { batches: batches.map(b => ({ name: b.name, points: b.points })), lower, upper, confidence: inp.confidence / 100, storage: inp.storage, accel: inp.accel }
     : null
   const { r: reply, pending, failed } = useAnalysis(body)
   const res = body ? reply?.result ?? null : null
@@ -234,17 +237,23 @@ export default function StabilityStudy() {
     const base = fill(say(d, 'stb_v_sub'), { conf: inp.confidence, side: side(d), x: fixed(res.recommended, 1) })
     return res.limiting && res.model !== 'single' ? `${base} ${fill(say(d, 'stb_set_by'), { b: res.limiting })}` : base
   }
-  const ruleText = (d: Dict) => say(d, kind === 'refrigerated' ? 'stb_rule_fridge' : 'stb_rule_room')
+  /** why this extrapolation rule applies (storage + accelerated result) */
+  const whyKey = (): TKey => {
+    if (!claim) return 'stb_why_unknown'
+    if (kind === 'frozen') return 'stb_why_frozen'
+    if (claim.accel === 'unknown') return 'stb_why_unknown'
+    if (kind === 'refrigerated') return claim.accel === 'none' ? 'stb_why_fridge_none' : 'stb_why_fridge_acc'
+    return claim.accel === 'none' ? 'stb_why_room_none' : claim.accel === 'accelerated' ? 'stb_why_room_acc' : 'stb_why_room_int'
+  }
   const claimSub = (d: Dict) => {
     if (!claim || claim.claim === null) return ''
-    const v = { c: fixed(claim.covered, 0), max: fixed(claim.maxAllowed ?? 0, 0), rule: ruleText(d) }
+    const v = { c: fixed(claim.covered, 0), max: fixed(claim.maxAllowed ?? 0, 0), rule: say(d, claim.rule === '2x12' ? 'stb_rule_2x12' : 'stb_rule_15x6'), why: say(d, whyKey()) }
     const parts: string[] = []
-    if (kind === 'frozen') parts.push(fill(say(d, 'stb_claim_frozen'), v))
-    else if (kind === 'other') parts.push(say(d, 'stb_claim_custom'))
+    if (claim.rule === null) parts.push(say(d, 'stb_claim_custom'))
+    else if (claim.rule === 'none') parts.push(fill(say(d, claim.limitedBy === 'rule' ? 'stb_claim_nox' : 'stb_claim_in'), v))
     else if (claim.limitedBy === 'rule') parts.push(fill(say(d, 'stb_claim_rule'), v))
     else if (claim.claim > claim.covered) parts.push(fill(say(d, 'stb_claim_extra'), v))
     else parts.push(fill(say(d, 'stb_claim_in'), v))
-    if (kind === 'room' && claim.claim > claim.covered) parts.push(say(d, 'stb_claim_room_cond'))
     if (claim.step6 !== null && claim.step6 >= 6 && claim.step6 !== claim.wholeMonths) parts.push(fill(say(d, 'stb_claim_steps'), { s: claim.step6 }))
     return parts.join(' ')
   }
@@ -341,6 +350,7 @@ export default function StabilityStudy() {
     const lines = [
       `Stability Study — ${attr}`,
       `Storage condition,${csvCell(storageLabel(EN))}`,
+      `Accelerated study,${csvCell(say(EN, `stb_accel_${inp.accel}` as TKey))}`,
       `Limits,${csvCell(limitsLine() || 'none')}`,
       `Confidence,${inp.confidence}% ${res.sided}-sided`,
       `Model,${csvCell(modelEn)}`,
@@ -372,6 +382,7 @@ export default function StabilityStudy() {
     sh.metaStrip([
       ['Generated on', nowStamp()],
       ['Limits', limitsLine() || 'none'],
+      ['Accelerated study', say(EN, `stb_accel_${inp.accel}` as TKey)],
       ['Confidence', `${inp.confidence}% ${res.sided}-sided`],
       ['Model', modelEn],
     ])
@@ -445,6 +456,7 @@ export default function StabilityStudy() {
     dataTable(ctx, 'Study', [{ header: 'ITEM', width: 130 }, { header: 'VALUE', width: w - 130 }], [
       ['Attribute', attr],
       ['Storage condition', storageLabel(EN)],
+      ...(kind === 'room' || kind === 'refrigerated' ? [['Accelerated study', say(EN, `stb_accel_${inp.accel}` as TKey)]] : []),
       ['Limits', limitsLine() || 'none'],
       ['Confidence bound', `${inp.confidence}%, ${res.sided}-sided`],
       ['Data', `${batches.length} batches · ${filled} results · up to ${fixed(res.maxObserved, 0)} months`],
@@ -566,6 +578,15 @@ export default function StabilityStudy() {
                 </select>
                 <div className="tl-hint">{t('stb_storage_hint')}</div>
               </label>
+              {(kind === 'room' || kind === 'refrigerated') && (
+                <label className="st-field">
+                  <div className="tl-label">{t('stb_accel')}</div>
+                  <select className="st-txt" value={inp.accel} onChange={e => set({ accel: e.target.value as AccelResult })}>
+                    {ACCEL_RESULTS.map(a => <option key={a} value={a}>{t(`stb_accel_${a}` as TKey)}</option>)}
+                  </select>
+                  <div className="tl-hint">{t('stb_accel_hint')}</div>
+                </label>
+              )}
             </section>
 
             <div className="tl-col">
@@ -672,7 +693,7 @@ export default function StabilityStudy() {
                             compact={compactSave}
                             getPayload={() => ({
                               input_data: {
-                                attribute: inp.attribute, unit: inp.unit, storageCondition: inp.storage, confidence: inp.confidence,
+                                attribute: inp.attribute, unit: inp.unit, storageCondition: inp.storage, accel: inp.accel, confidence: inp.confidence,
                                 timePoints: inp.months.map(m => num(m)), batchNames: inp.names,
                                 values: inp.months.map((_, i) => inp.names.map((__, j) => num(inp.values[i]?.[j] ?? ''))),
                                 specLower: inp.lower, specUpper: inp.upper,
