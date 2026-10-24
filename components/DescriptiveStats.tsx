@@ -531,8 +531,9 @@ export default function DescriptiveStats() {
       )
     }
 
-    addChartImage(ctx, histogramChartRef.current, 'Histogram with Normal Curve')
-    addChartImage(ctx, boxPlotChartRef.current, 'Box Plot', { width: 1000, height: 180 })
+    // same render width for both, so the fixed y-axis width keeps their x axes aligned
+    addChartImage(ctx, histogramChartRef.current, 'Histogram with Normal Curve', { width: 760, height: 320 })
+    addChartImage(ctx, boxPlotChartRef.current, 'Box Plot', { width: 760, height: 130 })
 
     finalizeReport(ctx)
     ctx.pdf.save('descriptive-statistics.pdf')
