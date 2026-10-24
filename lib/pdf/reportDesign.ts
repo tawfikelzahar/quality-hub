@@ -187,6 +187,9 @@ export function createReport(reportTitle: string, toolName: string): ReportConte
   return ctx
 }
 
+const CLIENT_LOGO_MAX_W = 140
+const CLIENT_LOGO_MAX_H = 36
+
 function drawHeader(ctx: ReportContext) {
   const { pdf, margin } = ctx
   let y = ctx.y
@@ -197,8 +200,10 @@ function drawHeader(ctx: ReportContext) {
     // Client branding (Pro): the customer's company logo or name replaces ours
     if (branding.logoDataUrl && branding.logoWidth > 0) {
       const fmt = branding.logoDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG'
-      const box = fitBox(branding.logoWidth, branding.logoHeight, 190, 48)
-      pdf.addImage(branding.logoDataUrl, fmt, margin, y - 8 + (48 - box.h) / 2, box.w, box.h, 'client-logo', 'FAST')
+      // Up to 140 × 36 pt: about the size of our own logo (30 pt high), so a
+      // wide logo doesn't outweigh the report title
+      const box = fitBox(branding.logoWidth, branding.logoHeight, CLIENT_LOGO_MAX_W, CLIENT_LOGO_MAX_H)
+      pdf.addImage(branding.logoDataUrl, fmt, margin, y - 6 + (CLIENT_LOGO_MAX_H - box.h) / 2, box.w, box.h, 'client-logo', 'FAST')
     } else {
       pdf.setFont(PDF_FONT, 'bold')
       pdf.setFontSize(14)
@@ -224,7 +229,7 @@ function drawHeader(ctx: ReportContext) {
     drawText(pdf, SITE.domain, ctx.pageWidth - margin, y + 20, { align: 'right' })
   }
 
-  y += markSize + (branding?.logoDataUrl ? 50 : 30)
+  y += markSize + (branding?.logoDataUrl ? 38 : 30)
 
   // Report title
   pdf.setFont(PDF_FONT, 'bold')
