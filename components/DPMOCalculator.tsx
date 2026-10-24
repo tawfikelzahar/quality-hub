@@ -1,264 +1,223 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
-import * as XLSX from 'xlsx'
-import { COLORS, usePersistedTheme } from '@/lib/theme'
+import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
+import ToolSidebar from '@/components/ToolSidebar'
+import ToolStyles from '@/components/tool/ToolStyles'
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, DataCardHead, useCompactSave, type MobileTab } from '@/components/tool/ToolParts'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
+import { SheetPicker, PasteToast } from '@/components/GridImportControls'
+import { useGridImport } from '@/lib/gridImport'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
-import {
-  createReport as createPdfReport,
-  addChartImage,
-  dataTable,
-  calloutBox,
-  finalizeReport,
-  REPORT_COLORS,
-} from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addChartImage, dataTable, calloutBox, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { dpmoMetrics, overallDpmo, validateDpmo, dpmoForSigma, type DpmoError } from '@/lib/dpmo/calc'
+import { fixed } from '@/lib/stats/format'
 
-interface ProcessRow {
+// ─────────────────────────────────────────────────────────────────────────
+// DPMO & Sigma page on the shared tool layout. Formulas: lib/dpmo/calc.ts
+// (public, in the browser). The overall figure pools defects and
+// opportunities across processes.
+// ─────────────────────────────────────────────────────────────────────────
+
+interface Row {
   id: string
   name: string
-  units: number
-  opportunities: number
-  defects: number
+  units: string
+  opportunities: string
+  defects: string
 }
 
-// Performance bands (industry-standard Six Sigma benchmarks)
-// `label` stays English — used verbatim in CSV/Excel/PDF exports.
-// `labelKey` is the translated version shown in the UI (badges, tooltips, stats).
+// Performance bands (common Six Sigma benchmarks). `label` stays English for exports.
 const SIGMA_BANDS = [
-  { min: 6, label: 'World Class', labelKey: 'dpmo_band_worldclass' as TKey, tone: 'data' as const },
-  { min: 5, label: 'Excellent', labelKey: 'dpmo_band_excellent' as TKey, tone: 'good' as const },
-  { min: 4, label: 'Good', labelKey: 'dpmo_band_good' as TKey, tone: 'good' as const },
-  { min: 3, label: 'Industry Average', labelKey: 'dpmo_band_avg' as TKey, tone: 'amber' as const },
-  { min: 2, label: 'Needs Improvement', labelKey: 'dpmo_band_needsimprovement' as TKey, tone: 'amber' as const },
-  { min: 0, label: 'Non-Competitive', labelKey: 'dpmo_band_noncompetitive' as TKey, tone: 'danger' as const },
+  { min: 6, label: 'World Class', labelKey: 'dpmo_band_worldclass' as TKey, color: 'var(--qh-good)' },
+  { min: 5, label: 'Excellent', labelKey: 'dpmo_band_excellent' as TKey, color: 'var(--qh-good)' },
+  { min: 4, label: 'Good', labelKey: 'dpmo_band_good' as TKey, color: 'var(--qh-good)' },
+  { min: 3, label: 'Industry Average', labelKey: 'dpmo_band_avg' as TKey, color: 'var(--qh-amber)' },
+  { min: 2, label: 'Needs Improvement', labelKey: 'dpmo_band_needsimprovement' as TKey, color: 'var(--qh-amber)' },
+  { min: -Infinity, label: 'Non-Competitive', labelKey: 'dpmo_band_noncompetitive' as TKey, color: 'var(--qh-danger)' },
+]
+const bandOf = (sigma: number) => SIGMA_BANDS.find(b => sigma >= b.min) ?? SIGMA_BANDS[SIGMA_BANDS.length - 1]
+
+const ERR_KEY: Record<DpmoError, TKey> = {
+  units: 'dpmo_err_units',
+  opportunities: 'dpmo_err_opp',
+  defects_negative: 'dpmo_err_def_neg',
+  defects_over: 'dpmo_err_def_over',
+}
+
+const newId = () => Math.random().toString(36).slice(2, 9)
+const toRows = (list: [string, number, number, number][]): Row[] =>
+  list.map(([name, u, o, d]) => ({ id: newId(), name, units: String(u), opportunities: String(o), defects: String(d) }))
+
+const EXAMPLE: [string, number, number, number][] = [
+  ['Assembly line A', 500, 12, 18],
+  ['Welding cell B', 200, 10, 30],
+  ['Packing C', 1200, 4, 7],
 ]
 
-function sigmaBand(sigma: number) {
-  return SIGMA_BANDS.find(b => sigma >= b.min) || SIGMA_BANDS[SIGMA_BANDS.length - 1]
-}
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 9)
-}
-
-// ── Inverse Normal CDF (Acklam's algorithm) — industry-standard for Sigma Level ──
-function normSInv(p: number): number {
-  if (p <= 0) return -6
-  if (p >= 1) return 6
-
-  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
-  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01]
-  const cc = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00]
-  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00]
-
-  const pLow = 0.02425
-  const pHigh = 1 - pLow
-
-  if (p < pLow) {
-    const q = Math.sqrt(-2 * Math.log(p))
-    return (((((cc[0] * q + cc[1]) * q + cc[2]) * q + cc[3]) * q + cc[4]) * q + cc[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-  } else if (p <= pHigh) {
-    const q = p - 0.5
-    const r = q * q
-    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
-      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
-  } else {
-    const q = Math.sqrt(-2 * Math.log(1 - p))
-    return -(((((cc[0] * q + cc[1]) * q + cc[2]) * q + cc[3]) * q + cc[4]) * q + cc[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-  }
-}
-
-function calcMetrics(units: number, opportunities: number, defects: number) {
-  const totalOpportunities = units * opportunities
-  if (totalOpportunities <= 0) return { dpo: 0, dpmo: 0, yieldPct: 100, sigma: 6 }
-
-  const dpo = Math.min(defects / totalOpportunities, 0.9999999)
-  const dpmo = dpo * 1_000_000
-  const yieldPct = (1 - dpo) * 100
-  // Standard long-term Sigma Level with 1.5σ shift
-  const sigma = Math.max(0, Math.min(6, normSInv(1 - dpo) + 1.5))
-
-  return { dpo, dpmo, yieldPct, sigma }
-}
-
-function parseDelimited(text: string): ProcessRow[] {
-  const lines = text.trim().split('\n').filter(Boolean)
-  const rows: ProcessRow[] = []
-  for (const line of lines) {
-    const delimiter = line.includes('\t') ? '\t' : ','
-    const parts = line.split(delimiter).map(p => p.trim().replace(/^"|"$/g, ''))
-    if (parts.length >= 4) {
-      const [name, units, opportunities, defects] = parts
-      const u = parseFloat(units), o = parseFloat(opportunities), d = parseFloat(defects)
-      if (name && !isNaN(u) && !isNaN(o) && !isNaN(d)) {
-        rows.push({ id: generateId(), name, units: u, opportunities: o, defects: d })
-      }
-    }
-  }
-  return rows
-}
-
-function parseExcelFile(file: File): Promise<ProcessRow[]> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = e => {
-      try {
-        const data = e.target?.result
-        const workbook = XLSX.read(data, { type: 'binary' })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const json: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 })
-        const rows: ProcessRow[] = []
-        for (const row of json) {
-          if (Array.isArray(row) && row.length >= 4) {
-            const name = String(row[0] ?? '').trim()
-            const u = parseFloat(String(row[1] ?? ''))
-            const o = parseFloat(String(row[2] ?? ''))
-            const d = parseFloat(String(row[3] ?? ''))
-            if (name && !isNaN(u) && !isNaN(o) && !isNaN(d)) {
-              rows.push({ id: generateId(), name, units: u, opportunities: o, defects: d })
-            }
-          }
-        }
-        resolve(rows)
-      } catch {
-        reject(new Error('Could not read Excel file'))
-      }
-    }
-    reader.onerror = () => reject(new Error('Could not read file'))
-    reader.readAsBinaryString(file)
-  })
-}
+const int = (v: number) => Math.round(v).toLocaleString('en-US')
+const ltr = (v: string) => `⁦${v}⁩`
+/** Sigma for display: two decimals, "—" when there are no defects */
+const sig = (s: number) => (Number.isFinite(s) ? fixed(s, 2) : '—')
+const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`
 
 export default function DPMOCalculator() {
   const { isPro, isLoggedIn } = useSubscription()
- const [theme, setTheme] = usePersistedTheme()
+  const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
-  const [rows, setRows] = useState<ProcessRow[]>([
-    { id: generateId(), name: 'Assembly Line A', units: 500, opportunities: 12, defects: 18 },
-  ])
-  const [dragOver, setDragOver] = useState(false)
-  const [fileError, setFileError] = useState('')
-  const [pasteToast, setPasteToast] = useState(false)
-  const [loadedProjectName, setLoadedProjectName] = useState('')
-  const [showReference, setShowReference] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
-  const chartRef = useRef<ChartJSInstance<'bar'>>(null)
   const c = COLORS[theme]
+  const s = getSharedStyles(theme)
+  const compactSave = useCompactSave()
+  const chartRef = useRef<ChartJSInstance<'bar' | 'line'>>(null)
 
-  const results = rows
-    .filter(r => r.name.trim() && r.units > 0 && r.opportunities > 0)
-    .map(r => ({ ...r, ...calcMetrics(r.units, r.opportunities, r.defects) }))
+  const [rows, setRows] = useState<Row[]>(() => toRows(EXAMPLE))
+  const [mobileTab, setMobileTab] = useState<MobileTab>('data')
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [loadedProjectName, setLoadedProjectName] = useState('')
+  const [loadError, setLoadError] = useState('')
 
-  const addRow = () => {
-    setRows(prev => [...prev, { id: generateId(), name: '', units: 0, opportunities: 0, defects: 0 }])
-  }
-
-  const updateRow = (id: string, field: keyof ProcessRow, val: string) => {
-    setRows(prev =>
-      prev.map(r =>
-        r.id === id
-          ? { ...r, [field]: field === 'name' ? val : parseFloat(val) || 0 }
-          : r
-      )
-    )
-  }
-
-  const removeRow = (id: string) => setRows(prev => prev.filter(r => r.id !== id))
-
-  const clearAll = () => {
-    if (rows.length === 0) return
-    if (window.confirm(t('dpmo_confirm_clear'))) setRows([])
-  }
-
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
-      const text = e.clipboardData?.getData('text')
-      if (!text) return
-      const parsed = parseDelimited(text)
-      if (parsed.length > 0) {
-        e.preventDefault()
-        setRows(parsed)
-        setFileError('')
-        setPasteToast(true)
-        setTimeout(() => setPasteToast(false), 2000)
-      }
-    }
-    window.addEventListener('paste', handlePaste)
-    return () => window.removeEventListener('paste', handlePaste)
-  }, [])
-
-  // ── Load a saved project from the dashboard (?id=...) ──────────────────
+  // ── Saved project (?id=...): input_data is the process list ──
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('id')
     if (!id) return
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
       .then(({ analysis }) => {
-        setRows(analysis.input_data as ProcessRow[])
+        const list = analysis.input_data as { name: string; units: number; opportunities: number; defects: number }[]
+        setRows(toRows(list.map(r => [r.name, r.units, r.opportunities, r.defects])))
         setLoadedProjectName(analysis.name as string)
       })
-      .catch(() =>
-        setFileError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
-      )
+      .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleFile = useCallback((file: File) => {
-    setFileError('')
-    const isCSV = file.name.endsWith('.csv')
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
-    if (!isCSV && !isExcel) {
-      setFileError(t('dpmo_err_filetype'))
-      return
-    }
-    if (isCSV) {
-      const reader = new FileReader()
-      reader.onload = e => {
-        const parsed = parseDelimited(e.target?.result as string)
-        if (parsed.length === 0) {
-          setFileError(t('dpmo_err_novaliddata'))
-          return
-        }
-        setRows(parsed)
-      }
-      reader.readAsText(file)
-    } else {
-      parseExcelFile(file)
-        .then(parsed => {
-          if (parsed.length === 0) {
-            setFileError(t('dpmo_err_novaliddata_excel'))
-            return
-          }
-          setRows(parsed)
-        })
-        .catch(() => setFileError(t('dpmo_err_readexcel')))
-    }
-  }, [t])
+  // Paste anywhere / upload: process, units, opportunities per unit, defects
+  const gridImport = useGridImport({
+    minCellsPerRow: 4,
+    onGrid: grid => {
+      const next = grid
+        .filter(r => r.length >= 4 && r[0].trim() !== '' && [r[1], r[2], r[3]].every(v => Number.isFinite(parseFloat(v))))
+        .map(r => [r[0].trim(), parseFloat(r[1]), parseFloat(r[2]), parseFloat(r[3])] as [string, number, number, number])
+      if (next.length > 0) setRows(toRows(next))
+    },
+    onError: () => undefined,
+  })
 
+  // ── Results ──
+  const parsed = rows
+    .filter(r => r.name.trim() || r.units || r.opportunities || r.defects)
+    .map((r, i) => {
+      const input = { units: parseFloat(r.units), opportunities: parseFloat(r.opportunities), defects: parseFloat(r.defects) || 0 }
+      const error = validateDpmo(input)
+      return { row: r, name: r.name.trim() || `#${i + 1}`, input, error }
+    })
+  const errors = parsed.filter(p => p.error)
+  const results = parsed.filter(p => !p.error).map(p => ({ name: p.name, ...p.input, ...dpmoMetrics(p.input) }))
+  const overall = overallDpmo(results)
+  const multi = results.length > 1
+  const lowest = results.length ? results.reduce((a, b) => (b.sigma < a.sigma ? b : a)) : null
+
+  const updateRow = (id: string, field: keyof Row, v: string) => setRows(prev => prev.map(r => (r.id === id ? { ...r, [field]: v } : r)))
+  const removeRow = (id: string) => setRows(prev => prev.filter(r => r.id !== id))
+  const addRow = () => setRows(prev => [...prev, { id: newId(), name: '', units: '', opportunities: '', defects: '' }])
+  const clearAll = () => setRows([])
+  const loadExample = () => { setRows(toRows(EXAMPLE)); setMobileTab('results') }
+
+  // ── Chart: sigma by process, 4σ and 5σ lines ──
+  const chartColor = (sigma: number) => (sigma >= 4 ? c.good : sigma >= 2 ? c.amber : c.danger)
+  const chartData = {
+    labels: results.map(r => r.name),
+    datasets: [
+      {
+        type: 'bar' as const,
+        label: t('dpmo_axis_sigma'),
+        data: results.map(r => (Number.isFinite(r.sigma) ? Number(Math.max(0, r.sigma).toFixed(3)) : null)),
+        backgroundColor: results.map(r => chartColor(r.sigma)),
+        borderRadius: 4,
+        maxBarThickness: 90,
+        order: 3,
+      },
+      ...[4, 5].map(level => ({
+        type: 'line' as const,
+        label: `${level}σ`,
+        data: results.map(() => level),
+        borderColor: level === 4 ? c.amber : c.good,
+        borderWidth: 1.2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        order: 1,
+      })),
+    ],
+  }
+  const maxSigma = Math.max(6, ...results.map(r => (Number.isFinite(r.sigma) ? Math.ceil(r.sigma) : 0)))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const chartOptions: any = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    devicePixelRatio: 2,
+    layout: watermarkLayout(),
+    plugins: {
+      watermark: watermarkOptions('light'),
+      legend: { position: 'bottom', labels: { color: c.muted, font: { size: 11 }, boxWidth: 12, filter: (item: { datasetIndex: number }) => item.datasetIndex > 0 } },
+      tooltip: {
+        backgroundColor: c.surface,
+        borderColor: c.border,
+        borderWidth: 1,
+        titleColor: c.text,
+        bodyColor: c.muted,
+        padding: 10,
+        filter: (item: { datasetIndex: number }) => item.datasetIndex === 0,
+        callbacks: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          label: (ctx: any) => {
+            const r = results[ctx.dataIndex]
+            if (!r) return ''
+            return [
+              ` ${t('dpmo_tooltip_sigma')}: ${sig(r.sigma)}`,
+              ` ${t('dpmo_tooltip_dpmo')}: ${int(r.dpmo)}`,
+              ` ${t('dpmo_tooltip_yield')}: ${fixed(r.yieldPct, 3)}%`,
+              ` ${t('dpmo_tooltip_rating')}: ${t(bandOf(r.sigma).labelKey)}`,
+            ]
+          },
+        },
+      },
+    },
+    scales: {
+      x: { ticks: { color: c.muted, font: { size: 11 }, maxRotation: 30 }, grid: { display: false }, border: { color: c.border } },
+      y: { min: 0, max: maxSigma, ticks: { color: c.muted, font: { size: 11 }, stepSize: 1, callback: (v: number) => `${v}σ` }, grid: { color: c.grid }, border: { color: c.border }, title: { display: true, text: t('dpmo_axis_sigma'), color: c.muted, font: { size: 11 } } },
+    },
+  }
+
+  // ── Reference table (1σ to 6σ, half steps) ──
+  const reference = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6].map(sg => {
+    const d = dpmoForSigma(sg)
+    return { sg, dpmo: d, yieldPct: 100 - d / 1e4 }
+  })
+  const refDpmo = (d: number) => (d >= 100 ? int(d) : fixed(d, 1))
+
+  // ── Exports (English) ──
   const exportCSV = () => {
     if (!isLoggedIn) { goToLogin('dpmo', 'csv'); return }
-    const header = 'Process,Units,Opportunities per Unit,Defects,DPO,DPMO,Yield %,Sigma Level,Rating\n'
-    const body = results
-      .map(r => {
-        const band = sigmaBand(r.sigma)
-        return `"${r.name}",${r.units},${r.opportunities},${r.defects},${r.dpo.toFixed(6)},${Math.round(r.dpmo)},${r.yieldPct.toFixed(2)}%,${r.sigma.toFixed(2)},${band.label}`
-      })
-      .join('\n')
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
+    if (!overall) return
+    const lines = [
+      'Process,Units,Opportunities/Unit,Defects,DPO,DPMO,Yield %,Sigma Level,Rating',
+      ...results.map(r => [csvCell(r.name), r.units, r.opportunities, r.defects, fixed(r.dpo, 6), fixed(r.dpmo, 1), fixed(r.yieldPct, 4), sig(r.sigma), Number.isFinite(r.sigma) ? bandOf(r.sigma).label : 'No defects'].join(',')),
+      ...(multi ? [['"Overall (pooled)"', overall.units, '', overall.defects, fixed(overall.dpo, 6), fixed(overall.dpmo, 1), fixed(overall.yieldPct, 4), sig(overall.sigma), Number.isFinite(overall.sigma) ? bandOf(overall.sigma).label : 'No defects'].join(',')] : []),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -267,64 +226,57 @@ export default function DPMOCalculator() {
     URL.revokeObjectURL(url)
   }
 
+  const toneOf = (sigma: number): Tone => (sigma >= 4 ? 'good' : sigma >= 3 ? 'warning' : 'danger')
+
   const runExportExcel = async () => {
     if (!isPro) { goToPricing('dpmo', 'excel'); return }
-    const report = createReport({ toolName: 'DPMO Calculator' })
-    const bandTone = (sigma: number): Tone => sigma >= 5 ? 'good' : sigma >= 3 ? 'warning' : 'danger'
-
+    if (!overall) return
+    const report = createReport({ toolName: 'DPMO & Sigma Calculator' })
     const overview = report.addSheet('Overview')
-    overview.titleBand('DPMO & Sigma Level Report', `${results.length} process(es) analyzed`)
+    overview.titleBand('DPMO & Sigma Level Report', `${results.length} process${results.length === 1 ? '' : 'es'} · 1.5σ shift`)
     overview.metaStrip([
       ['Generated on', nowStamp()],
-      ['Standard', 'Six Sigma DPMO / Sigma Level (industry benchmarks)'],
+      ['Method', 'DPMO = defects ÷ (units × opportunities) × 10⁶ · Sigma = Φ⁻¹(1 − DPO) + 1.5 · overall = pooled'],
     ])
-
-    if (results.length > 0) {
-      const avgSigma = results.reduce((s, r) => s + r.sigma, 0) / results.length
-      const worst = results.reduce((a, b) => (a.sigma < b.sigma ? a : b))
-      overview.sectionHeading('At a Glance')
-      overview.kpiRow([
-        { label: 'Processes', value: results.length, tone: 'neutral' },
-        { label: 'Avg Sigma Level', value: avgSigma.toFixed(2), tone: bandTone(avgSigma) },
-        { label: 'Lowest Sigma', value: `${worst.sigma.toFixed(2)} (${worst.name})`, tone: bandTone(worst.sigma) },
-      ])
-    }
-
+    overview.sectionHeading('At a Glance')
+    overview.kpiRow([
+      { label: multi ? 'Overall Sigma (pooled)' : 'Sigma Level', value: sig(overall.sigma), tone: Number.isFinite(overall.sigma) ? toneOf(overall.sigma) : 'good' },
+      { label: multi ? 'Overall DPMO' : 'DPMO', value: int(overall.dpmo), tone: 'neutral' },
+      { label: 'Yield', value: `${fixed(overall.yieldPct, 3)}%`, tone: 'neutral' },
+      ...(multi && lowest ? [{ label: 'Lowest Process', value: `${sig(lowest.sigma)} (${lowest.name})`, tone: toneOf(lowest.sigma) }] : []),
+    ])
     overview.sectionHeading('Process Detail')
     overview.table({
       headers: [
-        { header: 'Process', key: 'process', align: 'left', width: 22 },
+        { header: 'Process', key: 'process', align: 'left', width: 24 },
         { header: 'Units', key: 'units', align: 'right', numFmt: '#,##0' },
-        { header: 'Opportunities/Unit', key: 'opp', align: 'right', numFmt: '#,##0' },
+        { header: 'Opp/Unit', key: 'opp', align: 'right', numFmt: '#,##0' },
         { header: 'Defects', key: 'defects', align: 'right', numFmt: '#,##0' },
         { header: 'DPO', key: 'dpo', align: 'right', numFmt: '0.000000' },
-        { header: 'DPMO', key: 'dpmo', align: 'right', numFmt: '#,##0' },
-        { header: 'Yield %', key: 'yield', align: 'right', numFmt: '0.00"%"' },
-        { header: 'Sigma Level', key: 'sigma', align: 'right', numFmt: '0.00' },
+        { header: 'DPMO', key: 'dpmo', align: 'right', numFmt: '#,##0.0' },
+        { header: 'Yield %', key: 'yield', align: 'right', numFmt: '0.000' },
+        { header: 'Sigma', key: 'sigma', align: 'right', numFmt: '0.00' },
         { header: 'Rating', key: 'rating', align: 'left', width: 20 },
       ],
-      rows: results.map(r => ({
-        process: r.name,
-        units: r.units,
-        opp: r.opportunities,
-        defects: r.defects,
-        dpo: r.dpo,
-        dpmo: Math.round(r.dpmo),
-        yield: r.yieldPct,
-        sigma: r.sigma,
-        rating: sigmaBand(r.sigma).label,
-      })),
-      rowTones: results.map(r => bandTone(r.sigma)),
+      rows: [
+        ...results.map(r => ({ process: r.name, units: r.units, opp: r.opportunities, defects: r.defects, dpo: r.dpo, dpmo: r.dpmo, yield: r.yieldPct, sigma: Number.isFinite(r.sigma) ? r.sigma : '—', rating: Number.isFinite(r.sigma) ? bandOf(r.sigma).label : 'No defects' })),
+        ...(multi ? [{ process: 'Overall (pooled)', units: overall.units, opp: '', defects: overall.defects, dpo: overall.dpo, dpmo: overall.dpmo, yield: overall.yieldPct, sigma: Number.isFinite(overall.sigma) ? overall.sigma : '—', rating: Number.isFinite(overall.sigma) ? bandOf(overall.sigma).label : 'No defects' }] : []),
+      ],
+      rowTones: [...results.map(r => (Number.isFinite(r.sigma) ? toneOf(r.sigma) : 'good')), ...(multi ? ['accent' as const] : [])],
     })
-
-    // ── Sigma level chart image (same canvas as PNG/PDF export) ──
+    if (multi) overview.note('Overall = all defects ÷ all opportunities, then converted to sigma (not the average of the sigma levels).', 'neutral')
     overview.sectionHeading('Sigma Level by Process')
-    if (chartRef.current) {
-      await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
-    }
-
+    if (chartRef.current) await overview.image(chartRef.current.toBase64Image('image/png', 1), { widthCm: 16, heightCm: 8 })
+    overview.sectionHeading('Sigma Conversion Table (1.5σ shift)')
+    overview.table({
+      headers: [
+        { header: 'Sigma Level', key: 'sg', align: 'right', numFmt: '0.0' },
+        { header: 'DPMO', key: 'dpmo', align: 'right', numFmt: '#,##0.0' },
+        { header: 'Yield %', key: 'y', align: 'right', numFmt: '0.0000' },
+      ],
+      rows: reference.map(r => ({ sg: r.sg, dpmo: r.dpmo, y: r.yieldPct })),
+    })
     overview.freezeHeader(2)
-
     await report.download('dpmo-analysis.xlsx')
   }
 
@@ -332,468 +284,291 @@ export default function DPMOCalculator() {
     if (!isLoggedIn) { goToLogin('dpmo', 'png'); return }
     const chart = chartRef.current
     if (!chart) return
-    const url = chart.toBase64Image('image/png', 1)
     const a = document.createElement('a')
-    a.href = url
+    a.href = chart.toBase64Image('image/png', 1)
     a.download = 'sigma-level-chart.png'
     a.click()
   }
 
   const runExportPDF = () => {
     if (!isPro) { goToPricing('dpmo', 'pdf'); return }
-    const chart = chartRef.current
-    if (!chart) return
-
+    if (!overall) return
     const ctx = createPdfReport('DPMO & Sigma Level Analysis', 'dpmo')
-
-    const avgSigma = results.length > 0 ? results.reduce((s, r) => s + r.sigma, 0) / results.length : 0
-    const worst = results.length > 0 ? results.reduce((a, b) => (a.sigma < b.sigma ? a : b)) : null
-    calloutBox(
-      ctx,
-      `Processes: ${results.length}   |   Avg Sigma Level: ${avgSigma.toFixed(2)}${worst ? `   |   Lowest: ${worst.sigma.toFixed(2)} (${worst.name})` : ''}`,
-      avgSigma >= 4 ? 'good' : avgSigma >= 3 ? 'warn' : 'bad'
-    )
-
-    addChartImage(ctx, chart, 'Sigma Level by Process')
-
-    const toneColor = (sigma: number) =>
-      sigma >= 5 ? REPORT_COLORS.good : sigma >= 3 ? REPORT_COLORS.warn : REPORT_COLORS.bad
-
+    const head = Number.isFinite(overall.sigma)
+      ? `${multi ? 'Overall (all processes pooled)' : 'Result'}: ${sig(overall.sigma)} sigma (${bandOf(overall.sigma).label}) · ${int(overall.dpmo)} DPMO · yield ${fixed(overall.yieldPct, 3)}%`
+      : 'No defects found: a sigma level needs at least one defect.'
+    calloutBox(ctx, multi && lowest ? `${head}. Lowest process: ${lowest.name} at ${sig(lowest.sigma)} sigma.` : head, Number.isFinite(overall.sigma) ? (overall.sigma >= 4 ? 'good' : overall.sigma >= 3 ? 'warn' : 'bad') : 'good')
+    addChartImage(ctx, chartRef.current, 'Sigma Level by Process')
+    const toneColor = (sigma: number) => (!Number.isFinite(sigma) || sigma >= 4 ? REPORT_COLORS.good : sigma >= 3 ? REPORT_COLORS.warn : REPORT_COLORS.bad)
+    const w = ctx.pageWidth - ctx.margin * 2
+    const body = [
+      ...results.map(r => [r.name, int(r.units), int(r.opportunities), int(r.defects), int(r.dpmo), fixed(r.yieldPct, 3), sig(r.sigma), Number.isFinite(r.sigma) ? bandOf(r.sigma).label : 'No defects']),
+      ...(multi ? [['Overall (pooled)', int(overall.units), '', int(overall.defects), int(overall.dpmo), fixed(overall.yieldPct, 3), sig(overall.sigma), Number.isFinite(overall.sigma) ? bandOf(overall.sigma).label : 'No defects']] : []),
+    ]
     dataTable(
       ctx,
       'Process Detail',
       [
-        { header: 'PROCESS', width: 130 },
-        { header: 'UNITS', width: 60, align: 'right' },
-        { header: 'OPP/UNIT', width: 60, align: 'right' },
-        { header: 'DEFECTS', width: 60, align: 'right' },
+        { header: 'PROCESS', width: w - 440 },
+        { header: 'UNITS', width: 55, align: 'right' },
+        { header: 'OPP/UNIT', width: 55, align: 'right' },
+        { header: 'DEFECTS', width: 55, align: 'right' },
         { header: 'DPMO', width: 60, align: 'right' },
         { header: 'YIELD %', width: 60, align: 'right' },
         { header: 'SIGMA', width: 50, align: 'right' },
-        { header: 'RATING', width: ctx.pageWidth - ctx.margin * 2 - 480, align: 'center' },
+        { header: 'RATING', width: 105 },
       ],
-      results.map((r) => [
-        r.name,
-        String(r.units),
-        String(r.opportunities),
-        String(r.defects),
-        String(Math.round(r.dpmo)),
-        `${r.yieldPct.toFixed(1)}%`,
-        r.sigma.toFixed(2),
-        sigmaBand(r.sigma).label,
-      ]),
-      {
-        cellColors: results.map((r) => [null, null, null, null, null, null, null, toneColor(r.sigma)]),
-      }
+      body,
+      { cellColors: [...results.map(r => [null, null, null, null, null, null, toneColor(r.sigma), null]), ...(multi ? [[null, null, null, null, null, null, toneColor(overall.sigma), null]] : [])] }
     )
-
+    if (multi) calloutBox(ctx, 'Overall = all defects ÷ all opportunities, then converted to sigma (not the average of the sigma levels).', 'info')
+    dataTable(
+      ctx,
+      'Sigma Conversion Table (1.5 sigma shift)',
+      [
+        { header: 'SIGMA LEVEL', width: 120, align: 'right' },
+        { header: 'DPMO', width: 160, align: 'right' },
+        { header: 'YIELD %', width: w - 280, align: 'right' },
+      ],
+      reference.map(r => [fixed(r.sg, 1), refDpmo(r.dpmo), fixed(r.yieldPct, 4)])
+    )
     finalizeReport(ctx)
     ctx.pdf.save('dpmo-report.pdf')
   }
 
-  const chartData = {
-    labels: results.map(r => r.name),
-    datasets: [
-      {
-        label: t('dpmo_axis_sigma'),
-        data: results.map(r => Number(r.sigma.toFixed(2))),
-        backgroundColor: results.map(r => c[sigmaBand(r.sigma).tone]),
-        borderRadius: 4,
-      },
-    ],
-  }
-
-  // Pro exports read chart canvases via toBase64Image(); the watermark (kept
-  // on the live view for everyone) is switched off just for that call.
   const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
   const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
-  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const chartOptions: any = {
-    responsive: true,
-    maintainAspectRatio: false,
-    layout: watermarkLayout(),
-    plugins: {
-      watermark: watermarkOptions('light'),
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: c.surface,
-        borderColor: c.border,
-        borderWidth: 1,
-        titleColor: c.text,
-        bodyColor: c.muted,
-        padding: 10,
-        callbacks: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          label: (ctx: any) => {
-            const r = results[ctx.dataIndex]
-            return [
-              ` ${t('dpmo_tooltip_sigma')}: ${r.sigma.toFixed(2)}`,
-              ` ${t('dpmo_tooltip_dpmo')}: ${Math.round(r.dpmo).toLocaleString()}`,
-              ` ${t('dpmo_tooltip_yield')}: ${r.yieldPct.toFixed(2)}%`,
-              ` ${t('dpmo_tooltip_rating')}: ${t(sigmaBand(r.sigma).labelKey)}`,
-            ]
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        ticks: { color: c.muted, font: { size: 11 }, maxRotation: 30 },
-        grid: { display: false },
-        border: { color: c.border },
-      },
-      y: {
-        min: 0,
-        max: 6,
-        ticks: { color: c.muted, font: { size: 11 }, stepSize: 1 },
-        grid: { color: c.grid },
-        border: { color: c.border },
-        title: { display: true, text: t('dpmo_axis_sigma'), color: c.muted, font: { size: 11 } },
-      },
-    },
-  }
-
-  const s: Record<string, React.CSSProperties> = {
-    page: {
-      display: 'flex', flexDirection: 'column', minHeight: '100vh',
-      background: c.bg, color: c.text,
-      fontFamily: 'system-ui, -apple-system, sans-serif', fontSize: 14,
-    },
-    nav: {
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 32px', height: 56,
-      background: theme === 'dark' ? 'rgba(10,17,32,.95)' : '#ffffff',
-      backdropFilter: 'blur(24px)',
-      borderBottom: `1px solid ${c.border}`,
-      flexShrink: 0,
-    },
-    navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
-    navRight: { display: 'flex', alignItems: 'center', gap: 14 },
-    logo: {
-      display: 'flex', alignItems: 'center', gap: 9,
-      textDecoration: 'none', color: c.text,
-      fontWeight: 800, fontSize: 15,
-    },
-    logoIcon: {
-      width: 30, height: 30,
-      background: 'var(--qh-accent)',
-      borderRadius: 7, display: 'flex', alignItems: 'center',
-      justifyContent: 'center', color: 'var(--qh-onAccent)', fontWeight: 900, fontSize: 13,
-    },
-    separator: { color: 'rgba(255,255,255,.12)', fontSize: 20 },
-    breadcrumb: { fontSize: 13, color: c.muted, fontWeight: 500 },
-    themeBtn: {
-      background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : c.surface2,
-      border: `1px solid ${c.border}`,
-      borderRadius: 20, padding: '5px 14px',
-      color: c.text, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-    },
-    body: { display: 'flex', flex: 1, overflow: 'hidden' },
-    left: {
-      width: 320, flexShrink: 0,
-      background: c.surface,
-      borderRight: `1px solid ${c.border}`,
-      overflowY: 'auto', padding: 20,
-      display: 'flex', flexDirection: 'column', gap: 20,
-    },
-    right: { flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 20 },
-    sectionTitle: { fontSize: 11, fontWeight: 700, color: c.muted, textTransform: 'uppercase' as const, letterSpacing: 1, marginBottom: 12 },
-    card: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20 },
-    rowCard: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 10, padding: 12, marginBottom: 10,
-      display: 'flex', flexDirection: 'column', gap: 6,
-    },
-    input: {
-      background: theme === 'dark' ? '#0C1424' : '#F7F8FA',
-      border: `1px solid ${c.border}`, borderRadius: 7,
-      color: c.text, padding: '7px 10px', fontSize: 13, outline: 'none', width: '100%',
-    },
-    inputGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 },
-    label: { fontSize: 10, color: c.muted, marginBottom: 2 },
-    removeBtn: {
-      background: 'transparent', border: 'none', color: 'var(--qh-danger)',
-      cursor: 'pointer', fontSize: 13, fontWeight: 700, padding: '2px 4px',
-      alignSelf: 'flex-end',
-    },
-    addBtn: {
-      background: `${c.accent}15`, border: `1px dashed ${c.accent}`,
-      borderRadius: 8, color: c.accent, padding: '8px 0',
-      width: '100%', cursor: 'pointer', fontSize: 13, fontWeight: 600,
-    },
-    dropzone: {
-      border: `2px dashed ${dragOver ? c.accent : c.border}`,
-      borderRadius: 10, padding: '18px 14px',
-      textAlign: 'center' as const,
-      background: dragOver ? `${c.accent}08` : 'transparent',
-      transition: 'all 0.2s', cursor: 'pointer',
-    },
-    exportBtn: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 8, color: c.text, padding: '9px 10px',
-      cursor: 'pointer', fontSize: 12, fontWeight: 600,
-      display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center',
-    },
-    statsRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 },
-    statCard: {
-      background: c.surface2, border: `1px solid ${c.border}`,
-      borderRadius: 10, padding: '14px 16px', textAlign: 'center' as const,
-    },
-    statVal: { fontSize: 22, fontWeight: 800, color: c.accent },
-    statLabel: { fontSize: 11, color: c.muted, marginTop: 4 },
-    chartWrap: { background: c.surface, border: `1px solid ${c.border}`, borderRadius: 12, padding: 20 },
-    chartInner: { height: 340, position: 'relative' as const },
-    table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 },
-    th: {
-      textAlign: 'left' as const, padding: '10px 12px',
-      color: c.muted, fontWeight: 600, fontSize: 11,
-      borderBottom: `1px solid ${c.border}`,
-      textTransform: 'uppercase' as const, letterSpacing: 0.5,
-    },
-    td: { padding: '10px 12px', borderBottom: `1px solid ${c.border}40` },
-    badge: {
-      fontSize: 11, fontWeight: 700, padding: '3px 10px',
-      borderRadius: 20, display: 'inline-block',
-    },
-    toast: {
-      position: 'fixed' as const, bottom: 24, left: '50%',
-      transform: 'translateX(-50%)',
-      background: c.accent, color: c.onAccent,
-      padding: '10px 20px', borderRadius: 8,
-      fontSize: 13, fontWeight: 700, zIndex: 100,
-      boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-    },
-  }
-
-  const avgSigma = results.length > 0
-    ? results.reduce((s, r) => s + r.sigma, 0) / results.length
-    : 0
-  const worstProcess = results.length > 0
-    ? [...results].sort((a, b) => a.sigma - b.sigma)[0]
-    : null
+  // ── Page ──
+  const helpSteps = [
+    { t: t('dpmo_help_s1_t'), d: t('dpmo_help_s1_d') },
+    { t: t('dpmo_help_s2_t'), d: t('dpmo_help_s2_d') },
+    { t: t('dpmo_help_s3_t'), d: t('dpmo_help_s3_d') },
+    { t: t('dpmo_help_s4_t'), d: t('dpmo_help_s4_d') },
+  ]
+  const verdictColor = overall && Number.isFinite(overall.sigma) ? bandOf(overall.sigma).color : 'var(--qh-good)'
+  const lowColor = lowest ? bandOf(lowest.sigma).color : 'var(--qh-muted)'
 
   return (
     <div style={s.page}>
+      <ToolStyles />
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_dpmo" />
 
-      {loadedProjectName && (
-        <div style={{ margin: '0 32px', fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
-          {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+      {(loadedProjectName || loadError) && (
+        <div className="qh-main" style={{ ...s.main, paddingBottom: 0 }}>
+          {loadedProjectName && (
+            <div style={{ fontSize: 13, color: c.accent, background: c.surface2, border: `1px solid ${c.border}`, borderRadius: 8, padding: '8px 14px' }}>
+              {lang === 'ar' ? `تم تحميل المشروع المحفوظ: ${loadedProjectName}` : `Loaded saved project: ${loadedProjectName}`}
+            </div>
+          )}
+          {loadError && <div className="tl-error">{loadError}</div>}
         </div>
       )}
 
-      <div className="qh-body" style={s.body}>
-        <div className="qh-left" style={s.left}>
-          <div>
-            <div style={s.sectionTitle}>{t('dpmo_process_data')}</div>
-            {rows.map(row => (
-              <div key={row.id} style={s.rowCard}>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input
-                    style={{ ...s.input, flex: 1 }}
-                    placeholder={t('dpmo_placeholder_process')}
-                    value={row.name}
-                    onChange={e => updateRow(row.id, 'name', e.target.value)}
-                  />
-                  <button style={s.removeBtn} onClick={() => removeRow(row.id)}>✕</button>
-                </div>
-                <div className="qh-input-grid" style={s.inputGrid}>
-                  <div>
-                    <div style={s.label}>{t('dpmo_field_units')}</div>
-                    <input
-                      style={s.input} type="number" placeholder="0"
-                      value={row.units || ''}
-                      onChange={e => updateRow(row.id, 'units', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <div style={s.label}>{t('dpmo_field_oppunit')}</div>
-                    <input
-                      style={s.input} type="number" placeholder="0"
-                      value={row.opportunities || ''}
-                      onChange={e => updateRow(row.id, 'opportunities', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <div style={s.label}>{t('dpmo_field_defects')}</div>
-                    <input
-                      style={s.input} type="number" placeholder="0"
-                      value={row.defects || ''}
-                      onChange={e => updateRow(row.id, 'defects', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-            <button style={s.addBtn} onClick={addRow}>{t('dpmo_add_process')}</button>
-            {rows.length > 0 && (
-              <button
-                style={{
-                  ...s.addBtn, marginTop: 8,
-                  background: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)',
-                  border: '1px dashed #ef4444', color: 'var(--qh-danger)',
-                }}
-                onClick={clearAll}
-              >
-                {t('dpmo_clear_all')}
-              </button>
-            )}
-          </div>
+      <div className="tl-shell">
+        <ToolSidebar current="/dpmo" />
 
-          <div>
-            <div style={s.sectionTitle}>{t('dpmo_upload_paste')}</div>
-            <div
-              style={s.dropzone}
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => {
-                e.preventDefault(); setDragOver(false)
-                const f = e.dataTransfer.files[0]
-                if (f) handleFile(f)
-              }}
-              onClick={() => fileRef.current?.click()}
-            >
-              <div style={{ fontSize: 24, marginBottom: 6 }}>📂</div>
-              <div style={{ color: c.text, fontWeight: 600, fontSize: 12 }}>
-                {t('dpmo_dropzone_text')}
-              </div>
-              {fileError && <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginTop: 6 }}>{fileError}</div>}
-            </div>
-            <input
-              ref={fileRef} type="file" accept=".csv,.xlsx,.xls"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
+        <div className="tl-main">
+          <ToolHeader title={t('dpmo_title')} intro={t('dpmo_intro')} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
+          <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('dpmo_help_title')} steps={helpSteps} onExample={loadExample} showCapability={false} tip={t('dpmo_help_tip')} />
+          <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={rows.length} hideSetup />
+
+          {/* ── DATA (full width: four columns) ───────────────────────── */}
+          <section className="tl-panel tl-card" data-active={mobileTab === 'data'} aria-label={t('spc_tab_data')}>
+            <DataCardHead
+              countLabel={t('dpmo_data_count').replace('{n}', String(rows.length))}
+              onUpload={gridImport.openFilePicker}
+              onClear={clearAll}
+              extra={<gridImport.FileInput />}
             />
-            <div style={{ fontSize: 10, color: c.muted, marginTop: 8, lineHeight: 1.6 }}>
-              {t('dpmo_format_hint')}
+            {gridImport.fileError && <div className="tl-error" style={{ marginBottom: 10 }}>{gridImport.fileError}</div>}
+            <SheetPicker
+              sheetNames={gridImport.sheetNames}
+              activeSheet={gridImport.activeSheet}
+              onSelect={gridImport.selectSheet}
+              accentColor={c.accent}
+              textColor={c.text}
+              mutedColor={c.muted}
+              borderColor={c.border}
+            />
+            <div className="tl-sg-wrap">
+              <table className="tl-sg">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'start' }}>{t('dpmo_col_process')}</th>
+                    <th>{t('dpmo_col_units')}</th>
+                    <th>{t('dpmo_col_oppunit')}</th>
+                    <th>{t('dpmo_col_defects')}</th>
+                    <th aria-label={t('spc_remove')} style={{ width: 28 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(r => (
+                    <tr key={r.id}>
+                      <td><input value={r.name} placeholder={t('dpmo_placeholder_process')} aria-label={t('dpmo_col_process')} onChange={e => updateRow(r.id, 'name', e.target.value)} style={{ textAlign: 'start', fontFamily: 'inherit', fontWeight: 500, minWidth: 140 }} /></td>
+                      <td><input type="number" min={0} value={r.units} aria-label={t('dpmo_col_units')} onChange={e => updateRow(r.id, 'units', e.target.value)} /></td>
+                      <td><input type="number" min={0} value={r.opportunities} aria-label={t('dpmo_col_oppunit')} onChange={e => updateRow(r.id, 'opportunities', e.target.value)} /></td>
+                      <td><input type="number" min={0} value={r.defects} aria-label={t('dpmo_col_defects')} onChange={e => updateRow(r.id, 'defects', e.target.value)} /></td>
+                      <td><button type="button" className="tl-sg-x" aria-label={t('spc_remove')} onClick={() => removeRow(r.id)}>✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          <div>
-            <div style={s.sectionTitle}>{t('common_export_section')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
-              <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
-              <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
-              <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', marginTop: 10 }}>
+              <button type="button" className="tl-xbtn tl-add" onClick={addRow}>{t('dpmo_add_process')}</button>
             </div>
-            <div style={{ marginTop: 8 }}>
-              <SaveAnalysisButton
-                theme={theme}
-                tool="dpmo"
-                defaultName={`DPMO — ${new Date().toLocaleDateString('en-US')}`}
-                getPayload={() => (results.length === 0 ? null : { input_data: rows, results })}
-              />
-            </div>
-          </div>
-
-          <div>
-            <button
-              style={{ ...s.exportBtn, width: '100%' }}
-              onClick={() => setShowReference(v => !v)}
-            >
-              📖 {showReference ? t('dpmo_ref_hide') : t('dpmo_ref_show')} {t('dpmo_ref_table')}
-            </button>
-            {showReference && (
-              <div style={{ ...s.card, marginTop: 10, padding: 12 }}>
-                {SIGMA_BANDS.slice().reverse().map(b => (
-                  <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 11 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: c[b.tone], flexShrink: 0 }} />
-                    <span style={{ color: c.text, fontWeight: 600 }}>{b.min}σ+</span>
-                    <span style={{ color: c.muted }}>{t(b.labelKey)}</span>
-                  </div>
-                ))}
+            <div className="tl-paste">{t('dpmo_paste_hint')}</div>
+            {errors.length > 0 && (
+              <div className="tl-error" style={{ marginTop: 10 }}>
+                {errors.map(e => <div key={e.row.id}>{t('dpmo_row_error').replace('{name}', e.name).replace('{msg}', t(ERR_KEY[e.error as DpmoError]))}</div>)}
               </div>
             )}
-          </div>
-        </div>
+          </section>
 
-        <div className="qh-right" style={s.right}>
-          {results.length > 0 ? (
-            <>
-              <div className="qh-stats-row" style={s.statsRow}>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{results.length}</div>
-                  <div style={s.statLabel}>{t('dpmo_stat_processes')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{avgSigma.toFixed(2)}σ</div>
-                  <div style={s.statLabel}>{t('dpmo_stat_avgsigma')}</div>
-                </div>
-                {worstProcess && (
-                  <div style={s.statCard}>
-                    <div style={{ ...s.statVal, color: c[sigmaBand(worstProcess.sigma).tone], fontSize: 16 }}>
-                      {worstProcess.name}
+          {/* ── RESULTS ──────────────────────────────────────────────── */}
+          <section className="tl-panel tl-results" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
+            {overall ? (
+              <>
+                <div className="tl-verdicts">
+                  <div className="tl-verdict" style={{ background: tint(verdictColor, 8), border: `1px solid ${tint(verdictColor, 35)}` }}>
+                    <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(verdictColor, 16), color: verdictColor }}>σ</span>
+                    <div>
+                      <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{multi ? t('dpmo_overall_label') : t('dpmo_result_label')}</div>
+                      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: verdictColor }}>
+                        {Number.isFinite(overall.sigma) ? <>{ltr(`${sig(overall.sigma)}σ`)} · {t(bandOf(overall.sigma).labelKey)}</> : t('dpmo_no_defects')}
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>
+                        {Number.isFinite(overall.sigma)
+                          ? t('dpmo_overall_sub').replace('{dpmo}', ltr(int(overall.dpmo))).replace('{y}', ltr(fixed(overall.yieldPct, 3))).replace('{d}', ltr(int(overall.defects))).replace('{o}', ltr(int(overall.totalOpportunities)))
+                          : t('dpmo_no_defects_sub')}
+                      </div>
                     </div>
-                    <div style={s.statLabel}>{t('dpmo_stat_lowest')} ({worstProcess.sigma.toFixed(2)}σ)</div>
                   </div>
-                )}
-              </div>
-
-              <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{t('dpmo_chart_title')}</div>
-                <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
-                  {t('dpmo_chart_sub')}
+                  {multi && lowest && Number.isFinite(lowest.sigma) && (
+                    <div className="tl-verdict" style={{ background: tint(lowColor, 8), border: `1px solid ${tint(lowColor, 35)}` }}>
+                      <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(lowColor, 16), color: lowColor }}>!</span>
+                      <div>
+                        <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('dpmo_lowest_label')}</div>
+                        <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: lowColor }}>{lowest.name} · {ltr(`${sig(lowest.sigma)}σ`)}</div>
+                        <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{t('dpmo_lowest_sub').replace('{dpmo}', ltr(int(lowest.dpmo)))}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="qh-chart-inner" style={s.chartInner}>
-                  <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
-                </div>
-              </div>
 
-              <div style={s.card}>
-                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>{t('dpmo_detailed_results')}</div>
-                <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      <th style={s.th}>{t('dpmo_col_process')}</th>
-                      <th style={s.th}>{t('dpmo_col_units')}</th>
-                      <th style={s.th}>{t('dpmo_col_oppunit')}</th>
-                      <th style={s.th}>{t('dpmo_col_defects')}</th>
-                      <th style={s.th}>{t('dpmo_col_dpo')}</th>
-                      <th style={s.th}>{t('dpmo_col_dpmo')}</th>
-                      <th style={s.th}>{t('dpmo_col_yield')}</th>
-                      <th style={s.th}>{t('dpmo_col_sigma')}</th>
-                      <th style={s.th}>{t('dpmo_col_rating')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map(r => {
-                      const band = sigmaBand(r.sigma)
-                      return (
-                        <tr key={r.id}>
-                          <td style={{ ...s.td, fontWeight: 600 }}>{r.name}</td>
-                          <td style={s.td}>{r.units}</td>
-                          <td style={s.td}>{r.opportunities}</td>
-                          <td style={s.td}>{r.defects}</td>
-                          <td style={s.td}>{r.dpo.toFixed(4)}</td>
-                          <td style={s.td}>{Math.round(r.dpmo).toLocaleString()}</td>
-                          <td style={s.td}>{r.yieldPct.toFixed(2)}%</td>
-                          <td style={{ ...s.td, fontWeight: 700, color: c[band.tone] }}>{r.sigma.toFixed(2)}</td>
-                          <td style={s.td}>
-                            <span style={{ ...s.badge, background: `${c[band.tone]}22`, color: c[band.tone] }}>
-                              {t(band.labelKey)}
-                            </span>
-                          </td>
+                <div className="tl-results-head">
+                  <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t('spc_tab_results')}</h2>
+                  <ExportRow
+                    isPro={isPro}
+                    isLoggedIn={isLoggedIn}
+                    hasResult={!!overall}
+                    onCSV={exportCSV}
+                    onPNG={exportPNG}
+                    onExcel={exportExcel}
+                    onPDF={exportPDF}
+                    save={
+                      <SaveAnalysisButton
+                        theme={theme}
+                        tool="dpmo"
+                        defaultName={`DPMO — ${new Date().toLocaleDateString('en-US')}`}
+                        compact={compactSave}
+                        getPayload={() => ({
+                          input_data: results.map(r => ({ name: r.name, units: r.units, opportunities: r.opportunities, defects: r.defects })),
+                          results: { processes: results, overall },
+                        })}
+                      />
+                    }
+                  />
+                </div>
+
+                <div className="tl-chart">
+                  <h3>{t('dpmo_chart_title')}</h3>
+                  <div className="tl-chart-sub">{t('dpmo_chart_lines')}</div>
+                  <div className="tl-chart-inner" style={{ height: 300 }}>
+                    <Chart ref={chartRef} type="bar" data={chartData} options={chartOptions} />
+                  </div>
+                </div>
+
+                <div className="tl-card">
+                  <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('dpmo_detailed_results')}</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="tl-table">
+                      <thead>
+                        <tr>
+                          <th>{t('dpmo_col_process')}</th>
+                          <th className="num">{t('dpmo_col_opps')}</th>
+                          <th className="num">{t('dpmo_col_defects')}</th>
+                          <th className="num">{t('dpmo_col_dpo')}</th>
+                          <th className="num">{t('dpmo_col_dpmo')}</th>
+                          <th className="num">{t('dpmo_col_yield')}</th>
+                          <th className="num">{t('dpmo_col_sigma')}</th>
+                          <th>{t('dpmo_col_rating')}</th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {results.map((r, i) => (
+                          <tr key={i}>
+                            <td style={{ whiteSpace: 'normal' }}>{r.name}</td>
+                            <td className="num">{int(r.totalOpportunities)}</td>
+                            <td className="num">{int(r.defects)}</td>
+                            <td className="num">{fixed(r.dpo, 6)}</td>
+                            <td className="num">{int(r.dpmo)}</td>
+                            <td className="num">{fixed(r.yieldPct, 3)}</td>
+                            <td className="num" style={{ fontWeight: 600, color: Number.isFinite(r.sigma) ? bandOf(r.sigma).color : undefined }}>{sig(r.sigma)}</td>
+                            <td>{Number.isFinite(r.sigma) ? t(bandOf(r.sigma).labelKey) : t('dpmo_no_defects')}</td>
+                          </tr>
+                        ))}
+                        {multi && (
+                          <tr style={{ fontWeight: 700 }}>
+                            <td>{t('dpmo_overall_row')}</td>
+                            <td className="num">{int(overall.totalOpportunities)}</td>
+                            <td className="num">{int(overall.defects)}</td>
+                            <td className="num">{fixed(overall.dpo, 6)}</td>
+                            <td className="num">{int(overall.dpmo)}</td>
+                            <td className="num">{fixed(overall.yieldPct, 3)}</td>
+                            <td className="num" style={{ color: verdictColor }}>{sig(overall.sigma)}</td>
+                            <td>{Number.isFinite(overall.sigma) ? t(bandOf(overall.sigma).labelKey) : t('dpmo_no_defects')}</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {multi && <div className="tl-hint">{t('dpmo_pooled_note')}</div>}
                 </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ ...s.card, textAlign: 'center', padding: 60, color: c.muted }}>
-              {t('dpmo_empty_state')}
-            </div>
-          )}
+
+                <details className="tl-more">
+                  <summary>{t('dpmo_ref_title')}</summary>
+                  <div className="tl-more-body">
+                    <div className="tl-hint" style={{ marginTop: 0 }}>{t('dpmo_ref_sub')}</div>
+                    <table className="tl-table">
+                      <thead>
+                        <tr><th className="num">{t('dpmo_col_sigma_level')}</th><th className="num">{t('dpmo_col_dpmo')}</th><th className="num">{t('dpmo_col_yield')}</th></tr>
+                      </thead>
+                      <tbody>
+                        {reference.map(r => (
+                          <tr key={r.sg}><td className="num">{fixed(r.sg, 1)}σ</td><td className="num">{refDpmo(r.dpmo)}</td><td className="num">{fixed(r.yieldPct, 4)}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </>
+            ) : (
+              <div className="tl-card tl-empty">{t('dpmo_empty_state')}</div>
+            )}
+          </section>
         </div>
       </div>
 
-      {pasteToast && <div style={s.toast}>{t('dpmo_toast')}</div>}
+      <PhoneBar
+        showResultActions={mobileTab === 'results' && !!overall}
+        onAnalyze={() => { setMobileTab('results'); window.scrollTo({ top: 0 }) }}
+        onEdit={() => setMobileTab('data')}
+        analyzeLabel={t('dpmo_bar_results')}
+      />
+      <PasteToast show={gridImport.pasteToast} />
     </div>
   )
 }
