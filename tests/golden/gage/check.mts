@@ -13,6 +13,7 @@
 //    1.042327 (PV) · % total variation 18.4 / 20.9 / 27.9 / 96.0 ·
 //    % contribution 3.4 / 4.4 / 7.8 / 92.2 · ndc 4 (1.41 × 6.25 / 1.81 = 4.87).
 // GR01–GR06: Minitab results get added as `minitab` objects when they arrive.
+// D4 for 3 trials is the exact 2.574 (the manual prints 2.58).
 // lib/gage/sample.ts (the faded example free visitors see) must equal what the
 // calculation gives for the page's sample data.
 import { readFileSync } from 'node:fs'
@@ -43,10 +44,13 @@ const g = sets.find(x => x.id === 'GR00')
   near('GR00 X̄&R', 'rP', r.rP, e.rP, 0.0005)
   for (const k of ['EV', 'AV', 'GRR', 'PV']) near('GR00 X̄&R', '%' + k, r.pctOfTV[k], e.pctTV[k], 0.0001)
   eq('GR00 X̄&R', 'ndc', r.ndc, e.ndc)
+  eq('GR00 X̄&R', 'D4 (3 trials)', r.constants.D4, 2.574)
+  near('GR00 X̄&R', 'UCL R = R̄ × D4', r.uclR, r.rBar * 2.574, 1e-12)
 }
 // ── ANOVA (Appendix A, Tables A 4 / A 5) ──
 {
-  const r: any = runAnovaGageRR(input(g), 0.25)
+  // α = 0.05 (current default); the interaction p is 0.974 here, so it is pooled at any usual α
+  const r: any = runAnovaGageRR(input(g), 0.05)
   const u = r.unpooledInteraction
   const raw = (src: string) => r.anovaTable.find((x: any) => x.source === src)
   near('GR00 ANOVA', 'SS part', raw('Part').SS, 88.3619, 0.00005)

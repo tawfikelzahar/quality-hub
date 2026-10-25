@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 })
     }
     const result = body.method === 'anova'
-      ? runAnovaGageRR(body, body.poolingAlpha ?? 0.25)
+      ? runAnovaGageRR(body, body.poolingAlpha ?? 0.05)
       : runGageRR(body)
     const method = body.method === 'anova' ? 'anova' : 'average-range'
     // Report interpretation, written on the server from the numbers above

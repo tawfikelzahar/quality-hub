@@ -136,7 +136,8 @@ const SAMPLE: number[][][] = GAGE_SAMPLE_DATA.map(a => a.map(p => [...p]))
 const EN = translations.en
 const fill = (str: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((a, [k, v]) => a.split(`{${k}}`).join(String(v)), str)
 const ltr = (v: string) => `\u2066${v}\u2069`
-const POOLING_ALPHA = 0.25
+// α to remove the part × appraiser interaction — 0.05, the current Minitab default
+const POOLING_ALPHA = 0.05
 
 function resizeMeasurements(
   current: (number | null)[][][],

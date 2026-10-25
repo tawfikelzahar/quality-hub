@@ -78,8 +78,10 @@ function fPValue(f: number, df1: number, df2: number): number {
   return 1 - betai(df1 / 2, df2 / 2, x)
 }
 
-// D4 — Range chart UCL constant, keyed by number of trials per part
-const D4: Record<number, number> = { 2: 3.267, 3: 2.575, 4: 2.282, 5: 2.114 }
+// D4 — Range chart UCL constant, keyed by number of trials per part (exact
+// control-chart table: D4 = 1 + 3·d3/d2 → 3.267, 2.574, 2.282, 2.114; Montgomery
+// Appendix VI; AIAG prints them to 2 decimals, 3.27 and 2.58)
+const D4: Record<number, number> = { 2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114 }
 
 // 6σ Study Variation. AIAG MSA 4th ed. (p. 123): percent of tolerance is found by
 // "substituting the value of tolerance divided by six" for TV; Appendix B (p. 199):
@@ -323,7 +325,8 @@ export function runAnovaGageRR(input: GageInput, poolingAlpha: number) {
     { source: 'Repeatability (Error)', SS: SS_error, df: df_error, MS: MS_error, F: null, p: null, significant: null },
   ]
 
-  // AIAG convention: if the interaction is not significant (default α = 0.25,
+  // If the interaction is not significant at α (default 0.05 — the leading
+  // statistical package's current default; older AIAG practice used 0.25,
   // more lenient than 0.05 because the interaction term usually has low power),
   // pool it into the error term and re-test Part & Appraiser against the pooled error.
   const shouldPool = p_inter !== null && p_inter > poolingAlpha && df_inter > 0
