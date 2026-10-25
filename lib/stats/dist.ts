@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Exact t and F distributions through the regularized incomplete beta
 // function (Numerical Recipes, 3rd ed., 6.4 — same machinery as
-// lib/stability/calc.ts). Server-side formulas: ESLint keeps this file out
+// lib/stability/calc.ts); chi-square through the incomplete gamma (6.2);
+// the binomial with p = 1/2 for the median interval. Server-side formulas: ESLint keeps this file out
 // of the browser bundle.
 //
 // Checked in tests/golden/doe/check.mts against SAS PROC GLM printed
@@ -76,4 +77,54 @@ export function tQuantile(p: number, df: number): number {
     if (tTwoSidedP(mid, df) > tail) lo = mid; else hi = mid
   }
   return (lo + hi) / 2
+}
+
+// ── Chi-square and binomial (Descriptive: StDev and median intervals) ──────
+
+/** Regularized lower incomplete gamma P(a, x) (Numerical Recipes 6.2: series below a + 1, continued fraction above). */
+export function lowerGammaP(a: number, x: number): number {
+  if (x <= 0) return 0
+  const gln = logGamma(a)
+  if (x < a + 1) {
+    let ap = a, sum = 1 / a, del = sum
+    for (let n = 0; n < 1000; n++) {
+      ap += 1; del *= x / ap; sum += del
+      if (Math.abs(del) < Math.abs(sum) * 1e-15) break
+    }
+    return sum * Math.exp(-x + a * Math.log(x) - gln)
+  }
+  const FPMIN = 1e-300
+  let b = x + 1 - a, c = 1 / FPMIN, d = 1 / b, h = d
+  for (let i = 1; i < 1000; i++) {
+    const an = -i * (i - a)
+    b += 2
+    d = an * d + b; if (Math.abs(d) < FPMIN) d = FPMIN
+    c = b + an / c; if (Math.abs(c) < FPMIN) c = FPMIN
+    d = 1 / d
+    const del = d * c
+    h *= del
+    if (Math.abs(del - 1) < 1e-15) break
+  }
+  return 1 - Math.exp(-x + a * Math.log(x) - gln) * h
+}
+
+/** Quantile of the chi-square distribution with df degrees of freedom, P(X ≤ q) = p. */
+export function chiSquareQuantile(p: number, df: number): number {
+  let lo = 0, hi = Math.max(10, df * 10)
+  while (lowerGammaP(df / 2, hi / 2) < p) hi *= 2
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2
+    if (lowerGammaP(df / 2, mid / 2) < p) lo = mid; else hi = mid
+  }
+  return (lo + hi) / 2
+}
+
+/** Binomial CDF P(W ≤ k), W ~ Bin(n, 0.5), from log-gamma terms (exact to rounding for any n). */
+export function binomHalfCDF(k: number, n: number): number {
+  if (k < 0) return 0
+  if (k >= n) return 1
+  const lgn = logGamma(n + 1)
+  let s = 0
+  for (let i = 0; i <= k; i++) s += Math.exp(lgn - logGamma(i + 1) - logGamma(n - i + 1) - n * Math.LN2)
+  return Math.min(1, s)
 }

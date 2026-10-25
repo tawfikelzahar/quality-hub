@@ -27,6 +27,7 @@ const eslintConfig = defineConfig([
           { name: "@/lib/spc/nelson", allowTypeImports: true, message: "Rules stay on the server. For test-set labels use @/lib/spc/testSets." },
           { name: "@/lib/doe/calculator", allowTypeImports: true, message: "The factorial analysis comes from /api/doe. For the design matrix use @/lib/doe/design." },
           { name: "@/lib/regression/model", allowTypeImports: true, message: "Regression is calculated on the server (/api/regression)." },
+          { name: "@/lib/descriptive/stats", allowTypeImports: true, message: "Descriptive statistics come from /api/descriptive." },
           { name: "@/lib/stats/dist", message: "Formulas stay on the server." },
           { name: "@/lib/stats/normal", allowTypeImports: true, message: "Formulas stay on the server. For p-value text use @/lib/stats/format." },
         ],

@@ -1,11 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────
-// Descriptive Statistics — engine
-// No external statistics dependency — same convention as DPMOCalculator's
-// inverse-normal CDF and the Stability Study's Student-t/F machinery:
-// implement the needed distribution functions locally so the tool stays
-// self-contained with no new npm dependency.
+// Descriptive Statistics — engine (server only: /api/descriptive).
+//
+// Methods as the leading statistical packages document them for the
+// Graphical Summary / Display Descriptive Statistics:
+//  • quartiles at position (n + 1)p with linear interpolation (Minitab;
+//    Hyndman & Fan type 6), clamped to the smallest and largest value
+//  • skewness G1 = n / ((n − 1)(n − 2)) · Σ((x − x̄)/s)³ and kurtosis
+//    G2 (the bias-corrected pair, same as Excel SKEW / KURT)
+//  • CI for the mean: t(1 − α/2, n − 1) · s / √n
+//  • CI for StDev: √((n − 1)s² / χ²) with exact chi-square quantiles
+//  • CI for the median: Hettmansperger & Sheather (1986) interpolated
+//    order statistics — the method Minitab cites for this interval
+//  • Anderson-Darling: lib/stats/normal.ts (shared with SPC)
+// Checked in tests/golden/descriptive/reference.mts against SciPy
+// (stats.skew/kurtosis bias=False, numpy percentile 'weibull', chi2.ppf,
+// mstats.median_cihs). tests/golden/descriptive/check.mts compares with
+// Minitab once its printed results are added.
 // ─────────────────────────────────────────────────────────────────────────
 import { andersonDarlingNormal } from '../stats/normal'
+import { tQuantile, chiSquareQuantile, binomHalfCDF } from '../stats/dist'
 
 export interface HistogramBin {
   x0: number
@@ -58,134 +71,21 @@ export interface DescriptiveResult {
   boxPlot: BoxPlotSummary
 }
 
-// ── Gamma / incomplete-beta machinery (Numerical Recipes style) ────────────
-// Same formulation already used in lib/stability/calc.ts and
-// app/api/gage-rr/route.ts — duplicated here so this tool has no cross-file
-// runtime dependency (matches the project's per-tool self-containment).
-
-function logGamma(x: number): number {
-  const cof = [
-    676.5203681218851, -1259.1392167224028, 771.32342877765313,
-    -176.61502916214059, 12.507343278686905, -0.13857109526572012,
-    9.9843695780195716e-6, 1.5056327351493116e-7,
-  ]
-  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x)
-  x -= 1
-  const t = x + 7.5
-  let a = 0.99999999999980993
-  for (let i = 0; i < cof.length; i++) a += cof[i] / (x + i + 1)
-  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a)
-}
-
-function betacf(x: number, a: number, b: number): number {
-  const MAXIT = 200, EPS = 3e-9, FPMIN = 1e-30
-  const qab = a + b, qap = a + 1, qam = a - 1
-  let c = 1
-  let d = 1 - (qab * x) / qap
-  if (Math.abs(d) < FPMIN) d = FPMIN
-  d = 1 / d
-  let h = d
-  for (let m = 1; m <= MAXIT; m++) {
-    const m2 = 2 * m
-    let aa = (m * (b - m) * x) / ((qam + m2) * (a + m2))
-    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN
-    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN
-    d = 1 / d; h *= d * c
-    aa = (-(a + m) * (qab + m) * x) / ((a + m2) * (qap + m2))
-    d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN
-    c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN
-    d = 1 / d
-    const del = d * c
-    h *= del
-    if (Math.abs(del - 1) < EPS) break
-  }
-  return h
-}
-
-function regularizedIncompleteBeta(x: number, a: number, b: number): number {
-  if (x <= 0) return 0
-  if (x >= 1) return 1
-  const bt = Math.exp(
-    logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x)
-  )
-  if (x < (a + 1) / (a + b + 2)) return (bt * betacf(x, a, b)) / a
-  return 1 - (bt * betacf(1 - x, b, a)) / b
-}
-
-function tTwoSidedCDF(t: number, df: number): number {
-  if (df <= 0) return 0
-  const x = df / (df + t * t)
-  return 1 - regularizedIncompleteBeta(x, df / 2, 0.5)
-}
-
-/** Critical t value s.t. P(|T| <= tCrit) = confidence, via bisection. */
-function tCritical(confidence: number, df: number): number {
-  if (df <= 0) return 0
-  let lo = 0, hi = 60
-  for (let i = 0; i < 100; i++) {
-    const mid = (lo + hi) / 2
-    if (tTwoSidedCDF(mid, df) < confidence) lo = mid; else hi = mid
-  }
-  return (lo + hi) / 2
-}
-
-// ── Standard normal CDF and inverse CDF ─────────────────────────────────
-
-/** Inverse standard normal CDF (Acklam's algorithm) — same formulation as DPMOCalculator. */
-function normSInv(p: number): number {
-  if (p <= 0) return -6
-  if (p >= 1) return 6
-
-  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00]
-  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01]
-  const cc = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00]
-  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00]
-
-  const pLow = 0.02425
-  const pHigh = 1 - pLow
-
-  if (p < pLow) {
-    const q = Math.sqrt(-2 * Math.log(p))
-    return (((((cc[0] * q + cc[1]) * q + cc[2]) * q + cc[3]) * q + cc[4]) * q + cc[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-  } else if (p <= pHigh) {
-    const q = p - 0.5
-    const r = q * q
-    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
-      (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
-  } else {
-    const q = Math.sqrt(-2 * Math.log(1 - p))
-    return -(((((cc[0] * q + cc[1]) * q + cc[2]) * q + cc[3]) * q + cc[4]) * q + cc[5]) /
-      ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
-  }
-}
-
-/**
- * Chi-square quantile via the Wilson–Hilferty approximation. Good to
- * ~3 significant figures for df >= 5, adequate for a two-sided 95% StDev
- * CI in a quality-engineering context (not used for hard pass/fail gates).
- */
-function chiSquareQuantile(p: number, df: number): number {
-  const z = normSInv(p)
-  const term = 1 - 2 / (9 * df) + z * Math.sqrt(2 / (9 * df))
-  return df * Math.pow(term, 3)
-}
-
 // ── Core descriptive statistics ─────────────────────────────────────────
 
 function mean(arr: number[]): number {
   return arr.reduce((a, b) => a + b, 0) / arr.length
 }
 
-/** Percentile via linear interpolation (Excel PERCENTILE.INC / R type-7 — the common convention). */
+/** Quartile at position (n + 1)p with linear interpolation (type 6), clamped to the data range. */
 function percentile(sorted: number[], p: number): number {
   const n = sorted.length
-  if (n === 1) return sorted[0]
-  const idx = p * (n - 1)
-  const lo = Math.floor(idx)
-  const hi = Math.ceil(idx)
-  if (lo === hi) return sorted[lo]
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo)
+  const w = (n + 1) * p
+  if (w <= 1) return sorted[0]
+  if (w >= n) return sorted[n - 1]
+  const y = Math.floor(w)
+  const z = w - y
+  return sorted[y - 1] + z * (sorted[y] - sorted[y - 1])
 }
 
 function sturgesBinCount(n: number): number {
@@ -247,17 +147,28 @@ function andersonDarlingTest(sorted: number[], _m: number, s: number): AndersonD
   return { statistic: r.A2, pValue: r.p, normalAtAlpha05: r.normal }
 }
 
-/** 95% CI for the median via the order-statistic (binomial) method. */
+/**
+ * CI for the median — Hettmansperger & Sheather (1986), interpolated order
+ * statistics (same steps as NIST Dataplot and SciPy mstats.median_cihs):
+ * k from the binomial(n, ½) so that the coverage γk of (x(k), x(n−k+1))
+ * is at least 1 − α and γk+1 is below it, then
+ * I = (γk − (1 − α)) / (γk − γk+1), λ = (n − k) I / (k + (n − 2k) I),
+ * lower = λ x(k+1) + (1 − λ) x(k), upper = λ x(n−k) + (1 − λ) x(n−k+1).
+ */
 function medianCI(sorted: number[], confidence: number): ConfidenceInterval | null {
   const n = sorted.length
-  if (n < 6) return null // too few points for a meaningful nonparametric CI
-  const z = normSInv(1 - (1 - confidence) / 2)
-  const j = Math.floor(n / 2 - (z * Math.sqrt(n)) / 2)
-  const k = Math.ceil(n / 2 + 1 + (z * Math.sqrt(n)) / 2)
-  const lo = Math.max(1, j)
-  const hi = Math.min(n, k)
-  if (lo >= hi) return null
-  return { lower: sorted[lo - 1], upper: sorted[hi - 1] }
+  const alpha = 1 - confidence
+  const gamma = (k: number) => binomHalfCDF(n - k, n) - binomHalfCDF(k - 1, n)
+  // largest k ≥ 1 whose interval still covers 1 − α
+  let k = 0
+  while (k + 1 <= n / 2 && gamma(k + 1) >= 1 - alpha) k++
+  if (k < 1) return null // too few points: even (min, max) covers less than 1 − α
+  const gk = gamma(k)
+  const gk1 = gamma(k + 1)
+  const I = gk - gk1 > 0 ? (gk - (1 - alpha)) / (gk - gk1) : 0
+  const lam = ((n - k) * I) / (k + (n - 2 * k) * I)
+  const x = (i: number) => sorted[i - 1]
+  return { lower: lam * x(k + 1) + (1 - lam) * x(k), upper: lam * x(n - k) + (1 - lam) * x(n - k + 1) }
 }
 
 export function computeDescriptiveStats(raw: number[], confidence = 0.95): DescriptiveResult {
@@ -273,8 +184,9 @@ export function computeDescriptiveStats(raw: number[], confidence = 0.95): Descr
 
   let skewness: number | null = null
   if (n >= 3 && stdev > 0) {
-    const g1 = sorted.reduce((s, v) => s + ((v - m) / stdev) ** 3, 0) / n
-    skewness = (Math.sqrt(n * (n - 1)) / (n - 2)) * g1
+    const sumZ3 = sorted.reduce((s, v) => s + ((v - m) / stdev) ** 3, 0)
+    skewness = (n / ((n - 1) * (n - 2))) * sumZ3
+    if (Math.abs(skewness) < 1e-12) skewness = 0 // rounding noise on symmetric data
   }
 
   let kurtosis: number | null = null
@@ -296,7 +208,7 @@ export function computeDescriptiveStats(raw: number[], confidence = 0.95): Descr
   const ciMean: ConfidenceInterval | null =
     n >= 2 && stdev > 0
       ? (() => {
-          const tCrit = tCritical(confidence, n - 1)
+          const tCrit = tQuantile(1 - (1 - confidence) / 2, n - 1)
           const halfWidth = tCrit * (stdev / Math.sqrt(n))
           return { lower: m - halfWidth, upper: m + halfWidth }
         })()
