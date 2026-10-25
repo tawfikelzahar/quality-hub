@@ -55,7 +55,7 @@ export const translations = {
     bc_sample_reports: 'Sample Reports',
 
     // ── Landing page (home) ──
-    home_eyebrow: 'Free to start · Runs in your browser · Arabic & English',
+    home_eyebrow: 'Free to start · No install needed · Arabic & English',
     home_title_1: 'Quality statistics you can',
     home_title_2: 'sign your name to.',
     home_sub:
