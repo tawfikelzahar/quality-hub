@@ -26,6 +26,9 @@ export const translations = {
     nav_getapp: 'Get the App',
     nav_signin: 'Sign In',
     nav_signout: 'Sign Out',
+    nav_menu: 'Menu',
+    nav_menu_close: 'Close menu',
+    nav_appearance: 'Appearance',
 
     // ── Tool-page breadcrumbs (next to the σ logo in every tool's nav) ──
     bc_spc: 'SPC Engine',
@@ -1746,6 +1749,9 @@ export const translations = {
     nav_getapp: 'حمّل التطبيق',
     nav_signin: 'تسجيل الدخول',
     nav_signout: 'تسجيل الخروج',
+    nav_menu: 'القائمة',
+    nav_menu_close: 'إغلاق القائمة',
+    nav_appearance: 'المظهر',
 
     // ── Tool-page breadcrumbs ──
     bc_spc: 'SPC Engine',

@@ -6,6 +6,7 @@ import { usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
 import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
+import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS, TOOL_COUNT, LANDING_COLUMN_ORDER } from '@/lib/tools'
 import { SITE } from '@/lib/site'
@@ -234,11 +235,12 @@ export default function Home() {
             <a href="/pricing" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_pricing')}</a>
             <a href="/about" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_about')}</a>
             <a href="/contact" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_contact')}</a>
-            <a href="/download" style={{fontSize:13,color:'var(--qh-muted)',fontWeight:600,whiteSpace:'nowrap'}}>{t('nav_getapp')}</a>
+            <a href="/download" className="qh-hide-mobile" style={{fontSize:13,color:'var(--qh-muted)',fontWeight:600,whiteSpace:'nowrap'}}>{t('nav_getapp')}</a>
             <AuthStatus />
             <LanguageToggle theme={theme} />
             <button
               type="button"
+              className="qh-theme-landing"
               onClick={() => setTheme(m => m === 'dark' ? 'light' : 'dark')}
               aria-label={dark ? t('theme_light') : t('theme_dark')}
               style={{background:'var(--qh-surface2)',border:'1px solid var(--qh-border)',borderRadius:20,padding:'5px 14px',color:'var(--qh-text)',cursor:'pointer',fontSize:12,fontWeight:600,whiteSpace:'nowrap'}}
@@ -246,6 +248,7 @@ export default function Home() {
               {dark ? '☀️' : '🌙'}<span className="qh-hide-small"> {dark ? t('theme_light') : t('theme_dark')}</span>
             </button>
             <GetProLink label={t('nav_getpro')} className="qh-hide-mobile" style={{background:'var(--qh-gold)',color:'var(--qh-onGold)',fontWeight:700,fontSize:13,padding:'8px 18px',borderRadius:8,whiteSpace:'nowrap'}} />
+            <MobileMenu theme={theme} setTheme={setTheme} variant="landing" />
           </div>
         </nav>
 

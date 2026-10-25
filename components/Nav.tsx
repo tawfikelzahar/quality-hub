@@ -5,6 +5,7 @@ import Link from 'next/link'
 import AuthStatus from '@/components/AuthStatus'
 import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
+import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
 import { getSharedStyles, type ThemeMode } from '@/lib/theme'
 import type { TKey } from '@/lib/i18n/translations'
@@ -51,6 +52,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
       </div>
       <div className="qh-nav-right" style={s.navRight}>
         <button
+          className="qh-theme-tool"
           style={s.themeBtn}
           onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
         >
@@ -61,6 +63,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
         {showGetPro && (
           <GetProLink label={`${t('nav_getpro')} →`} className="qh-hide-mobile" style={s.proBtn} />
         )}
+        <MobileMenu theme={theme} setTheme={setTheme} variant="tool" />
       </div>
     </nav>
   )
