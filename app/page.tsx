@@ -10,6 +10,7 @@ import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS, TOOL_COUNT, LANDING_COLUMN_ORDER } from '@/lib/tools'
 import { SITE } from '@/lib/site'
+import { track } from '@/lib/analytics'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Landing page (Mizan design): hero with a live example, why, three steps,
@@ -343,7 +344,7 @@ export default function Home() {
               <label className="mz-search">
                 <IconSearch />
                 <span style={{position:'absolute',width:1,height:1,overflow:'hidden',clip:'rect(0 0 0 0)'}}>{t('home_search_label')}</span>
-                <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder={t('home_search_placeholder')} />
+                <input type="search" value={query} onChange={e => setQuery(e.target.value)} onBlur={() => { const q = query.trim(); if (q) track('search', { search_term: q.slice(0, 100), where: 'home' }) }} placeholder={t('home_search_placeholder')} />
               </label>
             </div>
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/i18n/context'
 import { tint } from '@/lib/theme'
+import { track } from '@/lib/analytics'
 import { formatPEquals } from '@/lib/stats/format'
 import type { CapabilityVerdict } from '@/lib/spc/verdict'
 
@@ -46,7 +47,7 @@ export function ToolHeader({ title, intro, route, onHelp, onExample, exampleDisa
         <button type="button" className="tl-xbtn" onClick={onHelp} aria-haspopup="dialog">
           <span aria-hidden="true">?</span> {t('spc_help_btn')}
         </button>
-        <button type="button" className="tl-xbtn" onClick={onExample} disabled={exampleDisabled}>{t('spc_example_btn')}</button>
+        <button type="button" className="tl-xbtn" onClick={() => { track('example_loaded'); onExample() }} disabled={exampleDisabled}>{t('spc_example_btn')}</button>
       </div>
     </header>
   )
@@ -195,16 +196,67 @@ export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel,
   pngDisabled?: boolean
 }) {
   const { t } = useLanguage()
+  useCalculateTracking(hasResult)
+  const exp = (format: 'csv' | 'png' | 'excel' | 'pdf', allowed: boolean, run: () => void) => () => {
+    if (allowed) track('file_export', { file_format: format })
+    run()
+  }
   return (
     <div id="tl-export" className="tl-exports">
       {!isLoggedIn && <span style={{ fontSize: 12, color: 'var(--qh-muted)' }}>{t('spc_free_with_account')}</span>}
-      <button className="tl-xbtn" onClick={onCSV} disabled={!hasResult}>CSV</button>
-      <button className="tl-xbtn" onClick={onPNG} disabled={!hasResult || pngDisabled}>{pngLabel ?? t('spc_x_png')}</button>
-      <button className="tl-xbtn tl-xbtn-pro" onClick={onExcel}>Excel{!isPro && <span className="tl-pro">PRO</span>}</button>
-      <button className="tl-xbtn tl-xbtn-pro" onClick={onPDF} disabled={!hasResult}>{t('spc_x_pdf')}{!isPro && <span className="tl-pro">PRO</span>}</button>
+      <button className="tl-xbtn" onClick={exp('csv', isLoggedIn, onCSV)} disabled={!hasResult}>CSV</button>
+      <button className="tl-xbtn" onClick={exp('png', isLoggedIn, onPNG)} disabled={!hasResult || pngDisabled}>{pngLabel ?? t('spc_x_png')}</button>
+      <button className="tl-xbtn tl-xbtn-pro" onClick={exp('excel', isPro, onExcel)}>Excel{!isPro && <span className="tl-pro">PRO</span>}</button>
+      <button className="tl-xbtn tl-xbtn-pro" onClick={exp('pdf', isPro, onPDF)} disabled={!hasResult}>{t('spc_x_pdf')}{!isPro && <span className="tl-pro">PRO</span>}</button>
       {save}
     </div>
   )
+}
+
+/**
+ * Sends tool_calculate once per page view: the first time a result is on
+ * screen after the visitor typed, pasted or uploaded data in the page
+ * (typing in the nav or the phone menu doesn't count). Results that come
+ * from "Try an example" alone are counted by example_loaded instead.
+ */
+function useCalculateTracking(hasResult: boolean) {
+  const hasResultRef = useRef(hasResult)
+  const edited = useRef(false)
+  const sent = useRef(false)
+
+  useEffect(() => {
+    hasResultRef.current = hasResult
+    if (hasResult && edited.current && !sent.current) {
+      sent.current = true
+      track('tool_calculate')
+    }
+  }, [hasResult])
+
+  useEffect(() => {
+    let timer = 0
+    const onEdit = (e: Event) => {
+      const el = e.target as Element | null
+      if (!el || typeof el.closest !== 'function' || el.closest('nav, .qh-nav, .qh-mm')) return
+      edited.current = true
+      // live tools already show a result: check once the new numbers settle
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        if (hasResultRef.current && !sent.current) {
+          sent.current = true
+          track('tool_calculate')
+        }
+      }, 1500)
+    }
+    document.addEventListener('input', onEdit, true)
+    document.addEventListener('paste', onEdit, true)
+    document.addEventListener('change', onEdit, true)
+    return () => {
+      window.clearTimeout(timer)
+      document.removeEventListener('input', onEdit, true)
+      document.removeEventListener('paste', onEdit, true)
+      document.removeEventListener('change', onEdit, true)
+    }
+  }, [])
 }
 
 /** Props for SaveAnalysisButton's compact look, so Save matches the Pro export buttons */

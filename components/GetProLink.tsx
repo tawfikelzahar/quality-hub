@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { useSubscription } from '@/lib/useSubscription'
+import { track } from '@/lib/analytics'
 
 // "Get Pro" call to action in the navs. Hidden for Pro accounts, and hidden
 // while the plan is still loading so a Pro user never sees it flash.
@@ -10,7 +11,7 @@ export default function GetProLink({ label, style, className }: { label: string;
   const { isPro, loading } = useSubscription()
   if (loading || isPro) return null
   return (
-    <Link href="/pricing" className={className} style={style}>
+    <Link href="/pricing" className={className} style={style} onClick={() => track('get_pro_click')}>
       {label}
     </Link>
   )

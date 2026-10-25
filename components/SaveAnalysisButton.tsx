@@ -1,5 +1,6 @@
 'use client'
 
+import { track } from '@/lib/analytics'
 import { useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { useSubscription } from '@/lib/useSubscription'
@@ -72,6 +73,7 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
         body: JSON.stringify({ tool, name: name.trim(), ...payload }),
       })
       const json = await res.json()
+      if (res.ok) track('save_project')
       setMessage(
         res.ok ? { text: '✅ Saved successfully', ok: true } : { text: json.error ?? 'Failed to save.', ok: false }
       )

@@ -1,5 +1,6 @@
 'use client'
 
+import { track } from '@/lib/analytics'
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -103,6 +104,7 @@ export default function LoginPage() {
         }
       }
 
+      track('sign_up', { method: 'email' })
       setError('✅ ' + t('login_check_email'))
       setLoading(false)
       return
@@ -110,6 +112,7 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
+    track('login', { method: 'email' })
     // A full navigation (not router.push) guarantees the browser sends the
     // freshly-set session cookie on this request, so the proxy/middleware
     // auth check on the destination route sees it immediately instead of

@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/context";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import ReportBrandingLoader from "@/components/ReportBrandingLoader";
+import Analytics from "@/components/Analytics";
 import { SITE, SITE_TITLE } from '@/lib/site'
 
 const geistSans = Geist({
@@ -78,8 +78,6 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-const GA_MEASUREMENT_ID = "G-9RKQ89NGD0";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -95,20 +93,8 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {/* Google Analytics (GA4) — loads after the page is interactive so it
-            doesn't block or slow down the initial render. */}
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="ga4-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}');
-          `}
-        </Script>
+        {/* Google Analytics (GA4): live site only, see lib/analytics.ts */}
+        <Analytics />
         <ServiceWorkerRegister />
         <ReportBrandingLoader />
         <LanguageProvider>{children}</LanguageProvider>

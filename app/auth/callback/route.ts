@@ -23,7 +23,21 @@ export async function GET(request: NextRequest) {
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data } = await supabase.auth.exchangeCodeForSession(code)
+    const user = data?.user
+    if (user) {
+      // Tell GA (components/Analytics.tsx) whether this was a new account:
+      // created within the last 10 minutes = sign_up, otherwise login.
+      const created = user.created_at ? Date.parse(user.created_at) : 0
+      const provider = (user.app_metadata?.provider as string | undefined) === 'email' ? 'email' : 'google'
+      // email sign-ups are counted when the form is sent (app/login), so an
+      // email confirmation link coming back here counts as a login
+      const isNew = provider === 'google' && created > 0 && Date.now() - created < 10 * 60 * 1000
+      const dest = new URL(next, request.url)
+      dest.searchParams.set('qh_auth', isNew ? 'sign_up' : 'login')
+      dest.searchParams.set('qh_m', provider)
+      return NextResponse.redirect(dest)
+    }
   }
 
   return NextResponse.redirect(new URL(next, request.url))

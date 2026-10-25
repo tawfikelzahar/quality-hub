@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import GetProLink from '@/components/GetProLink'
 import { createClient } from '@/lib/supabase'
+import { track } from '@/lib/analytics'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS } from '@/lib/tools'
 import type { ThemeMode } from '@/lib/theme'
@@ -98,7 +99,11 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
       .filter(g => g.rows.length > 0)
   }, [query, t])
 
-  const close = () => { setOpen(false); setQuery('') }
+  const close = () => {
+    const q = query.trim()
+    if (q) track('search', { search_term: q.slice(0, 100), results: groups.reduce((n, g) => n + g.rows.length, 0), where: 'menu' })
+    setOpen(false); setQuery('')
+  }
   const upper = lang === 'ar' ? {} : { textTransform: 'uppercase' as const, letterSpacing: 0.8 }
 
   return (
@@ -156,7 +161,7 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
         aria-label={t('nav_menu')}
         aria-expanded={open}
         aria-controls="qh-mobile-menu"
-        onClick={() => setOpen(true)}
+        onClick={() => { track('menu_open'); setOpen(true) }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
       </button>

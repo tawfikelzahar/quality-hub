@@ -10,16 +10,12 @@
 // is a much stronger signal than a page view.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { track } from '@/lib/analytics'
+
 type GateFeature = 'csv' | 'png' | 'excel' | 'pdf' | 'ai' | 'insight' | 'tool'
 
 function trackGateEvent(eventName: 'signup_wall_hit' | 'pro_wall_hit', tool: string, feature: GateFeature) {
-  if (typeof window === 'undefined') return
-  const gtag = (window as typeof window & { gtag?: (...args: unknown[]) => void }).gtag
-  if (typeof gtag !== 'function') return
-  gtag('event', eventName, {
-    tool_name: tool,
-    feature,
-  })
+  track(eventName, { tool_name: tool, feature })
 }
 
 export function goToLogin(tool: string, feature: GateFeature) {

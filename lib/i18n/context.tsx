@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { translations, type Lang, type Dict, type TKey } from './translations'
+import { setLanguageProperty } from '@/lib/analytics'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Site-wide language switcher — mirrors the existing usePersistedTheme
@@ -41,6 +42,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = lang
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
     localStorage.setItem(STORAGE_KEY, lang)
+    setLanguageProperty(lang)
   }, [lang])
 
   const setLang = (l: Lang) => setLangState(l)
