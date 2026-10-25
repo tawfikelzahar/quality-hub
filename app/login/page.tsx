@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase'
 import { compressAvatar } from '@/lib/avatar'
 import { COLORS, usePersistedTheme, BRAND_GRADIENT, BRAND_GRADIENT_TEXT_COLOR } from '@/lib/theme'
 import { SITE } from '@/lib/site'
+import { useLanguage } from '@/lib/i18n/context'
+import LanguageToggle from '@/components/LanguageToggle'
 
 function getNextPath() {
   if (typeof window === 'undefined') return '/'
@@ -18,6 +20,7 @@ const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
 export default function LoginPage() {
   const [theme, setTheme] = usePersistedTheme()
+  const { t } = useLanguage()
   const dark = theme === 'dark'
   const c = COLORS[theme]
 
@@ -54,8 +57,8 @@ export default function LoginPage() {
 
   async function handleAvatarChange(file: File | null) {
     if (!file) { setAvatarFile(null); setAvatarPreview(null); return }
-    if (!file.type.startsWith('image/')) { setError('❌ Please choose an image file.'); return }
-    if (file.size > MAX_AVATAR_BYTES) { setError('❌ Image must be under 5MB.'); return }
+    if (!file.type.startsWith('image/')) { setError('❌ ' + t('login_err_image')); return }
+    if (file.size > MAX_AVATAR_BYTES) { setError('❌ ' + t('login_err_size')); return }
     setError('')
     const compressed = await compressAvatar(file)
     setAvatarFile(compressed)
@@ -69,7 +72,7 @@ export default function LoginPage() {
 
     if (mode === 'signup') {
       if (!firstName.trim() || !lastName.trim()) {
-        setError('❌ Please enter your first and last name.')
+        setError('❌ ' + t('login_err_name'))
         setLoading(false)
         return
       }
@@ -100,7 +103,7 @@ export default function LoginPage() {
         }
       }
 
-      setError('✅ Check your email to confirm your account.')
+      setError('✅ ' + t('login_check_email'))
       setLoading(false)
       return
     }
@@ -135,12 +138,15 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={dark ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{height:40,width:'auto',display:'block'}} />
         </Link>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <LanguageToggle theme={theme} />
         <button
-          onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+          onClick={() => setTheme(m => m === 'dark' ? 'light' : 'dark')}
           style={{background:dark?'rgba(255,255,255,0.08)':c.surface2,border:`1px solid ${c.border}`,borderRadius:20,padding:'5px 14px',color:textColor,cursor:'pointer',fontSize:12,fontWeight:600}}
         >
-          {dark ? '☀️ Light' : '🌙 Dark'}
+          {dark ? `☀️ ${t('theme_light')}` : `🌙 ${t('theme_dark')}`}
         </button>
+        </div>
       </div>
 
       {/* Card */}
@@ -150,16 +156,16 @@ export default function LoginPage() {
         <div style={{display:'flex',background:toggleTrackBg,borderRadius:12,padding:4,marginBottom:32}}>
           {(['login','signup'] as const).map(m => (
             <button key={m} onClick={() => setMode(m)} style={{flex:1,padding:'9px',borderRadius:9,border:'none',cursor:'pointer',fontWeight:600,fontSize:13,transition:'all .2s',background: mode===m ? activeTabBg : 'transparent',color: mode===m ? c.accent : mutedColor}}>
-              {m === 'login' ? 'Sign In' : 'Create Account'}
+              {m === 'login' ? t('login_tab_in') : t('login_tab_up')}
             </button>
           ))}
         </div>
 
         <h1 style={{fontSize:22,fontWeight:800,marginBottom:6,color:textColor}}>
-          {mode === 'login' ? 'Welcome back' : 'Create your account'}
+          {mode === 'login' ? t('login_title_in') : t('login_title_up')}
         </h1>
         <p style={{fontSize:13,color:mutedColor,marginBottom:28}}>
-          {mode === 'login' ? 'Sign in to access your tools' : 'Free forever. No credit card required.'}
+          {mode === 'login' ? t('login_sub_in') : t('login_sub_up')}
         </p>
 
         {/* Google Sign In */}
@@ -168,12 +174,12 @@ export default function LoginPage() {
           disabled={googleLoading}
           style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:10,padding:'12px',background:'#fff',color:'#1f2937',fontWeight:600,fontSize:14,borderRadius:11,border:'1px solid rgba(0,0,0,.08)',cursor:'pointer',marginBottom:20,opacity:googleLoading?.7:1}}>
           <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.81.54-1.85.86-3.05.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72A5.4 5.4 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.95H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.05l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
-          Continue with Google
+          {t('login_google')}
         </button>
 
         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
           <div style={{flex:1,height:1,background:dividerColor}}/>
-          <span style={{fontSize:11,color:softMuted}}>OR</span>
+          <span style={{fontSize:11,color:softMuted}}>{t('login_or')}</span>
           <div style={{flex:1,height:1,background:dividerColor}}/>
         </div>
 
@@ -183,7 +189,7 @@ export default function LoginPage() {
             <>
               <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
                 <div style={{flex:'1 1 140px'}}>
-                  <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>First Name</label>
+                  <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>{t('login_first')}</label>
                   <input
                     type="text"
                     value={firstName}
@@ -193,7 +199,7 @@ export default function LoginPage() {
                   />
                 </div>
                 <div style={{flex:'1 1 140px'}}>
-                  <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>Last Name</label>
+                  <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>{t('login_last')}</label>
                   <input
                     type="text"
                     value={lastName}
@@ -205,7 +211,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>Profile Photo (optional)</label>
+                <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>{t('login_photo')}</label>
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
                   {avatarPreview ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -214,7 +220,7 @@ export default function LoginPage() {
                     <div style={{width:44,height:44,borderRadius:'50%',background:avatarPlaceholderBg,border:`1px dashed ${avatarPlaceholderBorder}`,flexShrink:0}} />
                   )}
                   <label style={{fontSize:12,fontWeight:600,color:c.accent,cursor:'pointer',padding:'8px 14px',border:`1px solid ${c.accent}4d`,borderRadius:8}}>
-                    {avatarFile ? 'Change photo' : 'Upload photo'}
+                    {avatarFile ? t('login_photo_change') : t('login_photo_upload')}
                     <input
                       type="file"
                       accept="image/*"
@@ -227,7 +233,7 @@ export default function LoginPage() {
             </>
           )}
           <div>
-            <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>Email</label>
+            <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>{t('login_email')}</label>
             <input
               type="email"
               value={email}
@@ -237,7 +243,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>Password</label>
+            <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>{t('login_password')}</label>
             <input
               type="password"
               value={password}
@@ -259,15 +265,10 @@ export default function LoginPage() {
           onClick={handleSubmit}
           disabled={loading}
           style={{width:'100%',padding:'13px',background:BRAND_GRADIENT,color:BRAND_GRADIENT_TEXT_COLOR,fontWeight:700,fontSize:15,borderRadius:11,border:'none',cursor:'pointer',opacity: loading ? .7 : 1}}>
-          {loading ? 'Please wait...' : mode === 'login' ? 'Sign In →' : 'Create Account →'}
+          {loading ? t('login_wait') : mode === 'login' ? t('login_btn_in') : t('login_btn_up')}
         </button>
 
-        <p style={{textAlign:'center',fontSize:12,color:softMuted,marginTop:24}}>
-          By continuing, you agree to our{' '}
-          <a href="#" style={{color:c.accent,textDecoration:'none'}}>Terms</a>
-          {' & '}
-          <a href="#" style={{color:c.accent,textDecoration:'none'}}>Privacy Policy</a>
-        </p>
+        {/* Terms / Privacy line comes back once those pages are published (P7) */}
       </div>
     </div>
   )

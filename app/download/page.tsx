@@ -83,7 +83,7 @@ export default function DownloadPage() {
                 alignItems: 'center',
                 gap: 10,
                 background: BRAND_GRADIENT,
-                color: '#ffffff',
+                color: 'var(--qh-onAccent)',
                 fontSize: 15,
                 fontWeight: 700,
                 padding: '14px 28px',
