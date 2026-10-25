@@ -73,7 +73,7 @@ export const translations = {
       'Not just a platform built by a programmer. It was built by a quality engineer with 10+ years on the factory floor, who knows the challenges you face: a customer complaint, an audit coming up, a report due yesterday, and a problem that must not come back.',
     home_why_1_title: 'Numbers you can defend',
     home_why_1_body:
-      'Every calculation is tested against reference results from specialized statistical software, so your Cpk is the same Cpk your customer gets.',
+      'Every calculation is tested against published references and specialized statistical software, so your Cpk is the same Cpk your customer gets.',
     home_why_2_title: 'A report with your name on it',
     home_why_2_body:
       'PDF and Excel reports carry your name and your company logo, ready to send to your customer or your auditor.',
@@ -224,7 +224,7 @@ export const translations = {
     about_origin_p1:
       `${SITE.name} started with a simple frustration: quality engineers shouldn't need five different tools, a stack of spreadsheets, and an expensive software license just to run an SPC chart or calculate Cpk.`,
     about_origin_p2:
-      'After more than 10 years working in manufacturing, quality engineering, and continuous improvement, I built the platform I wished existed — one place for SPC, Process Capability, Pareto Analysis, AQL Sampling, Gage R&R (MSA), and Stability Studies, built to the standards engineers actually work against: ISO 2859-1, AIAG, and ICH Q1E.',
+      'After more than 10 years working in manufacturing, quality engineering, and continuous improvement, I built the platform I wished existed — one place for SPC and control charts, Process Capability, Gage R&R (MSA), Descriptive Statistics, Pareto, Regression, Design of Experiments (DOE), AQL and ICMSF sampling, OEE, DPMO and Sigma, and Stability Studies, built to the standards engineers actually work against: ISO 2859-1, AIAG, ICMSF and ICH Q1E.',
     about_philosophy_heading: 'Our Philosophy',
     about_philosophy_p:
       'Good quality engineering starts with good evidence. Data should help you understand variation. Analysis should support real decisions. And better decisions should lead to better processes.',
@@ -315,7 +315,7 @@ export const translations = {
     rb_err_save: 'Could not save.',
     pricing_hero_title: 'Every analysis is free',
     pricing_hero_sub:
-      'Run any tool and read every result at no cost, no account needed. Pro will add Gage R&R, clean PDF and Excel reports, saved projects and AI Insights.',
+      'Run any tool and read every result at no cost, no account needed. Pro will add Gage R&R, clean PDF and Excel reports, saved projects and a few deeper readings inside the tools.',
     pricing_see_samples_link: 'See sample PDF & Excel reports',
     pricing_price_label: 'Coming soon',
     pricing_recommended: 'COMING SOON',
@@ -338,7 +338,7 @@ export const translations = {
     pricing_pro_bullet_2: 'Gage R&R (AIAG Average & Range / ANOVA)',
     pricing_pro_bullet_3: 'PDF and Excel reports, no watermark',
     pricing_pro_bullet_4: 'Save up to 50 projects to your dashboard',
-    pricing_pro_bullet_5: 'AI Insights on X̄-R results (10 a day)',
+    pricing_pro_bullet_5: 'ICMSF risk by concentration and the OEE “What to work on first” card',
     pricing_pro_cta: 'Not available yet',
 
     pricing_table_title: 'What is free and what is Pro',
@@ -369,12 +369,12 @@ export const translations = {
     pricing_feat_export_csv: 'CSV / PNG export',
     pricing_feat_export_excel: 'PDF / Excel reports',
     pricing_feat_save: 'Save projects & dashboard',
-    pricing_feat_ai: 'AI Insights (X̄-R)',
+    pricing_feat_icmsf_risk: 'ICMSF: risk by concentration',
+    pricing_feat_oee_next: 'OEE: what to work on first',
 
     pricing_val_watermark: 'Free account · PNG watermarked',
     pricing_val_nowatermark: 'No watermark',
     pricing_val_50projects: 'Up to 50',
-    pricing_val_ai_limit: '10 a day',
 
     pricing_footer_prefix: 'Questions about a plan?',
     pricing_footer_link: 'Contact us',
@@ -1219,6 +1219,9 @@ export const translations = {
     sample_spc_desc: 'Control charts, capability indices (Cp/Cpk/Pp/Ppk), Anderson-Darling normality test, and a capability diagnosis.',
     sample_oee_name: 'OEE Analysis Report',
     sample_oee_desc: 'Availability, Performance, and Quality breakdown against world-class benchmarks, with a Six Big Losses summary.',
+    sample_open_tool: 'Open {tool}',
+    sample_more_title: 'Every other tool, same report',
+    sample_more_sub: 'Each tool below exports a PDF and Excel report in the same design. Open it, enter your numbers and export.',
     sample_cta_title: 'Ready to run this on your own data?',
     sample_cta_sub: 'Every calculation is free to try. Upgrade to Pro whenever you need the branded PDF or Excel export.',
     sample_cta_button: 'See Pricing',
@@ -1243,7 +1246,7 @@ export const translations = {
     guide_step_2_title: 'Enter or paste your data',
     guide_step_2_desc: 'Type values directly, or paste from Excel — most tools accept tab-separated columns and line breaks between rows, so you can paste a whole table at once.',
     guide_step_3_title: 'Read the results',
-    guide_step_3_desc: 'Charts, indices and the verdict appear right away: most tools update as you type, and the SPC and Descriptive tools have an Analyze button. Calculations are always free, for any visitor.',
+    guide_step_3_desc: 'Charts, indices and the verdict appear right away: most tools update as you type, and the SPC and Descriptive tools have an Analyze button. Calculations are free on every tool except Gage R&R (Pro).',
     guide_step_4_title: 'Export your results',
     guide_step_4_desc: 'CSV and PNG exports are available with a free account. Branded PDF and Excel reports, plus saving analyses to your dashboard, require a Pro subscription.',
     guide_tools_heading: 'All tools',
@@ -1252,7 +1255,7 @@ export const translations = {
     guide_faq_1_q: 'Do I need an account to use the tools?',
     guide_faq_1_a: 'No. Every calculation on every tool is free to run without signing up. A free account only unlocks CSV/PNG export.',
     guide_faq_2_q: "What's the difference between Free and Pro?",
-    guide_faq_2_a: 'Free covers every analysis tool except Gage R&R, plus CSV/PNG export with a free account. Pro, coming soon, adds Gage R&R, PDF/Excel reports without watermark, saved analyses and AI Insights. See the Pricing page for details.',
+    guide_faq_2_a: 'Free covers every analysis tool except Gage R&R, plus CSV/PNG export with a free account. Pro, coming soon, adds Gage R&R, PDF/Excel reports without watermark, saved analyses, the ICMSF risk curve and the OEE “What to work on first” card. See the Pricing page for details.',
     guide_faq_3_q: 'Is my data stored anywhere?',
     guide_faq_3_a: 'Your data is not stored unless you save the project yourself (Pro). We do not use it for anything else.',
     guide_footer_note: 'Built by',
@@ -1790,7 +1793,7 @@ export const translations = {
       'ليست مجرد منصة صممها مبرمج، بل منصة بناها مهندس جودة قضى أكثر من 10 سنوات داخل المصانع، ويعرف جيدًا التحديات التي تواجهها: شكوى عميل، وتدقيق قريب، وتقرير مطلوب منذ الأمس، ومشكلة يجب ألا تتكرر.',
     home_why_1_title: 'أرقام تستطيع الدفاع عنها',
     home_why_1_body:
-      'كل حساب مختبر مقابل نتائج مرجعية من البرامج الإحصائية المتخصصة، فقيمة Cpk عندك هي نفسها عند عميلك.',
+      'كل حساب مختبر مقابل مراجع منشورة وبرامج إحصائية متخصصة، فقيمة Cpk عندك هي نفسها عند عميلك.',
     home_why_2_title: 'تقرير يحمل اسمك',
     home_why_2_body: 'تقارير PDF وExcel باسمك وشعار شركتك، جاهزة للإرسال إلى عميلك أو إلى المدقق.',
     home_why_3_title: 'بدون أي تثبيت',
@@ -1940,7 +1943,7 @@ export const translations = {
     about_origin_p1:
       `بدأت فكرة ${SITE.name} من إحباط بسيط: لا ينبغي أن يحتاج مهندس الجودة إلى خمس أدوات مختلفة، وكومة من ملفات الإكسل، ورخصة برنامج باهظة الثمن، لمجرد رسم مخطط SPC أو حساب Cpk.`,
     about_origin_p2:
-      'بعد أكثر من 10 سنوات من العمل في التصنيع وهندسة الجودة والتحسين المستمر، بنيت المنصة التي كنت أتمنى وجودها — مكان واحد لـ SPC، وتحليل القدرة (Process Capability)، وتحليل باريتو، وعينات AQL، وGage R&R (MSA)، ودراسات الاستقرار، مبنية على المعايير التي يعمل بها المهندس فعليًا: ISO 2859-1، وAIAG، وICH Q1E.',
+      'بعد أكثر من 10 سنوات من العمل في التصنيع وهندسة الجودة والتحسين المستمر، بنيت المنصة التي كنت أتمنى وجودها — مكان واحد لـ SPC ومخططات الضبط، وتحليل القدرة (Process Capability)، و Gage R&R (MSA)، والإحصاء الوصفي، وتحليل Pareto، والانحدار، وتصميم التجارب (DOE)، وعينات AQL و ICMSF، و OEE، و DPMO و Sigma، ودراسات الاستقرار، مبنية على المعايير التي يعمل بها المهندس فعليًا: ISO 2859-1، و AIAG، و ICMSF، و ICH Q1E.',
     about_philosophy_heading: 'فلسفتنا',
     about_philosophy_p:
       'هندسة الجودة الجيدة تبدأ بدليل موثوق. البيانات يجب أن تساعدك على فهم التباين. التحليل يجب أن يدعم قرارات حقيقية. والقرارات الأفضل يجب أن تؤدي إلى عمليات أفضل.',
@@ -2030,7 +2033,7 @@ export const translations = {
     rb_err_signin: 'يُرجى تسجيل الدخول مرة أخرى.',
     rb_err_save: 'تعذّر الحفظ.',
     pricing_hero_title: 'كل التحليلات مجانية',
-    pricing_hero_sub: 'استخدم أي أداة واقرأ كل النتائج مجانًا ودون حساب. وستضيف باقة Pro خدمة Gage R&R وتقارير PDF و Excel دون علامة مائية وحفظ المشاريع و AI Insights.',
+    pricing_hero_sub: 'استخدم أي أداة واقرأ كل النتائج مجانًا ودون حساب. وستضيف باقة Pro أداة Gage R&R وتقارير PDF و Excel دون علامة مائية وحفظ المشاريع وقراءات أعمق داخل بعض الأدوات.',
     pricing_see_samples_link: 'اطّلع على نماذج تقارير PDF و Excel',
     pricing_price_label: 'قريبًا',
     pricing_recommended: 'قريبًا',
@@ -2053,7 +2056,7 @@ export const translations = {
     pricing_pro_bullet_2: 'Gage R&R (طريقة AIAG Average & Range / ANOVA)',
     pricing_pro_bullet_3: 'تقارير PDF و Excel دون علامة مائية',
     pricing_pro_bullet_4: 'حفظ حتى 50 مشروعًا في لوحة التحكم',
-    pricing_pro_bullet_5: 'AI Insights لنتائج X̄-R (10 مرات في اليوم)',
+    pricing_pro_bullet_5: 'منحنى المخاطر حسب التركيز في ICMSF وبطاقة «ابدأ بماذا» في OEE',
     pricing_pro_cta: 'غير متاح حاليًا',
 
     pricing_table_title: 'ما المجاني وما الذي يتطلب Pro',
@@ -2084,12 +2087,12 @@ export const translations = {
     pricing_feat_export_csv: 'تصدير CSV / PNG',
     pricing_feat_export_excel: 'تقارير PDF / Excel',
     pricing_feat_save: 'حفظ المشاريع ولوحة التحكم',
-    pricing_feat_ai: 'AI Insights (X̄-R)',
+    pricing_feat_icmsf_risk: 'ICMSF: المخاطر حسب التركيز',
+    pricing_feat_oee_next: 'OEE: ابدأ بماذا',
 
     pricing_val_watermark: 'بحساب مجاني · PNG بعلامة مائية',
     pricing_val_nowatermark: 'دون علامة مائية',
     pricing_val_50projects: 'حتى 50',
-    pricing_val_ai_limit: '10 في اليوم',
 
     pricing_footer_prefix: 'لديك سؤال عن الخطط؟',
     pricing_footer_link: 'تواصل معنا',
@@ -2932,6 +2935,9 @@ export const translations = {
     sample_spc_desc: 'مخططات ضبط، مؤشرات القدرة (Cp/Cpk/Pp/Ppk)، اختبار Anderson-Darling للتوزيع الطبيعي، وتشخيص للقدرة.',
     sample_oee_name: 'تقرير تحليل OEE',
     sample_oee_desc: 'تفصيل الإتاحة (Availability) والأداء (Performance) والجودة (Quality) مقابل المعايير العالمية، مع ملخص للخسائر الستة الكبرى.',
+    sample_open_tool: 'افتح {tool}',
+    sample_more_title: 'باقي الأدوات بالتقرير نفسه',
+    sample_more_sub: 'كل أداة من الأدوات التالية تُصدّر تقرير PDF و Excel بالتصميم نفسه. افتحها وأدخل أرقامك ثم صدّر التقرير.',
     sample_cta_title: 'هل أنت جاهز لتجربة ذلك على بياناتك؟',
     sample_cta_sub: 'كل الحسابات مجانية للتجربة. اشترك في Pro عندما تحتاج إلى تصدير تقارير PDF أو Excel.',
     sample_cta_button: 'عرض الأسعار',
@@ -2955,7 +2961,7 @@ export const translations = {
     guide_step_2_title: 'أدخل أو الصق بياناتك',
     guide_step_2_desc: 'اكتب القيم مباشرةً أو الصقها من Excel. تقبل معظم الأدوات أعمدة مفصولة بـ Tab وصفوفًا في أسطر متتالية، فيمكنك لصق جدول كامل دفعة واحدة.',
     guide_step_3_title: 'اقرأ النتائج',
-    guide_step_3_desc: 'تظهر المخططات والمؤشرات والحكم فورًا: تتحدّث معظم الأدوات أثناء الكتابة، وفي أدوات SPC والإحصاء الوصفي زر «تحليل». الحسابات مجانية دائمًا لكل زائر.',
+    guide_step_3_desc: 'تظهر المخططات والمؤشرات والحكم فورًا: تتحدّث معظم الأدوات أثناء الكتابة، وفي أدوات SPC والإحصاء الوصفي زر «تحليل». الحسابات مجانية في كل الأدوات ما عدا Gage R&R (Pro).',
     guide_step_4_title: 'صدّر نتائجك',
     guide_step_4_desc: 'تصدير CSV و PNG متاح بحساب مجاني. أما تقارير PDF و Excel وحفظ المشاريع في لوحة التحكم فتتطلب اشتراك Pro.',
     guide_tools_heading: 'كل الأدوات',
@@ -2964,7 +2970,7 @@ export const translations = {
     guide_faq_1_q: 'هل أحتاج إلى حساب لاستخدام الأدوات؟',
     guide_faq_1_a: 'لا. كل الحسابات في كل الأدوات مجانية دون تسجيل، والحساب المجاني يتيح تصدير CSV و PNG فقط.',
     guide_faq_2_q: 'ما الفرق بين Free و Pro؟',
-    guide_faq_2_a: 'تشمل الخطة المجانية كل أدوات التحليل ما عدا Gage R&R، مع تصدير CSV و PNG بحساب مجاني. أما Pro، المتاحة قريبًا، فتضيف Gage R&R وتقارير PDF و Excel دون علامة مائية وحفظ التحليلات و AI Insights. راجع صفحة الأسعار للتفاصيل.',
+    guide_faq_2_a: 'تشمل الخطة المجانية كل أدوات التحليل ما عدا Gage R&R، مع تصدير CSV و PNG بحساب مجاني. أما Pro، المتاحة قريبًا، فتضيف Gage R&R وتقارير PDF و Excel دون علامة مائية وحفظ التحليلات ومنحنى المخاطر في ICMSF وبطاقة «ابدأ بماذا» في OEE. راجع صفحة الأسعار للتفاصيل.',
     guide_faq_3_q: 'هل تُحفظ بياناتي في أي مكان؟',
     guide_faq_3_a: 'لا تُحفظ بياناتك إلا إذا حفظت المشروع بنفسك (Pro)، ولا نستخدمها في أي غرض آخر.',
     guide_footer_note: 'صُنعت هذه المنصة بواسطة',

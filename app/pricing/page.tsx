@@ -52,6 +52,8 @@ const FEATURES: { sectionKey: TKey; items: Feature[] }[] = [
       { labelKey: 'pricing_feat_regression', free: true, pro: true },
       { labelKey: 'pricing_feat_doe', free: true, pro: true },
       { labelKey: 'pricing_feat_gagerr', free: false, pro: true },
+      { labelKey: 'pricing_feat_icmsf_risk', free: false, pro: true },
+      { labelKey: 'pricing_feat_oee_next', free: false, pro: true },
     ],
   },
   {
@@ -60,7 +62,6 @@ const FEATURES: { sectionKey: TKey; items: Feature[] }[] = [
       { labelKey: 'pricing_feat_export_csv', free: 'pricing_val_watermark', pro: 'pricing_val_nowatermark' },
       { labelKey: 'pricing_feat_export_excel', free: false, pro: true },
       { labelKey: 'pricing_feat_save', free: false, pro: 'pricing_val_50projects' },
-      { labelKey: 'pricing_feat_ai', free: false, pro: 'pricing_val_ai_limit' },
     ],
   },
 ]

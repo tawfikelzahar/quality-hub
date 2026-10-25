@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
+import { TOOL_GROUPS } from '@/lib/tools'
 import { SAMPLE_REPORTS, SAMPLE_PDF_BUILDERS, SAMPLE_EXCEL_BUILDERS, type SampleToolId } from '@/lib/sampleReports'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -25,6 +26,14 @@ export default function SampleReportsPage() {
 
   const [pdfLoading, setPdfLoading] = useState<SampleToolId | null>(null)
   const [excelLoading, setExcelLoading] = useState<SampleToolId | null>(null)
+
+  const allTools = TOOL_GROUPS.flatMap(g => g.rows)
+  const toolTitle = (href: string) => {
+    const row = allTools.find(r => r.href === href)
+    return row ? t(row.titleKey) : href
+  }
+  const sampleHrefs = new Set(SAMPLE_REPORTS.map(r => r.href))
+  const otherTools = allTools.filter(r => !sampleHrefs.has(r.href))
 
   const bodyColor = dark ? 'rgba(226,232,240,0.82)' : 'rgba(30,41,59,0.82)'
 
@@ -141,14 +150,14 @@ export default function SampleReportsPage() {
                     onClick={() => handlePdf(report.id)}
                     disabled={pdfLoading === report.id}
                   >
-                    {pdfLoading === report.id ? '...' : `📄 ${t('sample_download_pdf')}`}
+                    {pdfLoading === report.id ? '...' : t('sample_download_pdf')}
                   </button>
                   <button
                     style={{ ...btnSecondary, opacity: excelLoading === report.id ? 0.7 : 1 }}
                     onClick={() => handleExcel(report.id)}
                     disabled={excelLoading === report.id}
                   >
-                    {excelLoading === report.id ? '...' : `📊 ${t('sample_download_excel')}`}
+                    {excelLoading === report.id ? '...' : t('sample_download_excel')}
                   </button>
                 </div>
 
@@ -156,7 +165,7 @@ export default function SampleReportsPage() {
                   href={report.href}
                   style={{ fontSize: 12.5, color: c.accent, textDecoration: 'none', fontWeight: 600, textAlign: 'center', marginTop: 2 }}
                 >
-                  {report.href} →
+                  {t('sample_open_tool').replace('{tool}', toolTitle(report.href))}
                 </Link>
               </div>
             ))}
@@ -175,8 +184,26 @@ export default function SampleReportsPage() {
               marginBottom: 40,
             }}
           >
-            ℹ️ {t('sample_note')}
+            {t('sample_note')}
           </div>
+
+          {/* ── Every other tool exports the same report design ── */}
+          <section style={{ marginBottom: 40 }}>
+            <h2 style={{ fontSize: 19, fontWeight: 800, color: c.text, margin: '0 0 8px' }}>{t('sample_more_title')}</h2>
+            <p style={{ fontSize: 14, color: bodyColor, lineHeight: 1.7, margin: '0 0 16px' }}>{t('sample_more_sub')}</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {otherTools.map(r => (
+                <Link
+                  key={r.href}
+                  href={r.href}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 14px', borderRadius: 999, border: `1px solid ${c.border}`, color: c.text, fontSize: 13.5, fontWeight: 600, textDecoration: 'none' }}
+                >
+                  {t(r.titleKey)}
+                  {r.pro && <span style={{ fontSize: 10, fontWeight: 800, color: c.accent }}>PRO</span>}
+                </Link>
+              ))}
+            </div>
+          </section>
 
           {/* ── CTA ── */}
           <div style={{ ...s.card, textAlign: 'center', padding: '32px 24px', marginBottom: 40 }}>

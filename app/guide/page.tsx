@@ -5,6 +5,7 @@ import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
+import { TOOL_GROUPS } from '@/lib/tools'
 
 // ─────────────────────────────────────────────────────────────────────────
 // /guide — platform-level "how to use" page + full tool directory.
@@ -16,90 +17,9 @@ import type { TKey } from '@/lib/i18n/translations'
 // /about — no repeated bio copy, no repeated photo (avoids thin/duplicate
 // content for SEO and keeps each page's job singular).
 //
-// Tool list mirrows app/page.tsx's TOOL_SECTIONS (same hrefs/titles/icons)
-// so this directory never drifts out of sync with the homepage tool grid.
-// If you add a tool to the homepage, add it here too.
+// Tool list comes from lib/tools.ts (TOOL_GROUPS), the same groups and
+// descriptions as the homepage and the tool sidebar, so it never drifts.
 // ─────────────────────────────────────────────────────────────────────────
-
-interface GuideToolData {
-  href: string | null
-  icon: string
-  titleKey: TKey
-  descKey: TKey
-  live: boolean
-}
-
-interface GuideSectionData {
-  id: string
-  labelKey: TKey
-  tools: GuideToolData[]
-}
-
-const GUIDE_SECTIONS: GuideSectionData[] = [
-  {
-    id: 'section-stability',
-    labelKey: 'section_stability_label',
-    tools: [
-      { href: '/spc', icon: '📊', titleKey: 'spc_title', descKey: 'spc_desc', live: true },
-      { href: '/imr-chart', icon: '📊', titleKey: 'imr_title', descKey: 'imr_desc', live: true },
-      { href: '/xbar-r-chart', icon: '📈', titleKey: 'xbar_r_title', descKey: 'xbar_r_desc', live: true },
-      { href: '/xbar-s-chart', icon: '📈', titleKey: 'xbar_s_title', descKey: 'xbar_s_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-msa',
-    labelKey: 'section_msa_label',
-    tools: [
-      { href: '/gage-rr', icon: '🎯', titleKey: 'gagerr_title', descKey: 'gagerr_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-regression',
-    labelKey: 'section_regression_label',
-    tools: [
-      { href: '/regression', icon: '📈', titleKey: 'regression_title', descKey: 'regression_desc', live: true },
-      { href: '/multiregression', icon: '📉', titleKey: 'multiregression_title', descKey: 'multiregression_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-doe',
-    labelKey: 'section_doe_label',
-    tools: [
-      { href: '/doe', icon: '🧪', titleKey: 'doe_title', descKey: 'doe_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-sampling',
-    labelKey: 'section_sampling_label',
-    tools: [
-      { href: '/aql', icon: '📋', titleKey: 'aql_title', descKey: 'aql_desc', live: true },
-      { href: '/icmsf', icon: '🧫', titleKey: 'icmsf_title', descKey: 'icmsf_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-quality',
-    labelKey: 'section_quality_label',
-    tools: [
-      { href: '/pareto', icon: '📈', titleKey: 'pareto_title', descKey: 'pareto_desc', live: true },
-      { href: '/dpmo', icon: '🎯', titleKey: 'dpmo_title', descKey: 'dpmo_desc', live: true },
-      { href: '/oee', icon: '⚙️', titleKey: 'oee_title', descKey: 'oee_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-descriptive',
-    labelKey: 'section_descriptive_label',
-    tools: [
-      { href: '/descriptive', icon: '📐', titleKey: 'descriptive_title', descKey: 'descriptive_desc', live: true },
-    ],
-  },
-  {
-    id: 'section-reliability',
-    labelKey: 'section_reliability_label',
-    tools: [
-      { href: '/stability', icon: '🧪', titleKey: 'stability_title', descKey: 'stability_desc', live: true },
-    ],
-  },
-]
 
 export default function GuidePage() {
   const [theme, setTheme] = usePersistedTheme()
@@ -211,43 +131,35 @@ export default function GuidePage() {
             </h2>
             <p style={{ ...paragraph, marginBottom: 24 }}>{t('guide_tools_sub')}</p>
 
-            {GUIDE_SECTIONS.map((section) => (
-              <div key={section.id} style={{ marginBottom: 22 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-                  {t(section.labelKey)}
+            {TOOL_GROUPS.map((group) => (
+              <div key={group.id} style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                  {t(group.labelKey)}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: c.text, marginBottom: 10 }}>
+                  {t(group.questionKey)}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-                  {section.tools.map((tool) => {
-                    const inner = (
-                      <>
-                        <span style={{ fontSize: 20, flexShrink: 0 }}>{tool.icon}</span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 2 }}>
-                            {t(tool.titleKey)}
-                          </div>
-                          <div style={{ fontSize: 12, color: c.muted, lineHeight: 1.5 }}>
-                            {t(tool.descKey)}
-                          </div>
+                  {group.rows.map((tool) => (
+                    <Link
+                      key={tool.href}
+                      href={tool.href}
+                      className="gd-tool"
+                      style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', justifyContent: 'space-between', textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: c.text, marginBottom: 2 }}>
+                          {t(tool.titleKey)}
                         </div>
-                      </>
-                    )
-                    return tool.live && tool.href ? (
-                      <Link
-                        key={tool.titleKey}
-                        href={tool.href}
-                        style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', textDecoration: 'none', color: 'inherit' }}
-                      >
-                        {inner}
-                      </Link>
-                    ) : (
-                      <div
-                        key={tool.titleKey}
-                        style={{ ...s.card, display: 'flex', gap: 12, alignItems: 'flex-start', opacity: 0.6 }}
-                      >
-                        {inner}
+                        <div style={{ fontSize: 13, color: c.muted, lineHeight: 1.6 }}>
+                          {t(tool.descKey)}
+                        </div>
                       </div>
-                    )
-                  })}
+                      {tool.pro && (
+                        <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: c.accent, border: `1px solid ${c.accent}55`, borderRadius: 6, padding: '2px 6px' }}>PRO</span>
+                      )}
+                    </Link>
+                  ))}
                 </div>
               </div>
             ))}
