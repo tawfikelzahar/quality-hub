@@ -178,9 +178,8 @@ export { ICMSF_CASES, factorial };
 // underlying contamination distribution.
 // ─────────────────────────────────────────────────────────────────────────
 
-/** Abramowitz & Stegun 7.1.26 erf approximation, |error| <= 1.5e-7 — same
- * implementation used in lib/regression/calculator.ts, kept identical here
- * so normal-distribution results are consistent app-wide. */
+/** Abramowitz & Stegun 7.1.26 erf approximation, |error| <= 1.5e-7 (far below
+ * the one-decimal percentages the risk curve prints). */
 function erf(x: number): number {
   const sign = x < 0 ? -1 : 1;
   const ax = Math.abs(x);
