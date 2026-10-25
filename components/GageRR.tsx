@@ -7,7 +7,12 @@ import type { Chart as ChartJSInstance } from 'chart.js'
 import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
-import { LockedPage } from '@/components/Locked'
+import ToolSidebar from '@/components/ToolSidebar'
+import ToolStyles from '@/components/tool/ToolStyles'
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, useCompactSave, type MobileTab } from '@/components/tool/ToolParts'
+import { GAGE_SAMPLE_DATA, GAGE_SAMPLE_RESULT } from '@/lib/gage/sample'
+import { translations, type TKey } from '@/lib/i18n/translations'
+import { formatPValue } from '@/lib/stats/format'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
@@ -126,25 +131,12 @@ const diagToneColor = (tone: DiagTone) =>
 // each chart takes a third of a page instead of a full page.
 const REPORT_CHART_SIZE = { width: 900, height: 340 }
 
-// Sample dataset (cross-checked against a verified AIAG Gage R&R workbook)
-// so the tool is usable out of the box and its output is independently verifiable.
-const SAMPLE: number[][][] = [
-  [ // Appraiser A
-    [70.8, 70.9, 70.8], [71.4, 71.5, 71.5], [71.3, 71.2, 71.3], [70.8, 70.7, 70.8],
-    [71.1, 71.2, 71.3], [71.2, 71.2, 71.3], [71.3, 71.2, 71.3], [71.2, 71.2, 71.1],
-    [70.8, 70.7, 70.7], [71.4, 71.4, 71.3],
-  ],
-  [ // Appraiser B
-    [70.8, 70.9, 70.9], [71.4, 71.4, 71.5], [71.3, 71.3, 71.2], [70.7, 70.7, 70.7],
-    [71.3, 71.2, 71.2], [71.3, 71.3, 71.2], [71.3, 71.3, 71.2], [71.1, 71.2, 71.1],
-    [70.7, 70.7, 70.7], [71.3, 71.3, 71.4],
-  ],
-  [ // Appraiser C
-    [70.8, 70.8, 70.8], [71.4, 71.4, 71.4], [71.2, 71.2, 71.3], [70.8, 70.7, 70.8],
-    [71.2, 71.2, 71.3], [71.2, 71.2, 71.3], [71.3, 71.3, 71.3], [71.2, 71.2, 71.1],
-    [70.7, 70.7, 70.7], [71.3, 71.3, 71.4],
-  ],
-]
+// Sample study (lib/gage/sample.ts) — its result there is the faded example free visitors see.
+const SAMPLE: number[][][] = GAGE_SAMPLE_DATA.map(a => a.map(p => [...p]))
+const EN = translations.en
+const fill = (str: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((a, [k, v]) => a.split(`{${k}}`).join(String(v)), str)
+const ltr = (v: string) => `\u2066${v}\u2069`
+const POOLING_ALPHA = 0.25
 
 function resizeMeasurements(
   current: (number | null)[][][],
@@ -200,6 +192,9 @@ export default function GageRR() {
   const [result, setResult] = useState<GageResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [mobileTab, setMobileTab] = useState<MobileTab>('data')
+  const [helpOpen, setHelpOpen] = useState(false)
+  const compactSave = useCompactSave()
 
   // ── Load a saved project from the dashboard (?id=...) ──────────────────
   useEffect(() => {
@@ -302,6 +297,7 @@ export default function GageRR() {
     setAppraiserNames(['Appraiser A', 'Appraiser B', 'Appraiser C'])
     setMeasurements(SAMPLE)
     setUSL('72'); setLSL('70')
+    setMobileTab('results')
   }
 
   const clearAll = () => {
@@ -310,45 +306,41 @@ export default function GageRR() {
     setResult(null)
   }
 
-  const runAnalysis = async () => {
-    setErrorMsg('')
-    setLoading(true)
-    setResult(null)
-    try {
-      const body = {
-        appraiserNames,
-        numTrials,
-        numParts,
-        measurements,
-        USL: USL !== '' ? parseFloat(USL) : null,
-        LSL: LSL !== '' ? parseFloat(LSL) : null,
-        method,
-        poolingAlpha: 0.25,
-      }
-      const res = await fetch('/api/gage-rr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const json = await res.json()
-      if (!res.ok) {
-        setErrorMsg(res.status === 429 ? t('tool_rate_limited') : json.error || t('grr_err_calc_failed'))
-      } else {
-        setResult(json)
-      }
-    } catch {
-      setErrorMsg(t('grr_err_network'))
-    } finally {
-      setLoading(false)
-    }
-  }
+  // ── Live analysis (Pro): the server recalculates shortly after each change ──
+  const filled = measurements.flat(2).filter(v => v !== null && Number.isFinite(v)).length
+  const totalCells = numAppraisers * numParts * numTrials
+  const complete = filled === totalCells
+  const lslNum = LSL.trim() !== '' ? Number(LSL) : null
+  const uslNum = USL.trim() !== '' ? Number(USL) : null
+  const limitsBad = lslNum !== null && uslNum !== null && !(uslNum > lslNum)
+  const requestKey = isPro && complete && !limitsBad
+    ? JSON.stringify({ appraiserNames, numTrials, numParts, measurements, USL: uslNum, LSL: lslNum, method, poolingAlpha: POOLING_ALPHA })
+    : null
+  useEffect(() => {
+    if (!requestKey) return
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      setLoading(true)
+      fetch('/api/gage-rr', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestKey, signal: ctrl.signal })
+        .then(async res => {
+          const json = await res.json().catch(() => ({}))
+          if (!res.ok) setErrorMsg(res.status === 429 ? t('tool_rate_limited') : json.error || t('grr_err_calc_failed'))
+          else { setErrorMsg(''); setResult(json) }
+        })
+        .catch(() => { if (!ctrl.signal.aborted) setErrorMsg(t('grr_err_network')) })
+        .finally(() => { if (!ctrl.signal.aborted) setLoading(false) })
+    }, 350)
+    return () => { clearTimeout(timer); ctrl.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestKey])
+  const shown = requestKey ? result : null
 
   // ── Chart data ─────────────────────────────────────────────────────────
   const contribChartData = useMemo(() => {
     if (!result) return null
     const p = pctTV(result)
     return {
-      labels: [t('grr_chart_ev'), t('grr_chart_av'), t('grr_chart_grr'), t('grr_chart_pv')],
+      labels: ['EV', 'AV', 'GRR', 'PV'],
       datasets: [{
         label: t('grr_col_pcttotalvar'),
         data: [p.EV, p.AV, p.GRR, p.PV].map(v => +(v * 100).toFixed(2)),
@@ -777,14 +769,96 @@ export default function GageRR() {
     ctx.pdf.save('gage-rr-report.pdf')
   }
 
-  const conclusionStyle = !result ? null : result.conclusion === 'okay'
-    ? { icon: '✅', color: 'var(--qh-good)', bg: 'color-mix(in srgb, var(--qh-good) 10%, transparent)' }
-    : result.conclusion === 'marginal'
-    ? { icon: '⚠️', color: 'var(--qh-amber)', bg: 'color-mix(in srgb, var(--qh-amber) 10%, transparent)' }
-    : { icon: '❌', color: 'var(--qh-danger)', bg: 'color-mix(in srgb, var(--qh-danger) 10%, transparent)' }
+  // exports are in English: the axis titles switch for the snapshot
+  const withEnglishAxes = async <T,>(fn: () => T | Promise<T>): Promise<T> => {
+    type Sc = { y?: { title?: { text?: string } } }
+    const jobs: { ch: ChartJSInstance; title: { text?: string }; keep?: string; text: string }[] = []
+    const add = (ch: unknown, text: string) => {
+      const chart = ch as ChartJSInstance | null
+      const title = (chart?.options.scales as Sc | undefined)?.y?.title
+      if (chart && title) jobs.push({ ch: chart, title, keep: title.text, text })
+    }
+    add(contribChartRef.current, EN.grr_col_pcttotalvar)
+    add(rangeChartRef.current, EN.grr_axis_range)
+    add(xbarChartRef.current, EN.grr_axis_avgmeasurement)
+    jobs.forEach(j => { j.title.text = j.text; j.ch.update('none') })
+    try {
+      return await fn()
+    } finally {
+      jobs.forEach(j => { j.title.text = j.keep; j.ch.update('none') })
+    }
+  }
+
+  // ── Words ──
+  const iso = lang === 'ar'
+  const verdictOf = (c0: 'okay' | 'marginal' | 'unacceptable') => (c0 === 'okay' ? 'var(--qh-good)' : c0 === 'marginal' ? 'var(--qh-amber)' : 'var(--qh-danger)')
+  const verdictText = (c0: 'okay' | 'marginal' | 'unacceptable') => t(c0 === 'okay' ? 'gr_v_okay' : c0 === 'marginal' ? 'gr_v_marginal' : 'gr_v_bad')
+  const grrBasis = (r: { pctOfTolerance: { GRR: number } | null; pctOfTV?: { GRR: number }; pctStudyVar?: { GRR: number } }) => (r.pctOfTolerance ? r.pctOfTolerance.GRR : (r.pctOfTV ?? r.pctStudyVar)!.GRR)
+  const helpSteps = [1, 2, 3, 4].map(n => ({ t: t(`gr_help_s${n}_t` as TKey), d: t(`gr_help_s${n}_d` as TKey) }))
+  const dominant = (r: GageResult) => (r.GRR > 0 ? (r.EV >= r.AV ? t('gr_dominant_ev') : t('gr_dominant_av')) : '')
+
+  const seg = (value: number, options: number[], on: (v: number) => void, label: string) => (
+    <div className="gr-seg" role="group" aria-label={label}>
+      {options.map(o => <button key={o} type="button" aria-pressed={value === o} onClick={() => on(o)}>{o}</button>)}
+    </div>
+  )
+
+  const verdictCards = (r: { conclusion: 'okay' | 'marginal' | 'unacceptable'; pctOfTolerance: { GRR: number } | null; pctOfTV?: { GRR: number }; pctStudyVar?: { GRR: number }; ndc: number }, extra?: string) => {
+    const vc = verdictOf(r.conclusion)
+    const nc = r.ndc >= 5 ? 'var(--qh-good)' : 'var(--qh-amber)'
+    return (
+      <div className="tl-verdicts">
+        <div className="tl-verdict" style={{ background: tint(vc, 8), border: `1px solid ${tint(vc, 35)}` }}>
+          <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(vc, 16), color: vc }}>{r.conclusion === 'okay' ? '✓' : '!'}</span>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('gr_v_system')}</div>
+            <div className="gr-big" style={{ color: vc }}>{verdictText(r.conclusion)} <span>{ltr(pct(grrBasis(r)))}</span></div>
+            <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{fill(t(r.pctOfTolerance ? 'gr_v_sub_tol' : 'gr_v_sub_tv'), { v: iso ? ltr(pct(grrBasis(r))) : pct(grrBasis(r)) })}{extra ? ` ${extra}` : ''}</div>
+          </div>
+        </div>
+        <div className="tl-verdict" style={{ background: tint(nc, 8), border: `1px solid ${tint(nc, 35)}` }}>
+          <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(nc, 16), color: nc }}>{r.ndc >= 5 ? '✓' : '!'}</span>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('gr_v_ndc')}</div>
+            <div className="gr-big" style={{ color: nc }}>{r.ndc}</div>
+            <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{fill(t(r.ndc >= 5 ? 'gr_ndc_ok' : 'gr_ndc_low'), { n: r.ndc })}</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const r = shown
+  const tvOf = (x: GageResult) => pctTV(x)
 
   return (
     <div style={s.page}>
+      <ToolStyles />
+      <style>{`
+        .gr-seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border: 1px solid var(--qh-border); border-radius: 8px; overflow: hidden; }
+        .gr-seg button { border: 0; background: transparent; color: var(--qh-text); font: inherit; font-size: 13px; font-weight: 600; padding: 8px 4px; cursor: pointer; }
+        .gr-seg button + button { border-inline-start: 1px solid var(--qh-border); }
+        .gr-seg button[aria-pressed="true"] { background: var(--qh-accent); color: var(--qh-onAccent); }
+        .gr-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .gr-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .gr-sel, .gr-txt { width: 100%; box-sizing: border-box; background: color-mix(in srgb, var(--qh-bg) 70%, var(--qh-surface)); border: 1px solid var(--qh-border); border-radius: 7px; color: var(--qh-text); padding: 8px 10px; font: inherit; font-size: 14px; outline: none; }
+        .gr-sel:focus, .gr-txt:focus { border-color: var(--qh-accent); }
+        .gr-names { display: flex; flex-direction: column; gap: 6px; }
+        .gr-name { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; align-items: center; }
+        .gr-name i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .gr-block + .gr-block { margin-top: 14px; }
+        .gr-block-t { font-weight: 700; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .gr-block-t i { width: 10px; height: 10px; border-radius: 50%; }
+        .gr-grid td input { text-align: center; min-width: 58px; }
+        .gr-grid th { white-space: nowrap; }
+        .gr-grid td.gr-tl { color: var(--qh-muted); font-size: 12px; white-space: nowrap; padding: 0 8px; }
+        .gr-big { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+        .gr-big span { font: 700 18px ui-monospace, 'SF Mono', Menlo, monospace; margin-inline-start: 6px; }
+        .gr-locked { position: relative; }
+        .gr-locked .gr-fade { opacity: .45; pointer-events: none; user-select: none; }
+        .gr-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .gr-tag { font-size: 11px; color: var(--qh-muted); text-transform: uppercase; letter-spacing: .5px; }
+      `}</style>
       <Nav theme={theme} setTheme={setTheme} breadcrumbKey="bc_gagerr" />
 
       {loadedProjectName && (
@@ -795,349 +869,283 @@ export default function GageRR() {
         </div>
       )}
 
-      {!subLoading && !isPro ? (
-        <LockedPage
-          theme={theme}
-          feature={t('bc_gagerr')}
-          description={t('grr_locked_desc')}
-          bullets={[
-            t('grr_locked_b1'),
-            t('grr_locked_b2'),
-            t('grr_locked_b3'),
-            t('grr_locked_b4'),
-          ]}
-        />
-      ) : (
-      <div className="qh-body" style={s.body}>
-        {/* ── LEFT: Configuration + Data Entry ─────────────────────────── */}
-        <div style={{ ...s.left, width: 460 }}>
-          <div>
-            <div style={s.sectionTitle}>{t('grr_study_setup')}</div>
+      <div className="tl-shell">
+        <ToolSidebar current="/gage-rr" />
 
-            <div style={{ marginBottom: 14 }}>
-              <div style={s.label}>{t('grr_analysis_method')}</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  style={{ ...s.exportBtn, flex: 1, ...(method === 'average-range' ? { background: c.accent, color: c.onAccent, borderColor: c.accent } : {}) }}
-                  onClick={() => setMethod('average-range')}
-                >
-                  {t('grr_method_avgrange')}
-                </button>
-                <button
-                  style={{ ...s.exportBtn, flex: 1, ...(method === 'anova' ? { background: c.accent, color: c.onAccent, borderColor: c.accent } : {}) }}
-                  onClick={() => setMethod('anova')}
-                >
-                  {t('grr_method_anova')}
-                </button>
-              </div>
-              <div style={{ fontSize: 11, color: c.muted, marginTop: 6 }}>
-                {method === 'average-range' ? t('grr_method_avgrange_desc') : t('grr_method_anova_desc')}
-              </div>
-            </div>
+        <div className="tl-main">
+          <ToolHeader title={t('gagerr_title')} intro={t('gr_intro')} onHelp={() => setHelpOpen(true)} onExample={loadSample} />
+          <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('gr_help_title')} steps={helpSteps} onExample={loadSample} showCapability={false} tip={t('gr_help_tip')} />
+          <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={filled} />
 
-            <div className="qh-input-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+          <div className="tl-top">
+            {/* ── SETUP ───────────────────────────────────────────────── */}
+            <section className="tl-panel tl-setup tl-card" data-active={mobileTab === 'setup'} aria-label={t('spc_tab_setup')}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{t('grr_study_setup')}</div>
               <div>
-                <div style={s.label}>{t('grr_appraisers')}</div>
-                <select style={s.select} value={numAppraisers} onChange={e => setNumAppraisersAndResize(Number(e.target.value) as 2 | 3)}>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                </select>
-              </div>
-              <div>
-                <div style={s.label}>{t('grr_trials')}</div>
-                <select style={s.select} value={numTrials} onChange={e => setNumTrialsAndResize(Number(e.target.value) as 2 | 3)}>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                </select>
-              </div>
-              <div>
-                <div style={s.label}>{t('grr_parts')}</div>
-                <select style={s.select} value={numParts} onChange={e => setNumPartsAndResize(Number(e.target.value))}>
-                  {Array.from({ length: 9 }, (_, i) => i + 2).map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${numAppraisers}, 1fr)`, gap: 8, marginBottom: 12 }}>
-              {Array.from({ length: numAppraisers }, (_, a) => (
-                <div key={a}>
-                  <div style={s.label}>{t('grr_appraiser_name').replace('{n}', String(a + 1))}</div>
-                  <input
-                    style={s.input}
-                    value={appraiserNames[a] || ''}
-                    onChange={e => setAppraiserNames(prev => { const n = [...prev]; n[a] = e.target.value; return n })}
-                  />
+                <div className="tl-label">{t('grr_analysis_method')}</div>
+                <div className="gr-seg" role="group" aria-label={t('grr_analysis_method')}>
+                  <button type="button" aria-pressed={method === 'average-range'} onClick={() => setMethod('average-range')}>{t('grr_method_avgrange')}</button>
+                  <button type="button" aria-pressed={method === 'anova'} onClick={() => setMethod('anova')}>{t('grr_method_anova')}</button>
                 </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-              <div>
-                <div style={s.label}>{t('grr_lsl')}</div>
-                <input style={s.input} type="number" value={LSL} onChange={e => setLSL(e.target.value)} />
+                <div className="tl-hint">{method === 'average-range' ? t('grr_method_avgrange_desc') : t('grr_method_anova_desc')}</div>
+              </div>
+              <div className="gr-three">
+                <div><div className="tl-label">{t('grr_appraisers')}</div>{seg(numAppraisers, [2, 3], v => setNumAppraisersAndResize(v as 2 | 3), t('grr_appraisers'))}</div>
+                <div><div className="tl-label">{t('grr_trials')}</div>{seg(numTrials, [2, 3], v => setNumTrialsAndResize(v as 2 | 3), t('grr_trials'))}</div>
+                <div>
+                  <div className="tl-label">{t('grr_parts')}</div>
+                  <select className="gr-sel" value={numParts} onChange={e => setNumPartsAndResize(Number(e.target.value))}>
+                    {Array.from({ length: 9 }, (_, i) => i + 2).map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
-                <div style={s.label}>{t('grr_usl')}</div>
-                <input style={s.input} type="number" value={USL} onChange={e => setUSL(e.target.value)} />
+                <div className="tl-label">{t('gr_names')}</div>
+                <div className="gr-names">
+                  {Array.from({ length: numAppraisers }, (_, a) => (
+                    <label key={a} className="gr-name">
+                      <i style={{ background: [c.bar, c.line, c.danger][a] }} aria-hidden="true" />
+                      <input className="gr-txt" value={appraiserNames[a] || ''} aria-label={t('grr_appraiser_name').replace('{n}', String(a + 1))} onChange={e => setAppraiserNames(prev => { const n = [...prev]; n[a] = e.target.value; return n })} />
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+              <div>
+                <div className="tl-label">{t('gr_tolerance')}</div>
+                <div className="gr-two">
+                  <label className="tl-field"><span>LSL</span><input inputMode="decimal" value={LSL} placeholder="—" onChange={e => setLSL(e.target.value)} /></label>
+                  <label className="tl-field"><span>USL</span><input inputMode="decimal" value={USL} placeholder="—" onChange={e => setUSL(e.target.value)} /></label>
+                </div>
+                <div className="tl-hint">{t('gr_tol_hint')}</div>
+                {limitsBad && <div className="tl-error" style={{ marginTop: 8 }}>{t('stb_err_limits')}</div>}
+              </div>
+            </section>
 
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <button style={{ ...s.exportBtn, flex: 1 }} onClick={loadSample}>{t('grr_load_sample')}</button>
-              <button style={{ ...s.exportBtn, flex: 1, color: c.danger }} onClick={clearAll}>{t('grr_clear')}</button>
-            </div>
-          </div>
-
-          <div>
-            <div style={s.sectionTitle}>{t('grr_measurement_data')}</div>
-            <div style={{ fontSize: 11, color: c.muted, marginBottom: 8 }}>
-              {t('grr_paste_tip')}
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              {Array.from({ length: numAppraisers }, (_, a) => (
-                <div key={a} style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: c.accent, marginBottom: 6 }}>{appraiserNames[a] || `Appraiser ${a + 1}`}</div>
-                  <table style={{ ...s.table, fontSize: 11 }}>
-                    <thead>
-                      <tr>
-                        <th style={{ ...s.th, padding: '4px 6px' }}></th>
-                        {Array.from({ length: numParts }, (_, p) => (
-                          <th key={p} style={{ ...s.th, padding: '4px 6px', textAlign: 'center' }}>P{p + 1}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.from({ length: numTrials }, (_, t2) => (
-                        <tr key={t2}>
-                          <td style={{ ...s.td, padding: '4px 6px', color: c.muted, whiteSpace: 'nowrap' }}>{t('grr_trial_label').replace('{n}', String(t2 + 1))}</td>
-                          {Array.from({ length: numParts }, (_, p) => (
-                            <td key={p} style={{ ...s.td, padding: '2px 3px' }}>
-                              <input
-                                style={{ ...s.input, padding: '4px 5px', fontSize: 11, width: 52, textAlign: 'center' }}
-                                type="number"
-                                step="any"
-                                value={measurements[a]?.[p]?.[t2] ?? ''}
-                                onChange={e => setCell(a, p, t2, e.target.value)}
-                                onPaste={e => handlePaste(a, p, t2, e)}
-                                title="Click here, then paste an Excel block (rows = trials, columns = parts) starting from this cell"
-                              />
-                            </td>
+            <div className="tl-col">
+              {/* ── DATA ──────────────────────────────────────────────── */}
+              <section className="tl-panel tl-card" data-active={mobileTab === 'data'} aria-label={t('spc_tab_data')}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>
+                    {t('spc_tab_data')}
+                    <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--qh-muted)' }}>{' · '}{fill(t('gr_data_count'), { a: numAppraisers, p: numParts, t: numTrials, n: filled, total: totalCells })}</span>
+                  </div>
+                  <button type="button" className="tl-xbtn tl-xbtn-sm" style={{ color: 'var(--qh-danger)' }} onClick={clearAll}>{t('spc_clear_short')}</button>
+                </div>
+                {Array.from({ length: numAppraisers }, (_, a) => (
+                  <div key={a} className="gr-block">
+                    <div className="gr-block-t"><i style={{ background: [c.bar, c.line, c.danger][a] }} aria-hidden="true" />{appraiserNames[a] || `Appraiser ${a + 1}`}</div>
+                    <div className="tl-sg-wrap">
+                      <table className="tl-sg gr-grid">
+                        <thead>
+                          <tr>
+                            <th></th>
+                            {Array.from({ length: numParts }, (_, p) => <th key={p}>P{p + 1}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: numTrials }, (_, t2) => (
+                            <tr key={t2}>
+                              <td className="gr-tl">{t('grr_trial_label').replace('{n}', String(t2 + 1))}</td>
+                              {Array.from({ length: numParts }, (_, p) => (
+                                <td key={p}>
+                                  <input
+                                    inputMode="decimal"
+                                    value={measurements[a]?.[p]?.[t2] ?? ''}
+                                    aria-label={`${appraiserNames[a] || a + 1} · P${p + 1} · ${t2 + 1}`}
+                                    onChange={e => setCell(a, p, t2, e.target.value)}
+                                    onPaste={e => handlePaste(a, p, t2, e)}
+                                  />
+                                </td>
+                              ))}
+                            </tr>
                           ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+                <div className="tl-paste">{t('gr_block_hint')}</div>
+              </section>
+
+              {/* ── RESULTS ───────────────────────────────────────────── */}
+              <section className="tl-panel tl-results" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
+                {!subLoading && !isPro ? (
+                  <div className="tl-card gr-locked">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <span className="gr-tag">{t('gr_pro_sample')}</span>
+                      <span className="tl-pro">PRO</span>
+                    </div>
+                    <div className="gr-fade" aria-hidden="true">{verdictCards(GAGE_SAMPLE_RESULT)}</div>
+                    <div className="gr-fade tl-kpis tl-kpis-4" aria-hidden="true" style={{ marginTop: 10 }}>
+                      <div className="tl-kpi"><span>{t('gr_kpi_grr_tol')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTolerance.GRR)}</b></div>
+                      <div className="tl-kpi"><span>{t('gr_kpi_grr_tv')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTV.GRR)}</b></div>
+                      <div className="tl-kpi"><span>{t('gr_kpi_ev')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTV.EV)}</b></div>
+                      <div className="tl-kpi"><span>{t('gr_kpi_av')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTV.AV)}</b></div>
+                    </div>
+                    <div className="gr-cta" style={{ marginTop: 14 }}>
+                      <span style={{ fontSize: 13, color: 'var(--qh-muted)', flex: '1 1 240px' }}>{t('gr_pro_locked')}</span>
+                      {!isLoggedIn && <button type="button" className="tl-xbtn" onClick={() => goToLogin('gage_rr', 'tool')}>{t('gr_pro_login')}</button>}
+                      <button type="button" className="tl-xbtn tl-xbtn-pro" onClick={() => goToPricing('gage_rr', 'tool')}>{t('gr_pro_btn')}</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {errorMsg && <div className="tl-error">{errorMsg}</div>}
+                    {!r ? (
+                      !errorMsg && <div className="tl-card tl-empty">{loading ? t('icmsf_loading') : complete ? t('icmsf_loading') : fill(t('gr_missing'), { n: totalCells - filled, total: totalCells })}</div>
+                    ) : (
+                      <>
+                        <div aria-live="polite">{verdictCards(r, dominant(r))}</div>
+
+                        <div className="tl-kpis tl-kpis-4">
+                          <div className="tl-kpi"><span>{t('gr_kpi_grr_tol')}</span><b>{r.pctOfTolerance ? pct(r.pctOfTolerance.GRR) : '—'}</b></div>
+                          <div className="tl-kpi"><span>{t('gr_kpi_grr_tv')}</span><b>{pct(tvOf(r).GRR)}</b></div>
+                          <div className="tl-kpi"><span>{t('gr_kpi_ev')}</span><b>{pct(tvOf(r).EV)}</b></div>
+                          <div className="tl-kpi"><span>{t('gr_kpi_av')}</span><b>{pct(tvOf(r).AV)}</b></div>
+                        </div>
+
+                        {r.method === 'average-range' && r.outOfControlRanges.length > 0 && (
+                          <div className="tl-chip-warn">{fill(t('gr_ooc'), { n: r.outOfControlRanges.length, list: ltr(r.outOfControlRanges.map(o => `${o.appraiser} / P${o.part}`).join(', ')) })}</div>
+                        )}
+
+                        <div className="tl-results-head">
+                          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{t('spc_tab_results')}</h2>
+                          <ExportRow
+                            isPro={isPro}
+                            isLoggedIn={isLoggedIn}
+                            hasResult={!!r}
+                            onCSV={exportCSV}
+                            onPNG={() => withEnglishAxes(exportPNG)}
+                            onExcel={() => withEnglishAxes(exportExcel)}
+                            onPDF={() => withEnglishAxes(exportPDF)}
+                            pngLabel={t('gr_x_png')}
+                            save={
+                              <SaveAnalysisButton
+                                theme={theme}
+                                tool="gage_rr"
+                                defaultName={`Gage R&R — ${new Date().toLocaleDateString('en-US')}`}
+                                compact={compactSave}
+                                getPayload={() => ({
+                                  input_data: { numAppraisers, numTrials, numParts, appraiserNames, measurements, USL, LSL, method },
+                                  results: r,
+                                })}
+                              />
+                            }
+                          />
+                        </div>
+
+                        <div className="tl-chart">
+                          <h3>{t('gr_contrib_title')}</h3>
+                          <div className="tl-chart-sub">{t('gr_contrib_sub')}</div>
+                          <div className="tl-chart-inner" style={{ height: 230 }}>
+                            {contribChartData && <Chart ref={contribChartRef} type="bar" data={contribChartData} options={{ ...chartOpts(t('grr_col_pcttotalvar')), plugins: { legend: { display: false } } } as never} />}
+                          </div>
+                        </div>
+
+                        {r.method === 'average-range' && (
+                          <div className="tl-chart">
+                            <h3>{t('gr_range_title')} <span style={{ fontWeight: 400, fontSize: 13, color: 'var(--qh-muted)' }}>{ltr(`UCL = ${fmt(r.uclR, 4)}`)}</span></h3>
+                            <div className="tl-chart-sub">{t('gr_range_sub')}</div>
+                            <div className="tl-chart-inner" style={{ height: 260 }}>
+                              {rangeChartData && <Chart ref={rangeChartRef} type="line" data={rangeChartData as never} options={chartOpts(t('grr_axis_range')) as never} />}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="tl-chart">
+                          <h3>{t('gr_xbar_title')}</h3>
+                          <div className="tl-chart-sub">{t('gr_xbar_sub')}</div>
+                          <div className="tl-chart-inner" style={{ height: 260 }}>
+                            {xbarChartData && <Chart ref={xbarChartRef} type="line" data={xbarChartData as never} options={chartOpts(t('grr_axis_avgmeasurement')) as never} />}
+                          </div>
+                        </div>
+
+                        <details className="tl-more">
+                          <summary>{t('gr_more')}</summary>
+                          <div className="tl-more-body">
+                            <div style={{ overflowX: 'auto' }}>
+                              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('grr_variation_contribution')}</div>
+                              <table className="tl-table">
+                                <thead>
+                                  <tr>
+                                    <th>{t('grr_col_source')}</th>
+                                    <th className="num">σ</th>
+                                    {r.method === 'anova' && <th className="num">% Contribution</th>}
+                                    <th className="num">{t('grr_col_pcttotalvar')}</th>
+                                    {r.pctOfTolerance && <th className="num">{t('grr_col_pcttolerance')}</th>}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {([['EV', t('grr_row_ev')], ['AV', t('grr_row_av')], ['GRR', t('grr_row_grr')], ['PV', t('grr_row_pv')]] as const).map(([k, label]) => (
+                                    <tr key={k}>
+                                      <td style={k === 'GRR' ? { fontWeight: 700 } : undefined}>{label}</td>
+                                      <td className="num">{ltr(fmt(r[k], 5))}</td>
+                                      {r.method === 'anova' && <td className="num">{ltr(pct(r.pctContribution[k], 2))}</td>}
+                                      <td className="num">{ltr(pct(tvOf(r)[k], 2))}</td>
+                                      {r.pctOfTolerance && <td className="num">{ltr(pct(r.pctOfTolerance[k], 2))}</td>}
+                                    </tr>
+                                  ))}
+                                  <tr>
+                                    <td>{t('grr_row_tv')}</td>
+                                    <td className="num">{ltr(fmt(r.TV, 5))}</td>
+                                    {r.method === 'anova' && <td className="num">100.00%</td>}
+                                    <td className="num">100.00%</td>
+                                    {r.pctOfTolerance && <td className="num"></td>}
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                            {r.method === 'anova' && (
+                              <div style={{ overflowX: 'auto' }}>
+                                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('grr_anova_title')}</div>
+                                <table className="tl-table">
+                                  <thead><tr><th>{t('grr_col_source')}</th><th className="num">DF</th><th className="num">SS</th><th className="num">MS</th><th className="num">F</th><th className="num">P</th></tr></thead>
+                                  <tbody>
+                                    {r.anovaTable.map((row, i) => (
+                                      <tr key={i}>
+                                        <td>{row.source}</td>
+                                        <td className="num">{row.df}</td>
+                                        <td className="num">{ltr(row.SS.toFixed(5))}</td>
+                                        <td className="num">{ltr(row.MS.toFixed(5))}</td>
+                                        <td className="num">{row.F !== null ? ltr(row.F.toFixed(2)) : ''}</td>
+                                        <td className="num" style={row.significant ? { color: 'var(--qh-danger)', fontWeight: 700 } : undefined}>{row.p !== null ? ltr(formatPValue(row.p)) : ''}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {r.pooled && r.unpooledInteraction?.p !== null && r.unpooledInteraction?.p !== undefined && (
+                                  <div className="tl-hint">{t('grr_anova_pooled_note').replace('{p}', formatPValue(r.unpooledInteraction.p)).replace('{alpha}', String(r.poolingAlpha))}</div>
+                                )}
+                              </div>
+                            )}
+                            {r.method === 'average-range' && (
+                              <div className="tl-hint">{ltr(`R̄ = ${fmt(r.rBar, 4)} · X̄diff = ${fmt(r.xbarDiff, 4)} · Rp = ${fmt(r.rP, 4)} · K1 ${r.constants.K1} · K2 ${r.constants.K2} · K3 ${r.constants.K3} · D4 ${r.constants.D4}`)}</div>
+                            )}
+                          </div>
+                        </details>
+
+                        <details className="tl-more">
+                          <summary>{t('gr_method_title')}</summary>
+                          <div className="tl-more-body">
+                            {(['gr_method_1', 'gr_method_2', 'gr_method_3'] as TKey[]).map(key => <p key={key} style={{ margin: 0, fontSize: 13, lineHeight: 1.7 }}>{t(key).replace('{alpha}', String(POOLING_ALPHA))}</p>)}
+                          </div>
+                        </details>
+                      </>
+                    )}
+                  </>
+                )}
+              </section>
             </div>
           </div>
-
-          <button style={s.addBtn} onClick={runAnalysis} disabled={loading}>
-            {loading ? t('grr_calculating') : t('grr_run_analysis')}
-          </button>
-          {errorMsg && (
-            <div style={{ color: c.danger, fontSize: 12, marginTop: 8 }}>{errorMsg}</div>
-          )}
-        </div>
-
-        {/* ── RIGHT: Results ────────────────────────────────────────────── */}
-        <div className="qh-right" style={s.right}>
-          {!result && !loading && (
-            <div style={{ ...s.card, textAlign: 'center', color: c.muted, padding: 60 }}>
-              {t('grr_empty_state')}
-              <div style={{ marginTop: 8, fontSize: 12 }}>{t('grr_empty_state_2')}</div>
-            </div>
-          )}
-
-          {result && (
-            <>
-              {/* Export bar */}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                <button style={s.exportBtn} onClick={exportCSV}>{isLoggedIn ? t('common_export_csv') : t('common_export_csv_locked')}</button>
-                <button style={s.exportBtn} onClick={exportExcel}>{isPro ? t('common_export_excel') : t('common_export_excel_locked')}</button>
-                <button style={s.exportBtn} onClick={exportPNG}>{isLoggedIn ? t('common_export_png') : t('common_export_png_locked')}</button>
-                <button style={s.exportBtn} onClick={exportPDF}>{isPro ? t('common_export_pdf') : t('common_export_pdf_locked')}</button>
-                <SaveAnalysisButton
-                  theme={theme}
-                  tool="gage_rr"
-                  defaultName={`Gage R&R — ${new Date().toLocaleDateString('en-US')}`}
-                  getPayload={() => ({
-                    input_data: { numAppraisers, numTrials, numParts, appraiserNames, measurements, USL, LSL, method },
-                    results: result,
-                  })}
-                />
-              </div>
-
-              {/* Summary stat cards */}
-              <div className="qh-stats-row" style={s.statsRow}>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fmt(result.EV, 4)}</div>
-                  <div style={s.statLabel}>{t('grr_stat_ev')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fmt(result.AV, 4)}</div>
-                  <div style={s.statLabel}>{t('grr_stat_av')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fmt(result.GRR, 4)}</div>
-                  <div style={s.statLabel}>{t('grr_stat_grr')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fmt(result.PV, 4)}</div>
-                  <div style={s.statLabel}>{t('grr_stat_pv')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{fmt(result.TV, 4)}</div>
-                  <div style={s.statLabel}>{t('grr_stat_tv')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{result.ndc}</div>
-                  <div style={s.statLabel}>{t('grr_stat_ndc')}</div>
-                </div>
-              </div>
-
-              {/* Conclusion banner */}
-              {conclusionStyle && (
-                <div style={{ ...s.card, background: conclusionStyle.bg, border: `1px solid ${tint(conclusionStyle.color, 25)}`, display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 22 }}>{conclusionStyle.icon}</span>
-                  <div>
-                    <div style={{ fontWeight: 700, color: conclusionStyle.color }}>
-                      %GRR {result.pctOfTolerance ? t('grr_pct_of_tolerance') : t('grr_pct_of_totalvar')}: {pct(result.pctOfTolerance ? result.pctOfTolerance.GRR : pctTV(result).GRR)}
-                    </div>
-                    <div style={{ fontSize: 13, color: c.text, marginTop: 2 }}>{result.conclusionText}</div>
-                  </div>
-                </div>
-              )}
-
-              {/* ANOVA — statistical significance */}
-              {result.method === 'anova' && (
-                <div style={s.card}>
-                  <div style={s.sectionTitle}>{t('grr_anova_title')}</div>
-                  <div style={{
-                    fontSize: 13, lineHeight: 1.6, padding: 12, borderRadius: 8, marginBottom: 14,
-                    background: 'color-mix(in srgb, var(--qh-accent) 6%, transparent)', border: '1px solid color-mix(in srgb, var(--qh-accent) 15%, transparent)', color: c.text,
-                  }}>
-                    {result.significanceNote}
-                  </div>
-                  {result.pooled && (
-                    <div style={{ fontSize: 12, color: c.muted, marginBottom: 10 }}>
-                      {t('grr_anova_pooled_note')
-                        .replace('{p}', result.unpooledInteraction?.p !== null && result.unpooledInteraction?.p !== undefined ? result.unpooledInteraction.p.toFixed(4) : '—')
-                        .replace('{alpha}', String(result.poolingAlpha))}
-                    </div>
-                  )}
-                  <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
-                  <table style={s.table}>
-                    <thead>
-                      <tr>
-                        <th style={s.th}>{t('grr_col_source')}</th>
-                        <th style={s.th}>{t('grr_col_ss')}</th>
-                        <th style={s.th}>{t('grr_col_df')}</th>
-                        <th style={s.th}>{t('grr_col_ms')}</th>
-                        <th style={s.th}>{t('grr_col_f')}</th>
-                        <th style={s.th}>{t('grr_col_pvalue')}</th>
-                        <th style={s.th}>{t('grr_col_significant')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.anovaTable.map((row, i) => (
-                        <tr key={i}>
-                          <td style={s.td}>{row.source}</td>
-                          <td style={s.td}>{row.SS.toFixed(5)}</td>
-                          <td style={s.td}>{row.df}</td>
-                          <td style={s.td}>{row.MS.toFixed(5)}</td>
-                          <td style={s.td}>{row.F !== null ? row.F.toFixed(3) : '—'}</td>
-                          <td style={s.td}>{row.p !== null ? row.p.toFixed(4) : '—'}</td>
-                          <td style={s.td}>
-                            {row.significant === null ? '—' : (
-                              <span style={{ color: row.significant ? 'var(--qh-danger)' : 'var(--qh-good)', fontWeight: 700 }}>
-                                {row.significant ? t('grr_sig_yes') : t('grr_sig_no')}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-                </div>
-              )}
-
-              {/* % Contribution table */}
-              <div style={s.card}>
-                <div style={s.sectionTitle}>{t('grr_variation_contribution')}</div>
-                <div className="qh-table-wrap" style={{ overflowX: 'auto' }}>
-                <table style={s.table}>
-                  <thead>
-                    <tr>
-                      <th style={s.th}>{t('grr_col_source')}</th>
-                      <th style={s.th}>{t('grr_col_value')}</th>
-                      <th style={s.th}>{t('grr_col_pcttotalvar')}</th>
-                      {result.pctOfTolerance && <th style={s.th}>{t('grr_col_pcttolerance')}</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      [t('grr_row_ev'), result.EV, pctTV(result).EV, result.pctOfTolerance?.EV],
-                      [t('grr_row_av'), result.AV, pctTV(result).AV, result.pctOfTolerance?.AV],
-                      [t('grr_row_grr'), result.GRR, pctTV(result).GRR, result.pctOfTolerance?.GRR],
-                      [t('grr_row_pv'), result.PV, pctTV(result).PV, result.pctOfTolerance?.PV],
-                      [t('grr_row_tv'), result.TV, 1, null],
-                    ].map((row, i) => (
-                      <tr key={i}>
-                        <td style={s.td}>{row[0] as string}</td>
-                        <td style={s.td}>{fmt(row[1] as number)}</td>
-                        <td style={s.td}>{pct(row[2] as number)}</td>
-                        {result.pctOfTolerance && <td style={s.td}>{row[3] != null ? pct(row[3] as number) : '—'}</td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                </div>
-                <div style={{ height: 220, marginTop: 16 }}>
-                  {contribChartData && (
-                    <Chart
-                      ref={contribChartRef}
-                      type="bar"
-                      data={contribChartData}
-                      options={{ ...chartOpts(t('grr_col_pcttotalvar')), plugins: { legend: { display: false } } } as never}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Range chart — Average & Range method only (UCL/D4 concept doesn't apply to ANOVA) */}
-              {result.method === 'average-range' && (
-                <div className="qh-chart-wrap" style={s.chartWrap}>
-                  <div style={s.sectionTitle}>{t('grr_range_chart_title').replace('{n}', fmt(result.uclR, 4))}</div>
-                  <div className="qh-chart-inner" style={s.chartInner}>
-                    {rangeChartData && (
-                      <Chart ref={rangeChartRef} type="line" data={rangeChartData as never} options={chartOpts(t('grr_axis_range')) as never} />
-                    )}
-                  </div>
-                  {result.outOfControlRanges.length > 0 && (
-                    <div style={{ marginTop: 10, fontSize: 12, color: c.danger }}>
-                      {t('grr_range_ooc_warning').replace('{n}', String(result.outOfControlRanges.length))}{' '}
-                      {result.outOfControlRanges.map(r => `${r.appraiser} / Part ${r.part}`).join(', ')}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Xbar comparison chart */}
-              <div className="qh-chart-wrap" style={s.chartWrap}>
-                <div style={s.sectionTitle}>{t('grr_xbar_chart_title')}</div>
-                <div className="qh-chart-inner" style={s.chartInner}>
-                  {xbarChartData && (
-                    <Chart ref={xbarChartRef} type="line" data={xbarChartData as never} options={chartOpts(t('grr_axis_avgmeasurement')) as never} />
-                  )}
-                </div>
-              </div>
-            </>
-          )}
         </div>
       </div>
-      )}
+
+      <PhoneBar
+        showResultActions={mobileTab === 'results' && !!r}
+        onAnalyze={() => { setMobileTab('results'); window.scrollTo({ top: 0 }) }}
+        onEdit={() => setMobileTab('data')}
+        analyzeLabel={t('icmsf_bar_results')}
+      />
     </div>
   )
 }
