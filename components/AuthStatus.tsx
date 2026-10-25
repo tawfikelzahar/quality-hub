@@ -121,9 +121,10 @@ export default function AuthStatus() {
             {user.displayName.charAt(0).toUpperCase()}
           </span>
         )}
-        {user.displayName}
+        <span className="qh-auth-name">{user.displayName}</span>
       </Link>
       <button
+        className="qh-auth-out"
         onClick={handleSignOut}
         style={{ fontSize: 12, color: 'var(--qh-muted)', background: 'transparent', border: '1px solid var(--qh-border)', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontWeight: 600 }}
       >

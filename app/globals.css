@@ -85,6 +85,15 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* Phones and tablets: the account shows as the avatar only; the name and
+   Sign Out live in the ☰ menu (components/MobileMenu.tsx). */
+@media (max-width: 1099px) {
+  .qh-auth-name,
+  .qh-auth-out {
+    display: none !important;
+  }
+}
+
 @media (max-width: 768px) {
   /* Top nav (tool pages + landing page) */
   .qh-nav {

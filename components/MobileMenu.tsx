@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import GetProLink from '@/components/GetProLink'
+import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS } from '@/lib/tools'
 import type { ThemeMode } from '@/lib/theme'
@@ -45,6 +46,7 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [mounted, setMounted] = useState(false)
+  const [signedIn, setSignedIn] = useState<{ name: string } | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
@@ -66,6 +68,27 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
       btn?.focus()
     }
   }, [open])
+
+  // Who is signed in, read when the menu opens (the nav shows only the avatar
+  // on phones, so the name and Sign Out sit here).
+  useEffect(() => {
+    if (!open) return
+    let alive = true
+    createClient().auth.getUser().then(({ data }) => {
+      if (!alive) return
+      const u = data.user
+      if (!u) { setSignedIn(null); return }
+      const m = (u.user_metadata ?? {}) as Record<string, unknown>
+      const name = (m.full_name as string) || (m.name as string) || [m.first_name, m.last_name].filter(Boolean).join(' ').trim() || u.email || ''
+      setSignedIn({ name })
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [open])
+
+  async function signOut() {
+    await createClient().auth.signOut()
+    window.location.href = '/'
+  }
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -118,6 +141,8 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
         .qh-mm-seg button { border: 0; background: transparent; color: var(--qh-muted); font: inherit; font-size: 13px; font-weight: 600;
           padding: 6px 14px; border-radius: 999px; cursor: pointer; min-height: 32px; }
         .qh-mm-seg button[aria-pressed="true"] { background: var(--qh-accent); color: var(--qh-onAccent); }
+        .qh-mm-out { flex: none; border: 1px solid var(--qh-border); background: transparent; color: var(--qh-text); font: inherit; font-size: 13px;
+          font-weight: 600; border-radius: 8px; padding: 0 14px; min-height: 36px; cursor: pointer; }
         .qh-mm-legal { display: flex; gap: 14px; font-size: 12px; }
         .qh-mm-legal a { color: var(--qh-muted); text-decoration: none; }
         .qh-mm-close { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--qh-border); background: transparent; color: var(--qh-text);
@@ -193,6 +218,12 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
                 label={t('nav_getpro')}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, borderRadius: 10, background: 'var(--qh-gold)', color: 'var(--qh-onGold)', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
               />
+              {signedIn && (
+                <div className="qh-mm-row">
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--qh-muted)' }}>{signedIn.name}</span>
+                  <button type="button" onClick={signOut} className="qh-mm-out">{t('nav_signout')}</button>
+                </div>
+              )}
               <div className="qh-mm-legal">
                 <Link href="/privacy" onClick={close}>{t('footer_privacy')}</Link>
                 <Link href="/terms" onClick={close}>{t('footer_terms')}</Link>
