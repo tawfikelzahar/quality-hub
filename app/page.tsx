@@ -436,6 +436,8 @@ export default function Home() {
               <a href="/sample-reports" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_sample_reports')}</a>
               <a href="/about" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_about')}</a>
               <a href="/contact" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_contact')}</a>
+              <a href="/privacy" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_privacy')}</a>
+              <a href="/terms" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_terms')}</a>
             </nav>
             <div style={{width:'100%'}}>© {SITE.copyrightYear} {SITE.name} · {t('home_footer_built')}</div>
           </div>

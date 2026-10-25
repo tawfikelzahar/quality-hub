@@ -268,7 +268,12 @@ export default function LoginPage() {
           {loading ? t('login_wait') : mode === 'login' ? t('login_btn_in') : t('login_btn_up')}
         </button>
 
-        {/* Terms / Privacy line comes back once those pages are published (P7) */}
+        <p style={{textAlign:'center',fontSize:12,color:softMuted,marginTop:24,lineHeight:1.7}}>
+          {t('login_terms_prefix')}{' '}
+          <Link href="/terms" style={{color:c.accent,textDecoration:'none'}}>{t('bc_terms')}</Link>
+          {' '}{t('login_terms_and')}{' '}
+          <Link href="/privacy" style={{color:c.accent,textDecoration:'none'}}>{t('bc_privacy')}</Link>
+        </p>
       </div>
     </div>
   )
