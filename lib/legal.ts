@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Privacy Policy and Terms of Use — the text of /privacy and /terms, in
-// English and formal Arabic. Facts here must match the code: what the
-// database stores (supabase/sql), what goes to third parties (Vercel,
-// Supabase, Google sign-in and Analytics, Anthropic for AI Insights), and
-// that calculation inputs are not stored unless a project is saved.
+// English and formal Arabic. Kept short and general on purpose, but every
+// statement must stay true to the code: calculation inputs are not stored
+// unless a project is saved, nothing is sold, AI Insights sends only the
+// numbers of the analysis to the AI provider, deletion is by email.
 // Update LEGAL_UPDATED whenever a section changes.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -11,109 +11,65 @@ import { SITE } from './site'
 
 export const LEGAL_UPDATED = { en: '25 October 2026', ar: '25 أكتوبر 2026' }
 
-export interface LegalSection { h: string; p?: string[]; list?: string[] }
-export interface LegalDoc { kicker: string; title: string; updated: string; intro: string; sections: LegalSection[] }
+export interface LegalSection { id: string; h: string; p?: string[]; list?: string[] }
+export interface LegalDoc {
+  kicker: string
+  title: string
+  updated: string
+  intro: string
+  toc: string
+  sections: LegalSection[]
+  questionTitle: string
+  questionText: string
+}
 
 const N = SITE.name
 const MAIL = SITE.contact.email
-const OWNER = SITE.owner
 
 export const PRIVACY: Record<'en' | 'ar', LegalDoc> = {
   en: {
     kicker: 'Legal',
     title: 'Privacy Policy',
-    updated: 'Last updated',
-    intro: `This policy explains what ${N} collects, why, and what you can do about it. In short: the data you analyze is not stored unless you save the project yourself, and we never sell personal data.`,
+    updated: 'Effective and last updated',
+    intro: `How ${N} handles your data, in plain words. The short version: the data you analyze is not stored unless you save the project yourself, and we never sell personal data.`,
+    toc: 'Contents',
     sections: [
-      { h: 'Who we are', p: [`${N} is run by ${OWNER}, a quality engineer based in Egypt. For any privacy question or request, write to ${MAIL}.`] },
-      {
-        h: 'What we collect',
-        list: [
-          'Account: your email address, name and optional profile photo. With Google sign-in we receive the name, email and photo of your Google account.',
-          'Plan: whether your account is on the free plan or Pro.',
-          'Saved projects: the inputs and results of the analyses you choose to save (Pro).',
-          'Report branding: the name, job title, company, logo and signature options you enter for your reports (Pro). A logo is stored at a link that can be opened by anyone who has it, so it can be printed on your reports.',
-          'AI Insights use: the date, the tool and the size of each request, to apply the daily limit. Not the data itself.',
-          'Usage statistics: Google Analytics records the pages you visit, your device and browser, your approximate location and actions such as export clicks.',
-          'Technical data: your IP address is used for a short time to protect the service against abuse (request limits). We do not keep it.',
-        ],
-      },
-      { h: 'The data you analyze', p: ['When you run a tool, the numbers you enter are sent to our server, calculated and returned to your screen. They are not stored and not used for anything else unless you save the project yourself.'] },
-      { h: 'AI Insights', p: ['If you use AI Insights (Pro), the numbers of that analysis are sent to Anthropic, the provider of the AI model, to write the text. Your name and email are not sent. Anthropic processes the request under its own commercial terms.'] },
-      {
-        h: 'Who processes data for us',
-        list: [
-          'Vercel: hosts the website and runs the calculations.',
-          'Supabase: accounts, sign-in, saved projects, report branding and logos.',
-          'Google: Google sign-in (if you choose it) and Google Analytics.',
-          'Anthropic: AI Insights (Pro only).',
-          'A payment provider, once paid plans open: card details are handled by the provider and never reach us.',
-        ],
-        p: ['These providers may process data outside Egypt. We share with them only what is needed for the service, and we never sell personal data.'],
-      },
-      { h: 'Cookies and browser storage', p: ['A cookie keeps you signed in. Your theme and language choices are kept in your browser. Google Analytics sets its own cookies; you can block them in your browser settings or with a blocking extension, and the tools keep working.'] },
-      { h: 'How long we keep data', p: ['Account data stays while your account exists. Saved projects and logos stay until you delete them or your account is deleted. Google Analytics keeps statistics according to its own retention settings.'] },
-      {
-        h: 'Your choices and rights',
-        list: [
-          'Delete saved projects and your logo at any time from your account page.',
-          `Ask for a copy of your data, a correction, or the deletion of your account by writing to ${MAIL}. We reply within 30 days.`,
-          'Use the tools without an account: no account data is collected then.',
-        ],
-      },
-      { h: 'Security', p: ['Connections use HTTPS, and each account can read only its own saved projects and settings. No online service is perfectly secure, so keep your password private.'] },
-      { h: 'Children', p: [`${N} is a professional tool and is not intended for anyone under 16.`] },
-      { h: 'Changes to this policy', p: ['If this policy changes, the date at the top changes too. Significant changes will be announced on the site.'] },
-      { h: 'Contact', p: [`Questions or requests: ${MAIL}.`] },
+      { id: 'scope', h: 'Scope', p: [`This policy covers the ${N} website, its tools, accounts and reports. Outside services you reach from the site have their own policies.`] },
+      { id: 'collect', h: 'What we collect', p: ['Your account details (email, name and an optional photo, or the details of your Google account if you sign in with Google), your plan, the projects and report settings you choose to save, and general usage statistics that help us improve the site.'] },
+      { id: 'analysis', h: 'The data you analyze', p: ['The numbers you enter are sent to our server only to calculate the results and show them to you. They are not stored and not used for anything else unless you save the project yourself.'] },
+      { id: 'ai', h: 'AI features', p: ['When you use an AI feature, the numbers of that analysis are sent to our AI provider to write the text. Your name and email are not sent.'] },
+      { id: 'use', h: 'How we use data', p: ['To run the tools and your account, keep the service secure, apply plan limits, answer your messages and improve the site. We do not sell personal data.'] },
+      { id: 'providers', h: 'Service providers', p: ['We rely on trusted providers for hosting, accounts and storage, sign-in, analytics, AI features and, when paid plans open, payments. They receive only what the service needs, and some may operate outside Egypt. Card details are handled by the payment provider and never reach us.'] },
+      { id: 'cookies', h: 'Cookies and browser storage', p: ['We use a cookie to keep you signed in, browser storage for your theme and language, and analytics cookies. You can block analytics cookies in your browser and the tools keep working.'] },
+      { id: 'retention', h: 'How long we keep data', p: ['Account data is kept while your account exists. Saved projects and logos are kept until you delete them or your account is deleted.'] },
+      { id: 'rights', h: 'Security and your rights', p: ['Connections are encrypted and each account can reach only its own data.', `You can delete saved projects and your logo from your account page at any time, and ask for a copy, a correction or the deletion of your account at ${MAIL}. We reply within 30 days.`] },
+      { id: 'age', h: 'Minimum age', p: [`${N} is a professional tool for people aged 18 and over.`] },
+      { id: 'changes', h: 'Changes', p: ['When this policy changes we update the date above, and we announce significant changes on the site.'] },
     ],
+    questionTitle: 'Have a question?',
+    questionText: `Write to ${MAIL} and we will reply.`,
   },
   ar: {
     kicker: 'قانوني',
     title: 'سياسة الخصوصية',
-    updated: 'آخر تحديث',
-    intro: `توضح هذه السياسة ما يجمعه ${N} ولماذا، وما الذي يمكنك فعله حياله. باختصار: لا تُحفظ البيانات التي تحللها إلا إذا حفظت المشروع بنفسك، ولا نبيع البيانات الشخصية أبدًا.`,
+    updated: 'تاريخ السريان وآخر تحديث',
+    intro: `كيف يتعامل ${N} مع بياناتك، بكلمات واضحة. باختصار: لا تُحفظ البيانات التي تحللها إلا إذا حفظت المشروع بنفسك، ولا نبيع البيانات الشخصية أبدًا.`,
+    toc: 'المحتويات',
     sections: [
-      { h: 'من نحن', p: [`يدير ${N} المهندس ${OWNER}، مهندس جودة مقيم في مصر. لأي سؤال أو طلب يتعلق بالخصوصية، راسلنا على ${MAIL}.`] },
-      {
-        h: 'ما الذي نجمعه',
-        list: [
-          'الحساب: بريدك الإلكتروني واسمك وصورة شخصية اختيارية. وعند الدخول بحساب Google نستلم اسم حسابك في Google وبريده وصورته.',
-          'الخطة: هل حسابك على الخطة المجانية أم Pro.',
-          'المشاريع المحفوظة: مدخلات ونتائج التحليلات التي تختار حفظها (Pro).',
-          'هوية التقرير: الاسم والوظيفة والشركة والشعار وخيارات التوقيع التي تُدخلها لتقاريرك (Pro). يُحفظ الشعار على رابط يمكن لمن يملكه فتحه، حتى يُطبع على تقاريرك.',
-          'استخدام AI Insights: تاريخ كل طلب والأداة وحجمه، لتطبيق الحد اليومي، وليس البيانات نفسها.',
-          'إحصاءات الاستخدام: يسجّل Google Analytics الصفحات التي تزورها وجهازك ومتصفحك وموقعك التقريبي وأفعالًا مثل الضغط على التصدير.',
-          'بيانات تقنية: يُستخدم عنوان IP لفترة قصيرة لحماية الخدمة من إساءة الاستخدام (حدود الطلبات)، ولا نحتفظ به.',
-        ],
-      },
-      { h: 'البيانات التي تحللها', p: ['عند تشغيل أي أداة تُرسل الأرقام التي تُدخلها إلى خادمنا، فتُحسب وتعود إلى شاشتك. لا تُحفظ ولا تُستخدم في أي غرض آخر إلا إذا حفظت المشروع بنفسك.'] },
-      { h: 'AI Insights', p: ['إذا استخدمت AI Insights (Pro) تُرسل أرقام ذلك التحليل إلى Anthropic، مزوّد نموذج الذكاء الاصطناعي، لكتابة النص. لا يُرسل اسمك ولا بريدك، وتعالج Anthropic الطلب وفق شروطها التجارية.'] },
-      {
-        h: 'من يعالج البيانات لصالحنا',
-        list: [
-          'Vercel: استضافة الموقع وتشغيل الحسابات.',
-          'Supabase: الحسابات وتسجيل الدخول والمشاريع المحفوظة وهوية التقرير والشعارات.',
-          'Google: تسجيل الدخول بحساب Google (إن اخترته) و Google Analytics.',
-          'Anthropic: خدمة AI Insights (في Pro فقط).',
-          'مزوّد الدفع عند إطلاق الخطط المدفوعة: يتولى المزوّد بيانات البطاقة ولا تصل إلينا أبدًا.',
-        ],
-        p: ['قد يعالج هؤلاء المزودون البيانات خارج مصر. لا نشاركهم إلا ما تحتاجه الخدمة، ولا نبيع البيانات الشخصية أبدًا.'],
-      },
-      { h: 'ملفات تعريف الارتباط وتخزين المتصفح', p: ['يُبقيك ملف تعريف ارتباط مسجّلًا للدخول، وتُحفظ اختياراتك للمظهر واللغة في متصفحك. يضع Google Analytics ملفاته الخاصة، ويمكنك حظرها من إعدادات المتصفح أو بإضافة حظر، وتظل الأدوات تعمل.'] },
-      { h: 'مدة الاحتفاظ بالبيانات', p: ['تبقى بيانات الحساب ما دام الحساب موجودًا. وتبقى المشاريع المحفوظة والشعارات حتى تحذفها أو يُحذف حسابك. ويحتفظ Google Analytics بالإحصاءات وفق إعداداته الخاصة.'] },
-      {
-        h: 'اختياراتك وحقوقك',
-        list: [
-          'احذف المشاريع المحفوظة وشعارك في أي وقت من صفحة حسابك.',
-          `اطلب نسخة من بياناتك أو تصحيحها أو حذف حسابك بمراسلتنا على ${MAIL}، ونرد خلال 30 يومًا.`,
-          'استخدم الأدوات دون حساب، وحينها لا تُجمع أي بيانات حساب.',
-        ],
-      },
-      { h: 'الأمان', p: ['تتم الاتصالات عبر HTTPS، ولا يستطيع أي حساب قراءة إلا مشاريعه وإعداداته. لا توجد خدمة إلكترونية آمنة تمامًا، فاحرص على سرية كلمة المرور.'] },
-      { h: 'الأطفال', p: [`${N} أداة مهنية غير موجهة لمن هم دون 16 عامًا.`] },
-      { h: 'التغييرات على هذه السياسة', p: ['إذا تغيّرت هذه السياسة يتغيّر التاريخ في أعلاها، وسنعلن التغييرات الجوهرية على الموقع.'] },
-      { h: 'التواصل', p: [`للأسئلة أو الطلبات: ${MAIL}.`] },
+      { id: 'scope', h: 'النطاق', p: [`تشمل هذه السياسة موقع ${N} وأدواته والحسابات والتقارير. أما الخدمات الخارجية التي تصل إليها من الموقع فلها سياساتها الخاصة.`] },
+      { id: 'collect', h: 'ما الذي نجمعه', p: ['بيانات حسابك (البريد الإلكتروني والاسم وصورة اختيارية، أو بيانات حساب Google إذا سجّلت الدخول به)، وخطتك، والمشاريع وإعدادات التقارير التي تختار حفظها، وإحصاءات استخدام عامة تساعدنا على تحسين الموقع.'] },
+      { id: 'analysis', h: 'البيانات التي تحللها', p: ['تُرسل الأرقام التي تُدخلها إلى خادمنا لحساب النتائج وعرضها عليك فقط، ولا تُحفظ ولا تُستخدم في أي غرض آخر إلا إذا حفظت المشروع بنفسك.'] },
+      { id: 'ai', h: 'مزايا الذكاء الاصطناعي', p: ['عند استخدام إحدى مزايا الذكاء الاصطناعي تُرسل أرقام ذلك التحليل إلى مزوّد الذكاء الاصطناعي لكتابة النص، ولا يُرسل اسمك ولا بريدك.'] },
+      { id: 'use', h: 'كيف نستخدم البيانات', p: ['لتشغيل الأدوات وحسابك، والحفاظ على أمان الخدمة، وتطبيق حدود الخطط، والرد على رسائلك، وتحسين الموقع. ولا نبيع البيانات الشخصية.'] },
+      { id: 'providers', h: 'مزودو الخدمة', p: ['نعتمد على مزودين موثوقين للاستضافة والحسابات والتخزين وتسجيل الدخول والإحصاءات ومزايا الذكاء الاصطناعي، والدفع عند إطلاق الخطط المدفوعة. لا يتلقون إلا ما تحتاجه الخدمة، وقد يعمل بعضهم خارج مصر. ويتولى مزوّد الدفع بيانات البطاقة ولا تصل إلينا أبدًا.'] },
+      { id: 'cookies', h: 'ملفات تعريف الارتباط وتخزين المتصفح', p: ['نستخدم ملف تعريف ارتباط لإبقائك مسجّلًا للدخول، وتخزين المتصفح لاختيارك للمظهر واللغة، وملفات تعريف ارتباط للإحصاءات. يمكنك حظر ملفات الإحصاءات من متصفحك وتظل الأدوات تعمل.'] },
+      { id: 'retention', h: 'مدة الاحتفاظ بالبيانات', p: ['نحتفظ ببيانات الحساب ما دام الحساب موجودًا، وبالمشاريع المحفوظة والشعارات حتى تحذفها أو يُحذف حسابك.'] },
+      { id: 'rights', h: 'الأمان وحقوقك', p: ['الاتصالات مشفّرة، ولا يصل أي حساب إلا إلى بياناته.', `يمكنك حذف المشاريع المحفوظة وشعارك من صفحة حسابك في أي وقت، وطلب نسخة من بياناتك أو تصحيحها أو حذف حسابك عبر ${MAIL}، ونرد خلال 30 يومًا.`] },
+      { id: 'age', h: 'الحد الأدنى للعمر', p: [`${N} أداة مهنية لمن هم في سن 18 عامًا فأكثر.`] },
+      { id: 'changes', h: 'التغييرات', p: ['عند تغيير هذه السياسة نحدّث التاريخ أعلاه، ونعلن التغييرات الجوهرية على الموقع.'] },
     ],
+    questionTitle: 'لديك سؤال؟',
+    questionText: `راسلنا على ${MAIL} وسنرد عليك.`,
   },
 }
 
@@ -121,61 +77,49 @@ export const TERMS: Record<'en' | 'ar', LegalDoc> = {
   en: {
     kicker: 'Legal',
     title: 'Terms of Use',
-    updated: 'Last updated',
-    intro: `These terms apply to everyone who uses ${N}. By using the site you accept them; if you do not, please do not use the site.`,
+    updated: 'Effective and last updated',
+    intro: `The rules for using ${N}, written to be practical rather than dense. By using the site you accept these terms and the Privacy Policy.`,
+    toc: 'Contents',
     sections: [
-      { h: 'The service', p: [`${N} provides quality statistics tools in the browser. Calculations are free for every visitor. CSV and PNG exports need a free account, and some features (such as Gage R&R, PDF and Excel reports and saved projects) need a Pro plan.`] },
-      { h: 'Results and your responsibility', p: ['Every tool is built on published methods and checked against reference results. The results are still decision support: you are responsible for the data you enter, for choosing a method that fits your case, and for the quality decisions you take with the results, such as releasing or rejecting a lot. We do not guarantee that a customer or an auditor will accept a given report.'] },
-      { h: 'Your account', p: ['Give accurate information, keep your password private and tell us if you think someone else is using your account. You are responsible for what happens under your account.'] },
-      {
-        h: 'Acceptable use',
-        list: [
-          'Do not send automated bulk requests or try to get around the request limits.',
-          'Do not try to copy, reverse engineer or resell the calculations or the reports.',
-          'Do not upload unlawful content or data you have no right to use.',
-          'Do not try to disrupt or break into the service or other accounts.',
-        ],
-      },
-      { h: 'Your data and reports', p: ['Your data and the reports you generate are yours. You may use the reports freely, including for your customers and auditors. You allow us to process your data only to provide the service, as described in the Privacy Policy.'] },
-      { h: 'Our content', p: [`The site, its software, design, texts and the ${N} brand belong to ${N}. Apart from the reports you generate, you may not copy or reuse them without written permission.`] },
-      { h: 'Pro plan and payments', p: ['Pro is not on sale yet. Prices, the billing period, cancellation and the refund policy will be published on this page before paid plans open, and will apply from that date.'] },
-      { h: 'Availability and changes', p: ['We work to keep the service available but cannot guarantee it will be uninterrupted. We may add, change or remove features; major changes to paid features will be announced in advance.'] },
-      { h: 'No warranty', p: ['The service is provided "as is" and "as available", without warranties of any kind, to the extent the law allows.'] },
-      { h: 'Limitation of liability', p: [`To the extent the law allows, ${N} is not liable for indirect or consequential losses, including rejected lots, recalls, lost production or lost profit, resulting from the use of the service. Our total liability is limited to what you paid us in the 12 months before the claim.`] },
-      { h: 'Suspension and ending', p: ['We may suspend or close an account that breaks these terms. You may stop using the service at any time and ask us to delete your account.'] },
-      { h: 'Governing law', p: ['These terms are governed by the laws of the Arab Republic of Egypt.'] },
-      { h: 'Changes to these terms', p: ['If these terms change, the date at the top changes too. Continuing to use the site after a change means you accept the new terms.'] },
-      { h: 'Contact', p: [`Questions about these terms: ${MAIL}.`] },
+      { id: 'agreement', h: 'Agreement and eligibility', p: ['You must be 18 or over. If you use the site for a company, you confirm that you may accept these terms on its behalf.'] },
+      { id: 'service', h: 'The service', p: [`${N} provides quality statistics tools in the browser. Calculations are free; some features need a free account or a paid plan.`] },
+      { id: 'account', h: 'Your account', p: ['Keep your details accurate and your password private. You are responsible for activity under your account.'] },
+      { id: 'results', h: 'Results and your responsibility', p: ['The tools follow published methods and are checked against reference results, but they support decisions; they do not make them. You are responsible for your data, for choosing the right method and for the quality decisions you take.'] },
+      { id: 'ai', h: 'AI features', p: ['AI-written text may contain mistakes and does not replace professional judgment. Review it before you rely on it. Usage limits may apply.'] },
+      { id: 'plans', h: 'Plans and payments', p: ['Paid plans are not on sale yet. Prices, billing, cancellation and refunds will be published on this page before they open.'] },
+      { id: 'content', h: 'Your data and our content', p: [`Your data and the reports you generate are yours to use, including with customers and auditors. The site, its software, design and the ${N} brand are ours and may not be copied or resold.`] },
+      { id: 'conduct', h: 'Prohibited use', list: ['Automated bulk requests or getting around usage limits.', 'Copying, reverse engineering or reselling the tools or reports.', 'Unlawful content, or attempts to disrupt the service or reach other accounts.'] },
+      { id: 'termination', h: 'Suspension and termination', p: ['We may suspend or close accounts that break these terms. You may stop using the service and ask us to delete your account at any time.'] },
+      { id: 'changes-service', h: 'Third parties and changes', p: ['The service relies on outside providers and may change over time. We do not guarantee uninterrupted availability.'] },
+      { id: 'liability', h: 'Warranties and liability', p: ['The service is provided as is. To the extent the law allows, we are not liable for indirect losses such as rejected lots, recalls or lost production. Your mandatory rights under the law are not affected.'] },
+      { id: 'law', h: 'Law and disputes', p: ['These terms are governed by the laws of Egypt. We will first try to settle any dispute in good faith.'] },
+      { id: 'changes', h: 'Changes to these terms', p: ['We will post updates here with a new date. If you disagree with a change, stop using the service.'] },
     ],
+    questionTitle: 'Have a question?',
+    questionText: `Write to ${MAIL} and we will reply.`,
   },
   ar: {
     kicker: 'قانوني',
     title: 'شروط الاستخدام',
-    updated: 'آخر تحديث',
-    intro: `تسري هذه الشروط على كل من يستخدم ${N}. باستخدامك للموقع فإنك توافق عليها، وإن لم توافق فيُرجى عدم استخدام الموقع.`,
+    updated: 'تاريخ السريان وآخر تحديث',
+    intro: `قواعد استخدام ${N}، مكتوبة لتكون عملية وواضحة. باستخدامك للموقع فإنك توافق على هذه الشروط وعلى سياسة الخصوصية.`,
+    toc: 'المحتويات',
     sections: [
-      { h: 'الخدمة', p: [`يقدّم ${N} أدوات إحصاء الجودة في المتصفح. الحسابات مجانية لكل زائر، ويحتاج تصدير CSV و PNG إلى حساب مجاني، وتحتاج بعض المزايا (مثل Gage R&R وتقارير PDF و Excel والمشاريع المحفوظة) إلى خطة Pro.`] },
-      { h: 'النتائج ومسؤوليتك', p: ['كل أداة مبنية على طرق منشورة ومُتحقَّق منها على نتائج مرجعية، ومع ذلك تظل النتائج أداة دعم للقرار: أنت المسؤول عن البيانات التي تُدخلها، وعن اختيار الطريقة المناسبة لحالتك، وعن قرارات الجودة التي تتخذها بناءً على النتائج، مثل قبول دفعة أو رفضها. ولا نضمن أن يقبل العميل أو المدقق تقريرًا بعينه.'] },
-      { h: 'حسابك', p: ['قدّم معلومات صحيحة، وحافظ على سرية كلمة المرور، وأبلغنا إذا ظننت أن غيرك يستخدم حسابك. أنت مسؤول عما يحدث تحت حسابك.'] },
-      {
-        h: 'الاستخدام المقبول',
-        list: [
-          'لا ترسل طلبات آلية بكميات كبيرة ولا تحاول تجاوز حدود الطلبات.',
-          'لا تحاول نسخ الحسابات أو التقارير أو الهندسة العكسية لها أو إعادة بيعها.',
-          'لا ترفع محتوى مخالفًا للقانون أو بيانات لا يحق لك استخدامها.',
-          'لا تحاول تعطيل الخدمة أو اختراقها أو اختراق حسابات الآخرين.',
-        ],
-      },
-      { h: 'بياناتك وتقاريرك', p: ['بياناتك والتقارير التي تنشئها ملك لك، ويمكنك استخدام التقارير بحرية، بما في ذلك لعملائك والمدققين. وتسمح لنا بمعالجة بياناتك لتقديم الخدمة فقط، كما توضح سياسة الخصوصية.'] },
-      { h: 'محتوانا', p: [`الموقع وبرمجياته وتصميمه ونصوصه وعلامة ${N} مملوكة لـ ${N}. وفيما عدا التقارير التي تنشئها، لا يجوز نسخها أو إعادة استخدامها دون إذن كتابي.`] },
-      { h: 'خطة Pro والمدفوعات', p: ['باقة Pro غير متاحة للشراء بعد. ستُنشر الأسعار ومدة الفوترة والإلغاء وسياسة الاسترداد في هذه الصفحة قبل إطلاق الخطط المدفوعة، وتسري من ذلك التاريخ.'] },
-      { h: 'التوفر والتغييرات', p: ['نعمل على إبقاء الخدمة متاحة، لكن لا نضمن عملها دون انقطاع. وقد نضيف مزايا أو نغيّرها أو نزيلها، وسنعلن مسبقًا عن التغييرات الكبيرة في المزايا المدفوعة.'] },
-      { h: 'إخلاء الضمان', p: ['تُقدَّم الخدمة "كما هي" و"حسب التوفر" دون أي ضمانات، بالقدر الذي يسمح به القانون.'] },
-      { h: 'حدود المسؤولية', p: [`بالقدر الذي يسمح به القانون، لا يتحمل ${N} المسؤولية عن الخسائر غير المباشرة أو التبعية، ومنها رفض الدفعات أو سحب المنتجات أو فقد الإنتاج أو الأرباح، الناتجة عن استخدام الخدمة. وتقتصر مسؤوليتنا الإجمالية على ما دفعته لنا خلال 12 شهرًا قبل المطالبة.`] },
-      { h: 'الإيقاف والإنهاء', p: ['يجوز لنا إيقاف أو إغلاق أي حساب يخالف هذه الشروط. ويمكنك التوقف عن استخدام الخدمة في أي وقت وطلب حذف حسابك.'] },
-      { h: 'القانون الحاكم', p: ['تخضع هذه الشروط لقوانين جمهورية مصر العربية.'] },
-      { h: 'التغييرات على هذه الشروط', p: ['إذا تغيّرت هذه الشروط يتغيّر التاريخ في أعلاها. واستمرارك في استخدام الموقع بعد التغيير يعني قبولك للشروط الجديدة.'] },
-      { h: 'التواصل', p: [`للأسئلة عن هذه الشروط: ${MAIL}.`] },
+      { id: 'agreement', h: 'الموافقة والأهلية', p: ['يجب أن يكون عمرك 18 عامًا فأكثر. وإذا استخدمت الموقع لصالح شركة فإنك تؤكد أن لك صلاحية قبول هذه الشروط نيابة عنها.'] },
+      { id: 'service', h: 'الخدمة', p: [`يقدّم ${N} أدوات إحصاء الجودة في المتصفح. الحسابات مجانية، وتحتاج بعض المزايا إلى حساب مجاني أو خطة مدفوعة.`] },
+      { id: 'account', h: 'حسابك', p: ['حافظ على صحة بياناتك وسرية كلمة المرور، فأنت مسؤول عما يحدث تحت حسابك.'] },
+      { id: 'results', h: 'النتائج ومسؤوليتك', p: ['تتبع الأدوات طرقًا منشورة ومُتحقَّقًا منها على نتائج مرجعية، لكنها تدعم القرار ولا تتخذه. أنت المسؤول عن بياناتك واختيار الطريقة المناسبة وقرارات الجودة التي تتخذها.'] },
+      { id: 'ai', h: 'مزايا الذكاء الاصطناعي', p: ['قد يحتوي النص المكتوب بالذكاء الاصطناعي على أخطاء، ولا يغني عن الحكم المهني، فراجعه قبل الاعتماد عليه. وقد تنطبق حدود للاستخدام.'] },
+      { id: 'plans', h: 'الخطط والمدفوعات', p: ['الخطط المدفوعة غير متاحة للشراء بعد. وستُنشر الأسعار والفوترة والإلغاء والاسترداد في هذه الصفحة قبل إطلاقها.'] },
+      { id: 'content', h: 'بياناتك ومحتوانا', p: [`بياناتك والتقارير التي تنشئها ملك لك، ويمكنك استخدامها مع عملائك والمدققين. أما الموقع وبرمجياته وتصميمه وعلامة ${N} فمملوكة لنا ولا يجوز نسخها أو إعادة بيعها.`] },
+      { id: 'conduct', h: 'الاستخدام المحظور', list: ['الطلبات الآلية بكميات كبيرة أو تجاوز حدود الاستخدام.', 'نسخ الأدوات أو التقارير أو الهندسة العكسية لها أو إعادة بيعها.', 'المحتوى المخالف للقانون، أو محاولة تعطيل الخدمة أو الوصول إلى حسابات الآخرين.'] },
+      { id: 'termination', h: 'الإيقاف والإنهاء', p: ['يجوز لنا إيقاف أو إغلاق الحسابات المخالفة لهذه الشروط. ويمكنك التوقف عن استخدام الخدمة وطلب حذف حسابك في أي وقت.'] },
+      { id: 'changes-service', h: 'الأطراف الخارجية والتغييرات', p: ['تعتمد الخدمة على مزودين خارجيين وقد تتغير بمرور الوقت، ولا نضمن توفرها دون انقطاع.'] },
+      { id: 'liability', h: 'الضمانات والمسؤولية', p: ['تُقدَّم الخدمة كما هي. وبالقدر الذي يسمح به القانون لا نتحمل المسؤولية عن الخسائر غير المباشرة مثل رفض الدفعات أو سحب المنتجات أو فقد الإنتاج، دون المساس بحقوقك الإلزامية بموجب القانون.'] },
+      { id: 'law', h: 'القانون والنزاعات', p: ['تخضع هذه الشروط لقوانين جمهورية مصر العربية، وسنسعى أولًا إلى حل أي نزاع بحسن نية.'] },
+      { id: 'changes', h: 'التغييرات على هذه الشروط', p: ['سننشر التحديثات هنا بتاريخ جديد، وإذا لم توافق على تغيير ما فتوقف عن استخدام الخدمة.'] },
     ],
+    questionTitle: 'لديك سؤال؟',
+    questionText: `راسلنا على ${MAIL} وسنرد عليك.`,
   },
 }
