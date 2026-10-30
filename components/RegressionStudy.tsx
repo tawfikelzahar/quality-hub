@@ -96,7 +96,8 @@ function useAnalysis(body: object | null) {
   return { r: current ? current.r : reply?.r ?? null, pending: current === null }
 }
 
-export default function RegressionStudy({ mode }: { mode: RegressionMode }) {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function RegressionStudy({ mode, guide }: { mode: RegressionMode; guide?: React.ReactNode }) {
   const multi = mode === 'multiple'
   const tool = multi ? 'multiregression' : 'regression'
   const { isPro, isLoggedIn } = useSubscription()
@@ -854,6 +855,7 @@ export default function RegressionStudy({ mode }: { mode: RegressionMode }) {
               </section>
             </div>
           </div>
+          {guide}
         </div>
       </div>
 

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import ParetoChart from '@/components/ParetoChart'
+import ToolGuide from '@/components/tool/ToolGuide'
+import { PARETO_GUIDE } from '@/lib/guides/problem'
 import { localizedPageMetadata } from '@/lib/i18n/metadata'
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -15,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     })
 }
 
-export default function ParetoPage() {
-  return <ParetoChart />
+export default async function ParetoPage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  return <ParetoChart guide={<ToolGuide guide={PARETO_GUIDE} lang={lang} />} />
 }

@@ -98,7 +98,8 @@ function useAnalysis(body: object | null) {
   return { r: current ? current.r : reply?.r ?? null, pending: current === null }
 }
 
-export default function DoeStudy() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -870,6 +871,7 @@ export default function DoeStudy() {
               </section>
             </div>
           </div>
+          {guide}
         </div>
       </div>
 

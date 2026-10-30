@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import StabilityStudy from '@/components/StabilityStudy'
+import ToolGuide from '@/components/tool/ToolGuide'
+import { STABILITY_GUIDE } from '@/lib/guides/food'
 import { localizedPageMetadata } from '@/lib/i18n/metadata'
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -15,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     })
 }
 
-export default function StabilityPage() {
-  return <StabilityStudy />
+export default async function StabilityPage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  return <StabilityStudy guide={<ToolGuide guide={STABILITY_GUIDE} lang={lang} />} />
 }

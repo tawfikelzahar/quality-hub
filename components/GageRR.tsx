@@ -173,7 +173,8 @@ function pctTV(r: GageResult) {
   return r.method === 'average-range' ? r.pctOfTV : r.pctStudyVar
 }
 
-export default function GageRR() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
   const c = COLORS[theme]
@@ -1138,6 +1139,7 @@ export default function GageRR() {
               </section>
             </div>
           </div>
+          {guide}
         </div>
       </div>
 

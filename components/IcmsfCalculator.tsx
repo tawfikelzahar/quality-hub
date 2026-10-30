@@ -106,7 +106,8 @@ function useRisk(body: object | null, enabled: boolean) {
   return { r: current?.r ?? null, failed: current !== null && current.r === null, pending: current === null }
 }
 
-export default function IcmsfCalculator() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function IcmsfCalculator({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -640,6 +641,7 @@ export default function IcmsfCalculator() {
               </>
             )}
           </section>
+          {guide}
         </div>
       </div>
 

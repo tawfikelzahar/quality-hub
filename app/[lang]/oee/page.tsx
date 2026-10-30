@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import OEECalculator from '@/components/OEECalculator'
+import ToolGuide from '@/components/tool/ToolGuide'
+import { OEE_GUIDE } from '@/lib/guides/performance'
 import { localizedPageMetadata } from '@/lib/i18n/metadata'
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -15,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     })
 }
 
-export default function OEEPage() {
-  return <OEECalculator />
+export default async function OEEPage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  return <OEECalculator guide={<ToolGuide guide={OEE_GUIDE} lang={lang} />} />
 }

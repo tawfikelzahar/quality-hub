@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import GageRR from '@/components/GageRR'
+import ToolGuide from '@/components/tool/ToolGuide'
+import { GAGE_GUIDE } from '@/lib/guides/gage'
 import { localizedPageMetadata } from '@/lib/i18n/metadata'
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -15,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     })
 }
 
-export default function GageRRPage() {
-  return <GageRR />
+export default async function GageRRPage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  return <GageRR guide={<ToolGuide guide={GAGE_GUIDE} lang={lang} />} />
 }

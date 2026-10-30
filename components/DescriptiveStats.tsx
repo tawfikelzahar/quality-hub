@@ -52,7 +52,8 @@ function normalPdf(x: number, mu: number, sd: number): number {
   return Math.exp(-0.5 * ((x - mu) / sd) ** 2) / (sd * Math.sqrt(2 * Math.PI))
 }
 
-export default function DescriptiveStats() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function DescriptiveStats({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t } = useLanguage()
@@ -743,6 +744,7 @@ export default function DescriptiveStats() {
               )}
             </section>
           </div>
+          {guide}
         </div>
       </div>
 

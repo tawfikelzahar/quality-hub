@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import DPMOCalculator from '@/components/DPMOCalculator'
+import ToolGuide from '@/components/tool/ToolGuide'
+import { DPMO_GUIDE } from '@/lib/guides/performance'
 import { localizedPageMetadata } from '@/lib/i18n/metadata'
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -15,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
     })
 }
 
-export default function DPMOPage() {
-  return <DPMOCalculator />
+export default async function DPMOPage({ params }: { params: Promise<{ lang: string }> }) {
+  const { lang } = await params
+  return <DPMOCalculator guide={<ToolGuide guide={DPMO_GUIDE} lang={lang} />} />
 }

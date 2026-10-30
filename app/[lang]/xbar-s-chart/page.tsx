@@ -1,5 +1,7 @@
 'use client';
 
+import ToolGuide from '@/components/tool/ToolGuide';
+import { XBAR_S_GUIDE } from '@/lib/guides/charts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import 'chart.js/auto';
 import { Chart } from 'react-chartjs-2';
@@ -920,6 +922,7 @@ export default function XbarSChartPage() {
               </section>
             </div>
           </div>
+          <ToolGuide guide={XBAR_S_GUIDE} lang={lang} />
         </div>
       </div>
 

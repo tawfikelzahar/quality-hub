@@ -111,7 +111,8 @@ type InsightState =
   | { status: 'error' }
   | { status: 'done'; key: string; en: string; ar: string }
 
-export default function OEECalculator() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function OEECalculator({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -641,6 +642,7 @@ export default function OEECalculator() {
               )}
             </section>
           </div>
+          {guide}
         </div>
       </div>
 

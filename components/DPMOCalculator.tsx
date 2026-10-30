@@ -70,7 +70,8 @@ const ltr = (v: string) => `⁦${v}⁩`
 const sig = (s: number) => (Number.isFinite(s) ? fixed(s, 2) : '—')
 const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`
 
-export default function DPMOCalculator() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function DPMOCalculator({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -559,6 +560,7 @@ export default function DPMOCalculator() {
               <div className="tl-card tl-empty">{t('dpmo_empty_state')}</div>
             )}
           </section>
+          {guide}
         </div>
       </div>
 

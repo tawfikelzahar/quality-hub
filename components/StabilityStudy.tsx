@@ -106,7 +106,8 @@ function useAnalysis(body: object | null) {
   return { r: current ? current.r : reply?.r ?? null, pending: current === null, failed: current?.failed ?? false }
 }
 
-export default function StabilityStudy() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -789,6 +790,7 @@ export default function StabilityStudy() {
               </section>
             </div>
           </div>
+          {guide}
         </div>
       </div>
 

@@ -47,7 +47,8 @@ const int = (v: number) => Number(v.toPrecision(12)).toLocaleString('en-US')
 const ltr = (v: string) => `⁦${v}⁩`
 const csvCell = (v: string) => `"${v.replace(/"/g, '""')}"`
 
-export default function ParetoChart() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function ParetoChart({ guide }: { guide?: React.ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -514,6 +515,7 @@ export default function ParetoChart() {
               )}
             </section>
           </div>
+          {guide}
         </div>
       </div>
 
