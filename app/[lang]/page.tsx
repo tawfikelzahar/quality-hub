@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
 import Link from '@/components/LocaleLink'
 import { usePersistedTheme } from '@/lib/theme'
 import AuthStatus from '@/components/AuthStatus'
@@ -8,9 +7,8 @@ import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
 import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
-import { TOOL_GROUPS, TOOL_COUNT, LANDING_COLUMN_ORDER } from '@/lib/tools'
 import { SITE } from '@/lib/site'
-import { track } from '@/lib/analytics'
+import ToolsDirectory from '@/components/ToolsDirectory'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Landing page (Mizan design): hero with a live example, why, three steps,
@@ -51,17 +49,11 @@ const IconReport = () => (
 const IconScreen = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg>
 )
-const IconSearch = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-)
 const IconCheck = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
 )
 const IconAlert = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M12 8v5M12 16.5v.5" /><circle cx="12" cy="12" r="9" /></svg>
-)
-const IconChevron = () => (
-  <svg className="mz-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
 )
 
 /** I chart of the example, drawn with theme colours so it follows light/dark */
@@ -89,61 +81,12 @@ function ExampleChart({ label }: { label: string }) {
   )
 }
 
-/** true on phone widths — tool groups start collapsed there */
-function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(false)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 640px)')
-    const update = () => setNarrow(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
-  return narrow
-}
 
-/** How many columns the tools section shows (matches the .mz-groups media queries). */
-function useToolColumns(): 1 | 2 | 3 {
-  const [cols, setCols] = useState<1 | 2 | 3>(3)
-  useEffect(() => {
-    const one = window.matchMedia('(max-width: 720px)')
-    const two = window.matchMedia('(max-width: 1100px)')
-    const update = () => setCols(one.matches ? 1 : two.matches ? 2 : 3)
-    update()
-    one.addEventListener('change', update)
-    two.addEventListener('change', update)
-    return () => { one.removeEventListener('change', update); two.removeEventListener('change', update) }
-  }, [])
-  return cols
-}
 
 export default function Home() {
   const [theme, setTheme] = usePersistedTheme()
   const dark = theme === 'dark'
   const { t, lang } = useLanguage()
-  const narrow = useNarrow()
-  const [query, setQuery] = useState('')
-
-  const q = query.trim().toLowerCase()
-  // One column reads the groups in their natural order; two or three columns
-  // use an order that keeps the column heights close (groups flow top to bottom)
-  const cols = useToolColumns()
-  const GROUPS = useMemo(() => {
-    if (cols === 1) return TOOL_GROUPS
-    const order = LANDING_COLUMN_ORDER[cols]
-    return [...TOOL_GROUPS].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id))
-  }, [cols])
-  const visibleGroups = useMemo(() => {
-    if (!q) return GROUPS
-    return GROUPS
-      .map(g => ({
-        ...g,
-        rows: g.rows.filter(r =>
-          `${t(r.titleKey)} ${t(r.descKey)} ${r.keywords}`.toLowerCase().includes(q),
-        ),
-      }))
-      .filter(g => g.rows.length > 0)
-  }, [q, t, GROUPS])
 
   const fmt2 = (v: number) => v.toFixed(2)
   const fmt3 = (v: number) => v.toFixed(3)
@@ -184,24 +127,6 @@ export default function Home() {
         .mz-why { padding: 26px; }
         .mz-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 32px; }
 
-        .mz-tools-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 32px; }
-        .mz-search { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border: 1px solid var(--qh-border); border-radius: 10px; background: var(--qh-bg); width: 320px; max-width: 100%; color: var(--qh-muted); }
-        .mz-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--qh-text); font: inherit; font-size: 14px; }
-        .mz-search:focus-within { border-color: var(--qh-accent); }
-        .mz-groups { column-count: 3; column-gap: 16px; }
-        .mz-groups > .mz-group { break-inside: avoid; display: block; margin-bottom: 16px; }
-        @media (max-width: 1100px) { .mz-groups { column-count: 2; } }
-        @media (max-width: 720px) { .mz-groups { column-count: 1; } }
-        .mz-hint { margin: 0; padding: 12px 0 18px; border-top: 1px solid var(--qh-border); font-size: 13px; line-height: 1.6; color: var(--qh-muted); }
-        .mz-hint a { color: var(--qh-text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-        .mz-group { padding: 0 22px; }
-        .mz-group summary { list-style: none; cursor: pointer; padding: 20px 0 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-        .mz-group summary::-webkit-details-marker { display: none; }
-        .mz-chev { color: var(--qh-muted); transition: transform .2s ease; margin-top: 4px; display: none; }
-        .mz-group[open] .mz-chev { transform: rotate(180deg); }
-        .mz-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--qh-border); color: var(--qh-text); min-height: 48px; }
-        .mz-row:last-child { padding-bottom: 18px; }
-        .mz-row:hover .mz-row-title { text-decoration: underline; text-underline-offset: 3px; }
 
         .mz-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
         .mz-plan { padding: 26px; display: flex; flex-direction: column; }
@@ -216,9 +141,6 @@ export default function Home() {
           .mz-ctas .mz-btn { width: 100%; }
           .mz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mz-why { padding: 18px; }
-          .mz-group { padding: 0 14px; }
-          .mz-group summary { padding: 14px 0; min-height: 52px; align-items: center; }
-          .mz-chev { display: block; }
           .mz-plan { padding: 20px; }
         }
       `}</style>
@@ -232,7 +154,7 @@ export default function Home() {
             <img className="qh-brand-logo" src={dark ? SITE.logo.dark : SITE.logo.light} alt={SITE.name} style={{height:38,width:'auto',display:'block'}} />
           </Link>
           <div className="qh-landing-nav-right" style={{display:'flex',alignItems:'center',gap:22}}>
-            <a href="#tools" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_tools')}</a>
+            <Link href="/tools" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_tools')}</Link>
             <Link href="/pricing" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_pricing')}</Link>
             <Link href="/about" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_about')}</Link>
             <Link href="/contact" className="qh-hide-mobile" style={{fontSize:14,color:'var(--qh-muted)',fontWeight:500}}>{t('nav_contact')}</Link>
@@ -263,6 +185,7 @@ export default function Home() {
             <p style={{margin:'0 0 32px',fontSize:18,lineHeight:1.7,color:'var(--mz-soft)',maxWidth:560}}>{t('home_sub')}</p>
             <div className="mz-ctas">
               <Link href="/spc" className="mz-btn mz-btn-primary">{t('home_cta_try')} <Arrow /></Link>
+              <Link href="/tools" className="mz-btn mz-btn-ghost">{t('home_cta_tools')}</Link>
               <Link href="/sample-reports" className="mz-btn mz-btn-ghost">{t('home_cta_sample')}</Link>
             </div>
             <p style={{margin:'0 0 12px',fontSize:12,fontWeight:600,color:'var(--qh-muted)',letterSpacing:lang === 'ar' ? 0 : 1.1,textTransform:'uppercase'}}>{t('home_standards_label')}</p>
@@ -336,49 +259,7 @@ export default function Home() {
         {/* ── Tools by question ── */}
         <section id="tools" className="mz-band" style={{scrollMarginTop:64}}>
           <div className="mz-wrap mz-sec">
-            <div className="mz-tools-head">
-              <div>
-                <h2 className="mz-h2">{t('home_tools_title')}</h2>
-                <p style={{margin:0,fontSize:16,color:'var(--mz-soft)'}}>{t('home_tools_sub').replace('{n}', String(TOOL_COUNT))}</p>
-              </div>
-              <label className="mz-search">
-                <IconSearch />
-                <span style={{position:'absolute',width:1,height:1,overflow:'hidden',clip:'rect(0 0 0 0)'}}>{t('home_search_label')}</span>
-                <input type="search" value={query} onChange={e => setQuery(e.target.value)} onBlur={() => { const q = query.trim(); if (q) track('search', { search_term: q.slice(0, 100), where: 'home' }) }} placeholder={t('home_search_placeholder')} />
-              </label>
-            </div>
-
-            {visibleGroups.length === 0 ? (
-              <p style={{margin:0,fontSize:15,color:'var(--mz-soft)'}}>{t('home_search_empty').replace('{q}', query.trim())}</p>
-            ) : (
-              <div className="mz-groups">
-                {visibleGroups.map((g, gi) => (
-                  // Re-mount when the layout or search changes so the open state resets:
-                  // all open on desktop and while searching, only the first open on phones.
-                  <details key={`${g.id}-${narrow ? 'n' : 'w'}-${q ? 's' : ''}`} className="mz-card mz-group" open={!narrow || !!q || gi === 0}>
-                    <summary>
-                      <span>
-                        <span style={{display:'block',fontSize:12,fontWeight:600,color:'var(--qh-muted)',textTransform:'uppercase',letterSpacing:lang === 'ar' ? 0 : 1,marginBottom:4}}>{t(g.labelKey)}</span>
-                        <span style={{display:'block',fontSize:18,fontWeight:600,color:'var(--qh-text)'}}>{t(g.questionKey)}</span>
-                      </span>
-                      <IconChevron />
-                    </summary>
-                    {g.rows.map(r => (
-                      <Link key={r.href} href={r.href} className="mz-row">
-                        <span style={{minWidth:0}}>
-                          <span className="mz-row-title" style={{display:'block',fontWeight:600,fontSize:15}}>{t(r.titleKey)}</span>
-                          <span style={{display:'block',fontSize:13,color:'var(--qh-muted)',lineHeight:1.6}}>{t(r.descKey)}</span>
-                        </span>
-                        {r.pro && <span className="mz-pro">PRO</span>}
-                      </Link>
-                    ))}
-                    {g.id === 'stability' && !q && (
-                      <p className="mz-hint">{t('home_stability_hint')}</p>
-                    )}
-                  </details>
-                ))}
-              </div>
-            )}
+            <ToolsDirectory where="home" />
           </div>
         </section>
 

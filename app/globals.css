@@ -272,6 +272,13 @@ button:focus-visible {
   --qh-line: #C3B4F0;
   --qh-vital: rgba(143,179,232,0.12);
 }
+/* Tell the browser which theme the page is in, so the parts it draws itself
+   (the list a <select> opens, date pickers, scrollbars) match it. Without
+   this the dark theme opened a white list with light text: unreadable. */
+:root { color-scheme: dark; }
+:root[data-qh-theme="light"] { color-scheme: light; }
+select option, select optgroup { background-color: var(--qh-surface); color: var(--qh-text); }
+
 :root[data-qh-theme="light"] {
   --qh-bg: #F7F8FA;
   --qh-surface: #ffffff;

@@ -19,6 +19,8 @@ export const translations = {
   en: {
     // ── Shared nav (used across landing + tool pages) ──
     nav_tools: 'Tools',
+    bc_tools: 'All tools',
+    home_cta_tools: 'Browse all tools',
     nav_pricing: 'Pricing',
     nav_about: 'About',
     nav_contact: 'Contact',
@@ -1742,6 +1744,8 @@ export const translations = {
   ar: {
     // ── Shared nav ──
     nav_tools: 'الأدوات',
+    bc_tools: 'كل الأدوات',
+    home_cta_tools: 'تصفّح كل الأدوات',
     nav_pricing: 'الأسعار',
     nav_about: 'عن الموقع',
     nav_contact: 'تواصل معنا',

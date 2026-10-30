@@ -17,6 +17,7 @@ const SITE_URL = SITE.url
 
 const PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }[] = [
   { path: '/', changeFrequency: 'weekly', priority: 1 },
+  { path: '/tools', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/spc', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/pareto', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/dpmo', changeFrequency: 'monthly', priority: 0.8 },

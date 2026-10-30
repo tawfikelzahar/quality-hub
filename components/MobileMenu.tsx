@@ -28,6 +28,7 @@ import { useAuthState } from '@/lib/authState'
 // ─────────────────────────────────────────────────────────────────────────
 
 const SITE_LINKS: { href: string; key: TKey }[] = [
+  { href: '/tools', key: 'bc_tools' },
   { href: '/pricing', key: 'nav_pricing' },
   { href: '/guide', key: 'footer_guide' },
   { href: '/sample-reports', key: 'footer_sample_reports' },

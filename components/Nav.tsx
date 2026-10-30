@@ -12,7 +12,8 @@ import type { TKey } from '@/lib/i18n/translations'
 import { SITE } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
-// Shared top nav — logo + breadcrumb + theme toggle + auth + Get Pro CTA.
+// Shared top nav — logo + breadcrumb + theme toggle + Tools link (→ /tools)
+// + language + auth + Get Pro CTA.
 // Used by every tool page and app page (SPC, Pareto, DPMO, AQL, Gage R&R,
 // Stability, OEE, Descriptive, About, Contact, Pricing, Account, Dashboard)
 // so the nav looks and behaves identically everywhere. Previously each page
@@ -58,6 +59,7 @@ export default function Nav({ theme, setTheme, breadcrumbKey, showGetPro = true 
         >
           {theme === 'dark' ? `☀️ ${t('theme_light')}` : `🌙 ${t('theme_dark')}`}
         </button>
+        <Link href="/tools" className="qh-hide-mobile qh-nav-tools" style={{ fontSize: 14, fontWeight: 600, color: 'var(--qh-muted)', textDecoration: 'none', whiteSpace: 'nowrap' }}>{t('nav_tools')}</Link>
         <LanguageToggle theme={theme} />
         <AuthStatus />
         {showGetPro && (
