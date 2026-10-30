@@ -1,12 +1,12 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment } from 'react'
 import Link from '@/components/LocaleLink'
-import { createClient } from '@/lib/supabase'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
+import { useAuthState } from '@/lib/authState'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Pricing — kept in line with what the code actually gates (Oct 2026):
@@ -78,16 +78,9 @@ export default function PricingPage() {
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
 
-  const [loggedIn, setLoggedIn] = useState(false)
-  const [checkingAuth, setCheckingAuth] = useState(true)
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      setLoggedIn(!!data.user)
-      setCheckingAuth(false)
-    })
-  }, [])
+  // Shared auth read (lib/authState.ts)
+  const { user: authUser, loading: checkingAuth } = useAuthState()
+  const loggedIn = !!authUser
 
   const freeCtaHref = loggedIn ? '/dashboard' : '/login?next=/dashboard'
   

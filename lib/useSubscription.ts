@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { useAuthState, type SubscriptionStatus } from '@/lib/authState'
 
-export type SubscriptionStatus = 'free' | 'pro'
+export type { SubscriptionStatus }
 
 interface UseSubscriptionResult {
   status: SubscriptionStatus
@@ -15,52 +14,10 @@ interface UseSubscriptionResult {
   loading: boolean
 }
 
-// بيقرا حالة الاشتراك بتاعة المستخدم الحالي من جدول profiles.
-// لو مش مسجل دخول، أو الجدول لسه معملوش backfill له لأي سبب، بيرجع 'free'
-// كـ fallback آمن (منطق "افتراضيًا مقفول" أفضل من "افتراضيًا مفتوح").
+// حالة الاشتراك بتاعة المستخدم الحالي. بتتقري مرة واحدة للصفحة كلها من
+// lib/authState.ts (مش لكل مكون لوحده). لو مش مسجل أو مفيش صف في profiles
+// بترجع 'free' (افتراضيًا مقفول). السيرفر هو اللي بيتأكد من Pro فعلًا.
 export function useSubscription(): UseSubscriptionResult {
-  const [status, setStatus] = useState<SubscriptionStatus>('free')
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const supabase = createClient()
-    let active = true
-
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        if (active) {
-          setStatus('free')
-          setIsLoggedIn(false)
-          setLoading(false)
-        }
-        return
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('subscription_status')
-        .eq('id', user.id)
-        .single()
-
-      if (active) {
-        const value = (data?.subscription_status as SubscriptionStatus | undefined) ?? 'free'
-        setStatus(error ? 'free' : value)
-        setIsLoggedIn(true)
-        setLoading(false)
-      }
-    }
-
-    load()
-
-    const { data: listener } = supabase.auth.onAuthStateChange(() => load())
-    return () => {
-      active = false
-      listener.subscription.unsubscribe()
-    }
-  }, [])
-
-  return { status, isPro: status === 'pro', isLoggedIn, loading }
+  const { status, user, loading } = useAuthState()
+  return { status, isPro: status === 'pro', isLoggedIn: !!user, loading }
 }

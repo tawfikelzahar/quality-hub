@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase'
 import { imageToDataUrl, setReportBranding, type ReportBranding } from '@/lib/reportBranding'
+import { authStateReady } from '@/lib/authState'
 
 export const LOGO_BUCKET = 'company-logos'
 
@@ -47,10 +48,9 @@ export async function brandingFromRow(row: BrandingRow | null): Promise<ReportBr
 export async function refreshReportBranding(): Promise<void> {
   try {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setReportBranding(null); return }
-    const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single()
-    if (profile?.subscription_status !== 'pro') { setReportBranding(null); return }
+    // Who and which plan: the shared read (lib/authState.ts), no extra requests
+    const { user, status } = await authStateReady()
+    if (!user || status !== 'pro') { setReportBranding(null); return }
     const { data: row } = await supabase
       .from('report_branding')
       .select('*')

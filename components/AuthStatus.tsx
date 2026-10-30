@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from '@/components/LocaleLink'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/lib/i18n/context'
 import { useSubscription } from '@/lib/useSubscription'
+import { useAuthState } from '@/lib/authState'
 import { hereLocalized } from '@/lib/i18n/routing'
 
 interface AuthDisplay {
@@ -38,25 +38,11 @@ function buildDisplay(user: {
 }
 
 export default function AuthStatus() {
-  const [user, setUser] = useState<AuthDisplay | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Shared with every other component on the page (lib/authState.ts): one read per page load
+  const { user: authUser, loading } = useAuthState()
+  const user: AuthDisplay | null = authUser ? buildDisplay(authUser) : null
   const { t } = useLanguage()
   const { isPro, loading: planLoading } = useSubscription()
-
-  useEffect(() => {
-    const supabase = createClient()
-
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ? buildDisplay(data.user) : null)
-      setLoading(false)
-    })
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? buildDisplay(session.user) : null)
-    })
-
-    return () => listener.subscription.unsubscribe()
-  }, [])
 
   async function handleSignOut() {
     const supabase = createClient()

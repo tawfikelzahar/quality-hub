@@ -12,6 +12,7 @@ import { TOOL_GROUPS } from '@/lib/tools'
 import type { ThemeMode } from '@/lib/theme'
 import type { TKey } from '@/lib/i18n/translations'
 import { hereLocalized } from '@/lib/i18n/routing'
+import { useAuthState } from '@/lib/authState'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Phone / tablet menu: a ☰ button in the top nav that opens a drawer with
@@ -48,7 +49,6 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [mounted, setMounted] = useState(false)
-  const [signedIn, setSignedIn] = useState<{ name: string } | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
@@ -71,21 +71,15 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
     }
   }, [open])
 
-  // Who is signed in, read when the menu opens (the nav shows only the avatar
-  // on phones, so the name and Sign Out sit here).
-  useEffect(() => {
-    if (!open) return
-    let alive = true
-    createClient().auth.getUser().then(({ data }) => {
-      if (!alive) return
-      const u = data.user
-      if (!u) { setSignedIn(null); return }
-      const m = (u.user_metadata ?? {}) as Record<string, unknown>
-      const name = (m.full_name as string) || (m.name as string) || [m.first_name, m.last_name].filter(Boolean).join(' ').trim() || u.email || ''
-      setSignedIn({ name })
-    }).catch(() => {})
-    return () => { alive = false }
-  }, [open])
+  // Who is signed in (the nav shows only the avatar on phones, so the name and
+  // Sign Out sit here). Shared state, no extra request (lib/authState.ts).
+  const { user: authUser } = useAuthState()
+  const signedIn = useMemo(() => {
+    if (!authUser) return null
+    const m = (authUser.user_metadata ?? {}) as Record<string, unknown>
+    const name = (m.full_name as string) || (m.name as string) || [m.first_name, m.last_name].filter(Boolean).join(' ').trim() || authUser.email || ''
+    return { name }
+  }, [authUser])
 
   async function signOut() {
     await createClient().auth.signOut()
