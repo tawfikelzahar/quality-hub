@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import ToolSidebar from '@/components/ToolSidebar'
@@ -108,7 +108,8 @@ function useAqlPlans(requests: AqlStageRequest[]) {
   return { stages: shown?.stages ?? null, pending: current === null, failed: current?.why ?? null }
 }
 
-export default function AQLCalculator() {
+/** guide: the server-rendered “About” section (components/tool/ToolGuide.tsx) */
+export default function AQLCalculator({ guide }: { guide?: ReactNode } = {}) {
   const { isPro, isLoggedIn } = useSubscription()
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -666,6 +667,7 @@ export default function AQLCalculator() {
               </>
             )}
           </section>
+          {guide}
         </div>
       </div>
 

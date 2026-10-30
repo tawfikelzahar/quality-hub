@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import 'chart.js/auto'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
@@ -322,7 +322,8 @@ function attributeRowsFromGrid(grid: string[][], attrType: AttrType): AttrRow[] 
   return rows
 }
 
-export default function SPCEngine() {
+/** guide: the server-rendered “About SPC Engine” section (components/tool/ToolGuide.tsx) */
+export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
   const c = COLORS[theme]
@@ -2167,6 +2168,7 @@ export default function SPCEngine() {
           </section>
             </div>
           </div>
+          {guide}
         </div>
       </div>
 

@@ -5,6 +5,8 @@ import { LanguageProvider } from "@/lib/i18n/context";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import ReportBrandingLoader from "@/components/ReportBrandingLoader";
 import Analytics from "@/components/Analytics";
+import JsonLd from "@/components/JsonLd";
+import { siteSchema } from "@/lib/seo/schema";
 import { notFound } from 'next/navigation'
 import { SITE, SITE_TITLE } from '@/lib/site'
 import { LOCALES, isLocale } from '@/lib/i18n/routing'
@@ -121,6 +123,8 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         {/* Google Analytics (GA4): live site only, see lib/analytics.ts */}
         <Analytics />
+        {/* Organization + WebSite structured data (lib/seo/schema.ts) */}
+        <JsonLd data={siteSchema(lang, lang === 'ar' ? DESCRIPTION.ar : DESCRIPTION.en)} />
         <ServiceWorkerRegister />
         <ReportBrandingLoader />
         <LanguageProvider lang={lang}>{children}</LanguageProvider>
