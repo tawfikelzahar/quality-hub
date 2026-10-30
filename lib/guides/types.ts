@@ -7,7 +7,11 @@
 //   • Every number in an example comes from the site's own calculation on
 //     the tool's "Try an example" data (or a golden dataset), never typed
 //     from memory. Note in the file which test or script it was checked with.
-//   • Formulas and rules match the code that runs on the server.
+//   • Owner's decision (30 Oct 2026): no formulas, constants, internal rules
+//     or full reference tables (e.g. the ICMSF case table) on the page. Say
+//     WHAT the tool does and WHICH standard it follows in plain words, show
+//     the example's results only (no hand-check steps), and cite the sources.
+//     Anything that would let a visitor skip the tool stays out.
 //   • References by name (AIAG, ISO, Montgomery…). The specialised software
 //     the results are compared with is never named.
 //   • Technical terms stay in English in the Arabic text.

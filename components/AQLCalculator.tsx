@@ -103,8 +103,13 @@ function useAqlPlans(requests: AqlStageRequest[]) {
     return () => { clearTimeout(timer); ctrl.abort() }
   }, [key])
   const current = reply && reply.key === key ? reply : null
-  // keep showing the last reply while a new one is on its way, so the numbers don't flicker
-  const shown = current ?? (reply?.stages && reply.stages.length === requests.length ? reply : null)
+  // Keep showing the last reply while a new one is on its way, so the numbers
+  // don't flicker — but only while it still has the same stages and the same
+  // number of defect classes in each. After a class is added or removed the
+  // old reply no longer lines up with the rows on screen (that crashed the page).
+  const sameShape = (old: AqlStageResult[]) =>
+    old.length === requests.length && old.every((s, i) => s.error || s.classes.length === requests[i].classes.length)
+  const shown = current ?? (reply?.stages && sameShape(reply.stages) ? reply : null)
   return { stages: shown?.stages ?? null, pending: current === null, failed: current?.why ?? null }
 }
 
