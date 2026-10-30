@@ -41,7 +41,8 @@ const MAX_BATCHES = 20
 const MAX_MONTHS = 60
 /** charts in the PDF: full width, a little shorter than on screen */
 const PDF_CHART = { width: 900, height: 240 }
-const SOURCE_LINE = 'Source: ICH Q1E (2003) — regression and confidence bound, poolability at α = 0.25, extrapolation limits in 2.4–2.5 · storage conditions and significant change: ICH Q1A(R2).'
+// Reference only: no internal methods in reports (owner's decision, 30 Oct 2026)
+const SOURCE_LINE = 'Source: ICH Q1E, Evaluation for Stability Data · ICH Q1A(R2) for storage conditions and significant change.'
 // categorical, avoids the verdict colours (green/amber/red)
 const BATCH_COLORS = ['#5B8FD9', '#9A7FE0', '#2BA39A', '#D9659A', '#7A8BA6', '#5FB0D9']
 

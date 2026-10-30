@@ -18,7 +18,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import { createReport as createPdfReport, addChartImage, addChartImagePair, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addChartImage, addChartImageGrid, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue, formatPEquals } from '@/lib/stats/format'
 import type { RegressionFit, RegressionError } from '@/lib/regression/model'
 
@@ -38,22 +38,27 @@ const ltr = (v: string) => `⁦${v}⁩`
 const csvCell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
 const MAX_X = 10
 const MAX_COLS = 12
-const SOURCE_LINE = 'Source: Montgomery, Peck & Vining, Introduction to Linear Regression Analysis — OLS by QR, exact t and F tests, adjusted SS per predictor; unusual observations |std resid| > 2 or leverage > min(3p/n, 0.99); residual normality: Anderson-Darling. Verified on the NIST StRD certified datasets.'
+// Reference only: no internal methods in reports (owner's decision, 30 Oct 2026)
+const SOURCE_LINE = 'Source: Montgomery, Peck & Vining, Introduction to Linear Regression Analysis · verified on the NIST StRD certified datasets.'
 // categorical, away from the verdict colours
 const BAND = '#5B8FD9'
 
 interface Grid { names: string[]; rows: string[][] }
 interface Inputs extends Grid { y: string; xs: string[]; predict: Record<string, string> }
 
+// "Try an example" data. Chosen so the example shows a clean, healthy fit
+// (normal residuals, no unusual observations, enough rows per predictor):
+// it is the first look at the tool and the sample report. Numbers checked
+// with SciPy / NumPy (see lib/guides/models.ts).
 const EXAMPLES: Record<RegressionMode, Inputs> = {
   simple: {
     names: ['Temperature', 'Strength'],
-    rows: [['120', '48.2'], ['125', '49.5'], ['130', '50.1'], ['135', '52.0'], ['140', '53.4'], ['145', '54.1'], ['150', '55.8'], ['155', '57.0'], ['160', '58.2'], ['165', '59.6'], ['170', '60.9']],
+    rows: [['120', '47.1'], ['125', '49.0'], ['130', '50.5'], ['135', '52.4'], ['140', '53.4'], ['145', '54.0'], ['150', '56.0'], ['155', '56.6'], ['160', '59.0'], ['165', '59.7'], ['170', '61.2']],
     y: 'Strength', xs: ['Temperature'], predict: { Temperature: '158' },
   },
   multiple: {
     names: ['Speed', 'Hardness', 'SurfaceFinish'],
-    rows: [['800', '20', '3.1'], ['900', '45', '2.4'], ['1000', '25', '2.6'], ['1100', '50', '1.9'], ['1200', '30', '2.1'], ['1300', '55', '1.5'], ['1400', '35', '1.7'], ['1500', '60', '1.1'], ['1600', '40', '1.3'], ['1700', '65', '0.8'], ['1800', '45', '1.0']],
+    rows: [['800', '22', '2.98'], ['850', '48', '2.37'], ['900', '35', '2.47'], ['950', '60', '2.00'], ['1000', '28', '2.46'], ['1050', '52', '2.11'], ['1100', '40', '2.13'], ['1150', '64', '1.69'], ['1200', '25', '2.33'], ['1250', '45', '1.68'], ['1300', '33', '1.91'], ['1350', '58', '1.32'], ['1400', '30', '1.89'], ['1450', '50', '1.39'], ['1500', '38', '1.53'], ['1550', '62', '1.13'], ['1600', '27', '1.66'], ['1650', '47', '1.19'], ['1700', '36', '1.33'], ['1750', '55', '0.80']],
     y: 'SurfaceFinish', xs: ['Speed', 'Hardness'], predict: { Speed: '1250', Hardness: '40' },
   },
 }
@@ -466,6 +471,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
     const ctx = createPdfReport(multi ? 'Multiple Linear Regression' : 'Simple Linear Regression', tool)
     calloutBox(ctx, `${modelHead(EN, res)}. ${modelSub(EN, res)}`, modelSig(res) ? 'good' : 'warn')
     calloutBox(ctx, `Regression equation: ${eqText(res)}`, 'info')
+    if (res.prediction) calloutBox(ctx, predLine(res), res.prediction.beyondData ? 'warn' : 'info')
     if (mainRef.current) addChartImage(ctx, mainRef.current, res.band ? 'Fitted Line Plot' : 'Actual vs Fitted', { width: 900, height: 300 }, res.band ? `Line: fit · shaded: 95% confidence interval · dashed: 95% prediction interval · ${summaryLine(res)}` : summaryLine(res))
     const w = ctx.pageWidth - ctx.margin * 2
     const cw = (w - 120) / (multi ? 5 : 4)
@@ -479,10 +485,16 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
       { header: 'SOURCE', width: 120 }, { header: 'DF', width: aw, align: 'right' }, { header: 'ADJ SS', width: aw, align: 'right' },
       { header: 'ADJ MS', width: aw, align: 'right' }, { header: 'F', width: aw, align: 'right' }, { header: 'P', width: aw, align: 'right' },
     ], anovaCells(res))
-    checkLines(EN, res).forEach(l => calloutBox(ctx, l.text, l.warn ? 'warn' : 'info'))
-    if (res.prediction) calloutBox(ctx, predLine(res), res.prediction.beyondData ? 'warn' : 'info')
-    if (normRef.current && fitsRef.current) addChartImagePair(ctx, 'Residual Plots', { chart: normRef.current, title: 'Normal Probability Plot' }, { chart: fitsRef.current, title: 'Versus Fits' })
-    if (histRef.current && orderRef.current) addChartImagePair(ctx, '', { chart: histRef.current, title: 'Histogram' }, { chart: orderRef.current, title: 'Versus Order' })
+    // the residual checks in one box: warning tone when any check fails
+    const checks = checkLines(EN, res)
+    if (checks.length) calloutBox(ctx, checks.map(l => `${l.warn ? '!' : '•'}  ${l.text}`).join('\n'), checks.some(l => l.warn) ? 'warn' : 'info')
+    // the four residual plots together on one page (2 × 2)
+    addChartImageGrid(ctx, 'Residual Plots', [
+      { chart: normRef.current, title: 'Normal Probability Plot' },
+      { chart: fitsRef.current, title: 'Versus Fits' },
+      { chart: histRef.current, title: 'Histogram' },
+      { chart: orderRef.current, title: 'Versus Order' },
+    ])
     const flagged = res.residuals.filter(r => r.flags.length)
     if (flagged.length) {
       const fw = (w - 60) / 5

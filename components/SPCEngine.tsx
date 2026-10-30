@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import 'chart.js/auto'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
-import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled, withPrintColors } from '@/lib/watermarkHelpers'
 
 // Registered once at module load. Safe to call multiple times (Chart.js
 // no-ops on a duplicate id), but this keeps it to a single call site.
@@ -890,7 +890,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
       downloadChartImage(attrChartRef.current, 'spc-attribute-chart.png'),
     ].some(Boolean)
     // Free accounts get the watermarked canvas; Pro accounts get clean images.
-    Promise.resolve(isPro ? withAllWatermarksDisabled(run) : run()).then(exportedAny => {
+    Promise.resolve(isPro ? withAllWatermarksDisabled(run) : withPrintColors([iChartRef.current, rChartRef.current, distChartRef.current, ecdfChartRef.current, attrChartRef.current], run)).then(exportedAny => {
       if (!exportedAny) setErrorMsg(t('spc_err_no_charts'))
     })
   }

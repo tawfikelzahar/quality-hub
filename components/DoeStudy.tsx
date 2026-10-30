@@ -39,7 +39,8 @@ const csvCell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
 
 /** chart sizes in the PDF */
 const PDF_WIDE = { width: 900, height: 250 }
-const SOURCE_LINE = 'Source: Montgomery, Design and Analysis of Experiments, Ch. 6 — full model, pure error from replicates (exact t and F, α = 0.05); one replicate: Lenth (1989) PSE and ME = t(0.975, m/3) × PSE.'
+// Reference only: no internal methods in reports (owner's decision, 30 Oct 2026)
+const SOURCE_LINE = 'Source: Montgomery, Design and Analysis of Experiments, Chapter 6 · Lenth (1989) for unreplicated designs.'
 // categorical, away from the verdict colours
 const LINE_A = '#5B8FD9'
 const LINE_B = '#D9659A'
@@ -254,7 +255,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     datasets: [{
       data: pareto.map(x => x.paretoValue),
       backgroundColor: pareto.map(x => (x.significant ? c.data : tint(c.muted, 45))),
-      borderRadius: 3, barThickness: 16,
+      borderRadius: 3, maxBarThickness: 16, barPercentage: 0.75, categoryPercentage: 0.9,
     }],
   } : null
   const paretoOptions = {
@@ -266,7 +267,8 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     },
     scales: {
       x: { beginAtZero: true, suggestedMax: res ? res.paretoLine * 1.1 : undefined, grid: { color: c.grid }, border: { color: c.border }, ticks: { color: c.muted, font: { size: 10 } }, title: { display: true, text: paretoAxis(translations[lang]), color: c.muted, font: { size: 11 } } },
-      y: { grid: { display: false }, border: { color: c.border }, ticks: { color: c.text, font: { size: 12, family: 'ui-monospace, Menlo, monospace' } } },
+      // every term labelled (no auto-skip); a main effect also shows its factor name
+      y: { grid: { display: false }, border: { color: c.border }, ticks: { color: c.text, autoSkip: false, font: { size: 11 }, callback: (_v: string | number, i: number) => { const term = pareto[i]?.term ?? ''; return term.length === 1 ? `${term}  ${fName(LETTERS.indexOf(term as typeof LETTERS[number]))}` : term } } },
     },
   }
   const paretoH = Math.max(200, pareto.length * 24 + 60)
@@ -283,15 +285,17 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     afterDraw(chart) {
       if (!res) return
       const ctx = chart.ctx
+      // colours from the plugin's options, so exports can switch them to print colours
+      const o = (chart.options.plugins as { dxPanels?: { color?: string; line?: string } } | undefined)?.dxPanels
       ctx.save()
-      ctx.fillStyle = c.text
+      ctx.fillStyle = o?.color ?? c.text
       ctx.font = '600 11px system-ui, sans-serif'
       ctx.textAlign = 'center'
       res.mainEffects.forEach(m => {
         const x = chart.scales.x.getPixelForValue(m.idx * 3 + 0.5)
-        ctx.fillText(LETTERS[m.idx], x, chart.chartArea.top - 6)
+        ctx.fillText(`${LETTERS[m.idx]}: ${fName(m.idx)}`, x, chart.chartArea.top - 6)
       })
-      ctx.strokeStyle = c.border
+      ctx.strokeStyle = o?.line ?? c.border
       for (let i = 1; i < res.k; i++) {
         const x = chart.scales.x.getPixelForValue(i * 3 - 1)
         ctx.beginPath(); ctx.moveTo(x, chart.chartArea.top); ctx.lineTo(x, chart.chartArea.bottom); ctx.stroke()
@@ -318,7 +322,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     responsive: true, maintainAspectRatio: false, animation: false as const, devicePixelRatio: 2,
     layout: { padding: { top: 18, ...watermarkLayout().padding } },
     plugins: {
-      legend: { display: false }, watermark: watermarkOptions('light'),
+      legend: { display: false }, watermark: watermarkOptions('light'), dxPanels: { color: c.text, line: c.border },
       tooltip: { filter: (item: { datasetIndex: number }) => !!res && item.datasetIndex < res.k, callbacks: { label: (item: { dataset: { label?: string }; parsed: { x: number | null; y: number | null } }) => `${item.dataset.label} = ${levelText(item.parsed.x ?? 0)}: ${g4(item.parsed.y ?? 0)}` } },
     },
     scales: {

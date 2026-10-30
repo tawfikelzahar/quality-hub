@@ -2,13 +2,15 @@ import type { ToolGuide } from './types'
 
 // Simple regression example = the page's "Try an example" (Temperature →
 // Strength, 11 rows, predict at 158) through lib/regression/model.ts,
-// re-checked with scipy.stats.linregress: Strength = 17.369 + 0.25564 ×
-// Temperature · R² 99.72 % · R²pred 99.59 % · p slope 9.1e-13 · fit at 158 =
-// 57.760 · 95 % PI 57.180 – 58.339.
+// re-checked with scipy.stats.linregress: Strength = 14.953 + 0.27236 ×
+// Temperature · R² 99.18 % · R²pred 98.80 % · p slope 1.1e-10 · residual
+// AD p 0.889 · no unusual observations · fit at 158 = 57.986 · 95 % PI
+// 56.935 – 59.038.
 // Multiple regression example = the page's example (Speed, Hardness →
-// SurfaceFinish, 11 rows, predict at 1250 / 40), re-checked with numpy:
-// coefficients −0.0015987 / −0.018963 · R² 99.25 % · R²pred 98.38 % ·
-// p 5.0e-8 / 8.3e-6 · VIF 1.50 · fit 1.904 · 95 % PI 1.735 – 2.074.
+// SurfaceFinish, 20 rows, predict at 1250 / 40), re-checked with numpy:
+// 4.5643 − 0.0015337 Speed − 0.018489 Hardness · R² 98.53 % · R²pred
+// 98.03 % · p 1.2e-15 / 3.1e-11 · VIF 1.02 · AD p 0.968 · no unusual
+// observations · fit 1.908 · 95 % PI 1.756 – 2.059.
 // DOE example = Montgomery Example 6.1 (plasma etch, 2³, 2 replicates),
 // asserted by tests/golden/doe/check.mts: effects C 306.125 · AC −153.625 ·
 // A −101.625 · p C 1.2e-6 · AC 1.9e-4 · A 0.0027 · B, AB, BC, ABC ≥ 0.33 ·
@@ -40,12 +42,12 @@ export const REGRESSION_GUIDE: ToolGuide = {
           { p: 'The data behind “Try an example”: tensile strength measured at 11 temperatures from 120 to 170.' },
           { table: [
             ['Result', 'Value'],
-            ['Equation', 'Strength = 17.369 + 0.25564 × Temperature'],
+            ['Equation', 'Strength = 14.953 + 0.27236 × Temperature'],
             ['p-value of the slope', '< 0.001'],
-            ['R² · R²(pred)', '99.72% · 99.59%'],
-            ['Prediction at 158', '57.76 · 95% PI 57.18 to 58.34'],
+            ['R² · R²(pred)', '99.18% · 98.80%'],
+            ['Prediction at 158', '57.99 · 95% PI 56.93 to 59.04'],
           ] },
-          { p: 'Each extra degree adds about 0.256 to the strength, and the line predicts new points almost as well as it fits these ones. A single new part made at 158 should measure between 57.18 and 58.34 in 95% of cases.' },
+          { p: 'Each extra degree adds about 0.27 to the strength, the residuals pass the checks, and the line predicts new points almost as well as it fits these ones. A single new part made at 158 should measure between 56.93 and 59.04 in 95% of cases.' },
         ],
       },
     ],
@@ -68,12 +70,12 @@ export const REGRESSION_GUIDE: ToolGuide = {
           { p: 'هذه بيانات زر «جرّب مثالًا»: متانة الشد مقيسة عند 11 درجة حرارة من 120 إلى 170.' },
           { table: [
             ['النتيجة', 'القيمة'],
-            ['المعادلة', 'Strength = 17.369 + 0.25564 × Temperature'],
+            ['المعادلة', 'Strength = 14.953 + 0.27236 × Temperature'],
             ['قيمة p للميل', '< 0.001'],
-            ['R² · R²(pred)', '99.72% · 99.59%'],
-            ['التنبؤ عند 158', '57.76 · فترة تنبؤ 95% من 57.18 إلى 58.34'],
+            ['R² · R²(pred)', '99.18% · 98.80%'],
+            ['التنبؤ عند 158', '57.99 · فترة تنبؤ 95% من 56.93 إلى 59.04'],
           ] },
-          { p: 'كل درجة إضافية تزيد المتانة بنحو 0.256، ويتنبأ الخط بالنقاط الجديدة بدقة تقارب دقة توفيقه لهذه النقاط. والقطعة الجديدة المنتجة عند 158 يُتوقع أن تكون بين 57.18 و58.34 في 95% من الحالات.' },
+          { p: 'كل درجة إضافية تزيد المتانة بنحو 0.27، والبواقي تجتاز الفحوص، ويتنبأ الخط بالنقاط الجديدة بدقة تقارب دقة توفيقه لهذه النقاط. والقطعة الجديدة المنتجة عند 158 يُتوقع أن تكون بين 56.93 و59.04 في 95% من الحالات.' },
         ],
       },
     ],
@@ -95,15 +97,15 @@ export const MULTIREGRESSION_GUIDE: ToolGuide = {
       {
         h: 'Worked example',
         blocks: [
-          { p: 'The data behind “Try an example”: surface roughness from 11 runs at different cutting speeds and material hardness.' },
+          { p: 'The data behind “Try an example”: surface roughness from 20 runs at different cutting speeds and material hardness.' },
           { table: [
             ['Result', 'Value'],
-            ['Speed', 'coefficient −0.0015987 · p < 0.001'],
-            ['Hardness', 'coefficient −0.018963 · p < 0.001'],
-            ['R² · R²(pred)', '99.25% · 98.38%'],
-            ['Prediction at Speed 1250, Hardness 40', '1.904 · 95% PI 1.735 to 2.074'],
+            ['Speed', 'coefficient −0.0015337 · p < 0.001'],
+            ['Hardness', 'coefficient −0.018489 · p < 0.001'],
+            ['R² · R²(pred)', '98.53% · 98.03%'],
+            ['Prediction at Speed 1250, Hardness 40', '1.908 · 95% PI 1.756 to 2.059'],
           ] },
-          { p: 'Both inputs matter: each extra 100 in speed lowers the roughness by about 0.16, and each extra unit of hardness by about 0.019, with the other held constant. The two inputs overlap only a little, so their separate effects can be trusted.' },
+          { p: 'Both inputs matter: each extra 100 in speed lowers the roughness by about 0.15, and each extra unit of hardness by about 0.018, with the other held constant. The two inputs barely overlap, so their separate effects can be trusted.' },
         ],
       },
     ],
@@ -122,15 +124,15 @@ export const MULTIREGRESSION_GUIDE: ToolGuide = {
       {
         h: 'مثال محلول',
         blocks: [
-          { p: 'هذه بيانات زر «جرّب مثالًا»: خشونة السطح من 11 تشغيلة بسرعات قطع وصلادة خامة مختلفة.' },
+          { p: 'هذه بيانات زر «جرّب مثالًا»: خشونة السطح من 20 تشغيلة بسرعات قطع وصلادة خامة مختلفة.' },
           { table: [
             ['النتيجة', 'القيمة'],
-            ['Speed', 'المعامل −0.0015987 · p < 0.001'],
-            ['Hardness', 'المعامل −0.018963 · p < 0.001'],
-            ['R² · R²(pred)', '99.25% · 98.38%'],
-            ['التنبؤ عند Speed 1250 وHardness 40', '1.904 · فترة تنبؤ 95% من 1.735 إلى 2.074'],
+            ['Speed', 'المعامل −0.0015337 · p < 0.001'],
+            ['Hardness', 'المعامل −0.018489 · p < 0.001'],
+            ['R² · R²(pred)', '98.53% · 98.03%'],
+            ['التنبؤ عند Speed 1250 وHardness 40', '1.908 · فترة تنبؤ 95% من 1.756 إلى 2.059'],
           ] },
-          { p: 'المدخلان مؤثران: كل زيادة 100 في السرعة تخفض الخشونة بنحو 0.16، وكل وحدة صلادة إضافية تخفضها بنحو 0.019، مع تثبيت الآخر. وتداخل المدخلين قليل، لذلك يمكن الوثوق بأثر كل منهما.' },
+          { p: 'المدخلان مؤثران: كل زيادة 100 في السرعة تخفض الخشونة بنحو 0.15، وكل وحدة صلادة إضافية تخفضها بنحو 0.018، مع تثبيت الآخر. وتداخل المدخلين ضئيل، لذلك يمكن الوثوق بأثر كل منهما.' },
         ],
       },
     ],

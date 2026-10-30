@@ -16,6 +16,7 @@
 
 import { Chart as ChartJSCore } from 'chart.js'
 import { watermarkPlugin, WATERMARK_STRIP_HEIGHT, type WatermarkDensity } from '@/lib/watermarkPlugin'
+import { COLORS } from '@/lib/theme'
 
 ChartJSCore.register(watermarkPlugin)
 
@@ -58,11 +59,91 @@ const EXPORT_MIN_HEIGHT = 200
 /** Export pixel ratio, so a low-DPI laptop produces the same crisp images as a retina screen. */
 const EXPORT_PIXEL_RATIO = 2
 
+// ── Print colours ───────────────────────────────────────────────────────
+// Reports, Excel sheets and PNGs are white paper. Charts on screen use the
+// site theme, so an export made in the dark theme came out with light grey /
+// white labels on white (unreadable axis names, legends and panel titles).
+// While an export reads the canvases, every colour of the dark palette found
+// in the charts' options and datasets is swapped for its light-theme
+// counterpart, then restored. Plugins that draw their own text read their
+// colours from their options (options.plugins.<id>.color) so they follow too.
+
+const DARK_TO_LIGHT: [string, string][] = (Object.keys(COLORS.dark) as (keyof typeof COLORS.dark)[])
+  .map(k => [COLORS.dark[k], COLORS.light[k]] as [string, string])
+  .filter(([d, l]) => d.toLowerCase() !== l.toLowerCase())
+  // longest first, so 'rgba(…)' and 8-digit hex variants are handled before shorter matches
+  .sort((a, b) => b[0].length - a[0].length)
+
+function toPrint(value: string): string {
+  let out = value
+  for (const [dark, light] of DARK_TO_LIGHT) {
+    if (out.toLowerCase().includes(dark.toLowerCase())) {
+      out = out.replace(new RegExp(dark.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), light)
+    }
+  }
+  return out
+}
+
+type Swap = { obj: Record<string, unknown> | unknown[]; key: string | number; old: unknown }
+
+function swapColours(root: unknown, swaps: Swap[], seen: Set<unknown>) {
+  if (!root || typeof root !== 'object' || seen.has(root)) return
+  seen.add(root)
+  // Never walk into live chart objects, DOM nodes or typed arrays
+  if (root instanceof ChartJSCore || (typeof Node !== 'undefined' && root instanceof Node) || ArrayBuffer.isView(root)) return
+  const entries: [string | number, unknown][] = Array.isArray(root) ? root.map((v, i) => [i, v]) : Object.entries(root as Record<string, unknown>)
+  for (const [key, val] of entries) {
+    if (key === 'data' && Array.isArray(val) && val.every(v => typeof v === 'number' || (v && typeof v === 'object' && 'x' in v))) continue // plotted points
+    if (typeof val === 'string') {
+      const next = toPrint(val)
+      if (next !== val) {
+        swaps.push({ obj: root as Record<string, unknown>, key, old: val })
+        ;(root as Record<string | number, unknown>)[key] = next
+      }
+    } else if (val && typeof val === 'object') {
+      swapColours(val, swaps, seen)
+    }
+  }
+}
+
+function siteIsDark(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.documentElement.dataset.qhTheme !== 'light'
+}
+
+/**
+ * Runs `fn` with every chart drawn in light-theme colours (only needed when
+ * the site is in the dark theme), then restores them — even if `fn` throws.
+ * withWatermarksDisabled() already does this; call it directly only for an
+ * export that keeps the watermark (free PNG) or does not use that helper.
+ */
+export async function withPrintColors<T>(charts: Array<AnyChart | null | undefined>, fn: () => T | Promise<T>): Promise<T> {
+  const all = charts.filter((chart): chart is AnyChart => Boolean(chart))
+  if (!siteIsDark() || all.length === 0) return await fn()
+  const swaps: Swap[] = []
+  const seen = new Set<unknown>()
+  all.forEach(chart => {
+    swapColours(chart.config.options, swaps, seen)
+    swapColours(chart.config.data, swaps, seen)
+    chart.update('none')
+  })
+  try {
+    return await fn()
+  } finally {
+    for (let i = swaps.length - 1; i >= 0; i--) {
+      const s = swaps[i]
+      ;(s.obj as Record<string | number, unknown>)[s.key] = s.old
+    }
+    all.forEach(chart => chart.update('none'))
+  }
+}
+
 /**
  * Prepares charts for a Pro export, runs `fn` (which reads each canvas via
  * toBase64Image()), then restores everything — even if `fn` throws:
  *   1. watermark off and its bottom strip padding removed (watermarked charts),
- *   2. every chart redrawn at EXPORT_CHART_WIDTH × 75% of its current height, at 2× pixel ratio.
+ *   2. every chart redrawn at EXPORT_CHART_WIDTH × 75% of its current height, at 2× pixel ratio,
+ *   3. light-theme colours (withPrintColors), whatever theme the site is in.
  * `update('none')` / `resize()` skip animation, so the swap is synchronous.
  * Null refs (unmounted charts) are skipped.
  *
@@ -109,7 +190,8 @@ export async function withWatermarksDisabled<T>(
   })
 
   try {
-    return await fn()
+    // light-theme colours too, so labels are readable on white paper
+    return await withPrintColors(all, fn)
   } finally {
     watermarkStates.forEach((enabled, wm) => { wm.enabled = enabled })
     paddingStates.forEach((bottom, padding) => { padding.bottom = bottom })

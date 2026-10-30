@@ -12,7 +12,7 @@ import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, useCompactSave, 
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
-import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
+import { watermarkOptions, watermarkLayout, withWatermarksDisabled, withPrintColors } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { calcOEE, classify, validate, lossTime, type OEEInputs, type OEEResult, type OEELossTime, type Classification } from '@/lib/oee/calc'
@@ -181,7 +181,7 @@ export default function OEECalculator({ guide }: { guide?: React.ReactNode } = {
   // on the live view for everyone) is switched off just for that call.
   const exportExcel = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportExcel) : runExportExcel())
   const exportPDF = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPDF) : runExportPDF())
-  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : runExportPNG())
+  const exportPNG = () => (isPro ? withWatermarksDisabled([chartRef.current], runExportPNG) : withPrintColors([chartRef.current], runExportPNG))
 
   // ── Where the time went: one stacked bar, minutes ────────────────────────
   const timeData = {

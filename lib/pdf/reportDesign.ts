@@ -196,13 +196,15 @@ const PDF_SYMBOL_MAP: Array<[RegExp, string]> = [
 export function sanitizePdfText(input: string): string {
   let s = input
   for (const [pattern, replacement] of PDF_SYMBOL_MAP) s = s.replace(pattern, replacement)
-  // Strip any remaining combining diacritical marks (e.g. leftover accents).
+  // Compose letters with their accents first (Å, é, ü, ñ: the embedded Arimo
+  // font has them, so unit names like Å/min and people's names stay intact),
+  // then strip any combining mark that has no composed form.
   // Note: we deliberately do NOT strip everything outside \x00-\xFF here —
   // jsPDF's WinAnsi mapping already handles common punctuation like em/en
   // dashes (—/–), curly quotes, and the middle dot (·) correctly even
   // though their code points are above U+00FF. Only the specific symbols
   // above (Greek letters, math comparison operators) lack a glyph.
-  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  s = s.normalize('NFC').replace(/[\u0300-\u036f]/g, '')
   return s
 }
 
@@ -697,7 +699,8 @@ export function dataTable(ctx: ReportContext, title: string, columns: DataTableC
   setDraw(pdf, REPORT_COLORS.border)
   pdf.setLineWidth(0.5)
   pdf.rect(margin, segmentTop, totalWidth, ctx.y - segmentTop, 'S')
-  ctx.y += 16
+  // room before the next section heading (its text sits above ctx.y)
+  ctx.y += 24
 }
 
 // ── Capability gauge ────────────────────────────────────────────────────
@@ -1029,6 +1032,45 @@ export function addChartImagePair(
     ctx.y += h + 22
   })
   ctx.y += 12
+}
+
+/**
+ * Four small related charts (e.g. the residual plots) in a 2 × 2 grid under
+ * one heading, on one page. Each is drawn at a small canvas size first, so
+ * its labels stay readable (~6.5 pt) at half the page width.
+ */
+export function addChartImageGrid(
+  ctx: ReportContext,
+  sectionTitle: string,
+  items: { chart: EmbeddableChart | null; title: string }[],
+  size: ChartRenderSize = { width: 420, height: 270 },
+) {
+  const shots = items
+    .filter((i): i is { chart: EmbeddableChart; title: string } => !!i.chart)
+    .map(i => ({ ...i, snap: chartSnapshot(i.chart, size) }))
+  if (shots.length === 0) return
+  const { margin, pageWidth, pdf } = ctx
+  const gap = 16
+  const cellW = (pageWidth - margin * 2 - gap) / 2
+  const cellH = (s0: { snap: { ratio: number } }) => s0.snap.ratio * cellW
+  const rowH = (row: typeof shots) => Math.max(...row.map(cellH)) + 22
+  const rows: (typeof shots)[] = []
+  for (let i = 0; i < shots.length; i += 2) rows.push(shots.slice(i, i + 2))
+  // keep the whole grid on one page when it fits
+  sectionHeading(ctx, sectionTitle, rows.reduce((t, r) => t + rowH(r), 0))
+  rows.forEach(row => {
+    ensureSpace(ctx, rowH(row))
+    row.forEach((it, j) => {
+      const x = margin + j * (cellW + gap)
+      pdf.setFont(PDF_FONT, 'bold')
+      pdf.setFontSize(9)
+      setText(pdf, REPORT_COLORS.ink)
+      drawText(pdf, it.title, x, ctx.y)
+      pdf.addImage(it.snap.data, 'PNG', x, ctx.y + 8, cellW, cellH(it), undefined, 'FAST')
+    })
+    ctx.y += rowH(row)
+  })
+  ctx.y += 10
 }
 
 // ── Static criteria reference table ─────────────────────────────────────

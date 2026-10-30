@@ -13,6 +13,7 @@ import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, useCompactSave, 
 import { GAGE_SAMPLE_DATA, GAGE_SAMPLE_RESULT } from '@/lib/gage/sample'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { formatPValue } from '@/lib/stats/format'
+import { withPrintColors } from '@/lib/watermarkHelpers'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
@@ -129,10 +130,27 @@ const diagToneColor = (tone: DiagTone) =>
 
 // Charts are drawn at a fixed size for the report, so fonts stay readable and
 // each chart takes a third of a page instead of a full page.
-const REPORT_CHART_SIZE = { width: 900, height: 340 }
+/** Shorter charts for the per-appraiser plots, so both fit on one page with the variation chart (label size depends on the width, not the height) */
+const REPORT_PAIR_SIZE = { width: 900, height: 250 }
 
 // Sample study (lib/gage/sample.ts) — its result there is the faded example free visitors see.
 const SAMPLE: number[][][] = GAGE_SAMPLE_DATA.map(a => a.map(p => [...p]))
+
+/** Optional study identification (gage, characteristic, part, date). Printed in the reports only when filled in. */
+interface StudyInfo { gage: string; gageId: string; characteristic: string; unit: string; part: string; date: string }
+const EMPTY_INFO: StudyInfo = { gage: '', gageId: '', characteristic: '', unit: '', part: '', date: '' }
+const INFO_LABEL = { gage: 'gr_info_gage', gageId: 'gr_info_gage_id', characteristic: 'gr_info_char', unit: 'gr_info_unit', part: 'gr_info_part', date: 'gr_info_date' } as const
+/** Report rows (English labels) for the filled-in study details */
+function studyInfoRows(i: StudyInfo): [string, string][] {
+  const rows: [string, string][] = []
+  if (i.gage.trim()) rows.push(['Gage', i.gage.trim()])
+  if (i.gageId.trim()) rows.push(['Gage ID', i.gageId.trim()])
+  if (i.characteristic.trim()) rows.push(['Characteristic', i.characteristic.trim() + (i.unit.trim() ? ` (${i.unit.trim()})` : '')])
+  else if (i.unit.trim()) rows.push(['Unit', i.unit.trim()])
+  if (i.part.trim()) rows.push(['Part', i.part.trim()])
+  if (i.date) rows.push(['Study date', i.date])
+  return rows
+}
 const EN = translations.en
 const fill = (str: string, vars: Record<string, string | number>) => Object.entries(vars).reduce((a, [k, v]) => a.split(`{${k}}`).join(String(v)), str)
 const ltr = (v: string) => `\u2066${v}\u2069`
@@ -190,6 +208,9 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
   const [USL, setUSL] = useState('72')
   const [LSL, setLSL] = useState('70')
   const [method, setMethod] = useState<'average-range' | 'anova'>('average-range')
+  // Optional study identification, printed in the reports when filled in
+  const [info, setInfo] = useState<StudyInfo>(EMPTY_INFO)
+  const setInfoField = (k: keyof StudyInfo, v: string) => setInfo(prev => ({ ...prev, [k]: v.slice(0, 80) }))
 
   const [result, setResult] = useState<GageResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -214,6 +235,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
           USL: string
           LSL: string
           method: 'average-range' | 'anova'
+          info?: Partial<StudyInfo>
         }
         setNumAppraisers(input.numAppraisers)
         setNumTrials(input.numTrials)
@@ -223,6 +245,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
         setUSL(input.USL)
         setLSL(input.LSL)
         setMethod(input.method)
+        setInfo({ ...EMPTY_INFO, ...(input.info ?? {}) })
         setResult(analysis.results as GageResult)
         setLoadedProjectName(analysis.name as string)
       })
@@ -341,14 +364,18 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
   const contribChartData = useMemo(() => {
     if (!result) return null
     const p = pctTV(result)
+    const tol = result.pctOfTolerance
+    const bars = (v: { EV: number; AV: number; GRR: number; PV: number }) => [v.EV, v.AV, v.GRR, v.PV].map(x => +(x * 100).toFixed(2))
+    // With a tolerance the verdict is judged on %Tolerance, so the chart shows
+    // it next to %Total variation (the two can differ a lot).
     return {
       labels: ['EV', 'AV', 'GRR', 'PV'],
-      datasets: [{
-        label: t('grr_col_pcttotalvar'),
-        data: [p.EV, p.AV, p.GRR, p.PV].map(v => +(v * 100).toFixed(2)),
-        backgroundColor: [c.bar, c.line, c.danger, c.muted],
-        borderRadius: 6,
-      }],
+      datasets: tol
+        ? [
+            { label: t('grr_col_pcttotalvar'), data: bars(p), backgroundColor: c.bar, borderRadius: 4 },
+            { label: t('grr_col_pcttolerance'), data: bars(tol), backgroundColor: c.gold, borderRadius: 4 },
+          ]
+        : [{ label: t('grr_col_pcttotalvar'), data: bars(p), backgroundColor: [c.bar, c.line, c.danger, c.muted], borderRadius: 6 }],
     }
   }, [result, c, t])
 
@@ -395,7 +422,9 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
         borderColor: palette[a % palette.length],
         backgroundColor: palette[a % palette.length],
         pointRadius: 3,
-        tension: 0.2,
+        // straight segments: parts are separate items, a smoothed curve would
+        // draw averages between them that do not exist
+        tension: 0,
         fill: false,
       })),
     }
@@ -480,6 +509,14 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
       ['Appraisers × Parts × Trials', `${numAppraisers} × ${numParts} × ${numTrials}`],
       ['Standard', 'AIAG MSA 4th Edition'],
     ])
+    const infoRows = studyInfoRows(info)
+    if (infoRows.length) {
+      overview.table({
+        title: 'Study Details',
+        headers: [{ header: 'Item', key: 'item', align: 'left', width: 26 }, { header: 'Value', key: 'value', align: 'left', width: 40 }],
+        rows: infoRows,
+      })
+    }
 
     overview.sectionHeading('Variance Components')
     overview.kpiRow([
@@ -620,12 +657,12 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
     }
 
     const studyRows: KVRow[] = [
+      ...studyInfoRows(info),
       ['Method', result.method === 'anova' ? 'ANOVA' : 'Average & Range'],
       ['Appraisers', String(result.numAppraisers)],
       ['Trials', String(result.numTrials)],
       ['Parts', String(result.numParts)],
       ['Tolerance', result.tolerance !== null ? fmt(result.tolerance) : '—'],
-      ...(result.method === 'anova' ? [['Interaction Pooling', result.pooled ? `Pooled (α=${result.poolingAlpha})` : 'Not pooled'] as KVRow] : []),
     ]
 
     const metricRows: KVRow[] = [
@@ -677,7 +714,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
       caption: `${gaugeBasisLabel} = ${gaugeBasisPct.toFixed(1)}% (AIAG: <10% acceptable, 10–30% marginal, >30% unacceptable)`,
     })
 
-    addChartImage(ctx, contribChartRef.current, 'Variation by Source', REPORT_CHART_SIZE)
+    addChartImage(ctx, contribChartRef.current, 'Variation by Source', { width: 900, height: 290 })
 
     if (result.method === 'average-range') {
       addChartImagePair(
@@ -685,7 +722,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
         'Repeatability and Appraiser Consistency',
         { chart: rangeChartRef.current, title: `Range Chart by Appraiser (UCL = ${fmt(result.uclR, 4)})` },
         { chart: xbarChartRef.current, title: 'Part Averages by Appraiser' },
-        REPORT_CHART_SIZE
+        REPORT_PAIR_SIZE
       )
       if (result.diagnosis?.averagesNote) calloutBox(ctx, result.diagnosis.averagesNote, 'info')
       calloutBox(
@@ -708,7 +745,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
         )
       }
     } else {
-      addChartImage(ctx, xbarChartRef.current, 'Part Averages by Appraiser', REPORT_CHART_SIZE)
+      addChartImage(ctx, xbarChartRef.current, 'Part Averages by Appraiser', REPORT_PAIR_SIZE)
       if (result.diagnosis?.averagesNote) calloutBox(ctx, result.diagnosis.averagesNote, 'info')
     }
 
@@ -731,11 +768,12 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
           String(row.df),
           row.MS.toFixed(4),
           row.F !== null ? row.F.toFixed(3) : '—',
-          row.p !== null ? row.p.toFixed(4) : '—',
+          row.p !== null ? formatPValue(row.p) : '—',
           row.significant === null ? '—' : row.significant ? 'Yes' : 'No',
         ])
       )
-      interpretationBox(ctx, 'Statistical Interpretation', result.significanceNote, 'info')
+      // right under the table it explains (no extra heading, keeps the report a page shorter)
+      calloutBox(ctx, result.significanceNote, 'info')
     }
 
     if (result.diagnosis) {
@@ -780,13 +818,19 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
       const title = (chart?.options.scales as Sc | undefined)?.y?.title
       if (chart && title) jobs.push({ ch: chart, title, keep: title.text, text })
     }
-    add(contribChartRef.current, EN.grr_col_pcttotalvar)
+    add(contribChartRef.current, result?.pctOfTolerance ? '%' : EN.grr_col_pcttotalvar)
     add(rangeChartRef.current, EN.grr_axis_range)
     add(xbarChartRef.current, EN.grr_axis_avgmeasurement)
+    // legend names of the contribution chart in English too
+    const legend = (contribChartRef.current?.data.datasets ?? []) as { label?: string }[]
+    const keepLabels = legend.map(d => d.label)
+    if (legend.length === 2) { legend[0].label = EN.grr_col_pcttotalvar; legend[1].label = EN.grr_col_pcttolerance }
     jobs.forEach(j => { j.title.text = j.text; j.ch.update('none') })
     try {
-      return await fn()
+      // light-theme colours for white paper, whatever the site theme
+      return await withPrintColors([contribChartRef.current, rangeChartRef.current, xbarChartRef.current] as never[], fn)
     } finally {
+      legend.forEach((d, i) => { d.label = keepLabels[i] })
       jobs.forEach(j => { j.title.text = j.keep; j.ch.update('none') })
     }
   }
@@ -912,6 +956,18 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
                   ))}
                 </div>
               </div>
+              <details className="tl-more" open={Object.values(info).some(v => v.trim() !== '')}>
+                <summary>{t('gr_info_title')}</summary>
+                <div className="tl-more-body" style={{ gap: 10 }}>
+                  <div className="gr-two">
+                    {(['gage', 'gageId', 'characteristic', 'unit', 'part'] as const).map(k => (
+                      <label key={k} className="tl-field gr-info"><span>{t(INFO_LABEL[k])}</span><input className="gr-txt" value={info[k]} maxLength={80} onChange={e => setInfoField(k, e.target.value)} /></label>
+                    ))}
+                    <label className="tl-field gr-info"><span>{t('gr_info_date')}</span><input type="date" value={info.date} onChange={e => setInfoField('date', e.target.value)} /></label>
+                  </div>
+                  <div className="tl-hint" style={{ marginTop: 0 }}>{t('gr_info_hint')}</div>
+                </div>
+              </details>
               <div>
                 <div className="tl-label">{t('gr_tolerance')}</div>
                 <div className="gr-two">
@@ -1028,7 +1084,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
                                 defaultName={`Gage R&R — ${new Date().toLocaleDateString('en-US')}`}
                                 compact={compactSave}
                                 getPayload={() => ({
-                                  input_data: { numAppraisers, numTrials, numParts, appraiserNames, measurements, USL, LSL, method },
+                                  input_data: { numAppraisers, numTrials, numParts, appraiserNames, measurements, USL, LSL, method, info },
                                   results: r,
                                 })}
                               />
@@ -1040,7 +1096,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
                           <h3>{t('gr_contrib_title')}</h3>
                           <div className="tl-chart-sub">{t('gr_contrib_sub')}</div>
                           <div className="tl-chart-inner" style={{ height: 230 }}>
-                            {contribChartData && <Chart ref={contribChartRef} type="bar" data={contribChartData} options={{ ...chartOpts(t('grr_col_pcttotalvar')), plugins: { legend: { display: false } } } as never} />}
+                            {contribChartData && <Chart ref={contribChartRef} type="bar" data={contribChartData} options={{ ...chartOpts(contribChartData.datasets.length > 1 ? '%' : t('grr_col_pcttotalvar')), plugins: { legend: { display: contribChartData.datasets.length > 1, labels: { color: c.text, font: { size: 11 } } } } } as never} />}
                           </div>
                         </div>
 

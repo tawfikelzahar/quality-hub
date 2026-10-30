@@ -35,7 +35,8 @@ const EN = translations.en
 /** charts in the PDF: full width, a little shorter than on screen, so a lot fits on one page with the sign-off */
 const PDF_CHART = { width: 900, height: 170 }
 /** one source line in the reports; the full method stays on screen */
-const SOURCE_LINE = 'Source: ICMSF Table 6-1 (1974, as printed by NAP 1985) · organism examples: ICMSF 2020 · OC curve: binomial · risk curve: FAO/WHO lognormal model · m and M from your standard.'
+// Reference only: no internal methods in reports (owner's decision, 30 Oct 2026)
+const SOURCE_LINE = 'Source: ICMSF sampling plans (Cases) · ICMSF Cases concept (2020) · risk curve: FAO/WHO sampling tool model · m and M from your standard.'
 type Dict = Readonly<Record<string, string>>
 const say = (d: Dict, k: TKey) => d[k]
 
