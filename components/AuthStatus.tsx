@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/LocaleLink'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/lib/i18n/context'
 import { useSubscription } from '@/lib/useSubscription'
+import { hereLocalized } from '@/lib/i18n/routing'
 
 interface AuthDisplay {
   email: string
@@ -60,7 +61,7 @@ export default function AuthStatus() {
   async function handleSignOut() {
     const supabase = createClient()
     await supabase.auth.signOut()
-    window.location.href = '/'
+    window.location.href = hereLocalized('/')
   }
 
   if (loading) {

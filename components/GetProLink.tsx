@@ -1,7 +1,7 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import Link from 'next/link'
+import Link from '@/components/LocaleLink'
 import { useSubscription } from '@/lib/useSubscription'
 import { track } from '@/lib/analytics'
 

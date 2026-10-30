@@ -1,7 +1,7 @@
 'use client'
 
 import type { Dispatch, SetStateAction } from 'react'
-import Link from 'next/link'
+import Link from '@/components/LocaleLink'
 import AuthStatus from '@/components/AuthStatus'
 import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'

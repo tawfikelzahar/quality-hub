@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { createPortal } from 'react-dom'
-import Link from 'next/link'
+import Link from '@/components/LocaleLink'
 import { usePathname } from 'next/navigation'
 import GetProLink from '@/components/GetProLink'
 import { createClient } from '@/lib/supabase'
@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS } from '@/lib/tools'
 import type { ThemeMode } from '@/lib/theme'
 import type { TKey } from '@/lib/i18n/translations'
+import { hereLocalized } from '@/lib/i18n/routing'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Phone / tablet menu: a ☰ button in the top nav that opens a drawer with
@@ -88,7 +89,7 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
 
   async function signOut() {
     await createClient().auth.signOut()
-    window.location.href = '/'
+    window.location.href = hereLocalized('/')
   }
 
   const groups = useMemo(() => {

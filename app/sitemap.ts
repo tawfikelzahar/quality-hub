@@ -1,133 +1,62 @@
 import type { MetadataRoute } from 'next'
 import { SITE } from '@/lib/site'
+import { localizePath } from '@/lib/i18n/routing'
 
 const SITE_URL = SITE.url
 
 // ─────────────────────────────────────────────────────────────────────────
-// The tool routes are now reachable without login (see middleware.ts), so
+// Every page exists in English (/path) and Arabic (/ar/path) — see
+// lib/i18n/routing.ts. Each entry below lists once; the Arabic twin and
+// the hreflang alternates linking the two are generated automatically.
+//
+// The tool routes are reachable without login (see middleware.ts), so
 // they belong here too. Pro-gated ones (aql, gage-rr, stability) still
 // render real, indexable content for anonymous visitors — either the tool
 // itself or the LockedPage upsell — so they're included as well.
 // ─────────────────────────────────────────────────────────────────────────
+
+const PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency']; priority: number }[] = [
+  { path: '/', changeFrequency: 'weekly', priority: 1 },
+  { path: '/spc', changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/pareto', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/dpmo', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/aql', changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/icmsf', changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/gage-rr', changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/stability', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/oee', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/descriptive', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/doe', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/imr-chart', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/xbar-r-chart', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/xbar-s-chart', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/regression', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/multiregression', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/guide', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/sample-reports', changeFrequency: 'monthly', priority: 0.6 },
+  { path: '/about', changeFrequency: 'monthly', priority: 0.6 },
+  { path: '/pricing', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/contact', changeFrequency: 'yearly', priority: 0.4 },
+  { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
+  { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
+]
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()
+  const entries: MetadataRoute.Sitemap = []
 
-  return [
-    {
-      url: SITE_URL,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 1,
-    },
-    {
-      url: `${SITE_URL}/spc`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${SITE_URL}/pareto`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/dpmo`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/aql`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${SITE_URL}/icmsf`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${SITE_URL}/gage-rr`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${SITE_URL}/stability`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/oee`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/descriptive`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/doe`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/imr-chart`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/xbar-r-chart`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/xbar-s-chart`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/regression`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/multiregression`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/about`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-    {
-      url: `${SITE_URL}/pricing`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/contact`,
-      lastModified: now,
-      changeFrequency: 'yearly',
-      priority: 0.4,
-    },
-    { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-  ]
+  for (const { path, changeFrequency, priority } of PAGES) {
+    const enPath = path
+    const arPath = localizePath(path, 'ar')
+    const alternates = {
+      languages: {
+        en: `${SITE_URL}${enPath}`,
+        ar: `${SITE_URL}${arPath}`,
+      },
+    }
+    entries.push({ url: `${SITE_URL}${enPath}`, lastModified: now, changeFrequency, priority, alternates })
+    entries.push({ url: `${SITE_URL}${arPath}`, lastModified: now, changeFrequency, priority, alternates })
+  }
+
+  return entries
 }

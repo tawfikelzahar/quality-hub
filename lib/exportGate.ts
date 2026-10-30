@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { track } from '@/lib/analytics'
+import { hereLocalized } from '@/lib/i18n/routing'
 
 type GateFeature = 'csv' | 'png' | 'excel' | 'pdf' | 'ai' | 'insight' | 'tool'
 
@@ -22,11 +23,11 @@ export function goToLogin(tool: string, feature: GateFeature) {
   if (typeof window === 'undefined') return
   trackGateEvent('signup_wall_hit', tool, feature)
   const next = encodeURIComponent(window.location.pathname)
-  window.location.href = `/login?next=${next}`
+  window.location.href = hereLocalized(`/login?next=${next}`)
 }
 
 export function goToPricing(tool: string, feature: GateFeature) {
   if (typeof window === 'undefined') return
   trackGateEvent('pro_wall_hit', tool, feature)
-  window.location.href = '/pricing'
+  window.location.href = hereLocalized('/pricing')
 }

@@ -5,7 +5,7 @@
 // what it does and that it comes with Pro. See lib/reportBranding.ts.
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import Link from '@/components/LocaleLink'
 import { createClient } from '@/lib/supabase'
 import { COLORS, getSharedStyles, type ThemeMode } from '@/lib/theme'
 import { useLanguage } from '@/lib/i18n/context'

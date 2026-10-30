@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/i18n/context'
 import { tint } from '@/lib/theme'
 import { track } from '@/lib/analytics'
+import Link from '@/components/LocaleLink'
 import { formatPEquals } from '@/lib/stats/format'
 import type { CapabilityVerdict } from '@/lib/spc/verdict'
 
@@ -39,7 +40,7 @@ export function ToolHeader({ title, intro, route, onHelp, onExample, exampleDisa
         {route && (
           <p className="tl-route">
             <span aria-hidden="true">⇄</span>
-            <span>{route.text} <a href={route.href}>{route.label}</a></span>
+            <span>{route.text} <Link href={route.href}>{route.label}</Link></span>
           </p>
         )}
       </div>
@@ -55,7 +56,7 @@ export function ToolHeader({ title, intro, route, onHelp, onExample, exampleDisa
 
 // ── Hint under a field, with a link to the chart that fits better ───────
 export function HintLink({ text, href, label }: ToolRoute) {
-  return <div className="tl-hint tl-hint-route">{text} <a href={href}>{label}</a></div>
+  return <div className="tl-hint tl-hint-route">{text} <Link href={href}>{label}</Link></div>
 }
 
 // ── How to use: side panel ───────────────────────────────────────────────
@@ -99,7 +100,7 @@ export function HelpPanel({ open, onClose, title, steps, onExample, showCapabili
         <p style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.7, margin: '14px 0' }}>{tip ?? t('spc_help_tip')}</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <button type="button" className="tl-xbtn" onClick={() => { onClose(); onExample() }}>{t('spc_example_btn')}</button>
-          <a className="tl-xbtn" href="/guide" style={{ textDecoration: 'none' }}>{t('spc_help_guide')}</a>
+          <Link className="tl-xbtn" href="/guide" style={{ textDecoration: 'none' }}>{t('spc_help_guide')}</Link>
         </div>
       </aside>
     </div>

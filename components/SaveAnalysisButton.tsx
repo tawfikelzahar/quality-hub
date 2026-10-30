@@ -2,7 +2,7 @@
 
 import { track } from '@/lib/analytics'
 import { useState, type CSSProperties } from 'react'
-import Link from 'next/link'
+import Link from '@/components/LocaleLink'
 import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, type ThemeMode } from '@/lib/theme'
 
