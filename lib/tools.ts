@@ -11,6 +11,8 @@ import type { TKey } from '@/lib/i18n/translations'
 export interface ToolRow {
   href: string
   titleKey: TKey
+  /** Shorter name for the narrow tool sidebar, when the full title wraps */
+  navKey?: TKey
   descKey: TKey
   /** Extra search words (always English technical terms) */
   keywords: string
@@ -53,7 +55,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { href: '/pareto', titleKey: 'pareto_title', descKey: 'home_row_pareto', keywords: 'pareto 80/20 defects causes' },
       { href: '/regression', titleKey: 'regression_title', descKey: 'home_row_regression', keywords: 'regression linear correlation anova prediction' },
       { href: '/multiregression', titleKey: 'multiregression_title', descKey: 'home_row_multiregression', keywords: 'multiple regression vif anova prediction' },
-      { href: '/doe', titleKey: 'doe_title', descKey: 'home_row_doe', keywords: 'doe design of experiments factorial 2^k effects' },
+      { href: '/doe', titleKey: 'doe_title', navKey: 'nav_doe', descKey: 'home_row_doe', keywords: 'doe design of experiments factorial 2^k effects' },
     ],
   },
   {
@@ -61,8 +63,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
     labelKey: 'home_q_sampling_label',
     questionKey: 'home_q_sampling',
     rows: [
-      { href: '/aql', titleKey: 'aql_title', descKey: 'home_row_aql', keywords: 'aql iso 2859 z1.4 sampling inspection lot ac re' },
-      { href: '/icmsf', titleKey: 'icmsf_title', descKey: 'home_row_icmsf', keywords: 'icmsf microbiological sampling food oc curve' },
+      { href: '/aql', titleKey: 'aql_title', navKey: 'nav_aql', descKey: 'home_row_aql', keywords: 'aql iso 2859 z1.4 sampling inspection lot ac re' },
+      { href: '/icmsf', titleKey: 'icmsf_title', navKey: 'nav_icmsf', descKey: 'home_row_icmsf', keywords: 'icmsf microbiological sampling food oc curve' },
     ],
   },
   {
@@ -79,7 +81,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     labelKey: 'home_q_life_label',
     questionKey: 'home_q_life',
     rows: [
-      { href: '/stability', titleKey: 'stability_title', descKey: 'home_row_stability', keywords: 'stability shelf life ich q1e expiry expiration' },
+      { href: '/stability', titleKey: 'stability_title', navKey: 'nav_stability', descKey: 'home_row_stability', keywords: 'stability shelf life ich q1e expiry expiration' },
     ],
   },
 ]

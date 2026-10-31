@@ -29,6 +29,10 @@ export const translations = {
     nav_signin: 'Sign In',
     nav_signout: 'Sign Out',
     nav_menu: 'Menu',
+    nav_aql: 'AQL Sampling Plan',
+    nav_icmsf: 'ICMSF Sampling Plan',
+    nav_doe: 'DOE (Full Factorial)',
+    nav_stability: 'Stability Study',
     nav_menu_close: 'Close menu',
     nav_appearance: 'Appearance',
 
@@ -1762,6 +1766,10 @@ export const translations = {
     nav_signin: 'تسجيل الدخول',
     nav_signout: 'تسجيل الخروج',
     nav_menu: 'القائمة',
+    nav_aql: 'خطة عينات AQL',
+    nav_icmsf: 'خطة عينات ICMSF',
+    nav_doe: 'تصميم التجارب DOE',
+    nav_stability: 'دراسة الاستقرار',
     nav_menu_close: 'إغلاق القائمة',
     nav_appearance: 'المظهر',
 
