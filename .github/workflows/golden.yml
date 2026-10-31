@@ -1,0 +1,33 @@
+name: Golden checks
+
+# Every push to main and every pull request: the TypeScript check and every
+# golden check (each calculation against its trusted reference). A red mark
+# here means a result changed — do not publish until it is understood.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: golden-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npx tsc --noEmit -p .
+      - name: Golden checks
+        run: npm run test:all
