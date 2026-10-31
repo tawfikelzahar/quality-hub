@@ -1769,7 +1769,7 @@ export const translations = {
     nav_aql: 'خطة عينات AQL',
     nav_icmsf: 'خطة عينات ICMSF',
     nav_doe: 'تصميم التجارب DOE',
-    nav_stability: 'دراسة الاستقرار',
+    nav_stability: 'دراسة الثبات',
     nav_menu_close: 'إغلاق القائمة',
     nav_appearance: 'المظهر',
 
@@ -1780,7 +1780,7 @@ export const translations = {
     bc_aql: 'حاسبة خطة عينات AQL',
     bc_icmsf: 'خطة عينات ICMSF الميكروبيولوجية',
     bc_gagerr: 'Gage R&R',
-    bc_stability: 'دراسة الاستقرار',
+    bc_stability: 'دراسة الثبات',
     bc_oee: 'حاسبة OEE',
     bc_descriptive: 'الإحصاء الوصفي',
     bc_regression: 'الانحدار الخطي البسيط',
@@ -1948,12 +1948,12 @@ export const translations = {
     section_descriptive_desc: 'لخّص وتصوّر أي مجموعة بيانات قبل التحليل الأعمق.',
     section_reliability_label: 'الموثوقية',
     section_reliability_title: 'الموثوقية ومدة الصلاحية',
-    section_reliability_desc: 'قدّر تواريخ انتهاء الصلاحية واستقرار المنتج طويل المدى من بيانات معجّلة أو فعلية.',
+    section_reliability_desc: 'قدّر تواريخ انتهاء الصلاحية وثبات المنتج طويل المدى من بيانات معجّلة أو فعلية.',
     section_doe_label: 'تصميم التجارب',
     section_doe_title: 'تصميم التجارب (DOE)',
     section_doe_desc: 'خطّط تجارب مُنظَّمة واكتشف أي العوامل تؤثر فعليًا على نتائج عمليتك.',
 
-    stability_title: 'دراسة الاستقرار (Stability Study)',
+    stability_title: 'دراسة الثبات (Stability Study)',
     stability_desc: 'حساب مدة الصلاحية بمعيار ICH Q1E · انحدار على أكثر من Batch · اختبار Poolability',
 
     oee_title: 'حاسبة OEE',
@@ -1969,7 +1969,7 @@ export const translations = {
     about_origin_p1:
       `بدأت فكرة ${SITE.name} من إحباط بسيط: لا ينبغي أن يحتاج مهندس الجودة إلى خمس أدوات مختلفة، وكومة من ملفات الإكسل، ورخصة برنامج باهظة الثمن، لمجرد رسم مخطط SPC أو حساب Cpk.`,
     about_origin_p2:
-      'بعد أكثر من 10 سنوات من العمل في التصنيع وهندسة الجودة والتحسين المستمر، بنيت المنصة التي كنت أتمنى وجودها — مكان واحد لـ SPC ومخططات الضبط، وتحليل القدرة (Process Capability)، و Gage R&R (MSA)، والإحصاء الوصفي، وتحليل Pareto، والانحدار، وتصميم التجارب (DOE)، وعينات AQL و ICMSF، و OEE، و DPMO و Sigma، ودراسات الاستقرار، مبنية على المعايير التي يعمل بها المهندس فعليًا: ISO 2859-1، و AIAG، و ICMSF، و ICH Q1E.',
+      'بعد أكثر من 10 سنوات من العمل في التصنيع وهندسة الجودة والتحسين المستمر، بنيت المنصة التي كنت أتمنى وجودها — مكان واحد لـ SPC ومخططات الضبط، وتحليل القدرة (Process Capability)، و Gage R&R (MSA)، والإحصاء الوصفي، وتحليل Pareto، والانحدار، وتصميم التجارب (DOE)، وعينات AQL و ICMSF، و OEE، و DPMO و Sigma، ودراسات الثبات، مبنية على المعايير التي يعمل بها المهندس فعليًا: ISO 2859-1، و AIAG، و ICMSF، و ICH Q1E.',
     about_philosophy_heading: 'فلسفتنا',
     about_philosophy_p:
       'هندسة الجودة الجيدة تبدأ بدليل موثوق. البيانات يجب أن تساعدك على فهم التباين. التحليل يجب أن يدعم قرارات حقيقية. والقرارات الأفضل يجب أن تؤدي إلى عمليات أفضل.',
@@ -2071,7 +2071,7 @@ export const translations = {
     pricing_free_bullet_1: 'كل أدوات التحليل ما عدا Gage R&R، دون تسجيل',
     pricing_free_bullet_2: 'SPC: مخططات I-MR وX̄-R وX̄-S وAttribute (p, np, c, u)',
     pricing_free_bullet_3: 'القدرة واختبارات الأسباب الخاصة واختبار التوزيع الطبيعي',
-    pricing_free_bullet_4: 'Pareto وDPMO وOEE وAQL وICMSF والاستقرار والانحدار وDOE وغيرها',
+    pricing_free_bullet_4: 'Pareto وDPMO وOEE وAQL وICMSF والثبات والانحدار وDOE وغيرها',
     pricing_free_bullet_5: 'تصدير CSV / PNG بحساب مجاني (PNG بعلامة مائية)',
     pricing_free_cta_dashboard: 'الذهاب إلى لوحة التحكم',
     pricing_free_cta_start: 'أنشئ حسابًا مجانيًا',
@@ -2106,7 +2106,7 @@ export const translations = {
     pricing_feat_oee: 'حاسبة OEE',
     pricing_feat_aql: 'خطط عينات AQL',
     pricing_feat_icmsf: 'خطط عينات ICMSF',
-    pricing_feat_stability: 'دراسة الاستقرار',
+    pricing_feat_stability: 'دراسة الثبات',
     pricing_feat_regression: 'الانحدار البسيط والمتعدد',
     pricing_feat_doe: 'تصميم التجارب (DOE)',
     pricing_feat_gagerr: 'Gage R&R (طريقة AIAG Average & Range / ANOVA)',
@@ -2337,7 +2337,7 @@ export const translations = {
     stab_not_poolable: 'غير قابل للتجميع',
 
     // ── Stability Study (new page) ──
-    stb_intro: 'احسب العمر الافتراضي (shelf life) من بيانات الاستقرار وفق ICH Q1E: خط انحدار لكل دفعة، وحد الثقة حوله، والزمن الذي يبلغ فيه حدّ الثقة حدّك المقبول.',
+    stb_intro: 'احسب العمر الافتراضي (shelf life) من بيانات الثبات وفق ICH Q1E: خط انحدار لكل دفعة، وحد الثقة حوله، والزمن الذي يبلغ فيه حدّ الثقة حدّك المقبول.',
     stb_setup_title: 'الدراسة',
     stb_limits: 'حدود القبول',
     stb_lower: 'الحد الأدنى',
@@ -2388,7 +2388,7 @@ export const translations = {
     stb_model_common: 'لا يختلف الميل ({ps}) وتختلف نقطة البداية ({pi}) عند ⁦α = 0.25⁩. تحتفظ كل دفعة ببدايتها على ميل واحد مشترك، وتحدد أقصر دفعة العمر الافتراضي.',
     stb_model_separate: 'يختلف الميل ({ps}، أقل من ⁦α = 0.25⁩)، فتحتفظ كل دفعة بخطها، وتحدد أقصر دفعة العمر الافتراضي.',
     stb_model_single: 'يُحسب العمر الافتراضي من خط هذه الدفعة.',
-    stb_chart_title: 'اتجاه الاستقرار',
+    stb_chart_title: 'اتجاه الثبات',
     stb_chart_sub: 'النقاط: النتائج · الخطوط المتصلة: النموذج · المتقطع: حد الثقة {conf}% للخط الذي يحدد العمر الافتراضي · الأحمر: حدودك',
     stb_lg_bound: 'حد الثقة',
     stb_lg_limit: 'الحد',
@@ -2403,7 +2403,7 @@ export const translations = {
     stb_method_1: 'العمر الافتراضي وفق ICH Q1E: أبكر زمن يلتقي فيه حد الثقة لخط الانحدار المتوسط مع حد القبول. حد واحد يعطي حد ثقة من جهة واحدة، وحدّان يعطيان حدًا من الجهتين.',
     stb_method_2: 'لا تُجمع الدفعات إلا إذا سمحت البيانات بذلك: يُختبر الميل أولًا ثم نقطة البداية (intercept) عند α = 0.25 ‏(ANCOVA).',
     stb_method_3: 'تجاوز مدة البيانات وفق ICH Q1E البندين 2.4 و2.5 للبيانات المحللة إحصائيًا. حرارة الغرفة: حتى ضعف مدة بيانات طويل المدى وبحد أقصى 12 شهرًا بعدها إذا لم يحدث تغير معنوي في المعجَّل؛ و1.5 ضعف وبحد أقصى 6 أشهر إذا حدث في المعجَّل ولم يحدث في الوسيط؛ وبلا استقراء إذا حدث في الوسيط أيضًا. الثلاجة: 1.5 ضعف وبحد أقصى 6 أشهر بدون تغير معنوي في المعجَّل، وإلا فلا استقراء. المُجمِّد: بلا استقراء.',
-    stb_help_title: 'طريقة استخدام دراسة الاستقرار',
+    stb_help_title: 'طريقة استخدام دراسة الثبات',
     stb_help_s1_t: 'صِف الدراسة',
     stb_help_s1_d: 'اكتب اسم النتيجة ووحدتها، وأدخل الحد الذي تتجه إليه، واختر ظرف التخزين.',
     stb_help_s2_t: 'أدخل النتائج',
