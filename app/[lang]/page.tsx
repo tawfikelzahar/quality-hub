@@ -120,7 +120,9 @@ export default function Home() {
         .mz-hero > div { flex: 1 1 440px; min-width: 0; }
         .mz-h1 { margin: 0 0 20px; font-size: clamp(34px, 5.6vw, 56px); line-height: 1.12; font-weight: 700; letter-spacing: -1.2px; }
         [dir="rtl"] .mz-h1 { letter-spacing: 0; line-height: 1.35; }
-        .mz-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 40px; }
+        .mz-ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 40px; }
+        .mz a.mz-textlink { min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: var(--mz-soft); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--qh-text) 40%, transparent); text-underline-offset: 5px; }
+        .mz a.mz-textlink:hover, .mz a.mz-textlink:focus-visible { color: var(--qh-gold); text-decoration-color: currentColor; }
         .mz-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
         .mz-kpi { background: var(--qh-bg); border-radius: 8px; padding: 10px 12px; min-width: 0; }
 
@@ -186,7 +188,7 @@ export default function Home() {
             <div className="mz-ctas">
               <Link href="/spc" className="mz-btn mz-btn-primary">{t('home_cta_try')} <Arrow /></Link>
               <Link href="/tools" className="mz-btn mz-btn-ghost">{t('home_cta_tools')}</Link>
-              <Link href="/sample-reports" className="mz-btn mz-btn-ghost">{t('home_cta_sample')}</Link>
+              <Link href="/sample-reports" className="mz-textlink">{t('home_cta_sample')}</Link>
             </div>
             <p style={{margin:'0 0 12px',fontSize:12,fontWeight:600,color:'var(--qh-muted)',letterSpacing:lang === 'ar' ? 0 : 1.1,textTransform:'uppercase'}}>{t('home_standards_label')}</p>
             <div dir="ltr" style={{display:'flex',flexWrap:'wrap',gap:8,justifyContent:lang === 'ar' ? 'flex-end' : 'flex-start'}}>
