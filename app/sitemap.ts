@@ -38,6 +38,7 @@ const PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['cha
   { path: '/about', changeFrequency: 'monthly', priority: 0.6 },
   { path: '/pricing', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/contact', changeFrequency: 'yearly', priority: 0.4 },
+  { path: '/verification', changeFrequency: 'weekly', priority: 0.6 },
   { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
   { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
 ]

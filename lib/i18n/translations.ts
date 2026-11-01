@@ -56,6 +56,7 @@ export const translations = {
     bc_dashboard: 'Saved projects',
     bc_pricing: 'Pricing',
     bc_about: 'About',
+    bc_verification: 'Verification',
     bc_contact: 'Contact',
     bc_download: 'Get the App',
     bc_sample_reports: 'Sample Reports',
@@ -1248,6 +1249,7 @@ export const translations = {
 
     // ── Footer ──
     footer_about: 'About',
+    footer_verification: 'How we verify',
     footer_contact: 'Contact',
     footer_sample_reports: 'Sample Reports',
     footer_guide: 'How to Use',
@@ -1829,6 +1831,7 @@ export const translations = {
     bc_dashboard: 'المشاريع المحفوظة',
     bc_pricing: 'الأسعار',
     bc_about: 'عن الموقع',
+    bc_verification: 'التحقق',
     bc_contact: 'تواصل معنا',
     bc_download: 'حمّل التطبيق',
     bc_sample_reports: 'نماذج التقارير',
@@ -3018,6 +3021,7 @@ export const translations = {
 
     // ── Footer ──
     footer_about: 'عن الموقع',
+    footer_verification: 'كيف نتحقق',
     footer_contact: 'تواصل معنا',
     footer_sample_reports: 'نماذج التقارير',
     footer_guide: 'كيفية الاستخدام',

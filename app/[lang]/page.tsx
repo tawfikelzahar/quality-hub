@@ -7,6 +7,7 @@ import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
 import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
+import { VERIFICATION, VERIFY_COPY, TOOL_COUNT as VERIFIED_TOOL_COUNT, formatRunDate, formatCount } from '@/lib/verification/content'
 import { SITE } from '@/lib/site'
 import ToolsDirectory from '@/components/ToolsDirectory'
 
@@ -126,6 +127,15 @@ export default function Home() {
         .mz-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
         .mz-kpi { background: var(--qh-bg); border-radius: 8px; padding: 10px 12px; min-width: 0; }
 
+        .mz-trust { border-top: 1px solid var(--qh-border); border-bottom: 1px solid var(--qh-border); background: var(--mz-band); }
+        .mz-trust-in { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 36px; padding-block: 22px; }
+        .mz-trust-title { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--qh-text); flex: 1 1 260px; min-width: 0; }
+        .mz-trust-badge { flex: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--qh-gold); color: var(--qh-onGold); }
+        .mz-trust-stat b { display: block; font: 700 22px ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; color: var(--qh-text); line-height: 1.2; }
+        .mz-trust-stat span { font-size: 12px; color: var(--qh-muted); }
+        .mz-trust-stat b.gold { color: var(--qh-gold); }
+        .mz-trust a.mz-trust-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 700; color: var(--qh-gold); white-space: nowrap; }
+        .mz-trust a.mz-trust-link:hover { text-decoration: underline; text-underline-offset: 4px; }
         .mz-why { padding: 26px; }
         .mz-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 32px; }
 
@@ -143,6 +153,8 @@ export default function Home() {
           .mz-ctas .mz-btn { width: 100%; }
           .mz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
           .mz-why { padding: 18px; }
+          .mz-trust-in { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+          .mz-trust-title, .mz-trust a.mz-trust-link { grid-column: 1 / -1; }
           .mz-plan { padding: 20px; }
         }
       `}</style>
@@ -220,6 +232,22 @@ export default function Home() {
         </section>
 
         {/* ── Why ── */}
+        {/* ── Trust strip: counts from lib/verification/results.json (real test run) ── */}
+        <section className="mz-trust" aria-label={VERIFY_COPY[lang].kicker}>
+          <div className="mz-wrap mz-trust-in">
+            <div className="mz-trust-title">
+              <span className="mz-trust-badge" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+              </span>
+              <span>{VERIFY_COPY[lang].stripTitle}</span>
+            </div>
+            <div className="mz-trust-stat"><b className="gold">{formatCount(VERIFICATION.total)}</b><span>{VERIFY_COPY[lang].statChecks}</span></div>
+            <div className="mz-trust-stat"><b>{formatCount(VERIFIED_TOOL_COUNT)}</b><span>{VERIFY_COPY[lang].statTools}</span></div>
+            <div className="mz-trust-stat"><b style={{fontSize:16,lineHeight:'1.65'}}>{formatRunDate(VERIFICATION.ranAt, lang)}</b><span>{VERIFY_COPY[lang].statRun}</span></div>
+            <Link href="/verification" className="mz-trust-link">{VERIFY_COPY[lang].stripLink} <Arrow /></Link>
+          </div>
+        </section>
+
         <section className="mz-band">
           <div className="mz-wrap mz-sec">
             <h2 className="mz-h2">{t('home_why_title')}</h2>
@@ -321,6 +349,7 @@ export default function Home() {
             <nav aria-label={t('home_footer_nav')} style={{display:'flex',flexWrap:'wrap',gap:20}}>
               <Link href="/guide" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_guide')}</Link>
               <Link href="/sample-reports" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_sample_reports')}</Link>
+              <Link href="/verification" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_verification')}</Link>
               <Link href="/about" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_about')}</Link>
               <Link href="/contact" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_contact')}</Link>
               <Link href="/privacy" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_privacy')}</Link>

@@ -32,6 +32,7 @@ const SITE_LINKS: { href: string; key: TKey }[] = [
   { href: '/pricing', key: 'nav_pricing' },
   { href: '/guide', key: 'footer_guide' },
   { href: '/sample-reports', key: 'footer_sample_reports' },
+  { href: '/verification', key: 'footer_verification' },
   { href: '/account', key: 'bc_account' },
   { href: '/about', key: 'nav_about' },
   { href: '/contact', key: 'nav_contact' },

@@ -1,0 +1,17 @@
+{
+  "ranAt": "2026-11-01",
+  "total": 2864,
+  "suites": {
+    "spc": 169,
+    "aql": 1742,
+    "descriptive": 132,
+    "doe": 72,
+    "dpmo": 22,
+    "gage": 469,
+    "icmsf": 59,
+    "oee": 26,
+    "pareto": 19,
+    "regression": 111,
+    "stability": 43
+  }
+}
