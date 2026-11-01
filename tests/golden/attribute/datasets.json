@@ -58,7 +58,22 @@
    5,
    10
   ],
-  "n": 25
+  "n": 25,
+  "minitab": {
+   "center": "0.0426",
+   "ucl": "0.0854",
+   "lcl": "0",
+   "tests": {
+    "1": [
+     18
+    ],
+    "2": [
+     13,
+     22
+    ]
+   }
+  },
+  "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  },
  {
   "id": "A2",
@@ -119,7 +134,20 @@
    6,
    7
   ],
-  "n": 25
+  "n": 25,
+  "minitab": {
+   "note": "Minitab run used 27 rows (rows 1\u20132 pasted again at the end) \u2014 rerun needed with the 25 rows. Even so it shows stepped limits; the displayed last-row UCL 0.0788 (n = 184, P\u0304 0.0370) equals P\u0304 + 3\u221a(P\u0304(1 \u2212 P\u0304)/n_i).",
+   "center_27rows": "0.0370",
+   "ucl_last_27rows": "0.0788",
+   "lcl": "0",
+   "tests": {
+    "1": [
+     10
+    ]
+   },
+   "stepped": true
+  },
+  "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  },
  {
   "id": "A3",
@@ -180,7 +208,14 @@
    9,
    5
   ],
-  "n": 25
+  "n": 25,
+  "minitab": {
+   "center": "6.16",
+   "ucl": "13.37",
+   "lcl": "0",
+   "tests": {}
+  },
+  "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  },
  {
   "id": "A4",
@@ -215,7 +250,18 @@
    5,
    4
   ],
-  "n": 25
+  "n": 25,
+  "minitab": {
+   "center": "5.36",
+   "ucl": "12.31",
+   "lcl": "0",
+   "tests": {
+    "1": [
+     21
+    ]
+   }
+  },
+  "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  },
  {
   "id": "A5",
@@ -276,7 +322,20 @@
    2,
    13
   ],
-  "n": 25
+  "n": 25,
+  "minitab": {
+   "center": "1.332",
+   "ucl_last": "2.556",
+   "lcl_last": "0.108",
+   "tests": {
+    "1": [
+     14
+    ]
+   },
+   "stepped": true,
+   "note": "Limits shown for the last subgroup (8 units); Minitab: Tests performed with unequal sample sizes"
+  },
+  "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  },
  {
   "id": "A6",
@@ -337,6 +396,13 @@
    13,
    10
   ],
-  "n": 25
+  "n": 25,
+  "minitab": {
+   "center": "1.32",
+   "ucl": "2.410",
+   "lcl": "0.230",
+   "tests": {}
+  },
+  "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  }
 ]
