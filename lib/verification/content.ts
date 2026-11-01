@@ -34,8 +34,8 @@ export const VERIFIED_TOOLS: VerifiedTool[] = [
     name: { en: 'SPC Engine and control charts (I-MR, X̄-R, X̄-S)', ar: 'SPC Engine ومخططات الضبط (I-MR و X̄-R و X̄-S)' },
     refs: ['AIAG SPC', 'Montgomery'],
     checked: {
-      en: 'Control limits, tests for special causes, Cp, Cpk, Pp, Ppk, PPM and the normality test, compared value by value with specialised statistical software on 11 datasets. The SPC Engine and the three chart pages are checked to give identical numbers.',
-      ar: 'حدود الضبط واختبارات الأسباب الخاصة و Cp و Cpk و Pp و Ppk و PPM واختبار التوزيع الطبيعي، مقارنةً قيمةً بقيمة مع برامج إحصائية متخصصة على 11 مجموعة بيانات. ونتحقق من أن SPC Engine وصفحات المخططات الثلاث تعطي الأرقام نفسها.',
+      en: 'Variable control charts: control limits, tests for special causes, Cp, Cpk, Pp, Ppk, Cpm, PPM and the normality test, compared value by value with specialised statistical software on 11 datasets. The SPC Engine and the three chart pages are checked to give identical numbers.',
+      ar: 'مخططات المتغيرات: حدود الضبط واختبارات الأسباب الخاصة و Cp و Cpk و Pp و Ppk و Cpm و PPM واختبار التوزيع الطبيعي، مقارنةً قيمةً بقيمة مع برامج إحصائية متخصصة على 11 مجموعة بيانات. ونتحقق من أن SPC Engine وصفحات المخططات الثلاث تعطي الأرقام نفسها.',
     },
   },
   {
@@ -88,10 +88,10 @@ export const VERIFIED_TOOLS: VerifiedTool[] = [
     name: { en: 'Design of Experiments (2^k full factorial)', ar: 'تصميم التجارب (عاملي كامل 2^k)' },
     refs: ['Montgomery, DOE ch. 6'],
     checked: {
-      en: 'Effects, sums of squares, F and p with replicates, Lenth’s method without replicates, R², R²(pred) and the equation in your units, on the book’s worked examples.',
-      ar: 'التأثيرات ومجاميع المربعات و F و p مع التكرار، وطريقة Lenth دون تكرار، و R² و R²(pred) والمعادلة بوحداتك، على الأمثلة المحلولة في الكتاب.',
+      en: 'Effects, sums of squares, F and p with replicates, Lenth’s method without replicates, R², R²(pred) and the equation in your units, on the textbook’s worked examples, compared with published results and an independent statistical library.',
+      ar: 'التأثيرات ومجاميع المربعات و F و p مع التكرار، وطريقة Lenth دون تكرار، و R² و R²(pred) والمعادلة بوحداتك، على الأمثلة المحلولة في المرجع، مقارنةً مع نتائج منشورة ومكتبة إحصائية مستقلة.',
     },
-    example: { label: { en: 'Montgomery Example 6.1 (plasma etch)', ar: 'مثال Montgomery 6.1 (الحفر بالبلازما)' }, value: 'R² 96.61% · R²(pred) 86.44%' },
+    example: { label: { en: 'Montgomery Example 6.2 (filtration rate)', ar: 'مثال Montgomery 6.2 (معدل الترشيح)' }, value: 'effect A 21.625 · PSE 2.625' },
   },
   {
     suite: 'aql',
@@ -99,8 +99,8 @@ export const VERIFIED_TOOLS: VerifiedTool[] = [
     name: { en: 'AQL Sampling Plan', ar: 'خطة عينات AQL' },
     refs: ['ISO 2859-1:2026'],
     checked: {
-      en: 'Every cell of the sample-size code letters and of the normal, tightened and reduced master tables, read from the 2026 edition, plus the standard’s Annex A examples and the switching rules.',
-      ar: 'كل خانة في جدول حروف حجم العينة وفي الجداول الرئيسية للفحص العادي والمشدد والمخفف كما في إصدار 2026، إضافةً إلى أمثلة الملحق A وقواعد التحويل.',
+      en: 'The sample-size code letters and every cell of the normal, tightened and reduced master tables that the tool uses (AQL 0.010 to 6.5), read from the 2026 edition, plus the standard’s Annex A examples.',
+      ar: 'حروف حجم العينة، وكل خانة تستخدمها الأداة في الجداول الرئيسية للفحص العادي والمشدد والمخفف (AQL من 0.010 إلى 6.5) كما في إصدار 2026، إضافةً إلى أمثلة الملحق A.',
     },
     example: { label: { en: 'Tightened inspection · letter J · AQL 0.40', ar: 'الفحص المشدد · الحرف J · AQL 0.40' }, value: 'L · n 200 · Ac 1 · Re 2' },
   },
@@ -110,10 +110,10 @@ export const VERIFIED_TOOLS: VerifiedTool[] = [
     name: { en: 'ICMSF Sampling Plan', ar: 'خطة عينات ICMSF' },
     refs: ['ICMSF Table 6-1'],
     checked: {
-      en: 'All 15 cases of the table, the lot decision from unit results, and the risk curve against the commission’s published example.',
-      ar: 'الحالات الخمس عشرة في الجدول، وقرار الدفعة من نتائج الوحدات، ومنحنى المخاطر مقابل المثال المنشور من اللجنة.',
+      en: 'All 15 cases of the table, the lot decision from unit results, and the risk curve against a published ICMSF example.',
+      ar: 'الحالات الخمس عشرة في الجدول، وقرار الدفعة من نتائج الوحدات، ومنحنى المخاطر مقابل مثال منشور من ICMSF.',
     },
-    example: { label: { en: 'Published example (Case 11)', ar: 'المثال المنشور (Case 11)' }, value: '30 CFU/g → rejected 95%' },
+    example: { label: { en: 'Published example (Case 11)', ar: 'المثال المنشور (Case 11)' }, value: '≈ 30 CFU/g → rejected 95%' },
   },
   {
     suite: 'oee',
@@ -143,8 +143,8 @@ export const VERIFIED_TOOLS: VerifiedTool[] = [
     name: { en: 'Stability Study', ar: 'دراسة الثبات' },
     refs: ['ICH Q1E', 'ICH Q1A(R2)'],
     checked: {
-      en: 'Model choice between batches, the one-sided confidence bound, the shelf life from the data and the extrapolation limits ICH Q1E allows, on published potency data.',
-      ar: 'اختيار النموذج بين الدفعات، وحد الثقة أحادي الجانب، والعمر من البيانات، وحدود الاستقراء التي تسمح بها ICH Q1E، على بيانات فعالية منشورة.',
+      en: 'Model choice between batches, the one-sided confidence bound and the shelf life from the data, on published potency data, and the extrapolation limits ICH Q1E allows, checked against the guideline text.',
+      ar: 'اختيار النموذج بين الدفعات، وحد الثقة أحادي الجانب، والعمر من البيانات، على بيانات فعالية منشورة، وحدود الاستقراء التي تسمح بها ICH Q1E مراجعةً على نص الإرشاد.',
     },
     example: { label: { en: 'LeBlond et al. (2011) potency data', ar: 'بيانات الفعالية لـ LeBlond وآخرين (2011)' }, value: '26.22 months' },
   },
@@ -162,7 +162,7 @@ export const VERIFY_COPY: Record<Lang, {
   en: {
     kicker: 'Verification',
     title: 'Every number is checked against its reference',
-    intro: 'A quality result is only worth signing if you can trust how it was calculated. Every tool on this site is checked against published standards, textbook worked examples and specialised statistical software, and the checks run again on every change.',
+    intro: 'A quality result is only worth signing if you can trust how it was calculated. Every tool on this site is checked against published standards, worked examples, hand-checked cases and specialised statistical software, and the checks run again on every change.',
     statChecks: 'automated checks',
     statTools: 'tools verified',
     statRun: 'last full run',
@@ -170,7 +170,7 @@ export const VERIFY_COPY: Record<Lang, {
     how: [
       { h: 'Published worked examples', p: 'We run the same data as the standard or the textbook, and our result must equal the printed answer at the precision it is printed.' },
       { h: 'An independent second calculation', p: 'The same datasets go through specialised statistical software and independent statistical libraries, and every value is compared one by one.' },
-      { h: 'Run again on every change', p: 'All checks run automatically on every update to the site. We do not release a change while any check is failing.' },
+      { h: 'Run again on every change', p: 'All checks run automatically on every update to the site, and a failing check is flagged straight away.' },
     ],
     toolsTitle: 'What is checked, tool by tool',
     toolsSub: 'Check counts come from the latest run, not from a document.',
@@ -180,7 +180,8 @@ export const VERIFY_COPY: Record<Lang, {
     open: 'Open the tool',
     pendingTitle: 'Still under review',
     pending: [
-      'Cpm (the Taguchi index, shown when you enter a target) has not yet been compared with specialised statistical software.',
+      'Attribute charts (p, np, c, u) in the SPC Engine have not yet been compared with specialised statistical software.',
+      'Cpm (the Taguchi index, shown when you enter a target) matches on our test dataset; one more case is still being confirmed.',
     ],
     closing: 'Found a number that does not match your reference? Tell us with the data and the reference, and we will check it and reply.',
     stripTitle: 'Verified against published standards and specialised statistical software',
@@ -189,7 +190,7 @@ export const VERIFY_COPY: Record<Lang, {
   ar: {
     kicker: 'التحقق',
     title: 'كل رقم متحقق منه مقابل مرجعه',
-    intro: 'نتيجة الجودة لا تستحق توقيعك إلا إذا وثقت في طريقة حسابها. لذلك تُراجَع كل أداة في الموقع مقابل المواصفات المنشورة والأمثلة المحلولة في المراجع والبرامج الإحصائية المتخصصة، وتُعاد هذه الفحوص مع كل تعديل.',
+    intro: 'نتيجة الجودة لا تستحق توقيعك إلا إذا وثقت في طريقة حسابها. لذلك تُراجَع كل أداة في الموقع مقابل المواصفات المنشورة والأمثلة المحلولة وحالات محسوبة يدويًا والبرامج الإحصائية المتخصصة، وتُعاد هذه الفحوص مع كل تعديل.',
     statChecks: 'فحص آلي',
     statTools: 'أداة متحقق منها',
     statRun: 'آخر تشغيل كامل',
@@ -197,7 +198,7 @@ export const VERIFY_COPY: Record<Lang, {
     how: [
       { h: 'الأمثلة المحلولة المنشورة', p: 'نُدخل البيانات نفسها الموجودة في المواصفة أو المرجع، ويجب أن تساوي نتيجتنا الإجابة المطبوعة بالدقة نفسها التي طُبعت بها.' },
       { h: 'حساب ثانٍ مستقل', p: 'تمر مجموعات البيانات نفسها على برامج إحصائية متخصصة ومكتبات إحصائية مستقلة، وتُقارَن كل قيمة على حدة.' },
-      { h: 'إعادة الفحص مع كل تعديل', p: 'تعمل كل الفحوص تلقائيًا مع كل تحديث للموقع، ولا ننشر أي تعديل ما دام فيه فحص واحد لم ينجح.' },
+      { h: 'إعادة الفحص مع كل تعديل', p: 'تعمل كل الفحوص تلقائيًا مع كل تحديث للموقع، وأي فحص لا ينجح يظهر فورًا.' },
     ],
     toolsTitle: 'ما الذي نتحقق منه في كل أداة',
     toolsSub: 'أعداد الفحوص من آخر تشغيل فعلي، لا من مستند مكتوب.',
@@ -207,7 +208,8 @@ export const VERIFY_COPY: Record<Lang, {
     open: 'افتح الأداة',
     pendingTitle: 'ما زال قيد المراجعة',
     pending: [
-      'مؤشر Cpm (مؤشر Taguchi الذي يظهر عند إدخال قيمة مستهدفة) لم يُقارَن بعد مع برامج إحصائية متخصصة.',
+      'مخططات الصفات (p و np و c و u) في SPC Engine لم تُقارَن بعد مع برامج إحصائية متخصصة.',
+      'مؤشر Cpm (مؤشر Taguchi الذي يظهر عند إدخال قيمة مستهدفة) مطابق في مجموعة بيانات الاختبار، وما زالت حالة أخرى قيد التأكيد.',
     ],
     closing: 'وجدت رقمًا لا يطابق مرجعك؟ أرسل إلينا البيانات والمرجع، وسنراجعه ونرد عليك.',
     stripTitle: 'متحقق منها مقابل المواصفات المنشورة والبرامج الإحصائية المتخصصة',
