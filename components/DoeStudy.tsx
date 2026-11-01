@@ -77,7 +77,9 @@ const num = (s: string | undefined): number | null => {
 }
 const g4 = (v: number) => (Math.abs(v) >= 1000 ? fixed(v, 1) : Math.abs(v) >= 10 ? fixed(v, 3) : fixed(v, 4))
 
-type Reply = { result: DoeResult | null; error: DoeError | 'failed' | null }
+/** Pro: prediction at the settings the user typed (uncoded equation, full model) */
+type Prediction = { x: number[]; fit: number; beyond: boolean[] }
+type Reply = { result: DoeResult | null; error: DoeError | 'failed' | null; prediction?: Prediction | null }
 
 function useAnalysis(body: object | null) {
   const key = body ? JSON.stringify(body) : null
@@ -88,8 +90,8 @@ function useAnalysis(body: object | null) {
     const timer = setTimeout(() => {
       fetch('/api/doe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: key, signal: ctrl.signal })
         .then(async res => {
-          const j = (await res.json().catch(() => ({}))) as { result?: DoeResult; error?: DoeError }
-          setReply({ key, r: res.ok && j.result ? { result: j.result, error: null } : { result: null, error: res.status === 422 && j.error ? j.error : 'failed' } })
+          const j = (await res.json().catch(() => ({}))) as { result?: DoeResult; error?: DoeError; prediction?: Prediction | null }
+          setReply({ key, r: res.ok && j.result ? { result: j.result, error: null, prediction: j.prediction ?? null } : { result: null, error: res.status === 422 && j.error ? j.error : 'failed' } })
         })
         .catch(() => { if (!ctrl.signal.aborted) setReply({ key, r: { result: null, error: 'failed' } }) })
     }, 200)
@@ -188,13 +190,19 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
   const levelsBad = factorsNum.some(f => f.low === null || f.high === null || f.low === f.high)
   const filled = rows.filter(r => num(inp.values[keyOf(r)]) !== null).length
   const complete = filled === rows.length
+  // Prediction settings (Pro): one value per factor, in its own units; not saved with the project
+  const [pred, setPred] = useState<string[]>([])
+  const predVals = factorsNum.map((_, i) => num(pred[i] ?? ''))
+  const predReady = isPro && predVals.every(v => v !== null)
   const body = !levelsBad && complete
     ? {
         factors: factorsNum.map(f => ({ name: f.name.slice(0, 40), low: f.low as number, high: f.high as number })),
         responses: Array.from({ length: 2 ** k }, (_, p) => Array.from({ length: inp.replicates }, (_, r) => num(inp.values[`${p + 1}-${r + 1}`]) as number)),
+        ...(predReady ? { predict: predVals as number[] } : {}),
       }
     : null
   const { r: reply, pending } = useAnalysis(body)
+  const prediction = body && predReady ? reply?.prediction ?? null : null
   const res = body ? reply?.result ?? null : null
   const err = body ? reply?.error ?? null : null
 
@@ -601,6 +609,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
         .dx-row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
         .dx-big { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; margin-bottom: 4px; white-space: pre-wrap; }
         .dx-charts2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 12px; }
+        .dx-pred-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
         .dx-eq { font: 13px ui-monospace, Menlo, monospace; line-height: 1.8; direction: ltr; text-align: left; background: var(--qh-surface2); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
         .dx-sig { color: var(--qh-good); font-weight: 700; }
         @media (max-width: 900px) { .dx-charts2 { grid-template-columns: minmax(0, 1fr); } }
@@ -754,6 +763,50 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                       <div className="tl-kpi"><span>R² (adj)</span><b>{res.r2Adj !== null ? `${fixed(res.r2Adj * 100, 2)}%` : '—'}</b></div>
                       <div className="tl-kpi"><span>R² (pred)</span><b>{locked ? <span className="tl-pro">PRO</span> : res.r2Pred !== null ? `${fixed(res.r2Pred * 100, 2)}%` : '—'}</b></div>
                       <div className="tl-kpi"><span>{res.s !== null ? 'S' : 'PSE'}</span><b>{res.s !== null ? g4(res.s) : res.lenth ? g4(res.lenth.pse) : <span className="tl-pro">PRO</span>}</b></div>
+                    </div>
+
+                    <div className="tl-card dx-pred">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>{t('dx_pred_title')}</span>
+                        <span className="tl-pro">PRO</span>
+                      </div>
+                      {!isPro ? (
+                        <>
+                          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--qh-muted)' }}>{t('dx_pro_pred')}</p>
+                          <button type="button" className="tl-xbtn tl-xbtn-pro" style={{ marginTop: 10 }} onClick={() => goToPricing('doe', 'diagnostics')}>{t('gr_pro_btn')}</button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="dx-pred-grid">
+                            {factorsNum.map((f, i) => (
+                              <label key={i} className="dx-field">
+                                <span>{LETTERS[i]} · {f.name}</span>
+                                <input
+                                  className="dx-txt"
+                                  inputMode="decimal"
+                                  value={pred[i] ?? ''}
+                                  placeholder={`${inp.factors[i].low.trim()} – ${inp.factors[i].high.trim()}`}
+                                  onChange={e => setPred(prev => { const n = [...prev]; n[i] = e.target.value; return n })}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                          {prediction ? (
+                            <div style={{ marginTop: 12 }}>
+                              <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{fill(t('dx_pred_result'), { y: yName })}</div>
+                              <div className="dx-big">{ltr(`${g4(prediction.fit)}${inp.unit.trim() ? ` ${inp.unit.trim()}` : ''}`)}</div>
+                              {prediction.beyond.some(Boolean) && (
+                                <div className="tl-chip-warn" style={{ display: 'inline-block', marginTop: 4 }}>
+                                  {fill(t('dx_pred_beyond'), { list: factorsNum.filter((_, i) => prediction.beyond[i]).map(f => ltr(f.name)).join(lang === 'ar' ? '، ' : ', ') })}
+                                </div>
+                              )}
+                              <div className="tl-hint" style={{ marginTop: 8 }}>{t('dx_pred_note')}</div>
+                            </div>
+                          ) : (
+                            <div className="tl-hint" style={{ marginTop: 8 }}>{predVals.every(v => v !== null) ? t('icmsf_loading') : t('dx_pred_hint')}</div>
+                          )}
+                        </>
+                      )}
                     </div>
 
                     <div className="tl-results-head">
