@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useSyncExternalStore, type CSSProperties, type Dispatch, type SetStateAction } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Mizan Quality colours — single source of truth (approved 22 Oct 2026,
@@ -343,23 +343,49 @@ export function applyThemeVars(theme: ThemeMode) {
   root.dataset.qhTheme = theme;
 }
 
-export function usePersistedTheme(): [ThemeMode, Dispatch<SetStateAction<ThemeMode>>] {
-  const [theme, setTheme] = useState<ThemeMode>('dark');
+// The saved choice is an external store (localStorage) read through
+// useSyncExternalStore: the server and the first client render use 'dark',
+// then React switches to the saved value without a setState inside an
+// effect. Every component using the hook (and other tabs) stays in sync.
+// If storage is blocked (private mode), the choice lives in memory.
+const themeListeners = new Set<() => void>();
+let memoryTheme: ThemeMode = 'dark';
 
-  // On first load, read whatever was saved last time
-  useEffect(() => {
+function readStoredTheme(): ThemeMode {
+  try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'dark' || stored === 'light') {
-      setTheme(stored);
-    }
-  }, []);
+    if (stored === 'dark' || stored === 'light') return stored;
+  } catch { /* storage blocked */ }
+  return memoryTheme;
+}
 
-  // Every time the theme changes, save it and publish the palette as CSS
-  // variables (--qh-accent, --qh-good, ...) for styles that can't reach COLORS
+function subscribeTheme(onChange: () => void) {
+  themeListeners.add(onChange);
+  const onStorage = (e: StorageEvent) => { if (e.key === THEME_STORAGE_KEY) onChange(); };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    themeListeners.delete(onChange);
+    window.removeEventListener('storage', onStorage);
+  };
+}
+
+const serverTheme = (): ThemeMode => 'dark';
+
+export function usePersistedTheme(): [ThemeMode, Dispatch<SetStateAction<ThemeMode>>] {
+  const theme = useSyncExternalStore(subscribeTheme, readStoredTheme, serverTheme);
+
+  // Publish the palette as CSS variables (--qh-accent, --qh-good, ...) for
+  // styles that can't reach COLORS
   useEffect(() => {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
     applyThemeVars(theme);
   }, [theme]);
+
+  const setTheme = useCallback<Dispatch<SetStateAction<ThemeMode>>>((next) => {
+    const value = typeof next === 'function' ? next(readStoredTheme()) : next;
+    memoryTheme = value;
+    try { localStorage.setItem(THEME_STORAGE_KEY, value); } catch { /* storage blocked */ }
+    themeListeners.forEach((l) => l());
+  }, []);
 
   return [theme, setTheme];
 }

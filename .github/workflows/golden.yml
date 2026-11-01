@@ -1,7 +1,7 @@
 name: Golden checks
 
-# Every push to main and every pull request: the TypeScript check and every
-# golden check (each calculation against its trusted reference). A red mark
+# Every push to main and every pull request: the TypeScript check, ESLint
+# (errors fail, warnings don't) and every golden check (each calculation against its trusted reference). A red mark
 # here means a result changed — do not publish until it is understood.
 on:
   push:
@@ -29,5 +29,7 @@ jobs:
       - run: npm ci
       - name: TypeScript
         run: npx tsc --noEmit -p .
+      - name: ESLint
+        run: npx eslint .
       - name: Golden checks
         run: npm run test:all
