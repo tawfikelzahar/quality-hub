@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { analyzeStability, shelfLifeClaim, type StabilityInput } from '@/lib/stability/calc'
 import { storageKindOf, ACCEL_RESULTS, type AccelResult } from '@/lib/stability/options'
+import { isProRequest } from '@/lib/pro.server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/stability — ICH Q1E shelf life: model choice (α 0.25), the
 // confidence bound, the shelf life per batch and what the label may claim
 // (2.4–2.5 extrapolation limits for the storage condition and the
 // accelerated result). The calculation stays on
-// the server; this route only checks the payload.
+// the server; this route checks the payload. The claim is Pro: free accounts
+// get claim: null plus claimLocked.capped, the warning that the statistical
+// shelf life is longer than ICH Q1E lets these data support (never locked).
 // ─────────────────────────────────────────────────────────────────────────
 
 export const runtime = 'nodejs'
@@ -45,5 +48,8 @@ export async function POST(request: NextRequest) {
   const input: StabilityInput = { batches: batches as StabilityInput['batches'], lower: b.lower as number | null, upper: b.upper as number | null, confidence: b.confidence as number }
   const result = analyzeStability(input)
   const claim = result ? shelfLifeClaim(result, storageKindOf(String(b.storage ?? 'custom')), input.lower !== null || input.upper !== null, (b.accel as AccelResult | undefined) ?? 'unknown') : null
+  if (claim && !(await isProRequest())) {
+    return NextResponse.json({ result, claim: null, claimLocked: { capped: claim.limitedBy === 'rule' } }, { headers: { 'Cache-Control': 'no-store' } })
+  }
   return NextResponse.json({ result, claim }, { headers: { 'Cache-Control': 'no-store' } })
 }

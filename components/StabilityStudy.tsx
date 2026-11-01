@@ -86,7 +86,9 @@ const num = (s: string): number | null => {
 }
 const isNum = (s: string | undefined) => s !== undefined && num(s) !== null
 
-interface Reply { result: StabilityResult | null; claim: ShelfLifeClaim | null }
+// claimLocked: free accounts get no claim (Pro), only whether the statistical
+// shelf life is longer than ICH Q1E lets the data support (a warning, never locked)
+interface Reply { result: StabilityResult | null; claim: ShelfLifeClaim | null; claimLocked?: { capped: boolean } }
 
 function useAnalysis(body: object | null) {
   const key = body ? JSON.stringify(body) : null
@@ -215,6 +217,7 @@ export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = 
   const { r: reply, pending, failed } = useAnalysis(body)
   const res = body ? reply?.result ?? null : null
   const claim = body ? reply?.claim ?? null : null
+  const claimLocked = body ? reply?.claimLocked ?? null : null
   const hasLimit = lower !== null || upper !== null
   const kind = storageKindOf(inp.storage)
   const colorOf = (name: string) => batches.find(b => b.name === name)?.color ?? c.data
@@ -658,7 +661,18 @@ export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = 
                           <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{shelfSub(D)}</div>
                         </div>
                       </div>
-                      {hasLimit && (
+                      {hasLimit && claimLocked && kind !== 'support' && (
+                        <div className="tl-verdict" style={{ background: tint(claimLocked.capped ? 'var(--qh-amber)' : 'var(--qh-muted)', 8), border: `1px solid ${tint(claimLocked.capped ? 'var(--qh-amber)' : 'var(--qh-muted)', 35)}` }}>
+                          <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(claimLocked.capped ? 'var(--qh-amber)' : 'var(--qh-muted)', 16), color: claimLocked.capped ? 'var(--qh-amber)' : 'var(--qh-muted)' }}>{claimLocked.capped ? '!' : '?'}</span>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--qh-muted)', marginBottom: 4 }}>{t('stb_v_claim')} <span className="tl-pro">PRO</span></div>
+                            {claimLocked.capped && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--qh-amber)', lineHeight: 1.6, marginBottom: 4 }}>{t('stb_claim_capped_free')}</div>}
+                            <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{t('stb_claim_pro')}</div>
+                            <button type="button" className="tl-xbtn tl-xbtn-pro" style={{ marginTop: 10 }} onClick={() => goToPricing('stability', 'insight')}>{t('gr_pro_btn')}</button>
+                          </div>
+                        </div>
+                      )}
+                      {hasLimit && (!claimLocked || kind === 'support') && (
                         <div className="tl-verdict" style={{ background: tint(claimColor, 8), border: `1px solid ${tint(claimColor, 35)}` }}>
                           <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(claimColor, 16), color: claimColor }}>{claimColor === 'var(--qh-good)' ? '✓' : '!'}</span>
                           <div>
