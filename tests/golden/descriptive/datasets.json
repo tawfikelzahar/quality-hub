@@ -363,6 +363,28 @@
       49.6,
       53.8
     ],
-    "n": 50
+    "n": 50,
+    "expected": {
+      "adA2": "1.11",
+      "adP": "0.006",
+      "mean": "50.060",
+      "stdev": "0.809",
+      "variance": "0.655",
+      "skewness": "1.89492",
+      "kurtosis": "8.28414",
+      "n": "50",
+      "min": "48.600",
+      "q1": "49.575",
+      "median": "50.000",
+      "q3": "50.500",
+      "max": "53.800",
+      "ciMeanLo": "49.830",
+      "ciMeanHi": "50.290",
+      "ciMedianLo": "49.900",
+      "ciMedianHi": "50.166",
+      "ciStdevLo": "0.676",
+      "ciStdevHi": "1.008"
+    },
+    "expectedSource": "Minitab Graphical Summary (screenshots from Tawfik, 1 Nov 2026)"
   }
 ]
