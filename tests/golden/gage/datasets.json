@@ -189,7 +189,78 @@
   },
   "appraisers_n": 3,
   "parts": 10,
-  "trials": 3
+  "trials": 3,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.09143",
+     "EV": "0.03997",
+     "AV": "0.05146",
+     "PV": "1.08645",
+     "TV": "1.17788"
+    },
+    "pctContribution": {
+     "GRR": "7.76",
+     "EV": "3.39",
+     "AV": "4.37",
+     "PV": "92.24",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.30237",
+     "EV": "0.19993",
+     "AV": "0.22684",
+     "PV": "1.04233",
+     "TV": "1.08530"
+    },
+    "pctStudyVar": {
+     "GRR": "27.86",
+     "EV": "18.42",
+     "AV": "20.90",
+     "PV": "96.04",
+     "TV": "100.00"
+    },
+    "pctTolerance": null,
+    "ndc": 4,
+    "tolerance": null,
+    "alpha": null,
+    "note": "Session output pasted without the ANOVA tables"
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.09350",
+     "EV": "0.04075",
+     "AV": "0.05275",
+     "PV": "1.21982",
+     "TV": "1.31332"
+    },
+    "pctContribution": {
+     "GRR": "7.12",
+     "EV": "3.10",
+     "AV": "4.02",
+     "PV": "92.88",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.30578",
+     "EV": "0.20186",
+     "AV": "0.22968",
+     "PV": "1.10445",
+     "TV": "1.14600"
+    },
+    "pctStudyVar": {
+     "GRR": "26.68",
+     "EV": "17.61",
+     "AV": "20.04",
+     "PV": "96.37",
+     "TV": "100.00"
+    },
+    "pctTolerance": null,
+    "ndc": 5,
+    "tolerance": null
+   }
+  }
  },
  {
   "id": "GR01",
@@ -362,7 +433,90 @@
   ],
   "appraisers_n": 3,
   "parts": 10,
-  "trials": 3
+  "trials": 3,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.0026695",
+     "EV": "0.0026695",
+     "AV": "0.0000000",
+     "PV": "0.0674126",
+     "TV": "0.0700821"
+    },
+    "pctContribution": {
+     "GRR": "3.81",
+     "EV": "3.81",
+     "AV": "0.00",
+     "PV": "96.19",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.051667",
+     "EV": "0.051667",
+     "AV": "0.000000",
+     "PV": "0.259639",
+     "TV": "0.264730"
+    },
+    "pctStudyVar": {
+     "GRR": "19.52",
+     "EV": "19.52",
+     "AV": "0.00",
+     "PV": "98.08",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "15.50",
+     "EV": "15.50",
+     "AV": "0.00",
+     "PV": "77.89",
+     "TV": "79.42"
+    },
+    "ndc": 7,
+    "tolerance": 2.0,
+    "alpha": null,
+    "note": "Session output pasted without the ANOVA tables"
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.0024241",
+     "EV": "0.0024241",
+     "AV": "0.0000000",
+     "PV": "0.0516116",
+     "TV": "0.0540356"
+    },
+    "pctContribution": {
+     "GRR": "4.49",
+     "EV": "4.49",
+     "AV": "0.00",
+     "PV": "95.51",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.049235",
+     "EV": "0.049235",
+     "AV": "0.000000",
+     "PV": "0.227182",
+     "TV": "0.232456"
+    },
+    "pctStudyVar": {
+     "GRR": "21.18",
+     "EV": "21.18",
+     "AV": "0.00",
+     "PV": "97.73",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "14.77",
+     "EV": "14.77",
+     "AV": "0.00",
+     "PV": "68.15",
+     "TV": "69.74"
+    },
+    "ndc": 6,
+    "tolerance": 2.0
+   }
+  }
  },
  {
   "id": "GR02",
@@ -535,7 +689,139 @@
   ],
   "appraisers_n": 3,
   "parts": 10,
-  "trials": 3
+  "trials": 3,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.0024848",
+     "EV": "0.0001407",
+     "AV": "0.0023441",
+     "PV": "0.0752850",
+     "TV": "0.0777698"
+    },
+    "pctContribution": {
+     "GRR": "3.20",
+     "EV": "0.18",
+     "AV": "3.01",
+     "PV": "96.80",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.049848",
+     "EV": "0.011861",
+     "AV": "0.048416",
+     "PV": "0.274381",
+     "TV": "0.278872"
+    },
+    "pctStudyVar": {
+     "GRR": "17.87",
+     "EV": "4.25",
+     "AV": "17.36",
+     "PV": "98.39",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "14.95",
+     "EV": "3.56",
+     "AV": "14.52",
+     "PV": "82.31",
+     "TV": "83.66"
+    },
+    "ndc": 7,
+    "tolerance": 2.0,
+    "alpha": 0.05,
+    "withInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "6.09935",
+      "MS": "0.677706",
+      "F": "5701.81",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.14093",
+      "MS": "0.070464",
+      "F": "592.84",
+      "P": "0.000"
+     },
+     "interaction": {
+      "df": 18,
+      "SS": "0.00214",
+      "MS": "0.000119",
+      "F": "0.81",
+      "P": "0.684"
+     },
+     "error": {
+      "df": 60,
+      "SS": "0.00883",
+      "MS": "0.000147"
+     }
+    },
+    "withoutInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "6.09935",
+      "MS": "0.677706",
+      "F": "4817.47",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.14093",
+      "MS": "0.070464",
+      "F": "500.89",
+      "P": "0.000"
+     },
+     "error": {
+      "df": 78,
+      "SS": "0.01097",
+      "MS": "0.000141"
+     }
+    },
+    "interactionRemoved": true
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.0023495",
+     "EV": "0.0001373",
+     "AV": "0.0022122",
+     "PV": "0.0643863",
+     "TV": "0.0667358"
+    },
+    "pctContribution": {
+     "GRR": "3.52",
+     "EV": "0.21",
+     "AV": "3.31",
+     "PV": "96.48",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.048471",
+     "EV": "0.011718",
+     "AV": "0.047034",
+     "PV": "0.253745",
+     "TV": "0.258333"
+    },
+    "pctStudyVar": {
+     "GRR": "18.76",
+     "EV": "4.54",
+     "AV": "18.21",
+     "PV": "98.22",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "14.54",
+     "EV": "3.52",
+     "AV": "14.11",
+     "PV": "76.12",
+     "TV": "77.50"
+    },
+    "ndc": 7,
+    "tolerance": 2.0
+   }
+  }
  },
  {
   "id": "GR03",
@@ -708,7 +994,139 @@
   ],
   "appraisers_n": 3,
   "parts": 10,
-  "trials": 3
+  "trials": 3,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.0014602",
+     "EV": "0.0014340",
+     "AV": "0.0000262",
+     "PV": "0.0039166",
+     "TV": "0.0053769"
+    },
+    "pctContribution": {
+     "GRR": "27.16",
+     "EV": "26.67",
+     "AV": "0.49",
+     "PV": "72.84",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.0382130",
+     "EV": "0.0378685",
+     "AV": "0.0051194",
+     "PV": "0.0625831",
+     "TV": "0.0733272"
+    },
+    "pctStudyVar": {
+     "GRR": "52.11",
+     "EV": "51.64",
+     "AV": "6.98",
+     "PV": "85.35",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "57.32",
+     "EV": "56.80",
+     "AV": "7.68",
+     "PV": "93.87",
+     "TV": "109.99"
+    },
+    "ndc": 2,
+    "tolerance": 0.4,
+    "alpha": 0.05,
+    "withInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "0.330154",
+      "MS": "0.0366838",
+      "F": "29.3420",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.004441",
+      "MS": "0.0022203",
+      "F": "1.7759",
+      "P": "0.198"
+     },
+     "interaction": {
+      "df": 18,
+      "SS": "0.022504",
+      "MS": "0.0012502",
+      "F": "0.8395",
+      "P": "0.648"
+     },
+     "error": {
+      "df": 60,
+      "SS": "0.089350",
+      "MS": "0.0014892"
+     }
+    },
+    "withoutInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "0.330154",
+      "MS": "0.0366838",
+      "F": "25.5810",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.004441",
+      "MS": "0.0022203",
+      "F": "1.5483",
+      "P": "0.219"
+     },
+     "error": {
+      "df": 78,
+      "SS": "0.111854",
+      "MS": "0.0014340"
+     }
+    },
+    "interactionRemoved": true
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.0014027",
+     "EV": "0.0013708",
+     "AV": "0.0000319",
+     "PV": "0.0030495",
+     "TV": "0.0044522"
+    },
+    "pctContribution": {
+     "GRR": "31.51",
+     "EV": "30.79",
+     "AV": "0.72",
+     "PV": "68.49",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.0374523",
+     "EV": "0.0370246",
+     "AV": "0.0056439",
+     "PV": "0.0552226",
+     "TV": "0.0667249"
+    },
+    "pctStudyVar": {
+     "GRR": "56.13",
+     "EV": "55.49",
+     "AV": "8.46",
+     "PV": "82.76",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "56.18",
+     "EV": "55.54",
+     "AV": "8.47",
+     "PV": "82.83",
+     "TV": "100.09"
+    },
+    "ndc": 2,
+    "tolerance": 0.4
+   }
+  }
  },
  {
   "id": "GR04",
@@ -881,7 +1299,118 @@
   ],
   "appraisers_n": 3,
   "parts": 10,
-  "trials": 3
+  "trials": 3,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.0004446",
+     "EV": "0.0001189",
+     "AV": "0.0003257",
+     "PV": "0.0520104",
+     "TV": "0.0524550"
+    },
+    "pctContribution": {
+     "GRR": "0.85",
+     "EV": "0.23",
+     "AV": "0.62",
+     "PV": "99.15",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.021086",
+     "EV": "0.010904",
+     "AV": "0.018047",
+     "PV": "0.228058",
+     "TV": "0.229031"
+    },
+    "pctStudyVar": {
+     "GRR": "9.21",
+     "EV": "4.76",
+     "AV": "7.88",
+     "PV": "99.58",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "6.33",
+     "EV": "3.27",
+     "AV": "5.41",
+     "PV": "68.42",
+     "TV": "68.71"
+    },
+    "ndc": 15,
+    "tolerance": 2.0,
+    "alpha": 0.05,
+    "withInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "4.22271",
+      "MS": "0.469190",
+      "F": "428.086",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.00003",
+      "MS": "0.000014",
+      "F": "0.012",
+      "P": "0.988"
+     },
+     "interaction": {
+      "df": 18,
+      "SS": "0.01973",
+      "MS": "0.001096",
+      "F": "9.219",
+      "P": "0.000"
+     },
+     "error": {
+      "df": 60,
+      "SS": "0.00713",
+      "MS": "0.000119"
+     }
+    },
+    "interactionRemoved": false
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.0001173",
+     "EV": "0.0001173",
+     "AV": "0.0000000",
+     "PV": "0.0488699",
+     "TV": "0.0489872"
+    },
+    "pctContribution": {
+     "GRR": "0.24",
+     "EV": "0.24",
+     "AV": "0.00",
+     "PV": "99.76",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.010832",
+     "EV": "0.010832",
+     "AV": "0.000000",
+     "PV": "0.221065",
+     "TV": "0.221331"
+    },
+    "pctStudyVar": {
+     "GRR": "4.89",
+     "EV": "4.89",
+     "AV": "0.00",
+     "PV": "99.88",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "3.25",
+     "EV": "3.25",
+     "AV": "0.00",
+     "PV": "66.32",
+     "TV": "66.40"
+    },
+    "ndc": 28,
+    "tolerance": 2.0
+   }
+  }
  },
  {
   "id": "GR05",
@@ -1054,12 +1583,144 @@
   ],
   "appraisers_n": 3,
   "parts": 10,
-  "trials": 3
+  "trials": 3,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.0000561",
+     "EV": "0.0000517",
+     "AV": "0.0000043",
+     "PV": "0.0003494",
+     "TV": "0.0004055"
+    },
+    "pctContribution": {
+     "GRR": "13.83",
+     "EV": "12.76",
+     "AV": "1.07",
+     "PV": "86.17",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.0074885",
+     "EV": "0.0071935",
+     "AV": "0.0020808",
+     "PV": "0.0186921",
+     "TV": "0.0201363"
+    },
+    "pctStudyVar": {
+     "GRR": "37.19",
+     "EV": "35.72",
+     "AV": "10.33",
+     "PV": "92.83",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "1.12",
+     "EV": "1.08",
+     "AV": "0.31",
+     "PV": "2.80",
+     "TV": "3.02"
+    },
+    "ndc": 3,
+    "tolerance": 4.0,
+    "alpha": 0.05,
+    "withInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "0.0287668",
+      "MS": "0.0031963",
+      "F": "55.2711",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.0003633",
+      "MS": "0.0001816",
+      "F": "3.1410",
+      "P": "0.068"
+     },
+     "interaction": {
+      "df": 18,
+      "SS": "0.0010409",
+      "MS": "0.0000578",
+      "F": "1.1584",
+      "P": "0.324"
+     },
+     "error": {
+      "df": 60,
+      "SS": "0.0029953",
+      "MS": "0.0000499"
+     }
+    },
+    "withoutInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "0.0287668",
+      "MS": "0.0031963",
+      "F": "61.7680",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 2,
+      "SS": "0.0003633",
+      "MS": "0.0001816",
+      "F": "3.5102",
+      "P": "0.035"
+     },
+     "error": {
+      "df": 78,
+      "SS": "0.0040363",
+      "MS": "0.0000517"
+     }
+    },
+    "interactionRemoved": true
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.0000551",
+     "EV": "0.0000503",
+     "AV": "0.0000048",
+     "PV": "0.0003030",
+     "TV": "0.0003580"
+    },
+    "pctContribution": {
+     "GRR": "15.38",
+     "EV": "14.04",
+     "AV": "1.34",
+     "PV": "84.62",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.0074210",
+     "EV": "0.0070898",
+     "AV": "0.0021923",
+     "PV": "0.0174056",
+     "TV": "0.0189216"
+    },
+    "pctStudyVar": {
+     "GRR": "39.22",
+     "EV": "37.47",
+     "AV": "11.59",
+     "PV": "91.99",
+     "TV": "100.00"
+    },
+    "pctTolerance": {
+     "GRR": "1.11",
+     "EV": "1.06",
+     "AV": "0.33",
+     "PV": "2.61",
+     "TV": "2.84"
+    },
+    "ndc": 3,
+    "tolerance": 4.0
+   }
+  }
  },
  {
   "id": "GR06",
   "name": "2 appraisers \u00d7 10 parts \u00d7 2 trials, no tolerance",
-  "purpose": "Other K1/K2 constants; verdict on %Study Variation (no specs). ANOVA keeps the interaction (p < 0.25).",
+  "purpose": "Other K1/K2 constants; verdict on %Study Variation (no specs). ANOVA keeps the interaction (p < 0.05).",
   "appraisers": [
    "A",
    "B"
@@ -1154,6 +1815,105 @@
   ],
   "appraisers_n": 2,
   "parts": 10,
-  "trials": 2
+  "trials": 2,
+  "minitab": {
+   "source": "Minitab Crossed Gage R&R, study variation 6, \u03b1 to remove interaction 0.05 (session output, Nov 2026)",
+   "anova": {
+    "varComp": {
+     "GRR": "0.0001452",
+     "EV": "0.0000584",
+     "AV": "0.0000868",
+     "PV": "0.0172879",
+     "TV": "0.0174330"
+    },
+    "pctContribution": {
+     "GRR": "0.83",
+     "EV": "0.33",
+     "AV": "0.50",
+     "PV": "99.17",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.012049",
+     "EV": "0.007642",
+     "AV": "0.009315",
+     "PV": "0.131483",
+     "TV": "0.132034"
+    },
+    "pctStudyVar": {
+     "GRR": "9.13",
+     "EV": "5.79",
+     "AV": "7.06",
+     "PV": "99.58",
+     "TV": "100.00"
+    },
+    "pctTolerance": null,
+    "ndc": 15,
+    "tolerance": null,
+    "alpha": 0.05,
+    "withInteraction": {
+     "part": {
+      "df": 9,
+      "SS": "0.624298",
+      "MS": "0.0693665",
+      "F": "322.618",
+      "P": "0.000"
+     },
+     "operator": {
+      "df": 1,
+      "SS": "0.000384",
+      "MS": "0.0003844",
+      "F": "1.788",
+      "P": "0.214"
+     },
+     "interaction": {
+      "df": 9,
+      "SS": "0.001935",
+      "MS": "0.0002150",
+      "F": "3.682",
+      "P": "0.007"
+     },
+     "error": {
+      "df": 20,
+      "SS": "0.001168",
+      "MS": "0.0000584"
+     }
+    },
+    "interactionRemoved": false
+   },
+   "xbar": {
+    "varComp": {
+     "GRR": "0.0000741",
+     "EV": "0.0000578",
+     "AV": "0.0000163",
+     "PV": "0.0156934",
+     "TV": "0.0157675"
+    },
+    "pctContribution": {
+     "GRR": "0.47",
+     "EV": "0.37",
+     "AV": "0.10",
+     "PV": "99.53",
+     "TV": "100.00"
+    },
+    "sd": {
+     "GRR": "0.008610",
+     "EV": "0.007602",
+     "AV": "0.004041",
+     "PV": "0.125273",
+     "TV": "0.125569"
+    },
+    "pctStudyVar": {
+     "GRR": "6.86",
+     "EV": "6.05",
+     "AV": "3.22",
+     "PV": "99.76",
+     "TV": "100.00"
+    },
+    "pctTolerance": null,
+    "ndc": 20,
+    "tolerance": null
+   }
+  }
  }
 ]

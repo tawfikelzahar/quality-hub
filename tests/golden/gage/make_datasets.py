@@ -27,7 +27,7 @@ sets.append(dict(id='GR04',name='Part × Appraiser interaction',purpose='Apprais
   data=gen(4,3,10,3,[25.00,25.30,24.75,25.15,24.85,25.40,24.95,25.20,24.70,25.05],[0,0,0],0,0.01,0.005,inter_fixed={(1,2):0.06,(1,7):-0.06,(0,4):0.02})))
 sets.append(dict(id='GR05',name='Low discrimination (ndc < 5)',purpose='Parts barely differ: acceptable vs a wide tolerance but ndc below 5.',appraisers=['A','B','C'],lsl=48.0,usl=52.0,
   data=gen(5,3,10,3,[50.00,50.02,49.99,50.01,49.98,50.03,50.00,49.97,50.02,50.01],[0,0.003,-0.002],0,0.008,0.001)))
-sets.append(dict(id='GR06',name='2 appraisers × 10 parts × 2 trials, no tolerance',purpose='Other K1/K2 constants; verdict on %Study Variation (no specs). ANOVA keeps the interaction (p < 0.25).',appraisers=['A','B'],lsl=None,usl=None,
+sets.append(dict(id='GR06',name='2 appraisers × 10 parts × 2 trials, no tolerance',purpose='Other K1/K2 constants; verdict on %Study Variation (no specs). ANOVA keeps the interaction (p < 0.05).',appraisers=['A','B'],lsl=None,usl=None,
   data=gen(6,2,10,2,[2.10,2.25,2.05,2.30,2.15,2.40,2.00,2.20,2.35,2.12],[0,0.012],0,0.01,0.001)))
 
 # GR00 — the worked example of the AIAG MSA 4th edition (Table III-B 6a p. 105,
@@ -46,5 +46,12 @@ sets.insert(0, dict(id='GR00', name='AIAG MSA 4th ed. worked example (Average & 
     'pctTV':{'EV':0.1762,'AV':0.2004,'GRR':0.2668,'PV':0.9638},'ndc':5}))
 for s in sets:
     s['appraisers_n']=len(s['data']); s['parts']=len(s['data'][0]); s['trials']=len(s['data'][0][0])
-json.dump(sets, open(__import__('os').path.join(__import__('os').path.dirname(__file__), 'datasets.json'),'w'), indent=1)
+import os
+OUT = os.path.join(os.path.dirname(__file__), 'datasets.json')
+# keep the Minitab results already recorded for each set (added by hand from the session output)
+if os.path.exists(OUT):
+    prev = {x['id']: x.get('minitab') for x in json.load(open(OUT))}
+    for s in sets:
+        if prev.get(s['id']): s['minitab'] = prev[s['id']]
+json.dump(sets, open(OUT,'w'), indent=1)
 print([ (s['id'], s['appraisers_n'], s['parts'], s['trials']) for s in sets])

@@ -3,7 +3,7 @@
 // this file out of the browser). Moved here unchanged from the route so the
 // golden test can run them without a server or a Pro session.
 //
-// Average & Range: AIAG MSA 4th ed., Ch. III Sec. B (K1, K2, K3, D4; 6σ study
+// Average & Range: AIAG MSA 4th ed., Ch. III Sec. B with Minitab's d2* (App. C) constants (D4; 6σ study
 // variation for %Tolerance). ANOVA: crossed two-factor random model,
 // interaction pooled into repeatability when its p > α (variance components
 // by the method of moments, AIAG MSA 4th ed. Appendix A).
@@ -92,16 +92,45 @@ const D4: Record<number, number> = { 2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114 }
 // and don't need it.
 const SIGMA_MULTIPLIER = 6
 
-// K1 — Repeatability (EV) constant, keyed by number of trials
-const K1: Record<number, number> = { 2: 0.8862, 3: 0.5908 }
+// Average & Range constants — the same d2* rules Minitab's Crossed Gage R&R
+// (Xbar and R) uses: d2* from AIAG MSA 4th ed. Appendix C, looked up with
+//   repeatability    m = trials,     g = parts × appraisers
+//   reproducibility  m = appraisers, g = 1
+//   part-to-part     m = parts,      g = 1
+// (Minitab, "Methods and formulas for gage R&R table"). K1/K2/K3 = 1/d2*.
+// The AIAG worksheet K1 0.8862 / 0.5908 is only the g > 20 row: with
+// 2 appraisers × 10 parts (g = 20) Minitab uses d2* = 1.14437, not 1.12838.
+// Values are the table AS PRINTED (5 decimals) — Minitab uses the printed
+// figures: the exact value for m = 3, g = 1 is 1.911540 but Minitab's results
+// only reproduce with the printed 1.91155 (checked on GR00–GR06).
+// Every cell below was cross-checked against an independent calculation
+// (Patnaik d2* = √(d2² + d3²/g), d2/d3 by numerical integration): all agree
+// to within 1 in the 5th decimal (Duncan's original rounding).
+// Repeatability needs m = trials (2 or 3) for g = 1–20 and the g > 20 row;
+// reproducibility / part-to-part need the g = 1 row for m = 2–10.
+const D2STAR_G1: Record<number, number> = {
+  2: 1.41421, 3: 1.91155, 4: 2.23887, 5: 2.48124, 6: 2.67253,
+  7: 2.82981, 8: 2.96288, 9: 3.07794, 10: 3.17905,
+}
+const D2STAR_BY_G: Record<number, number[]> = { // index g − 1, g = 1…20
+  2: [1.41421, 1.27931, 1.23105, 1.20621, 1.19105, 1.18083, 1.17348, 1.16794, 1.16361, 1.16014,
+    1.15729, 1.15490, 1.15289, 1.15115, 1.14965, 1.14833, 1.14717, 1.14613, 1.14520, 1.14437],
+  3: [1.91155, 1.80538, 1.76858, 1.74989, 1.73857, 1.73099, 1.72555, 1.72147, 1.71828, 1.71573,
+    1.71363, 1.71189, 1.71041, 1.70914, 1.70804, 1.70708, 1.70623, 1.70547, 1.70480, 1.70419],
+}
+const D2_G_OVER_20: Record<number, number> = { 2: 1.12838, 3: 1.69257 } // Appendix C last row (= d2)
+function d2Star(m: number, g: number): number {
+  if (g === 1) return D2STAR_G1[m]
+  return g > 20 ? D2_G_OVER_20[m] : D2STAR_BY_G[m][g - 1]
+}
 
-// K2 — Reproducibility (AV) constant, keyed by number of appraisers
-const K2: Record<number, number> = { 2: 0.7071, 3: 0.5231 }
-
-// K3 — Part Variation (PV) constant, keyed by number of parts (2–10)
-const K3: Record<number, number> = {
-  2: 0.7071, 3: 0.5231, 4: 0.4467, 5: 0.4030, 6: 0.3742,
-  7: 0.3534, 8: 0.3375, 9: 0.3249, 10: 0.3146,
+// Number of distinct categories, as Minitab: 1.41 × σparts / σgage, truncated,
+// and set to 1 when the value is below 1 (Minitab, "Methods and formulas for
+// number of distinct categories").
+function distinctCategories(PV: number, GRR: number) {
+  const ndcRaw = GRR > 0 ? 1.41 * (PV / GRR) : Infinity
+  const ndc = Number.isFinite(ndcRaw) ? Math.max(1, Math.floor(ndcRaw)) : Math.floor(ndcRaw)
+  return { ndcRaw, ndc }
 }
 
 export interface GageInput {
@@ -166,13 +195,13 @@ export function runGageRR(input: GageInput) {
   }
 
   // Repeatability (Equipment Variation)
-  const k1 = K1[numTrials]
+  const k1 = 1 / d2Star(numTrials, numParts * numAppraisers)
   const EV = rBar * k1
 
   // Reproducibility (Appraiser Variation)
   const xbarByAppraiser = avg.map(row => mean(row))
   const xbarDiff = Math.max(...xbarByAppraiser) - Math.min(...xbarByAppraiser)
-  const k2 = K2[numAppraisers]
+  const k2 = 1 / d2Star(numAppraisers, 1)
   const avRawSq = (xbarDiff * k2) ** 2 - (EV ** 2) / (numParts * numTrials)
   const AV = Math.sqrt(Math.max(0, avRawSq))
 
@@ -185,7 +214,7 @@ export function runGageRR(input: GageInput) {
     partAvg.push(mean(avg.map(a => a[p])))
   }
   const rP = Math.max(...partAvg) - Math.min(...partAvg)
-  const k3 = K3[numParts]
+  const k3 = 1 / d2Star(numParts, 1)
   const PV = rP * k3
 
   // Total Variation
@@ -209,8 +238,7 @@ export function runGageRR(input: GageInput) {
     ? { EV: studyVar.EV / tolerance, AV: studyVar.AV / tolerance, GRR: studyVar.GRR / tolerance, PV: studyVar.PV / tolerance }
     : null
 
-  const ndcRaw = GRR > 0 ? 1.41 * (PV / GRR) : Infinity
-  const ndc = Math.floor(ndcRaw)
+  const { ndcRaw, ndc } = distinctCategories(PV, GRR)
 
   // Conclusion — prefer %GRR of Tolerance when specs are provided, else %GRR of Total Variation
   const gaugeForConclusion = pctOfTolerance ? pctOfTolerance.GRR : pctOfTV.GRR
@@ -234,7 +262,8 @@ export function runGageRR(input: GageInput) {
     partAvg, rP, PV, TV,
     pctOfTV, pctOfTolerance, tolerance, studyVar,
     ndcRaw, ndc, conclusion, conclusionText,
-    constants: { D4: d4, K1: k1, K2: k2, K3: k3 },
+    // shown in the result hint — rounded for display; the calculation keeps full precision
+    constants: { D4: d4, K1: +k1.toFixed(4), K2: +k2.toFixed(4), K3: +k3.toFixed(4) },
   }
 }
 
@@ -393,8 +422,7 @@ export function runAnovaGageRR(input: GageInput, poolingAlpha: number) {
     ? { EV: studyVar.EV / tolerance, AV: studyVar.AV / tolerance, GRR: studyVar.GRR / tolerance, PV: studyVar.PV / tolerance }
     : null
 
-  const ndcRaw = GRR > 0 ? 1.41 * (PV / GRR) : Infinity
-  const ndc = Math.floor(ndcRaw)
+  const { ndcRaw, ndc } = distinctCategories(PV, GRR)
 
   const gaugeForConclusion = pctOfTolerance ? pctOfTolerance.GRR : pctStudyVar.GRR
   let conclusion: 'okay' | 'marginal' | 'unacceptable'
