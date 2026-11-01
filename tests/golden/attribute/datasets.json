@@ -136,16 +136,16 @@
   ],
   "n": 25,
   "minitab": {
-   "note": "Minitab run used 27 rows (rows 1\u20132 pasted again at the end) \u2014 rerun needed with the 25 rows. Even so it shows stepped limits; the displayed last-row UCL 0.0788 (n = 184, P\u0304 0.0370) equals P\u0304 + 3\u221a(P\u0304(1 \u2212 P\u0304)/n_i).",
-   "center_27rows": "0.0370",
-   "ucl_last_27rows": "0.0788",
-   "lcl": "0",
+   "center": "0.0372",
+   "ucl_last": "0.0764",
+   "lcl_last": "0",
    "tests": {
     "1": [
      10
     ]
    },
-   "stepped": true
+   "stepped": true,
+   "note": "Rerun with the 25 rows (1 Nov 2026, 22:37). Limits shown for the last subgroup (n = 210); tests read from the chart (the session text was from a chart of the Subgroup column)."
   },
   "minitabSource": "Minitab charts from Tawfik, 1 Nov 2026 (session text for A1, A2, A3, A6 was from another run; tests read from the chart labels)"
  },
