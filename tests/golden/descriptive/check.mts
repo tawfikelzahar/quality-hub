@@ -36,14 +36,14 @@ const pick: Record<string, (r: any) => number | null> = {
 }
 
 /** Equal at the decimals Minitab printed (its value is the reference) */
+// Values are stored as the strings Minitab printed, so trailing zeros keep
+// their precision ("5.5000" is checked to 4 decimals, not 1).
 function sameAsPrinted(got: number | null, want: number | string): boolean {
-  if (typeof want === 'string') {
-    // "< 0.005" for p-values
-    return want.startsWith('<') && got !== null && got < Number(want.slice(1))
-  }
+  const w = String(want).trim()
+  if (w.startsWith('<')) return got !== null && got < Number(w.slice(1)) // "< 0.005" for p-values
   if (got === null) return false
-  const dec = (String(want).split('.')[1] ?? '').length
-  return Math.abs(got - want) <= 0.5 * 10 ** -dec + 1e-12
+  const dec = (w.split('.')[1] ?? '').length
+  return Math.abs(got - Number(w)) <= 0.5 * 10 ** -dec + 1e-12
 }
 
 let checks = 0
