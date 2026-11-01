@@ -1,5 +1,6 @@
 import 'server-only'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { DEV_PRO } from '@/lib/devPro'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Is the person calling this API route a Pro subscriber? For routes that are
@@ -9,6 +10,8 @@ import { createServerSupabase } from '@/lib/supabase-server'
 // ─────────────────────────────────────────────────────────────────────────
 
 export async function isProRequest(): Promise<boolean> {
+  // Local test switch (lib/devPro.ts) — always false in deployed builds
+  if (DEV_PRO) return true
   try {
     const supabase = await createServerSupabase()
     const { data: { user } } = await supabase.auth.getUser()

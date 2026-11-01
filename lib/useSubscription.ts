@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuthState, type SubscriptionStatus } from '@/lib/authState'
+import { DEV_PRO } from '@/lib/devPro'
 
 export type { SubscriptionStatus }
 
@@ -19,5 +20,7 @@ interface UseSubscriptionResult {
 // بترجع 'free' (افتراضيًا مقفول). السيرفر هو اللي بيتأكد من Pro فعلًا.
 export function useSubscription(): UseSubscriptionResult {
   const { status, user, loading } = useAuthState()
+  // Local test switch (lib/devPro.ts) — always false in deployed builds
+  if (DEV_PRO) return { status: 'pro', isPro: true, isLoggedIn: true, loading: false }
   return { status, isPro: status === 'pro', isLoggedIn: !!user, loading }
 }
