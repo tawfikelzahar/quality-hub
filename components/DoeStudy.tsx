@@ -21,7 +21,8 @@ import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addChartImagePair, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue } from '@/lib/stats/format'
 import { LETTERS, MAX_FACTORS, MAX_REPLICATES, MIN_FACTORS, buildDesignMatrix, randomizeRunOrder, type DesignRow } from '@/lib/doe/design'
-import type { DoeResult, DoeError } from '@/lib/doe/calculator'
+import type { DoeError } from '@/lib/doe/calculator'
+import type { DoeView as DoeResult } from '@/lib/doe/freeView.server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // DOE (2^k full factorial) on the shared tool layout. The design matrix is
@@ -221,10 +222,11 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     if (b.order >= 2) return fill(say(d, 'dx_v_big_inter'), { f1: w(fName(b.idx[0])), f2: w(fName(b.idx[1])) })
     const i = b.idx[0]
     const main = fill(say(d, 'dx_v_big_main'), { f: w(fName(i)), lo: w(inp.factors[i].low.trim()), hi: w(inp.factors[i].high.trim()), y: w(yName), e: w(`${b.effect >= 0 ? '+' : '−'}${g4(Math.abs(b.effect))}`) })
-    const inter = r.terms.find(x => x.order >= 2 && x.significant && x.idx.includes(i))
-    return inter ? `${main} ${fill(say(d, 'dx_v_big_inter_note'), { t: w(inter.term.split('').join('×')) })}` : main
+    const interTerm = r.checks ? r.checks.bigInter : r.terms.find(x => x.order >= 2 && x.significant && x.idx.includes(i))?.term ?? null
+    return interTerm ? `${main} ${fill(say(d, 'dx_v_big_inter_note'), { t: w(interTerm.split('').join('×')) })}` : main
   }
-  const sigColor = !res ? 'var(--qh-muted)' : res.significant.length ? 'var(--qh-good)' : 'var(--qh-amber)'
+  const locked = !!res?.locked
+  const sigColor = !res ? 'var(--qh-muted)' : locked ? 'var(--qh-muted)' : res.significant.length ? 'var(--qh-good)' : 'var(--qh-amber)'
   const bigColor = 'var(--qh-data)'
 
   // ── Charts ──
@@ -410,17 +412,25 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     const lines = [
       `DOE — ${yLabel}`,
       `Design,${csvCell(studyLine(res))}`,
-      `Method,${res.method === 'anova' ? 'ANOVA with pure error, alpha 0.05' : `Lenth PSE ${g4(res.lenth!.pse)}, ME ${g4(res.lenth!.me)}`}`,
+      ...(locked ? [] : [`Method,${res.method === 'anova' ? 'ANOVA with pure error, alpha 0.05' : `Lenth PSE ${g4(res.lenth!.pse)}, ME ${g4(res.lenth!.me)}`}`]),
       '',
       ['Run order', 'Std order', 'Replicate', ...res.factors.map(f => csvCell(f.name)), csvCell(yLabel)].join(','),
       ...rows.map(r => [r.runOrder, r.standardOrder, r.replicate, ...r.coded.map((v, i) => (v < 0 ? inp.factors[i].low.trim() : inp.factors[i].high.trim())), inp.values[keyOf(r)] ?? ''].join(',')),
       '',
-      'Term,Effect,Coef,SE Coef,T,P,Contribution %,Significant',
-      `Constant,,${res.grandMean},${res.terms[0].seCoef ?? ''},,,,`,
-      ...res.terms.map(x => [x.term, x.effect, x.coef, x.seCoef ?? '', x.tValue ?? '', x.pValue ?? '', fixed(x.contribution, 2), x.significant ? 'yes' : 'no'].join(',')),
-      '',
-      `R2,${res.r2}`, `R2 adj,${res.r2Adj ?? ''}`, `R2 pred,${res.r2Pred ?? ''}`, `S,${res.s ?? ''}`,
-      `Uncoded equation,${csvCell(eqText(res))}`,
+      ...(locked ? [
+        'Term,Effect,Coef,Contribution %',
+        `Constant,,${res.grandMean},`,
+        ...res.terms.map(x => [x.term, x.effect, x.coef, fixed(x.contribution, 2)].join(',')),
+        '',
+        `R2,${res.r2}`, `R2 adj,${res.r2Adj ?? ''}`, `S,${res.s ?? ''}`,
+      ] : [
+        'Term,Effect,Coef,SE Coef,T,P,Contribution %,Significant',
+        `Constant,,${res.grandMean},${res.terms[0].seCoef ?? ''},,,,`,
+        ...res.terms.map(x => [x.term, x.effect, x.coef, x.seCoef ?? '', x.tValue ?? '', x.pValue ?? '', fixed(x.contribution, 2), x.significant ? 'yes' : 'no'].join(',')),
+        '',
+        `R2,${res.r2}`, `R2 adj,${res.r2Adj ?? ''}`, `R2 pred,${res.r2Pred ?? ''}`, `S,${res.s ?? ''}`,
+        `Uncoded equation,${csvCell(eqText(res))}`,
+      ]),
     ]
     const blob = new Blob(['﻿', lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -545,17 +555,20 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     ctx.pdf.save('doe-report.pdf')
   }
 
+  // Free accounts don't get the Pareto (Pro), so their PNG is the main effects plot
+  const pngChart = () => (locked ? mainRef.current : paretoRef.current)
   const runPNG = () => {
     if (!isLoggedIn) { goToLogin('doe', 'png'); return }
-    if (!paretoRef.current) return
+    const chart = pngChart()
+    if (!chart) return
     const a = document.createElement('a')
-    a.href = paretoRef.current.toBase64Image('image/png', 1)
-    a.download = 'doe-pareto-of-effects.png'
+    a.href = chart.toBase64Image('image/png', 1)
+    a.download = locked ? 'doe-main-effects.png' : 'doe-pareto-of-effects.png'
     a.click()
   }
   const exportExcel = () => (isPro ? withWatermarksDisabled(charts(), () => withEnglishAxes(runExcel)) : runExcel())
   const exportPDF = () => (isPro ? withWatermarksDisabled(charts(), () => withEnglishAxes(runPDF)) : runPDF())
-  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([paretoRef.current], () => withEnglishAxes(runPNG)) : runPNG())
+  const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([pngChart()], () => withEnglishAxes(runPNG)) : runPNG())
 
   const helpSteps = [1, 2, 3, 4].map(n => ({ t: t(`dx_help_s${n}_t` as TKey), d: t(`dx_help_s${n}_d` as TKey) }))
   const D = translations[lang]
@@ -703,14 +716,25 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                 ) : (
                   <>
                     <div className="tl-verdicts" aria-live="polite">
-                      <div className="tl-verdict" style={{ background: tint(sigColor, 8), border: `1px solid ${tint(sigColor, 35)}` }}>
-                        <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(sigColor, 16), color: sigColor }}>{res.significant.length ? '✓' : '!'}</span>
-                        <div>
-                          <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t(res.method === 'anova' ? 'dx_v_sig' : 'dx_v_active')}</div>
-                          <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: sigColor }}>{sigHead(D, res)}</div>
-                          <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{sigSub(D, res, lang === 'ar')}</div>
+                      {locked ? (
+                        <div className="tl-verdict" style={{ background: tint(sigColor, 8), border: `1px solid ${tint(sigColor, 35)}` }}>
+                          <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(sigColor, 16), color: sigColor }}>?</span>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--qh-muted)', marginBottom: 4 }}>{t(res.method === 'anova' ? 'dx_v_sig' : 'dx_v_active')} <span className="tl-pro">PRO</span></div>
+                            <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{t('dx_pro_sig')}</div>
+                            <button type="button" className="tl-xbtn tl-xbtn-pro" style={{ marginTop: 10 }} onClick={() => goToPricing('doe', 'diagnostics')}>{t('gr_pro_btn')}</button>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="tl-verdict" style={{ background: tint(sigColor, 8), border: `1px solid ${tint(sigColor, 35)}` }}>
+                          <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(sigColor, 16), color: sigColor }}>{res.significant.length ? '✓' : '!'}</span>
+                          <div>
+                            <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t(res.method === 'anova' ? 'dx_v_sig' : 'dx_v_active')}</div>
+                            <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: sigColor }}>{sigHead(D, res)}</div>
+                            <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{sigSub(D, res, lang === 'ar')}</div>
+                          </div>
+                        </div>
+                      )}
                       {biggest && (
                         <div className="tl-verdict" style={{ background: tint(bigColor, 8), border: `1px solid ${tint(bigColor, 35)}` }}>
                           <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(bigColor, 16), color: bigColor }}>
@@ -728,8 +752,8 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                     <div className="tl-kpis tl-kpis-4">
                       <div className="tl-kpi"><span>R²</span><b>{fixed(res.r2 * 100, 2)}%</b></div>
                       <div className="tl-kpi"><span>R² (adj)</span><b>{res.r2Adj !== null ? `${fixed(res.r2Adj * 100, 2)}%` : '—'}</b></div>
-                      <div className="tl-kpi"><span>R² (pred)</span><b>{res.r2Pred !== null ? `${fixed(res.r2Pred * 100, 2)}%` : '—'}</b></div>
-                      <div className="tl-kpi"><span>{res.s !== null ? 'S' : 'PSE'}</span><b>{g4(res.s ?? res.lenth!.pse)}</b></div>
+                      <div className="tl-kpi"><span>R² (pred)</span><b>{locked ? <span className="tl-pro">PRO</span> : res.r2Pred !== null ? `${fixed(res.r2Pred * 100, 2)}%` : '—'}</b></div>
+                      <div className="tl-kpi"><span>{res.s !== null ? 'S' : 'PSE'}</span><b>{res.s !== null ? g4(res.s) : res.lenth ? g4(res.lenth.pse) : <span className="tl-pro">PRO</span>}</b></div>
                     </div>
 
                     <div className="tl-results-head">
@@ -742,7 +766,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                         onPNG={exportPNG}
                         onExcel={exportExcel}
                         onPDF={exportPDF}
-                        pngLabel={t('dx_x_png')}
+                        pngLabel={t(locked ? 'dx_x_png_main' : 'dx_x_png')}
                         save={
                           <SaveAnalysisButton
                             theme={theme}
@@ -763,17 +787,27 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                       />
                     </div>
 
-                    <div className="tl-chart">
-                      <h3>{t('dx_pareto_title')}</h3>
-                      <div className="tl-chart-sub">
-                        {res.method === 'anova'
-                          ? fill(t('dx_pareto_sub_anova'), { t: g4(res.paretoLine), df: res.error!.df })
-                          : fill(t('dx_pareto_sub_lenth'), { me: g4(res.lenth!.me), pse: g4(res.lenth!.pse) })}
+                    {locked ? (
+                      <div className="tl-card">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontWeight: 700, fontSize: 15 }}>{t('dx_pareto_title')}</span>
+                          <span className="tl-pro">PRO</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--qh-muted)' }}>{t('dx_pro_pareto')}</p>
                       </div>
-                      <div className="tl-chart-inner" style={{ height: paretoH }}>
-                        {paretoData && <Chart ref={paretoRef} type="bar" data={paretoData} options={paretoOptions} plugins={[refLine]} />}
+                    ) : (
+                      <div className="tl-chart">
+                        <h3>{t('dx_pareto_title')}</h3>
+                        <div className="tl-chart-sub">
+                          {res.method === 'anova'
+                            ? fill(t('dx_pareto_sub_anova'), { t: g4(res.paretoLine), df: res.error!.df })
+                            : fill(t('dx_pareto_sub_lenth'), { me: g4(res.lenth!.me), pse: g4(res.lenth!.pse) })}
+                        </div>
+                        <div className="tl-chart-inner" style={{ height: paretoH }}>
+                          {paretoData && <Chart ref={paretoRef} type="bar" data={paretoData} options={paretoOptions} plugins={[refLine]} />}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="dx-charts2">
                       <div className="tl-chart">
@@ -810,14 +844,14 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                                 <th>{t('dx_col_term')}</th>
                                 <th className="num">{t('dx_col_effect')}</th>
                                 <th className="num">{t('dx_col_coef')}</th>
-                                {res.method === 'anova' && <><th className="num">{t('dx_col_se')}</th><th className="num">T</th><th className="num">P</th></>}
+                                {res.method === 'anova' && !locked && <><th className="num">{t('dx_col_se')}</th><th className="num">T</th><th className="num">P</th></>}
                                 <th className="num">{t('dx_col_contrib')}</th>
                               </tr>
                             </thead>
                             <tbody>
                               <tr>
                                 <td>{t('dx_constant')}</td><td className="num" /><td className="num">{ltr(g4(res.grandMean))}</td>
-                                {res.method === 'anova' && <><td className="num">{ltr(g4(res.terms[0].seCoef ?? 0))}</td><td className="num" /><td className="num" /></>}
+                                {res.method === 'anova' && !locked && <><td className="num">{ltr(g4(res.terms[0].seCoef ?? 0))}</td><td className="num" /><td className="num" /></>}
                                 <td className="num" />
                               </tr>
                               {res.terms.map(x => (
@@ -825,7 +859,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                                   <td className={x.significant ? 'dx-sig' : undefined} title={termName(x.term)}>{termName(x.term)}</td>
                                   <td className="num">{ltr(g4(x.effect))}</td>
                                   <td className="num">{ltr(g4(x.coef))}</td>
-                                  {res.method === 'anova' && <>
+                                  {res.method === 'anova' && !locked && <>
                                     <td className="num">{ltr(g4(x.seCoef ?? 0))}</td>
                                     <td className="num">{ltr(fixed(x.tValue ?? 0, 2))}</td>
                                     <td className={`num${x.significant ? ' dx-sig' : ''}`}>{ltr(pCell(x.pValue))}</td>
@@ -837,7 +871,8 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                           </table>
                           {res.lenth && <div className="tl-hint">{fill(t('dx_lenth_note'), { s0: g4(res.lenth.s0), pse: g4(res.lenth.pse), df: fixed(res.lenth.df, 2), me: g4(res.lenth.me) })}</div>}
                         </div>
-                        {res.method === 'anova' && (
+                        {locked && <div className="tl-hint"><span className="tl-pro">PRO</span> {t('dx_pro_more')}</div>}
+                        {res.method === 'anova' && !locked && (
                           <div style={{ overflowX: 'auto' }}>
                             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('dx_anova_title')}</div>
                             <table className="tl-table">
@@ -856,11 +891,13 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                             </table>
                           </div>
                         )}
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('dx_eq_title')}</div>
-                          <div className="dx-eq">{eqText(res)}</div>
-                          <div className="tl-hint">{t('dx_eq_note')}</div>
-                        </div>
+                        {!locked && (
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('dx_eq_title')}</div>
+                            <div className="dx-eq">{eqText(res)}</div>
+                            <div className="tl-hint">{t('dx_eq_note')}</div>
+                          </div>
+                        )}
                       </div>
                     </details>
 

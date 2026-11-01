@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { fitRegression, MAX_PREDICTORS, MAX_ROWS } from '@/lib/regression/model'
+import { freeRegressionView } from '@/lib/regression/freeView.server'
+import { isProRequest } from '@/lib/pro.server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/regression — simple and multiple linear regression: QR fit,
 // exact tests, ANOVA, VIF, diagnostics, unusual observations, residual
 // normality, intervals. The calculation stays on the server; this route
-// only checks the payload.
+// checks the payload and sends Pro readings to Pro accounts only.
 // Body: { yName, xNames: string[], y: number[], X: number[][] (row-wise), predict?: number[] }
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -37,5 +39,7 @@ export async function POST(request: NextRequest) {
 
   const result = fitRegression(yName as string, xNames as string[], y as number[], X as number[][], (predict as number[] | null | undefined) ?? null)
   if ('code' in result) return NextResponse.json({ error: result }, { status: 422 })
-  return NextResponse.json({ result }, { headers: { 'Cache-Control': 'no-store' } })
+  // Free/Pro split: Pro readings go to Pro accounts only (lib/regression/freeView.server.ts)
+  const view = (await isProRequest()) ? result : freeRegressionView(result)
+  return NextResponse.json({ result: view }, { headers: { 'Cache-Control': 'no-store' } })
 }

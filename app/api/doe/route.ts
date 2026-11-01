@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { analyzeFactorial } from '@/lib/doe/calculator'
+import { freeDoeView } from '@/lib/doe/freeView.server'
+import { isProRequest } from '@/lib/pro.server'
 import { MAX_FACTORS, MAX_REPLICATES, MIN_FACTORS, type FactorDef } from '@/lib/doe/design'
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/doe — 2^k full factorial: effects, ANOVA or Lenth's method,
 // coefficients, factorial-plot means and the uncoded equation. The
-// analysis stays on the server; this route only checks the payload.
+// analysis stays on the server; this route checks the payload and sends
+// Pro readings to Pro accounts only.
 // Body: { factors: [{ name, low, high, unit? }], responses: number[][] }
 // (responses[p] = replicate values at design point p, standard order)
 // ─────────────────────────────────────────────────────────────────────────
@@ -39,5 +42,7 @@ export async function POST(request: NextRequest) {
   const clean = (factors as FactorDef[]).map(f => ({ name: f.name, low: f.low, high: f.high, ...(f.unit ? { unit: f.unit } : {}) }))
   const result = analyzeFactorial(clean, responses as number[][])
   if (typeof result === 'string') return NextResponse.json({ error: result }, { status: 422 })
-  return NextResponse.json({ result }, { headers: { 'Cache-Control': 'no-store' } })
+  // Free/Pro split: Pro readings go to Pro accounts only (lib/doe/freeView.server.ts)
+  const view = (await isProRequest()) ? result : freeDoeView(result)
+  return NextResponse.json({ result: view }, { headers: { 'Cache-Control': 'no-store' } })
 }

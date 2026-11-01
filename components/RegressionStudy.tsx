@@ -20,12 +20,15 @@ import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addChartImageGrid, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue, formatPEquals } from '@/lib/stats/format'
-import type { RegressionFit, RegressionError } from '@/lib/regression/model'
+import type { RegressionError } from '@/lib/regression/model'
+import type { RegressionView as RegressionFit } from '@/lib/regression/freeView.server'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Simple and multiple linear regression on the shared tool layout. The fit,
 // tests, diagnostics and intervals come from /api/regression; this page
 // holds the data grid, sends the chosen columns and draws the reply.
+// Free accounts get a reply without the Pro readings (locked: true) and see
+// those cards with a PRO note; accuracy warnings stay visible to everyone.
 // ─────────────────────────────────────────────────────────────────────────
 
 export type RegressionMode = 'simple' | 'multiple'
@@ -244,11 +247,23 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
   const vifHigh = (r: RegressionFit) => r.coefficients.filter(cf => cf.vif !== null && cf.vif > 10)
   const vifMid = (r: RegressionFit) => r.coefficients.filter(cf => cf.vif !== null && cf.vif > 5 && cf.vif <= 10)
   const nonNormal = (r: RegressionFit) => !!r.normality && r.normality.p < 0.05
-  const checkCount = (r: RegressionFit) => r.unusual.length + (nonNormal(r) ? 1 : 0) + vifHigh(r).length
+  const checkCount = (r: RegressionFit) => r.checks
+    ? r.checks.unusualCount + (r.checks.nonNormal ? 1 : 0) + r.checks.highVif.length
+    : r.unusual.length + (nonNormal(r) ? 1 : 0) + vifHigh(r).length
   const checkHead = (d: Dict, r: RegressionFit) => { const n = checkCount(r); return n === 0 ? say(d, 'rg_v_check_ok') : n === 1 ? say(d, 'rg_v_check_warn_one') : fill(say(d, 'rg_v_check_warn'), { n }) }
   const checkLines = (d: Dict, r: RegressionFit, iso = false) => {
     const w = (v: string) => (iso ? ltr(v) : v)
     const out: { text: string; warn: boolean; info?: boolean }[] = []
+    const ck = r.checks
+    if (ck) {
+      // Free account: the same warnings, without the Pro numbers behind them
+      out.push(ck.nonNormal === null ? { text: say(d, 'rg_chk_normal_na'), warn: false, info: true } : { text: say(d, ck.nonNormal ? 'rg_chkf_nonnormal' : 'rg_chkf_normal'), warn: ck.nonNormal })
+      out.push(ck.unusualCount ? { text: fill(say(d, 'rg_chkf_unusual'), { n: ck.unusualCount }), warn: true } : { text: say(d, 'rg_chk_no_unusual'), warn: false })
+      if (ck.highVif.length) out.push({ text: fill(say(d, 'rg_chkf_vif'), { list: ck.highVif.map(w).join(', ') }), warn: true })
+      else if (ck.midVif.length) out.push({ text: fill(say(d, 'rg_chkf_vif_mid'), { list: ck.midVif.map(w).join(', ') }), warn: false })
+      if (multi && r.n < 10 * r.k) out.push({ text: say(d, 'rg_chk_fewrows'), warn: false, info: true })
+      return out
+    }
     out.push(r.normality ? { text: fill(say(d, nonNormal(r) ? 'rg_chk_nonnormal' : 'rg_chk_normal'), { p: w(`AD ${formatPEquals(r.normality.p)}`) }), warn: nonNormal(r) } : { text: say(d, 'rg_chk_normal_na'), warn: false, info: true })
     out.push(r.unusual.length ? { text: fill(say(d, 'rg_chk_unusual'), { n: r.unusual.length, rows: w(r.unusual.slice(0, 8).join(', ') + (r.unusual.length > 8 ? ' …' : '')) }), warn: true } : { text: say(d, 'rg_chk_no_unusual'), warn: false })
     if (vifHigh(r).length) out.push({ text: fill(say(d, 'rg_chk_vif'), { list: vifHigh(r).map(cf => w(`${cf.term} ${fixed(cf.vif as number, 1)}`)).join(', ') }), warn: true })
@@ -282,7 +297,16 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
   const zeroLine = (x0: number, x1: number) => ({ type: 'scatter' as const, data: [{ x: x0, y: 0 }, { x: x1, y: 0 }], showLine: true, borderColor: c.muted, borderWidth: 1, borderDash: [4, 4], pointRadius: 0 })
   const dot = { backgroundColor: c.data, borderColor: c.data, pointRadius: 3.5, pointHoverRadius: 5 }
 
-  const mainData = res ? (res.band ? {
+  const locked = !!res?.locked
+  const lineFit = res && locked && !multi
+    ? [...res.residuals].sort((a, b) => a.x[0] - b.x[0]).map(r => ({ x: r.x[0], y: r.fit }))
+    : null
+  const mainData = res ? (lineFit ? {
+    datasets: [
+      { type: 'scatter' as const, label: 'fit', data: [lineFit[0], lineFit[lineFit.length - 1]], showLine: true, borderColor: c.text, borderWidth: 2, pointRadius: 0 },
+      { type: 'scatter' as const, label: 'data', data: res.residuals.map(r => ({ x: r.x[0], y: r.y })), ...dot },
+    ],
+  } : res.band ? {
     datasets: [
       { type: 'scatter' as const, label: 'ciLo', data: res.band.map(b => ({ x: b.x, y: b.ciLo })), showLine: true, borderWidth: 0, pointRadius: 0, fill: false },
       { type: 'scatter' as const, label: 'ciHi', data: res.band.map(b => ({ x: b.x, y: b.ciHi })), showLine: true, borderWidth: 0, pointRadius: 0, backgroundColor: tint(BAND, 18), fill: '-1' },
@@ -302,11 +326,11 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
     })(),
   }) : null
   const mainOptions = res ? {
-    ...baseOptions(res.band ? res.xNames[0] : t('rg_ax_fit'), res.band ? res.yName : t('rg_ax_actual'), 'normal'),
+    ...baseOptions(res.band || lineFit ? res.xNames[0] : t('rg_ax_fit'), res.band || lineFit ? res.yName : t('rg_ax_actual'), 'normal'),
     plugins: { ...baseOptions('', '').plugins, watermark: watermarkOptions('normal'), tooltip: { filter: (item: { dataset: { label?: string } }) => item.dataset.label === 'data', callbacks: { label: (item: { parsed: { x: number | null; y: number | null } }) => `${g4(item.parsed.x ?? 0)}, ${g4(item.parsed.y ?? 0)}` } } },
   } : null
 
-  const normData = res ? (() => {
+  const normData = res && !locked ? (() => {
     const z = res.normalPlot
     const n = z.length
     const m = z.reduce((a, p) => a + p.resid, 0) / n
@@ -317,9 +341,9 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
       { type: 'scatter' as const, label: 'data', data: z.map(p => ({ x: p.resid, y: p.z })), ...dot },
     ] }
   })() : null
-  const fitsData = res ? { datasets: [zeroLine(Math.min(...res.residuals.map(r => r.fit)), Math.max(...res.residuals.map(r => r.fit))), { type: 'scatter' as const, label: 'data', data: res.residuals.map(r => ({ x: r.fit, y: r.resid })), ...dot }] } : null
-  const orderData = res ? { datasets: [zeroLine(1, res.n), { type: 'scatter' as const, label: 'data', data: res.residuals.map(r => ({ x: r.row, y: r.resid })), ...dot, showLine: true, borderColor: tint(c.data, 60), borderWidth: 1 }] } : null
-  const hist = res ? (() => {
+  const fitsData = res && !locked ? { datasets: [zeroLine(Math.min(...res.residuals.map(r => r.fit)), Math.max(...res.residuals.map(r => r.fit))), { type: 'scatter' as const, label: 'data', data: res.residuals.map(r => ({ x: r.fit, y: r.resid })), ...dot }] } : null
+  const orderData = res && !locked ? { datasets: [zeroLine(1, res.n), { type: 'scatter' as const, label: 'data', data: res.residuals.map(r => ({ x: r.row, y: r.resid })), ...dot, showLine: true, borderColor: tint(c.data, 60), borderWidth: 1 }] } : null
+  const hist = res && !locked ? (() => {
     const e = res.residuals.map(r => r.resid)
     const lo = Math.min(...e), hi = Math.max(...e)
     const bins = Math.max(4, Math.min(12, Math.round(Math.sqrt(e.length)) + 1))
@@ -347,7 +371,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
       const title = (chart?.options.scales as Sc | undefined)?.[axis]?.title
       if (chart && title) jobs.push({ ch: chart, title, keep: title.text, text: `‎${text}‎` })
     }
-    if (!res.band) { add(mainRef.current, 'x', EN.rg_ax_fit); add(mainRef.current, 'y', EN.rg_ax_actual) }
+    if (!res.band && !lineFit) { add(mainRef.current, 'x', EN.rg_ax_fit); add(mainRef.current, 'y', EN.rg_ax_actual) }
     add(normRef.current, 'x', EN.rg_ax_resid); add(normRef.current, 'y', EN.rg_ax_normal)
     add(fitsRef.current, 'x', EN.rg_ax_fit); add(fitsRef.current, 'y', EN.rg_ax_resid)
     add(histRef.current, 'x', EN.rg_ax_resid); add(histRef.current, 'y', EN.rg_ax_freq)
@@ -375,15 +399,24 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
       `Model summary,${csvCell(summaryLine(res))}`,
       `F,${res.fRegression},p,${res.pRegression}`,
       '',
-      'Term,Coef,SE Coef,T,P,VIF',
-      ...res.coefficients.map(cf => [csvCell(cf.term), cf.coef, cf.se, cf.t, cf.p, cf.vif ?? ''].join(',')),
-      '',
-      'Source,DF,Adj SS,Adj MS,F,P',
-      ...res.anova.map(a => [csvCell(a.source), a.df, a.ss, a.ms ?? '', a.f ?? '', a.p ?? ''].join(',')),
-      '',
-      ['Row', ...res.xNames.map(csvCell), csvCell(res.yName), 'Fit', 'Resid', 'Std Resid', 'Leverage', 'Cook D', 'Flag'].join(','),
-      ...res.residuals.map(r => [r.row, ...r.x, r.y, r.fit, r.resid, r.stdResid, r.leverage, r.cook, r.flags.join(' ')].join(',')),
-      ...(res.prediction ? ['', `Prediction,${csvCell(predLine(res))}`] : []),
+      ...(locked ? [
+        'Term,Coef,SE Coef,T,P',
+        ...res.coefficients.map(cf => [csvCell(cf.term), cf.coef, cf.se, cf.t, cf.p].join(',')),
+        '',
+        ['Row', ...res.xNames.map(csvCell), csvCell(res.yName), 'Fit'].join(','),
+        ...res.residuals.map(r => [r.row, ...r.x, r.y, r.fit].join(',')),
+        ...(res.prediction ? ['', `Prediction,${csvCell(`At ${res.xNames.map((x, j) => `${x} = ${g4(res.prediction!.x[j])}`).join(', ')}: fit ${g4(res.prediction.fit)}`)}`] : []),
+      ] : [
+        'Term,Coef,SE Coef,T,P,VIF',
+        ...res.coefficients.map(cf => [csvCell(cf.term), cf.coef, cf.se, cf.t, cf.p, cf.vif ?? ''].join(',')),
+        '',
+        'Source,DF,Adj SS,Adj MS,F,P',
+        ...res.anova.map(a => [csvCell(a.source), a.df, a.ss, a.ms ?? '', a.f ?? '', a.p ?? ''].join(',')),
+        '',
+        ['Row', ...res.xNames.map(csvCell), csvCell(res.yName), 'Fit', 'Resid', 'Std Resid', 'Leverage', 'Cook D', 'Flag'].join(','),
+        ...res.residuals.map(r => [r.row, ...r.x, r.y, r.fit, r.resid, r.stdResid, r.leverage, r.cook, r.flags.join(' ')].join(',')),
+        ...(res.prediction ? ['', `Prediction,${csvCell(predLine(res))}`] : []),
+      ]),
     ]
     const blob = new Blob(['﻿', lines.join('\n')], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -708,6 +741,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                           <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{t('rg_v_check')}</div>
                           <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 2, color: kColor }}>{checkHead(D, res)}</div>
                           <ul className="rg-checks">{checkLines(D, res, iso).map((l, i) => <li key={i} className={l.warn ? 'warn' : l.info ? 'info' : undefined}>{l.text}</li>)}</ul>
+                          {locked && <div className="tl-hint" style={{ marginTop: 6 }}><span className="tl-pro">PRO</span> {t('rg_pro_checks')}</div>}
                         </div>
                       </div>
                     </div>
@@ -716,7 +750,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                       <div className="tl-kpi"><span>S</span><b>{g4(res.s)}</b></div>
                       <div className="tl-kpi"><span>R²</span><b>{pct(res.r2)}%</b></div>
                       <div className="tl-kpi"><span>R² (adj)</span><b>{pct(res.r2Adj)}%</b></div>
-                      <div className="tl-kpi"><span>R² (pred)</span><b>{res.r2Pred !== null ? `${pct(res.r2Pred)}%` : '—'}</b></div>
+                      <div className="tl-kpi"><span>R² (pred)</span><b>{locked ? <span className="tl-pro">PRO</span> : res.r2Pred !== null ? `${pct(res.r2Pred)}%` : '—'}</b></div>
                     </div>
 
                     <div className="tl-card" style={{ padding: '14px 18px' }}>
@@ -728,10 +762,14 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                       <div className="tl-card rg-pred-card" style={{ padding: '14px 18px', borderColor: res.prediction.beyondData ? tint('var(--qh-amber)', 45) : undefined }}>
                         <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 4 }}>{t('rg_pred_title')} · {ltr(res.xNames.map((x, j) => `${x} = ${g4(res.prediction!.x[j])}`).join(', '))}</div>
                         <b>{ltr(g4(res.prediction.fit))}</b>
-                        <div style={{ fontSize: 13, lineHeight: 1.8, marginTop: 4 }}>
-                          {t('rg_pred_ci')}: {ltr(`${g4(res.prediction.ciLo)} – ${g4(res.prediction.ciHi)}`)}<br />
-                          {t('rg_pred_pi')}: {ltr(`${g4(res.prediction.piLo)} – ${g4(res.prediction.piHi)}`)}
-                        </div>
+                        {locked ? (
+                          <div className="tl-hint" style={{ marginTop: 6 }}><span className="tl-pro">PRO</span> {t('rg_pro_intervals')}</div>
+                        ) : (
+                          <div style={{ fontSize: 13, lineHeight: 1.8, marginTop: 4 }}>
+                            {t('rg_pred_ci')}: {ltr(`${g4(res.prediction.ciLo)} – ${g4(res.prediction.ciHi)}`)}<br />
+                            {t('rg_pred_pi')}: {ltr(`${g4(res.prediction.piLo)} – ${g4(res.prediction.piHi)}`)}
+                          </div>
+                        )}
                         {res.prediction.beyondData && <div className="tl-chip-warn" style={{ marginTop: 8, display: 'inline-block' }}>{t('rg_pred_beyond')}</div>}
                       </div>
                     )}
@@ -763,8 +801,8 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                     </div>
 
                     <div className="tl-chart">
-                      <h3>{t(res.band ? 'rg_fit_title' : 'rg_avf_title')}</h3>
-                      <div className="tl-chart-sub">{t(res.band ? 'rg_fit_sub' : 'rg_avf_sub')}</div>
+                      <h3>{t(res.band || lineFit ? 'rg_fit_title' : 'rg_avf_title')}</h3>
+                      <div className="tl-chart-sub">{t(res.band ? 'rg_fit_sub' : lineFit ? 'rg_fit_sub_free' : 'rg_avf_sub')}</div>
                       <div className="tl-chart-inner" style={{ height: 330 }}>
                         {mainData && mainOptions && <Chart ref={mainRef} type="scatter" data={mainData} options={mainOptions} />}
                       </div>
@@ -778,16 +816,29 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                       )}
                     </div>
 
-                    <div className="tl-chart">
-                      <h3>{t('rg_resid_title')}</h3>
-                      <div className="tl-chart-sub">{t('rg_resid_sub')}</div>
-                      <div className="rg-four">
-                        {small(t('rg_p_normal'), normData && <Chart ref={normRef} type="scatter" data={normData} options={baseOptions(t('rg_ax_resid'), t('rg_ax_normal'))} />)}
-                        {small(t('rg_p_fits'), fitsData && <Chart ref={fitsRef} type="scatter" data={fitsData} options={baseOptions(t('rg_ax_fit'), t('rg_ax_resid'))} />)}
-                        {small(t('rg_p_hist'), hist && <Chart ref={histRef} type="bar" data={hist} options={histOptions} />)}
-                        {small(t('rg_p_order'), orderData && <Chart ref={orderRef} type="scatter" data={orderData} options={baseOptions(t('rg_ax_order'), t('rg_ax_resid'))} />)}
+                    {locked ? (
+                      <div className="tl-card">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontWeight: 700, fontSize: 15 }}>{t('rg_resid_title')}</span>
+                          <span className="tl-pro">PRO</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--qh-muted)' }}>{t('rg_pro_resid')}</p>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                          <button type="button" className="tl-xbtn tl-xbtn-pro" onClick={() => goToPricing(tool, 'diagnostics')}>{t('gr_pro_btn')}</button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="tl-chart">
+                        <h3>{t('rg_resid_title')}</h3>
+                        <div className="tl-chart-sub">{t('rg_resid_sub')}</div>
+                        <div className="rg-four">
+                          {small(t('rg_p_normal'), normData && <Chart ref={normRef} type="scatter" data={normData} options={baseOptions(t('rg_ax_resid'), t('rg_ax_normal'))} />)}
+                          {small(t('rg_p_fits'), fitsData && <Chart ref={fitsRef} type="scatter" data={fitsData} options={baseOptions(t('rg_ax_fit'), t('rg_ax_resid'))} />)}
+                          {small(t('rg_p_hist'), hist && <Chart ref={histRef} type="bar" data={hist} options={histOptions} />)}
+                          {small(t('rg_p_order'), orderData && <Chart ref={orderRef} type="scatter" data={orderData} options={baseOptions(t('rg_ax_order'), t('rg_ax_resid'))} />)}
+                        </div>
+                      </div>
+                    )}
 
                     <details className="tl-more">
                       <summary>{t('rg_more')}</summary>
@@ -795,7 +846,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                         <div style={{ overflowX: 'auto' }}>
                           <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('rg_coef_title')}</div>
                           <table className="tl-table">
-                            <thead><tr><th>{t('rg_col_term')}</th><th className="num">Coef</th><th className="num">SE Coef</th><th className="num">T</th><th className="num">P</th>{multi && <th className="num">VIF</th>}</tr></thead>
+                            <thead><tr><th>{t('rg_col_term')}</th><th className="num">Coef</th><th className="num">SE Coef</th><th className="num">T</th><th className="num">P</th>{multi && !locked && <th className="num">VIF</th>}</tr></thead>
                             <tbody>
                               {res.coefficients.map((cf, i) => (
                                 <tr key={cf.term}>
@@ -804,31 +855,35 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                                   <td className="num">{ltr(g4(cf.se))}</td>
                                   <td className="num">{ltr(fixed(cf.t, 2))}</td>
                                   <td className="num">{ltr(formatPValue(cf.p))}</td>
-                                  {multi && <td className="num" style={cf.vif !== null && cf.vif > 10 ? { color: 'var(--qh-amber)', fontWeight: 700 } : undefined}>{cf.vif !== null ? ltr(fixed(cf.vif, 2)) : ''}</td>}
+                                  {multi && !locked && <td className="num" style={cf.vif !== null && cf.vif > 10 ? { color: 'var(--qh-amber)', fontWeight: 700 } : undefined}>{cf.vif !== null ? ltr(fixed(cf.vif, 2)) : ''}</td>}
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
-                        <div style={{ overflowX: 'auto' }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('rg_anova_title')}</div>
-                          <table className="tl-table">
-                            <thead><tr><th>{t('dx_col_source')}</th><th className="num">DF</th><th className="num">Adj SS</th><th className="num">Adj MS</th><th className="num">F</th><th className="num">P</th></tr></thead>
-                            <tbody>
-                              {res.anova.map(a => (
-                                <tr key={a.source}>
-                                  <td style={{ paddingInlineStart: a.source !== 'Regression' && a.source !== 'Error' && a.source !== 'Total' ? 22 : undefined }}>{a.source === 'Regression' ? t('rg_src_regression') : a.source === 'Error' ? t('rg_src_error') : a.source === 'Total' ? t('rg_src_total') : a.source}</td>
-                                  <td className="num">{a.df}</td>
-                                  <td className="num">{ltr(g4(a.ss))}</td>
-                                  <td className="num">{a.ms !== null ? ltr(g4(a.ms)) : ''}</td>
-                                  <td className="num">{a.f !== null ? ltr(fixed(a.f, 2)) : ''}</td>
-                                  <td className="num">{a.p !== null ? ltr(formatPValue(a.p)) : ''}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          <div className="tl-hint">{fill(t('rg_dw'), { dw: ltr(fixed(res.durbinWatson, 3)) })}</div>
-                        </div>
+                        {locked ? (
+                          <div className="tl-hint"><span className="tl-pro">PRO</span> {t('rg_pro_more')}</div>
+                        ) : (
+                          <div style={{ overflowX: 'auto' }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('rg_anova_title')}</div>
+                            <table className="tl-table">
+                              <thead><tr><th>{t('dx_col_source')}</th><th className="num">DF</th><th className="num">Adj SS</th><th className="num">Adj MS</th><th className="num">F</th><th className="num">P</th></tr></thead>
+                              <tbody>
+                                {res.anova.map(a => (
+                                  <tr key={a.source}>
+                                    <td style={{ paddingInlineStart: a.source !== 'Regression' && a.source !== 'Error' && a.source !== 'Total' ? 22 : undefined }}>{a.source === 'Regression' ? t('rg_src_regression') : a.source === 'Error' ? t('rg_src_error') : a.source === 'Total' ? t('rg_src_total') : a.source}</td>
+                                    <td className="num">{a.df}</td>
+                                    <td className="num">{ltr(g4(a.ss))}</td>
+                                    <td className="num">{a.ms !== null ? ltr(g4(a.ms)) : ''}</td>
+                                    <td className="num">{a.f !== null ? ltr(fixed(a.f, 2)) : ''}</td>
+                                    <td className="num">{a.p !== null ? ltr(formatPValue(a.p)) : ''}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="tl-hint">{fill(t('rg_dw'), { dw: ltr(fixed(res.durbinWatson, 3)) })}</div>
+                          </div>
+                        )}
                         {res.unusual.length > 0 && (
                           <div style={{ overflowX: 'auto' }}>
                             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{t('rg_unusual_title')}</div>

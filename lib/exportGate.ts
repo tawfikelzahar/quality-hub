@@ -13,7 +13,7 @@
 import { track } from '@/lib/analytics'
 import { hereLocalized } from '@/lib/i18n/routing'
 
-type GateFeature = 'csv' | 'png' | 'excel' | 'pdf' | 'ai' | 'insight' | 'tool'
+type GateFeature = 'csv' | 'png' | 'excel' | 'pdf' | 'ai' | 'insight' | 'tool' | 'diagnostics'
 
 function trackGateEvent(eventName: 'signup_wall_hit' | 'pro_wall_hit', tool: string, feature: GateFeature) {
   track(eventName, { tool_name: tool, feature })

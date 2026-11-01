@@ -75,6 +75,7 @@ const CSS = `
   .tl-table .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .tl-kpi { background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 10px; padding: 10px 12px; min-width: 0; }
   .tl-kpi span { display: block; font-size: 12px; color: var(--qh-muted); }
+  .tl-kpi b .tl-pro { display: inline-block; width: auto; color: var(--qh-onGold); font-family: inherit; font-size: 10px; font-weight: 800; vertical-align: middle; }
   .tl-kpi b { display: block; font: 600 19px ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; margin-top: 2px; direction: ltr; text-align: start; }
   [dir="rtl"] .tl-kpi b { text-align: end; }
   .tl-card { background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 12px; padding: 20px; }
