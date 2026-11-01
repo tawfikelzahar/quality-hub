@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
-import { createServerSupabase } from '@/lib/supabase-server'
+import { proAccess } from '@/lib/pro.server'
 import { buildGageDiagnosis, type GageResultForDiagnosis } from '@/lib/gage/diagnosis.server'
 import { runGageRR, runAnovaGageRR, type GageInput } from '@/lib/gage/calc.server'
 import { isGageSampleInput } from '@/lib/gage/sample'
@@ -28,19 +28,9 @@ export async function POST(request: NextRequest) {
   const sample = isGageSampleInput(body.measurements, body.USL, body.LSL) &&
     body.numTrials === 3 && body.numParts === 10 && body.appraiserNames.length === 3
   if (!sample) {
-    const supabase = await createServerSupabase()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
-    }
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('subscription_status')
-      .eq('id', user.id)
-      .single()
-    if (profile?.subscription_status !== 'pro') {
-      return NextResponse.json({ error: 'Gage R&R is a Pro feature.', code: 'pro' }, { status: 403 })
-    }
+    const access = await proAccess()
+    if (access === 'login') return NextResponse.json({ error: 'Unauthorized. Please log in.' }, { status: 401 })
+    if (access !== 'pro') return NextResponse.json({ error: 'Gage R&R is a Pro feature.', code: 'pro' }, { status: 403 })
   }
 
   try {

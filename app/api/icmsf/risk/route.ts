@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
-import { createServerSupabase } from '@/lib/supabase-server'
+import { proAccess } from '@/lib/pro.server'
 import { evaluateRisk } from '@/lib/icmsf/calculator'
 import { HAZARD_LEVEL_ORDER, CONDITION_EFFECT_ORDER, MAX_RESULT, type IcmsfRiskRequest } from '@/lib/icmsf/options'
 
@@ -18,13 +18,9 @@ export async function POST(request: NextRequest) {
   const refused = guardApi(request, { bucket: 'icmsf-risk', ...CALC_LIMITS })
   if (refused) return refused
 
-  const supabase = await createServerSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized. Please log in.', code: 'login' }, { status: 401 })
-  const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single()
-  if (profile?.subscription_status !== 'pro') {
-    return NextResponse.json({ error: 'This analysis is a Pro feature.', code: 'pro' }, { status: 403 })
-  }
+  const access = await proAccess()
+  if (access === 'login') return NextResponse.json({ error: 'Unauthorized. Please log in.', code: 'login' }, { status: 401 })
+  if (access !== 'pro') return NextResponse.json({ error: 'This analysis is a Pro feature.', code: 'pro' }, { status: 403 })
 
   let b: Record<string, unknown>
   try {
