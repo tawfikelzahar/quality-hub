@@ -95,9 +95,15 @@ export interface AndersonDarlingNormal {
  * the formula Minitab documents ("Normality test — methods and formulas").
  * Returns null below 8 points.
  */
-export function andersonDarlingNormal(data: number[]): AndersonDarlingNormal | null {
+/**
+ * minN: smallest sample the test runs on. 8 by default (SPC and regression,
+ * unchanged). Descriptive Statistics passes 3, as Minitab's Graphical Summary
+ * reports the test from n = 3 (checked: n = 3 → A² 0.32, p 0.239; n = 7 →
+ * A² 0.53, p 0.111, same formula as below).
+ */
+export function andersonDarlingNormal(data: number[], minN = 8): AndersonDarlingNormal | null {
   const n = data.length
-  if (n < 8) return null
+  if (n < minN) return null
   const mu = data.reduce((a, b) => a + b, 0) / n
   const sd = Math.sqrt(data.reduce((s, x) => s + (x - mu) ** 2, 0) / (n - 1))
   if (!(sd > 0)) return { A2: 0, A2adj: 0, p: 1, normal: true }

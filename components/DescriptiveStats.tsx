@@ -515,7 +515,7 @@ export default function DescriptiveStats({ guide }: { guide?: React.ReactNode } 
         ad.normalAtAlpha05 ? 'good' : 'warn'
       )
     } else {
-      calloutBox(ctx, 'Normality test not run: it needs at least 8 data points.', 'info')
+      calloutBox(ctx, 'Normality test not run: it needs at least 3 data points.', 'info')
     }
 
     if (result.ciMean || result.ciMedian || result.ciStdev) {

@@ -10,14 +10,18 @@
 //  • CI for the mean: t(1 − α/2, n − 1) · s / √n
 //  • CI for StDev: √((n − 1)s² / χ²) with exact chi-square quantiles
 //  • CI for the median: Hettmansperger & Sheather (1986) interpolated
-//    order statistics — the method Minitab cites for this interval
-//  • Anderson-Darling: lib/stats/normal.ts (shared with SPC)
+//    order statistics — the method Minitab cites for this interval; binomial
+//    exact up to n = 50, normal approximation above; (min, max) when n is
+//    too small for the level, as Minitab prints it
+//  • Anderson-Darling: lib/stats/normal.ts (shared with SPC), from n = 3 here
+// Checked against Minitab's Graphical Summary (D01–D06, 114 values) in
+// tests/golden/descriptive/check.mts.
 // Checked in tests/golden/descriptive/reference.mts against SciPy
 // (stats.skew/kurtosis bias=False, numpy percentile 'weibull', chi2.ppf,
 // mstats.median_cihs). tests/golden/descriptive/check.mts compares with
 // Minitab once its printed results are added.
 // ─────────────────────────────────────────────────────────────────────────
-import { andersonDarlingNormal } from '../stats/normal'
+import { andersonDarlingNormal, normCDF } from '../stats/normal'
 import { tQuantile, chiSquareQuantile, binomHalfCDF } from '../stats/dist'
 
 export interface HistogramBin {
@@ -140,9 +144,12 @@ function buildBoxPlot(sorted: number[], q1: number, median: number, q3: number):
  * lib/stats/normal.ts. `statistic` is A² as Minitab displays it ("AD");
  * the p-value is computed from the sample-size-adjusted A²*.
  */
+/** Minitab's Graphical Summary reports Anderson-Darling from n = 3 */
+const AD_MIN_N = 3
+
 function andersonDarlingTest(sorted: number[], _m: number, s: number): AndersonDarlingResult | null {
-  if (sorted.length < 8 || s <= 0) return null
-  const r = andersonDarlingNormal(sorted)
+  if (sorted.length < AD_MIN_N || s <= 0) return null
+  const r = andersonDarlingNormal(sorted, AD_MIN_N)
   if (!r) return null
   return { statistic: r.A2, pValue: r.p, normalAtAlpha05: r.normal }
 }
@@ -158,11 +165,19 @@ function andersonDarlingTest(sorted: number[], _m: number, s: number): AndersonD
 function medianCI(sorted: number[], confidence: number): ConfidenceInterval | null {
   const n = sorted.length
   const alpha = 1 - confidence
-  const gamma = (k: number) => binomHalfCDF(n - k, n) - binomHalfCDF(k - 1, n)
+  // Binomial(n, ½) CDF: exact up to n = 50, normal approximation with a 0.5
+  // continuity correction above (Minitab's rule for the sign procedures;
+  // matches its Graphical Summary at n = 50 exact and n = 100 approximate)
+  const cdf = n <= 50
+    ? (m: number) => binomHalfCDF(m, n)
+    : (m: number) => normCDF((m + 0.5 - n / 2) / Math.sqrt(n / 4))
+  const gamma = (k: number) => cdf(n - k) - cdf(k - 1)
   // largest k ≥ 1 whose interval still covers 1 − α
   let k = 0
   while (k + 1 <= n / 2 && gamma(k + 1) >= 1 - alpha) k++
-  if (k < 1) return null // too few points: even (min, max) covers less than 1 − α
+  // Too few points for the confidence level: Minitab still prints the full
+  // range (smallest, largest), as its Graphical Summary does at n = 3
+  if (k < 1) return n >= 2 ? { lower: sorted[0], upper: sorted[n - 1] } : null
   const gk = gamma(k)
   const gk1 = gamma(k + 1)
   const I = gk - gk1 > 0 ? (gk - (1 - alpha)) / (gk - gk1) : 0

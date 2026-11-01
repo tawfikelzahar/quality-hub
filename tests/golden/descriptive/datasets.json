@@ -386,5 +386,37 @@
       "ciStdevHi": "1.008"
     },
     "expectedSource": "Minitab Graphical Summary (screenshots from Tawfik, 1 Nov 2026)"
+  },
+  {
+    "id": "D07",
+    "name": "Three readings",
+    "purpose": "Smallest sample: Anderson-Darling from n = 3, kurtosis not defined (Minitab prints *), median CI = (min, max) when no interval reaches 95%.",
+    "data": [
+      3.136,
+      3.232,
+      3.255
+    ],
+    "n": 3,
+    "expected": {
+      "adA2": "0.32",
+      "adP": "0.239",
+      "mean": "3.2077",
+      "stdev": "0.0631",
+      "variance": "0.0040",
+      "skewness": "-1.47695",
+      "n": "3",
+      "min": "3.1360",
+      "q1": "3.1360",
+      "median": "3.2320",
+      "q3": "3.2550",
+      "max": "3.2550",
+      "ciMeanLo": "3.0509",
+      "ciMeanHi": "3.3645",
+      "ciMedianLo": "3.1360",
+      "ciMedianHi": "3.2550",
+      "ciStdevLo": "0.0329",
+      "ciStdevHi": "0.3967"
+    },
+    "expectedSource": "Minitab Graphical Summary (screenshot from Tawfik, 1 Nov 2026; Minitab printed Kurtosis *)"
   }
 ]

@@ -41,16 +41,22 @@ for (const r of refs) {
   near(r.id, 'CI StDev high', d.ciStdev?.upper, r.sdHi)
   near(r.id, 'CI mean low', d.ciMean?.lower, r.meanLo)
   near(r.id, 'CI mean high', d.ciMean?.upper, r.meanHi)
-  if (r.medLo !== null && r.medHi !== null) {
+  // SciPy's median_cihs uses the exact binomial at every n; the site follows
+  // Minitab and switches to the normal approximation above n = 50, so the
+  // H-S interval is compared with SciPy only up to n = 50 (above that,
+  // check.mts compares it with Minitab's printed values)
+  if (r.medLo !== null && r.medHi !== null && r.n <= 50) {
     near(r.id, 'CI median low (H-S)', d.ciMedian?.lower, r.medLo)
     near(r.id, 'CI median high (H-S)', d.ciMedian?.upper, r.medHi)
   }
 }
 const chi = refs[0].chi
 ;[[0.025, 4], [0.975, 4], [0.025, 99], [0.975, 99], [0.5, 1]].forEach(([p, df], i) => near('chi2', `q(${p}, ${df})`, chiSquareQuantile(p, df), chi[i]))
-// fewer than 6 points: even (min, max) covers less than 95%, so no median interval
+// fewer than 6 points: even (min, max) covers less than 95%; Minitab still
+// prints (min, max) (Graphical Summary at n = 3), and so does the site
 checks++
-if (computeDescriptiveStats([1, 2, 3, 4, 5]).ciMedian !== null) { fail++; console.log('DIFF n = 5 median CI should be null') }
+{ const m = computeDescriptiveStats([1, 2, 3, 4, 5]).ciMedian
+  if (!m || m.lower !== 1 || m.upper !== 5) { fail++; console.log('DIFF n = 5 median CI should be (min, max)', m) } }
 
 console.log(`Descriptive reference: ${checks - fail}/${checks} passed`)
 if (fail) process.exit(1)
