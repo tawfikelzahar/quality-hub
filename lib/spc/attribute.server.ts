@@ -15,6 +15,12 @@ import { nelsonRules, testsFor, type TestSet } from './nelson'
 // Checked against Minitab on tests/golden/attribute (A1–A6): equal sizes
 // limits and tests identical; unequal sizes the stepped limit of the last
 // subgroup (A2 0.0764 · A5 2.556 / 0.108) and Test 1.
+//
+// DPM and Sigma Level only for p and np: a proportion defective is a
+// probability, so Z = Φ⁻¹(1 − p̄). c and u count defects per unit, which can
+// exceed 1 and is no probability, so both are null there and the centre line
+// (average defects per unit) is the summary — as Poisson capability in
+// specialised software reports DPU and no Z.
 // ─────────────────────────────────────────────────────────────────────────
 
 export type AttrType = 'p' | 'np' | 'c' | 'u'
@@ -39,7 +45,9 @@ export function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention, 
   /** σ of each plotted point */
   let sig: number[]
   let capOne = false
-  let chartLabel: string, dpm: number, sigmaLvl: number, metric: number, metricLabel: string
+  let chartLabel: string, metric: number, metricLabel: string
+  /** p and np only (null for c and u) */
+  let dpm: number | null = null, sigmaLvl: number | null = null
 
   if (attrType === 'p') {
     const totalD = data.reduce((s, r) => s + r[1], 0)
@@ -59,16 +67,14 @@ export function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention, 
     const cVals = data.map(r => r[0]); const cBar = mean(cVals)
     pts = cVals; clVal = cBar
     sig = cVals.map(() => Math.sqrt(cBar))
-    dpm = cBar * 1e6; metric = cBar; metricLabel = 'c̄ (Avg Defects/Unit)'; chartLabel = 'c-Chart'
-    sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, cBar / 1e6)), conv)
+    metric = cBar; metricLabel = 'c̄ (Avg Defects/Unit)'; chartLabel = 'c-Chart'
   } else {
     const totalC = data.reduce((s, r) => s + r[1], 0)
     const totalN = data.reduce((s, r) => s + r[0], 0)
     const uBar = totalC / totalN
     pts = data.map(r => r[1] / r[0]); clVal = uBar
     sig = data.map(r => Math.sqrt(uBar / r[0]))
-    dpm = uBar * 1e6; metric = uBar; metricLabel = 'ū (Avg Defects/Unit)'; chartLabel = 'u-Chart'
-    sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, uBar)), conv)
+    metric = uBar; metricLabel = 'ū (Avg Defects/Unit)'; chartLabel = 'u-Chart'
   }
 
   const uclPoints = sig.map(s => (capOne ? Math.min(1, clVal + 3 * s) : clVal + 3 * s))

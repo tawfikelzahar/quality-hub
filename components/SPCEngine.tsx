@@ -143,7 +143,8 @@ interface AttributeResult {
   labels: number[]
   chartLabel: string
   dpm: number
-  sigmaLvl: number
+  /** p and np only — null for c and u (defects per unit is no probability) */
+  sigmaLvl: number | null
   metric: number
   metricLabel: string
   violations: Violation[]
@@ -616,8 +617,8 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
       csv += `UCL${stepped ? ' (last subgroup)' : ''},${fmt(attrResult.ucl, 4)}\n`
       csv += `LCL${stepped ? ' (last subgroup)' : ''},${fmt(Math.max(0, attrResult.lcl), 4)}\n`
       if (stepped) csv += 'Limits,Vary with each subgroup size (per row above)\n'
-      csv += `DPM,${fmt(attrResult.dpm, 1)}\n`
-      csv += `Sigma Level,${fmt(attrResult.sigmaLvl, 2)}\n`
+      if (attrResult.dpm !== null) csv += `DPM,${fmt(attrResult.dpm, 1)}\n`
+      if (attrResult.sigmaLvl !== null) csv += `Sigma Level,${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl, 2) : '6.00+'}\n`
     } else {
       return
     }
@@ -768,7 +769,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
         { label: 'Chart Type', value: attrResult.chartLabel, tone: 'accent' },
         { label: 'Subgroups', value: attrResult.pts.length, tone: 'neutral' },
         { label: attrResult.metricLabel, value: fmt(attrResult.metric, 4), tone: 'accent' },
-        { label: 'Sigma Level', value: fmt(attrResult.sigmaLvl, 2), tone: attrResult.sigmaLvl >= 4 ? 'good' : attrResult.sigmaLvl >= 3 ? 'warning' : 'danger' },
+        ...(attrResult.sigmaLvl !== null ? [{ label: 'Sigma Level', value: isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl, 2) : '6.00+', tone: (attrResult.sigmaLvl >= 4 ? 'good' : attrResult.sigmaLvl >= 3 ? 'warning' : 'danger') as 'good' | 'warning' | 'danger' }] : []),
       ])
       overview.sectionHeading('Control Limits')
       overview.table({
@@ -780,7 +781,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           ['CL', fmt(attrResult.clVal, 4)],
           [attrResult.stepped ? 'UCL (last subgroup)' : 'UCL', fmt(attrResult.ucl, 4)],
           [attrResult.stepped ? 'LCL (last subgroup)' : 'LCL', fmt(Math.max(0, attrResult.lcl), 4)],
-          ['DPM (Defects per Million)', fmt(attrResult.dpm, 1)],
+          ...(attrResult.dpm !== null ? [['DPM (Defects per Million)', fmt(attrResult.dpm, 1)]] : []),
         ],
       })
       if (attrResult.stepped) overview.note('Subgroup sizes differ: the control limits step with each subgroup size, and the tests for special causes use the standardized points.', 'neutral')
@@ -1221,7 +1222,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     } else if (attrResult) {
       calloutBox(
         ctx,
-        `${attrResult.chartLabel} · Subgroups=${attrResult.pts.length} · ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)} · DPM=${Math.round(attrResult.dpm)} · Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}${attrResult.stepped ? ' · Limits vary with each subgroup size' : ''}`,
+        `${attrResult.chartLabel} · Subgroups=${attrResult.pts.length} · ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)} ${attrResult.dpm !== null ? ` · DPM=${Math.round(attrResult.dpm)}` : ''}${attrResult.sigmaLvl !== null ? ` · Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}` : ''}${attrResult.stepped ? ' · Limits vary with each subgroup size' : ''}`,
         'info'
       )
       addChartImage(ctx, attrChartRef.current, attrResult.chartLabel)
@@ -2139,14 +2140,18 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
                   <div style={s.statVal}>{fmt(attrResult.metric, 4)}</div>
                   <div style={s.statLabel}>{attrResult.metricLabel}</div>
                 </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
-                  <div style={s.statLabel}>{t('spc_dpm')}</div>
-                </div>
-                <div style={s.statCard}>
-                  <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
-                  <div style={s.statLabel}>{t('spc_sigma_level')}</div>
-                </div>
+                {attrResult.dpm !== null && (
+                  <div style={s.statCard}>
+                    <div style={s.statVal}>{Math.round(attrResult.dpm).toLocaleString()}</div>
+                    <div style={s.statLabel}>{t('spc_dpm')}</div>
+                  </div>
+                )}
+                {attrResult.sigmaLvl !== null && (
+                  <div style={s.statCard}>
+                    <div style={s.statVal}>{isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}σ</div>
+                    <div style={s.statLabel}>{t('spc_sigma_level')}</div>
+                  </div>
+                )}
               </div>
 
               <div className="qh-chart-wrap" style={s.chartWrap}>

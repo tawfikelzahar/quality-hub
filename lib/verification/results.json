@@ -1,10 +1,10 @@
 {
   "ranAt": "2026-11-01",
-  "total": 2901,
+  "total": 2916,
   "suites": {
     "spc": 176,
     "aql": 1742,
-    "attribute": 30,
+    "attribute": 45,
     "descriptive": 132,
     "doe": 72,
     "dpmo": 22,

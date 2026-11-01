@@ -8,6 +8,7 @@
 // special causes: all tests (1–4), the points Minitab marks.
 import { readFileSync } from 'node:fs'
 import { runAttributeAnalysis } from '../../../lib/spc/attribute.server.ts'
+import { normInv } from '../../../lib/stats/normal.ts'
 
 const sets: any[] = JSON.parse(readFileSync(new URL('./datasets.json', import.meta.url), 'utf8'))
 let checks = 0
@@ -37,6 +38,14 @@ for (const s of sets) {
   for (const v of r.violations) (tests[String(v.rule)] ??= []).push(...v.failedAt)
   for (const k of Object.keys(tests)) tests[k].sort((a, b) => a - b)
   same(s.id, 'tests', tests, m.tests)
+  // DPM and Sigma Level only where the chart value is a probability (p, np)
+  same(s.id, 'Sigma Level shown', r.sigmaLvl !== null, s.chart === 'p' || s.chart === 'np')
+  same(s.id, 'DPM shown', r.dpm !== null, s.chart === 'p' || s.chart === 'np')
+  if (s.chart === 'p' || s.chart === 'np') {
+    const pBar = s.chart === 'p' ? r.clVal : r.clVal / s.sizes[0]
+    checks++
+    if (!(Math.abs(r.dpm - pBar * 1e6) < 1e-6 && r.sigmaLvl > 0 && Math.abs(r.sigmaLvl - (-normInv(pBar))) < 1e-9)) { fail++; console.log('DIFF', s.id, 'Sigma Level', r.sigmaLvl, 'DPM', r.dpm) }
+  }
 }
 console.log(fail === 0 ? `attribute golden: ${checks} checks match Minitab` : `attribute golden: ${fail} of ${checks} differ`)
 process.exit(fail === 0 ? 0 : 1)
