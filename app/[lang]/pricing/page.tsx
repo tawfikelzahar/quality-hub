@@ -10,7 +10,10 @@ import { useAuthState } from '@/lib/authState'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Pricing — kept in line with what the code actually gates (Oct 2026):
-//   • every analysis tool is free and needs no account, except Gage R&R
+//   • every tool runs free with no account and shows its main results and
+//     accuracy warnings; Gage R&R runs free on its sample study only
+//   • Pro readings (1 Nov 2026 split): Gage on own data, regression
+//     diagnostics, DOE significance, stability claim, ICMSF risk, OEE card
 //     (components/GageRR.tsx renders LockedPage for non-Pro)
 //   • CSV / PNG export needs a free account (lib/exportGate.ts goToLogin);
 //     free PNGs keep the chart watermark (lib/watermarkHelpers.ts)
@@ -48,10 +51,10 @@ const FEATURES: { sectionKey: TKey; items: Feature[] }[] = [
       { labelKey: 'pricing_feat_oee', free: true, pro: true },
       { labelKey: 'pricing_feat_aql', free: true, pro: true },
       { labelKey: 'pricing_feat_icmsf', free: true, pro: true },
-      { labelKey: 'pricing_feat_stability', free: true, pro: true },
-      { labelKey: 'pricing_feat_regression', free: true, pro: true },
-      { labelKey: 'pricing_feat_doe', free: true, pro: true },
-      { labelKey: 'pricing_feat_gagerr', free: false, pro: true },
+      { labelKey: 'pricing_feat_stability', free: 'pricing_val_stab_free', pro: 'pricing_val_stab_pro' },
+      { labelKey: 'pricing_feat_regression', free: 'pricing_val_reg_free', pro: 'pricing_val_reg_pro' },
+      { labelKey: 'pricing_feat_doe', free: 'pricing_val_doe_free', pro: 'pricing_val_doe_pro' },
+      { labelKey: 'pricing_feat_gagerr', free: 'pricing_val_gage_free', pro: 'pricing_val_gage_pro' },
       { labelKey: 'pricing_feat_icmsf_risk', free: false, pro: true },
       { labelKey: 'pricing_feat_oee_next', free: false, pro: true },
     ],
