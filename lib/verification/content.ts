@@ -18,6 +18,8 @@ type T = Record<Lang, string>
 
 export interface VerifiedTool {
   suite: SuiteId
+  /** other suites whose checks count on this card */
+  alsoSuites?: SuiteId[]
   /** tool pages the card covers */
   hrefs: string[]
   name: T
@@ -30,12 +32,13 @@ export interface VerifiedTool {
 export const VERIFIED_TOOLS: VerifiedTool[] = [
   {
     suite: 'spc',
+    alsoSuites: ['attribute'],
     hrefs: ['/spc', '/imr-chart', '/xbar-r-chart', '/xbar-s-chart'],
     name: { en: 'SPC Engine and control charts (I-MR, X̄-R, X̄-S)', ar: 'SPC Engine ومخططات الضبط (I-MR و X̄-R و X̄-S)' },
     refs: ['AIAG SPC', 'Montgomery'],
     checked: {
-      en: 'Variable control charts: control limits, tests for special causes, Cp, Cpk, Pp, Ppk, Cpm, PPM and the normality test, compared value by value with specialised statistical software on 11 datasets. The SPC Engine and the three chart pages are checked to give identical numbers.',
-      ar: 'مخططات المتغيرات: حدود الضبط واختبارات الأسباب الخاصة و Cp و Cpk و Pp و Ppk و Cpm و PPM واختبار التوزيع الطبيعي، مقارنةً قيمةً بقيمة مع برامج إحصائية متخصصة على 11 مجموعة بيانات. ونتحقق من أن SPC Engine وصفحات المخططات الثلاث تعطي الأرقام نفسها.',
+      en: 'Variable control charts: control limits, tests for special causes, Cp, Cpk, Pp, Ppk, Cpm (including a target off the midpoint), PPM and the normality test, on 12 runs. Attribute charts (p, np, c, u): centre line, control limits (stepped when subgroup sizes differ) and the tests for special causes, on 6 datasets. All compared value by value with specialised statistical software. The SPC Engine and the three chart pages are checked to give identical numbers.',
+      ar: 'مخططات المتغيرات: حدود الضبط واختبارات الأسباب الخاصة و Cp و Cpk و Pp و Ppk و Cpm (ومنها قيمة مستهدفة ليست في منتصف المواصفة) و PPM واختبار التوزيع الطبيعي، على 12 تشغيلًا. ومخططات الصفات (p و np و c و u): الخط المركزي وحدود الضبط (متدرجة عند اختلاف أحجام المجموعات الجزئية) واختبارات الأسباب الخاصة، على 6 مجموعات بيانات. وكلها مقارنة قيمةً بقيمة مع برامج إحصائية متخصصة. ونتحقق من أن SPC Engine وصفحات المخططات الثلاث تعطي الأرقام نفسها.',
     },
   },
   {
@@ -179,10 +182,7 @@ export const VERIFY_COPY: Record<Lang, {
     result: 'Our result',
     open: 'Open the tool',
     pendingTitle: 'Still under review',
-    pending: [
-      'Attribute charts (p, np, c, u) in the SPC Engine have not yet been compared with specialised statistical software.',
-      'Cpm (the Taguchi index, shown when you enter a target) matches on our test dataset; one more case is still being confirmed.',
-    ],
+    pending: [],
     closing: 'Found a number that does not match your reference? Tell us with the data and the reference, and we will check it and reply.',
     stripTitle: 'Verified against published standards and specialised statistical software',
     stripLink: 'How we verify',
@@ -207,15 +207,15 @@ export const VERIFY_COPY: Record<Lang, {
     result: 'نتيجتنا',
     open: 'افتح الأداة',
     pendingTitle: 'ما زال قيد المراجعة',
-    pending: [
-      'مخططات الصفات (p و np و c و u) في SPC Engine لم تُقارَن بعد مع برامج إحصائية متخصصة.',
-      'مؤشر Cpm (مؤشر Taguchi الذي يظهر عند إدخال قيمة مستهدفة) مطابق في مجموعة بيانات الاختبار، وما زالت حالة أخرى قيد التأكيد.',
-    ],
+    pending: [],
     closing: 'وجدت رقمًا لا يطابق مرجعك؟ أرسل إلينا البيانات والمرجع، وسنراجعه ونرد عليك.',
     stripTitle: 'متحقق منها مقابل المواصفات المنشورة والبرامج الإحصائية المتخصصة',
     stripLink: 'كيف نتحقق',
   },
 }
+
+/** Checks shown on a card: its suite plus any extra ones */
+export const cardChecks = (t: VerifiedTool) => [t.suite, ...(t.alsoSuites ?? [])].reduce((n, id) => n + VERIFICATION.suites[id], 0)
 
 /** Number of tool pages covered */
 export const TOOL_COUNT = new Set(VERIFIED_TOOLS.flatMap(t => t.hrefs)).size

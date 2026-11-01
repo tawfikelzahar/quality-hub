@@ -15,6 +15,7 @@ const OUT = 'lib/verification/results.json'
 const SUITES = {
   spc: 'tests/golden/minitab.test.mts',
   aql: 'tests/golden/aql/check.mts',
+  attribute: 'tests/golden/attribute/check.mts',
   descriptive: 'tests/golden/descriptive/check.mts',
   doe: 'tests/golden/doe/check.mts',
   dpmo: 'tests/golden/dpmo/check.mts',

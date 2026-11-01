@@ -102,4 +102,12 @@ check('DS06', { cl: '5.02302', ucl: '5.06728', lcl: '4.97876', rcl: '0.04538', r
   assert.deepEqual(fails(x.violations_x), { 7: [15, 16, 17, 18, 19, 20] }); assert.deepEqual(fails(x.violations_r), {}); checks += 2
 }
 
+// Cpm with the target off the midpoint (Tawfik, Minitab 1 Nov 2026):
+// DS01 · LSL 23 · USL 25 · Target 24.5 → Cpm 0.39 (the rest as DS01)
+{
+  const d = ds.DS01
+  const x = runVar({ data: d.data, N: 1, LSL: d.lsl, USL: d.usl, target: 24.5, sigmaConvention: 'direct', testSet: 'all' })
+  check('DS01+T24.5', { Cpm: '0.39', Pp: '1.29', Ppk: '1.08', Cp: '1.07', Cpk: '0.90', oT: '627.53', wT: '3703.70' }, x)
+}
+
 console.log(`golden: ${checks} checks match Minitab`)

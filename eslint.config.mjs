@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
         paths: [
           { name: "@/lib/spc/calculator", allowTypeImports: true, message: "The calculator runs on the server. Use useChartAnalysis (lib/spc/useChartAnalysis.ts)." },
           { name: "@/lib/spc/engine.server", message: "Server only." },
+          { name: "@/lib/spc/attribute.server", message: "Server only (/api/analyze)." },
           { name: "@/lib/spc/reportText.server", message: "Server only." },
           { name: "@/lib/oee/insight.server", message: "Server only (/api/oee/insight, Pro)." },
           { name: "@/lib/aql/calculator", allowTypeImports: true, message: "AQL plans come from /api/aql. For choices and reply types use @/lib/aql/options." },

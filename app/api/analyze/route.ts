@@ -6,6 +6,7 @@ import { rangeChartLimits } from '@/lib/spc/constants'
 import { nelsonRules, offsetViolations, testsFor, isTestSet, DEFAULT_TEST_SET, type TestSet } from '@/lib/spc/nelson'
 import { runXbarSAnalysis } from '@/lib/spc/engine.server'
 import { variableChartFor } from '@/lib/spc/chartChoice'
+import { runAttributeAnalysis, dataAdequacy } from '@/lib/spc/attribute.server'
 
 function mean(arr: number[]) { return arr.reduce((a, b) => a + b, 0) / arr.length }
 function stdev(arr: number[], usePop = false) {
@@ -15,15 +16,6 @@ function stdev(arr: number[], usePop = false) {
 }
 // Normal CDF / inverse and Anderson-Darling: lib/stats/normal.ts (shared).
 const andersonDarling = andersonDarlingNormal
-// Data Adequacy — practical guideline (not a statistical law) for how much
-// confidence to place in a Capability/Stability read given the sample size.
-// Based on total INDIVIDUAL observations (not subgroup count): 30 individual
-// points is not the same thing as 30 subgroups.
-function dataAdequacy(nIndividual: number) {
-  if (nIndividual < 30) return { n: nIndividual, tier: 'low' as const, label: 'Insufficient Data — Low Confidence' }
-  if (nIndividual < 100) return { n: nIndividual, tier: 'moderate' as const, label: 'Limited Data — Moderate Confidence' }
-  return { n: nIndividual, tier: 'adequate' as const, label: 'Adequate Data' }
-}
 function lgamma(x: number): number {
   const g = 7
   const c = [0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7]
@@ -42,10 +34,17 @@ function ppmDetailed(mu: number, sigma: number, LSL: number | null, USL: number 
   return { above, below, total: above + below }
 }
 function zToSigmaLevel(z: number, convention = 'direct') { return convention === 'sixsigma' ? z + 1.5 : z }
-function calcCpm(mu: number, sigma: number, LSL: number | null, USL: number | null, target: number | null) {
-  if (target === null || LSL === null || USL === null) return null
-  const tau = Math.sqrt(sigma ** 2 + (mu - target) ** 2)
-  return (USL - LSL) / (6 * tau)
+/**
+ * Cpm (Taguchi), as specialised statistical software computes it:
+ * min(T − LSL, USL − T) / (3 · τ), τ = √(Σ(x − T)² / (n − 1)) = √(s² + n/(n − 1)·(x̄ − T)²).
+ * With the target at the midpoint the numerator is (USL − LSL)/2, the usual
+ * form. Checked against Minitab: DS01 with T 24.5 → 0.39 (the old
+ * (USL − LSL)/6τ gave 0.79), DS02 → 1.57. Needs both limits and a target.
+ */
+function calcCpm(mu: number, sigma: number, n: number, LSL: number | null, USL: number | null, target: number | null) {
+  if (target === null || LSL === null || USL === null || n < 2) return null
+  const tau = Math.sqrt(sigma ** 2 + (n / (n - 1)) * (mu - target) ** 2)
+  return Math.min(target - LSL, USL - target) / (3 * tau)
 }
 function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSet }: {
   data: number[][]; N: number; LSL: number | null; USL: number | null;
@@ -101,7 +100,7 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSe
     Cpk = (USL - cl_x) / (3 * sigma)
     Ppk = (USL - mu) / (3 * sdOverall)
   }
-  const Cpm = calcCpm(mu, sdOverall, LSL, USL, target)
+  const Cpm = calcCpm(mu, sdOverall, allVals.length, LSL, USL, target)
   const conv = sigmaConvention || 'direct'
   let Z_USL_st = null, Z_LSL_st = null, Z_USL_lt = null, Z_LSL_lt = null
   if (USL !== null) { Z_USL_st = (USL - cl_x) / sigma; Z_USL_lt = (USL - mu) / sdOverall }
@@ -126,39 +125,6 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSe
     Z_USL_st, Z_LSL_st, Z_USL_lt, Z_LSL_lt, Z_bench_st, Z_bench_lt, sigLvl_st, sigLvl_lt,
     ppmD_st, ppmD_lt, N, LSL, USL, dataAdequacy: dataAdequacy(allVals.length)
   }
-}
-
-function runAttributeAnalysis({ data, attrType, fixedN, sigmaConvention, testSet }: {
-  data: number[][]; attrType: string; fixedN: number; sigmaConvention: string; testSet: TestSet
-}) {
-  if (!Array.isArray(data) || data.length < 5) throw new Error('At least 5 rows required.')
-  const conv = sigmaConvention || 'direct'
-  let pts: number[], clVal: number, ucl: number, lcl: number, chartLabel: string, dpm: number, sigmaLvl: number, metric: number, metricLabel: string
-  if (attrType === 'p') {
-    const pVals = data.map(r => r[1] / r[0]); const totalD = data.reduce((s, r) => s + r[1], 0); const totalN = data.reduce((s, r) => s + r[0], 0)
-    const pBar = totalD / totalN; const nBar = totalN / data.length
-    pts = pVals; clVal = pBar; ucl = Math.min(1, pBar + 3 * Math.sqrt(pBar * (1 - pBar) / nBar)); lcl = Math.max(0, pBar - 3 * Math.sqrt(pBar * (1 - pBar) / nBar))
-    dpm = pBar * 1e6; metric = pBar; metricLabel = 'p̄ (Proportion Defective)'; chartLabel = 'p-Chart'
-    sigmaLvl = pBar > 0 ? zToSigmaLevel(normInv(1 - pBar), conv) : Infinity
-  } else if (attrType === 'np') {
-    const dVals = data.map(r => r[0]); const dBar = mean(dVals); const pBar = dBar / fixedN
-    pts = dVals; clVal = dBar; ucl = dBar + 3 * Math.sqrt(dBar * (1 - pBar)); lcl = Math.max(0, dBar - 3 * Math.sqrt(dBar * (1 - pBar)))
-    dpm = pBar * 1e6; metric = pBar; metricLabel = 'p̄ (from np̄/n)'; chartLabel = `np-Chart (n=${fixedN})`
-    sigmaLvl = pBar > 0 ? zToSigmaLevel(normInv(1 - pBar), conv) : Infinity
-  } else if (attrType === 'c') {
-    const cVals = data.map(r => r[0]); const cBar = mean(cVals)
-    pts = cVals; clVal = cBar; ucl = cBar + 3 * Math.sqrt(cBar); lcl = Math.max(0, cBar - 3 * Math.sqrt(cBar))
-    dpm = cBar * 1e6; metric = cBar; metricLabel = 'c̄ (Avg Defects/Unit)'; chartLabel = 'c-Chart'
-    sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, cBar / 1e6)), conv)
-  } else {
-    const uVals = data.map(r => r[1] / r[0]); const totalC = data.reduce((s, r) => s + r[1], 0); const totalN = data.reduce((s, r) => s + r[0], 0)
-    const uBar = totalC / totalN; const nBar = totalN / data.length
-    pts = uVals; clVal = uBar; ucl = uBar + 3 * Math.sqrt(uBar / nBar); lcl = Math.max(0, uBar - 3 * Math.sqrt(uBar / nBar))
-    dpm = uBar * 1e6; metric = uBar; metricLabel = 'ū (Avg Defects/Unit)'; chartLabel = 'u-Chart'
-    sigmaLvl = zToSigmaLevel(normInv(1 - Math.min(0.9999, uBar)), conv)
-  }
-  const violations = nelsonRules(pts, clVal, (ucl - clVal) / 3, testsFor('attribute', testSet))
-  return { pts, clVal, ucl, lcl, labels: pts.map((_, i) => i + 1), chartLabel, dpm, sigmaLvl, metric, metricLabel, violations, dataAdequacy: dataAdequacy(data.length) }
 }
 
 export async function POST(request: NextRequest) {

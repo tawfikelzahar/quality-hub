@@ -136,6 +136,10 @@ interface AttributeResult {
   clVal: number
   ucl: number
   lcl: number
+  /** unequal subgroup sizes (p, u): limits of every subgroup; ucl / lcl are the last subgroup's */
+  uclPoints?: number[]
+  lclPoints?: number[]
+  stepped?: boolean
   labels: number[]
   chartLabel: string
   dpm: number
@@ -601,15 +605,17 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
         csv += `Sigma Level (LT),${fmt(varResult.sigLvl_lt, 2)}\n`
       }
     } else if (dataType === 'attribute' && attrResult) {
-      const header = ['Subgroup', 'n', 'Defects', attrResult.metricLabel].join(',')
-      const rows = attrRows.map((row, i) => [i + 1, row.n, row.defects, fmt(attrResult.pts[i], 4)].join(','))
+      const stepped = !!(attrResult.uclPoints && attrResult.lclPoints)
+      const header = ['Subgroup', 'n', 'Defects', attrResult.metricLabel, ...(stepped ? ['UCL', 'LCL'] : [])].join(',')
+      const rows = attrRows.map((row, i) => [i + 1, row.n, row.defects, fmt(attrResult.pts[i], 4), ...(stepped ? [fmt(attrResult.uclPoints![i], 4), fmt(attrResult.lclPoints![i], 4)] : [])].join(','))
       csv = [header, ...rows].join('\n')
 
       csv += '\n\nSummary,\n'
       csv += `Chart Type,${attrResult.chartLabel}\n`
       csv += `CL,${fmt(attrResult.clVal, 4)}\n`
-      csv += `UCL,${fmt(attrResult.ucl, 4)}\n`
-      csv += `LCL,${fmt(Math.max(0, attrResult.lcl), 4)}\n`
+      csv += `UCL${stepped ? ' (last subgroup)' : ''},${fmt(attrResult.ucl, 4)}\n`
+      csv += `LCL${stepped ? ' (last subgroup)' : ''},${fmt(Math.max(0, attrResult.lcl), 4)}\n`
+      if (stepped) csv += 'Limits,Vary with each subgroup size (per row above)\n'
       csv += `DPM,${fmt(attrResult.dpm, 1)}\n`
       csv += `Sigma Level,${fmt(attrResult.sigmaLvl, 2)}\n`
     } else {
@@ -772,11 +778,12 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
         ],
         rows: [
           ['CL', fmt(attrResult.clVal, 4)],
-          ['UCL', fmt(attrResult.ucl, 4)],
-          ['LCL', fmt(Math.max(0, attrResult.lcl), 4)],
+          [attrResult.stepped ? 'UCL (last subgroup)' : 'UCL', fmt(attrResult.ucl, 4)],
+          [attrResult.stepped ? 'LCL (last subgroup)' : 'LCL', fmt(Math.max(0, attrResult.lcl), 4)],
           ['DPM (Defects per Million)', fmt(attrResult.dpm, 1)],
         ],
       })
+      if (attrResult.stepped) overview.note('Subgroup sizes differ: the control limits step with each subgroup size, and the tests for special causes use the standardized points.', 'neutral')
       overview.note(
         `Data adequacy: ${attrResult.dataAdequacy.label} (n = ${attrResult.dataAdequacy.n}).`,
         attrResult.dataAdequacy.tier === 'low' ? 'warning' : 'good'
@@ -1214,7 +1221,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     } else if (attrResult) {
       calloutBox(
         ctx,
-        `${attrResult.chartLabel} · Subgroups=${attrResult.pts.length} · ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)} · DPM=${Math.round(attrResult.dpm)} · Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}`,
+        `${attrResult.chartLabel} · Subgroups=${attrResult.pts.length} · ${attrResult.metricLabel}=${fmt(attrResult.metric, 4)} · DPM=${Math.round(attrResult.dpm)} · Sigma=${isFinite(attrResult.sigmaLvl) ? fmt(attrResult.sigmaLvl) : '6.00+'}${attrResult.stepped ? ' · Limits vary with each subgroup size' : ''}`,
         'info'
       )
       addChartImage(ctx, attrChartRef.current, attrResult.chartLabel)
@@ -1296,7 +1303,10 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     [c]
   )
 
-  function buildControlChart(labels: number[], values: number[], ucl: number, cl: number, lcl: number, violated: Set<number>, label: string, clLabel = 'CL') {
+  function buildControlChart(labels: number[], values: number[], ucl: number | number[], cl: number, lcl: number | number[], violated: Set<number>, label: string, clLabel = 'CL') {
+    // number[] = limits that step with each subgroup's size (attribute charts)
+    const line = (v: number | number[]) => (Array.isArray(v) ? v : Array(labels.length).fill(v))
+    const step = Array.isArray(ucl) ? ('middle' as const) : false
     return {
       labels,
       datasets: [
@@ -1311,9 +1321,9 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           borderWidth: 2,
           tension: 0.15,
         },
-        { label: 'UCL', data: Array(labels.length).fill(ucl), borderColor: c.danger, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0 },
+        { label: 'UCL', data: line(ucl), borderColor: c.danger, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0, stepped: step },
         { label: clLabel, data: Array(labels.length).fill(cl), borderColor: c.muted, borderWidth: 1, borderDash: [2, 2], pointRadius: 0, fill: false, tension: 0 },
-        { label: 'LCL', data: Array(labels.length).fill(lcl), borderColor: c.danger, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0 },
+        { label: 'LCL', data: line(lcl), borderColor: c.danger, borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, fill: false, tension: 0, stepped: step },
       ],
     }
   }
@@ -2143,12 +2153,13 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{attrResult.chartLabel}</div>
                 <div style={{ color: c.muted, fontSize: 12, marginBottom: 16 }}>
                   CL = {fmt(attrResult.clVal, 4)} · UCL = {fmt(attrResult.ucl, 4)} · LCL = {fmt(Math.max(0, attrResult.lcl), 4)}
+                  {attrResult.stepped && <> · {t('spc_attr_stepped')}</>}
                 </div>
                 <div className="qh-chart-inner" style={s.chartInner}>
                   <Chart
                     ref={attrChartRef}
                     type="line"
-                    data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.ucl, attrResult.clVal, Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
+                    data={buildControlChart(attrResult.labels, attrResult.pts, attrResult.uclPoints ?? attrResult.ucl, attrResult.clVal, attrResult.lclPoints ?? Math.max(0, attrResult.lcl), violatedAttr, attrResult.metricLabel)}
                     options={lineChartOptions}
                   />
                 </div>

@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 const checks = [
   'tests/golden/minitab.test.mts',
   'tests/golden/aql/check.mts',
+  'tests/golden/attribute/check.mts',
   'tests/golden/descriptive/check.mts',
   'tests/golden/doe/check.mts',
   'tests/golden/dpmo/check.mts',

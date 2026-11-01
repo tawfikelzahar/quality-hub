@@ -121,10 +121,17 @@ function zToSigmaLevel(z: number, convention = 'direct') {
   return convention === 'sixsigma' ? z + 1.5 : z
 }
 
-function calcCpm(mu: number, sigma: number, LSL: number | null, USL: number | null, target: number | null) {
-  if (target === null || LSL === null || USL === null) return null
-  const tau = Math.sqrt(sigma ** 2 + (mu - target) ** 2)
-  return (USL - LSL) / (6 * tau)
+/**
+ * Cpm (Taguchi), as specialised statistical software computes it:
+ * min(T − LSL, USL − T) / (3 · τ), τ = √(Σ(x − T)² / (n − 1)) = √(s² + n/(n − 1)·(x̄ − T)²).
+ * With the target at the midpoint the numerator is (USL − LSL)/2, the usual
+ * form. Checked against Minitab: DS01 with T 24.5 → 0.39 (the old
+ * (USL − LSL)/6τ gave 0.79), DS02 → 1.57. Needs both limits and a target.
+ */
+function calcCpm(mu: number, sigma: number, n: number, LSL: number | null, USL: number | null, target: number | null) {
+  if (target === null || LSL === null || USL === null || n < 2) return null
+  const tau = Math.sqrt(sigma ** 2 + (n / (n - 1)) * (mu - target) ** 2)
+  return Math.min(target - LSL, USL - target) / (3 * tau)
 }
 
 export type VariableChartError = 'insufficient-data'
@@ -210,7 +217,7 @@ export function runVariableChartAnalysis({
     Ppk = (USL - mu) / (3 * sdOverall)
   }
 
-  const Cpm = calcCpm(mu, sdOverall, LSL, USL, target)
+  const Cpm = calcCpm(mu, sdOverall, allVals.length, LSL, USL, target)
   const conv = sigmaConvention || 'direct'
 
   let Z_USL_st = null, Z_LSL_st = null, Z_USL_lt = null, Z_LSL_lt = null
@@ -315,7 +322,7 @@ export function runXbarSAnalysis({
     Ppk = (USL - mu) / (3 * sdOverall)
   }
 
-  const Cpm = calcCpm(mu, sdOverall, LSL, USL, target)
+  const Cpm = calcCpm(mu, sdOverall, allVals.length, LSL, USL, target)
   const conv = sigmaConvention || 'direct'
 
   let Z_USL_st = null, Z_LSL_st = null, Z_USL_lt = null, Z_LSL_lt = null

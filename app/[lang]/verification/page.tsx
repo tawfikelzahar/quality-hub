@@ -5,7 +5,7 @@ import { getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS } from '@/lib/tools'
-import { VERIFICATION, VERIFIED_TOOLS, VERIFY_COPY, TOOL_COUNT, formatRunDate, formatCount } from '@/lib/verification/content'
+import { VERIFICATION, VERIFIED_TOOLS, VERIFY_COPY, TOOL_COUNT, formatRunDate, formatCount, cardChecks } from '@/lib/verification/content'
 
 // ─────────────────────────────────────────────────────────────────────────
 // /verification — how every result is checked. Copy: lib/verification/
@@ -113,7 +113,7 @@ export default function VerificationPage() {
               <article key={tool.suite} className="vf-card" id={tool.suite}>
                 <div className="vf-card-top">
                   <h3>{tool.name[lang]}</h3>
-                  <span className="vf-count"><Check size={13} />{nf(VERIFICATION.suites[tool.suite])} {d.checks}</span>
+                  <span className="vf-count"><Check size={13} />{nf(cardChecks(tool))} {d.checks}</span>
                 </div>
                 <div className="vf-refs" dir="ltr" style={{ justifyContent: lang === 'ar' ? 'flex-end' : 'flex-start' }}>
                   {tool.refs.map(r => <span key={r} className="vf-ref">{r}</span>)}
@@ -134,10 +134,12 @@ export default function VerificationPage() {
             ))}
           </div>
 
-          <section className="vf-pending">
-            <h2 className="vf-h2" style={{ fontSize: 18 }}>{d.pendingTitle}</h2>
-            <ul>{d.pending.map(p => <li key={p}>{p}</li>)}</ul>
-          </section>
+          {d.pending.length > 0 && (
+            <section className="vf-pending">
+              <h2 className="vf-h2" style={{ fontSize: 18 }}>{d.pendingTitle}</h2>
+              <ul>{d.pending.map(p => <li key={p}>{p}</li>)}</ul>
+            </section>
+          )}
 
           <p className="vf-close">
             {d.closing}{' '}
