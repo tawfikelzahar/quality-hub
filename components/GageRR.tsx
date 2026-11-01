@@ -10,7 +10,7 @@ import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import ToolSidebar from '@/components/ToolSidebar'
 import ToolStyles from '@/components/tool/ToolStyles'
 import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, ExportRow, useCompactSave, type MobileTab } from '@/components/tool/ToolParts'
-import { GAGE_SAMPLE_DATA, GAGE_SAMPLE_RESULT } from '@/lib/gage/sample'
+import { GAGE_SAMPLE_DATA, isGageSampleInput } from '@/lib/gage/sample'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { formatPValue } from '@/lib/stats/format'
 import { withPrintColors } from '@/lib/watermarkHelpers'
@@ -133,7 +133,7 @@ const diagToneColor = (tone: DiagTone) =>
 /** Shorter charts for the per-appraiser plots, so both fit on one page with the variation chart (label size depends on the width, not the height) */
 const REPORT_PAIR_SIZE = { width: 900, height: 250 }
 
-// Sample study (lib/gage/sample.ts) — its result there is the faded example free visitors see.
+// Sample study (lib/gage/sample.ts) — free visitors can analyse it in full (open example).
 const SAMPLE: number[][][] = GAGE_SAMPLE_DATA.map(a => a.map(p => [...p]))
 
 /** Optional study identification (gage, characteristic, part, date). Printed in the reports only when filled in. */
@@ -338,7 +338,9 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
   const lslNum = LSL.trim() !== '' ? Number(LSL) : null
   const uslNum = USL.trim() !== '' ? Number(USL) : null
   const limitsBad = lslNum !== null && uslNum !== null && !(uslNum > lslNum)
-  const requestKey = isPro && complete && !limitsBad
+  // Open example: the unchanged sample study runs for everyone; other data is Pro
+  const isSample = numAppraisers === 3 && numTrials === 3 && numParts === 10 && isGageSampleInput(measurements, uslNum, lslNum)
+  const requestKey = (isPro || isSample) && complete && !limitsBad
     ? JSON.stringify({ appraiserNames, numTrials, numParts, measurements, USL: uslNum, LSL: lslNum, method, poolingAlpha: POOLING_ALPHA })
     : null
   useEffect(() => {
@@ -901,7 +903,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
         .gr-big { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
         .gr-big span { font: 700 18px ui-monospace, 'SF Mono', Menlo, monospace; margin-inline-start: 6px; }
         .gr-locked { position: relative; }
-        .gr-locked .gr-fade { opacity: .45; pointer-events: none; user-select: none; }
+        .gr-open { border-color: color-mix(in srgb, var(--qh-gold) 45%, var(--qh-border)); }
         .gr-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
         .gr-tag { font-size: 11px; color: var(--qh-muted); text-transform: uppercase; letter-spacing: .5px; }
       `}</style>
@@ -1027,27 +1029,33 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
 
               {/* ── RESULTS ───────────────────────────────────────────── */}
               <section className="tl-panel tl-results" data-active={mobileTab === 'results'} aria-label={t('spc_tab_results')}>
-                {!subLoading && !isPro ? (
+                {!subLoading && !isPro && !isSample ? (
                   <div className="tl-card gr-locked">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <span className="gr-tag">{t('gr_pro_sample')}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontWeight: 700, fontSize: 15 }}>{t('gr_own_title')}</span>
                       <span className="tl-pro">PRO</span>
                     </div>
-                    <div className="gr-fade" aria-hidden="true">{verdictCards(GAGE_SAMPLE_RESULT)}</div>
-                    <div className="gr-fade tl-kpis tl-kpis-4" aria-hidden="true" style={{ marginTop: 10 }}>
-                      <div className="tl-kpi"><span>{t('gr_kpi_grr_tol')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTolerance.GRR)}</b></div>
-                      <div className="tl-kpi"><span>{t('gr_kpi_grr_tv')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTV.GRR)}</b></div>
-                      <div className="tl-kpi"><span>{t('gr_kpi_ev')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTV.EV)}</b></div>
-                      <div className="tl-kpi"><span>{t('gr_kpi_av')}</span><b>{pct(GAGE_SAMPLE_RESULT.pctOfTV.AV)}</b></div>
-                    </div>
+                    <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--qh-muted)' }}>{t('gr_pro_locked')}</p>
                     <div className="gr-cta" style={{ marginTop: 14 }}>
-                      <span style={{ fontSize: 13, color: 'var(--qh-muted)', flex: '1 1 240px' }}>{t('gr_pro_locked')}</span>
+                      <button type="button" className="tl-xbtn" onClick={loadSample}>{t('gr_back_sample')}</button>
                       {!isLoggedIn && <button type="button" className="tl-xbtn" onClick={() => goToLogin('gage_rr', 'tool')}>{t('gr_pro_login')}</button>}
                       <button type="button" className="tl-xbtn tl-xbtn-pro" onClick={() => goToPricing('gage_rr', 'tool')}>{t('gr_pro_btn')}</button>
                     </div>
                   </div>
                 ) : (
                   <>
+                    {!subLoading && !isPro && isSample && (
+                      <div className="tl-card gr-open">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span className="gr-tag">{t('gr_pro_sample')}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--qh-muted)' }}>{t('gr_open_note')}</p>
+                        <div className="gr-cta" style={{ marginTop: 10 }}>
+                          {!isLoggedIn && <button type="button" className="tl-xbtn" onClick={() => goToLogin('gage_rr', 'tool')}>{t('gr_pro_login')}</button>}
+                          <button type="button" className="tl-xbtn tl-xbtn-pro" onClick={() => goToPricing('gage_rr', 'tool')}>{t('gr_pro_btn')}</button>
+                        </div>
+                      </div>
+                    )}
                     {errorMsg && <div className="tl-error">{errorMsg}</div>}
                     {!r ? (
                       !errorMsg && <div className="tl-card tl-empty">{loading ? t('icmsf_loading') : complete ? t('icmsf_loading') : fill(t('gr_missing'), { n: totalCells - filled, total: totalCells })}</div>
