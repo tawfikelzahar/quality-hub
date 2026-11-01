@@ -435,6 +435,8 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
   const chartOpts = (yLabel: string) => ({
     responsive: true,
     maintainAspectRatio: false,
+    animation: false as const,
+    devicePixelRatio: 2, // sharp PNG / PDF / Excel images, like the other tools
     plugins: { legend: { labels: { color: c.text, font: { size: 11 } } } },
     scales: {
       x: { ticks: { color: c.muted, font: { size: 9 } }, grid: { color: c.grid } },
