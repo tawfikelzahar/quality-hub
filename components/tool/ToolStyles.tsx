@@ -55,6 +55,20 @@ const CSS = `
   .tl-help-steps li::before { content: counter(s); position: absolute; inset-inline-start: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--qh-surface2); color: var(--qh-gold); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
   .tl-help-steps b { display: block; }
   .tl-help-steps span { color: color-mix(in srgb, var(--qh-text) 78%, var(--qh-bg)); }
+  .tl-rd h3 { margin: 18px 0 8px; font-size: 14px; color: var(--qh-text); }
+  .tl-rd-sub { margin: 0; font-size: 13px; line-height: 1.7; color: var(--qh-muted); }
+  .tl-rd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tl-rd-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .tl-rd .tl-field input, .tl-rd textarea { font: 500 14px/1.5 inherit; font-family: inherit; }
+  .tl-rd textarea { width: 100%; box-sizing: border-box; min-height: 96px; resize: vertical; background: color-mix(in srgb, var(--qh-bg) 70%, var(--qh-surface)); border: 1px solid var(--qh-border); border-radius: 7px; color: var(--qh-text); padding: 8px 10px; outline: none; }
+  .tl-rd textarea:focus { border-color: var(--qh-accent); }
+  .tl-rd-hint { margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--qh-muted); }
+  .tl-rd-hint a { color: var(--qh-accent); font-weight: 600; }
+  .tl-rd-check { display: flex; align-items: center; gap: 9px; font-size: 14px; cursor: pointer; margin-bottom: 10px; }
+  .tl-rd-check input { width: 17px; height: 17px; accent-color: var(--qh-accent); margin: 0; }
+  .tl-rd-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .tl-rd-actions .tl-analyze { width: auto; flex: 1 1 160px; min-height: 42px; }
+  @media (max-width: 420px) { .tl-rd-grid, .tl-rd-grid.three { grid-template-columns: 1fr; } }
   .tl-help-box { margin-top: 16px; background: var(--qh-surface); border: 1px solid var(--qh-border); border-radius: 12px; padding: 14px 16px; font-size: 14px; line-height: 1.7; }
   .tl-help-box ul { margin: 6px 0; padding-inline-start: 18px; }
   .tl-help-box p { margin: 6px 0 0; font-size: 13px; color: var(--qh-muted); }
