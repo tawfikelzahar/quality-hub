@@ -7,6 +7,11 @@ import { track } from '@/lib/analytics'
 import Link from '@/components/LocaleLink'
 import { formatPEquals } from '@/lib/stats/format'
 import type { CapabilityVerdict } from '@/lib/spc/verdict'
+import { getReportBranding } from '@/lib/reportBranding'
+import {
+  EMPTY_REPORT_DETAILS, REPORT_DETAILS_MAX, loadSavedReportDetails, saveReportDetails, setReportDetails,
+  type ReportDetails,
+} from '@/lib/reportDetails'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Building blocks shared by the tool pages. Styling lives in ToolStyles
@@ -198,18 +203,111 @@ export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel,
 }) {
   const { t } = useLanguage()
   useCalculateTracking(hasResult)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const exp = (format: 'csv' | 'png' | 'excel' | 'pdf', allowed: boolean, run: () => void) => () => {
     if (allowed) track('file_export', { file_format: format })
     run()
   }
+  // Pro PDF: study details, notes and sign-off names first (lib/reportDetails.ts)
+  const pdfClick = () => {
+    if (isPro) setDetailsOpen(true)
+    else onPDF()
+  }
+  const exportWith = (d: ReportDetails | null) => {
+    setDetailsOpen(false)
+    setReportDetails(d)
+    track('file_export', { file_format: 'pdf' })
+    // after the panel has closed, so chart snapshots see the page as usual
+    window.setTimeout(onPDF, 0)
+  }
   return (
     <div id="tl-export" className="tl-exports">
+      {detailsOpen && <ReportDetailsPanel onClose={() => setDetailsOpen(false)} onExport={exportWith} />}
       {!isLoggedIn && <span style={{ fontSize: 12, color: 'var(--qh-muted)' }}>{t('spc_free_with_account')}</span>}
       <button className="tl-xbtn" onClick={exp('csv', isLoggedIn, onCSV)} disabled={!hasResult}>CSV</button>
       <button className="tl-xbtn" onClick={exp('png', isLoggedIn, onPNG)} disabled={!hasResult || pngDisabled}>{pngLabel ?? t('spc_x_png')}</button>
       <button className="tl-xbtn tl-xbtn-pro" onClick={exp('excel', isPro, onExcel)}>Excel{!isPro && <span className="tl-pro">PRO</span>}</button>
-      <button className="tl-xbtn tl-xbtn-pro" onClick={exp('pdf', isPro, onPDF)} disabled={!hasResult}>{t('spc_x_pdf')}{!isPro && <span className="tl-pro">PRO</span>}</button>
+      <button className="tl-xbtn tl-xbtn-pro" onClick={pdfClick} disabled={!hasResult}>{t('spc_x_pdf')}{!isPro && <span className="tl-pro">PRO</span>}</button>
       {save}
+    </div>
+  )
+}
+
+/**
+ * Before a Pro PDF: what the study is about, the person's notes and the
+ * sign-off names, all optional. Results are never edited here — the PDF
+ * prints these as the person's own text (lib/pdf/reportDesign.ts).
+ */
+function ReportDetailsPanel({ onClose, onExport }: { onClose: () => void; onExport: (d: ReportDetails | null) => void }) {
+  const { t } = useLanguage()
+  const [d, setD] = useState<ReportDetails>(() => {
+    const saved = loadSavedReportDetails()
+    const b = getReportBranding()
+    return {
+      ...EMPTY_REPORT_DETAILS,
+      preparedBy: b?.preparedBy.trim() ?? '',
+      signOff: !!(b && (b.signPrepared || b.signApproved)),
+      ...saved,
+    }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+  const set = (k: keyof ReportDetails) => (e: { target: { value: string } }) => setD(prev => ({ ...prev, [k]: e.target.value }))
+  const field = (k: keyof ReportDetails, label: string, ph?: string, autoFocus?: boolean) => (
+    <label className="tl-field">
+      <span>{label}</span>
+      <input value={d[k] as string} onChange={set(k)} placeholder={ph} maxLength={REPORT_DETAILS_MAX.field} autoFocus={autoFocus} dir="auto" />
+    </label>
+  )
+  const submit = () => { saveReportDetails(d); onExport(d) }
+  return (
+    <div className="tl-help-overlay" onClick={onClose}>
+      <aside className="tl-help tl-rd" role="dialog" aria-modal="true" aria-labelledby="tl-rd-title" onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+          <h2 id="tl-rd-title" style={{ margin: 0, fontSize: 19 }}>{t('rd_title')}</h2>
+          <button type="button" className="tl-xbtn" onClick={onClose} aria-label={t('spc_help_close')}>✕</button>
+        </div>
+        <p className="tl-rd-sub">{t('rd_sub')}</p>
+
+        <h3>{t('rd_study')}</h3>
+        <div className="tl-rd-grid">
+          {field('part', t('rd_part'), t('rd_part_ph'), true)}
+          {field('characteristic', t('rd_char'), t('rd_char_ph'))}
+          {field('location', t('rd_location'), t('rd_location_ph'))}
+          {field('period', t('rd_period'), t('rd_period_ph'))}
+          {field('reportNo', t('rd_report_no'), t('rd_report_no_ph'))}
+        </div>
+        <p className="tl-rd-hint">{t('rd_company_hint')} <Link href="/account">{t('rd_company_link')}</Link></p>
+
+        <h3>{t('rd_notes')}</h3>
+        <textarea value={d.notes} onChange={set('notes')} maxLength={REPORT_DETAILS_MAX.notes} placeholder={t('rd_notes_ph')} dir="auto" aria-label={t('rd_notes')} />
+        <p className="tl-rd-hint">{t('rd_notes_hint')}</p>
+
+        <h3>{t('rd_signoff')}</h3>
+        <label className="tl-rd-check">
+          <input type="checkbox" checked={d.signOff} onChange={e => setD(prev => ({ ...prev, signOff: e.target.checked }))} />
+          {t('rd_signoff_add')}
+        </label>
+        {d.signOff && (
+          <div className="tl-rd-grid three">
+            {field('preparedBy', t('rd_prepared'), t('rd_name_ph'))}
+            {field('reviewedBy', t('rd_reviewed'), t('rd_name_ph'))}
+            {field('approvedBy', t('rd_approved'), t('rd_name_ph'))}
+          </div>
+        )}
+        {!d.signOff && (
+          <div className="tl-rd-grid">{field('preparedBy', t('rd_prepared'), t('rd_name_ph'))}</div>
+        )}
+
+        <div className="tl-rd-actions">
+          <button type="button" className="tl-analyze" onClick={submit}>{t('rd_export')}</button>
+          <button type="button" className="tl-xbtn" onClick={() => onExport(null)}>{t('rd_skip')}</button>
+        </div>
+        <p className="tl-rd-hint">{t('rd_remember')}</p>
+      </aside>
     </div>
   )
 }

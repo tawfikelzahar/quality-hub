@@ -31,6 +31,7 @@ import { NOTO_ARABIC_REGULAR, NOTO_ARABIC_BOLD } from './fonts/notoSansArabic'
 import { SITE } from '@/lib/site'
 import { BRAND_LOGO_PNG, BRAND_LOGO_ASPECT } from './brandLogo'
 import { getReportBranding, preparedByLine, fitBox } from '@/lib/reportBranding'
+import { takeReportDetails, STUDY_FIELDS, type ReportDetails } from '@/lib/reportDetails'
 
 /**
  * Font family embedded in every report (see ./fonts/arimo.ts). Use this
@@ -160,6 +161,8 @@ export interface ReportContext {
   toolName: string
   /** set by addSignOff() so finalizeReport() doesn't draw the sign-off a second time */
   signedOff?: boolean
+  /** study details, notes and sign-off names typed before this export (lib/reportDetails.ts) */
+  details?: ReportDetails | null
 }
 
 function setFill(pdf: jsPDF, rgb: RGB) {
@@ -251,7 +254,7 @@ export function createReport(reportTitle: string, toolName: string): ReportConte
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
   const margin = 40
-  const ctx: ReportContext = { pdf, pageWidth, pageHeight, margin, y: margin, reportTitle, toolName }
+  const ctx: ReportContext = { pdf, pageWidth, pageHeight, margin, y: margin, reportTitle, toolName, details: takeReportDetails() }
   drawHeader(ctx)
   return ctx
 }
@@ -315,16 +318,122 @@ function drawHeader(ctx: ReportContext) {
   pdf.line(margin, y, margin + 56, y)
   y += 22
 
-  // "Prepared by" line (client branding)
-  if (branding && preparedByLine(branding)) {
+  // "Prepared by" line: the name typed for this report, else client branding
+  const typed = ctx.details?.preparedBy ?? ''
+  const prepared = typed
+    ? (branding && branding.preparedBy.trim() === typed && branding.jobTitle.trim() ? `${typed} · ${branding.jobTitle.trim()}` : typed)
+    : (branding ? preparedByLine(branding) : '')
+  if (prepared) {
     pdf.setFont(PDF_FONT, 'normal')
     pdf.setFontSize(9)
     setText(pdf, REPORT_COLORS.muted)
-    drawText(pdf, `Prepared by: ${preparedByLine(branding)}`, margin, y - 6)
+    drawText(pdf, `Prepared by: ${prepared}`, margin, y - 6)
     y += 12
   }
 
   ctx.y = y
+  drawStudyDetails(ctx)
+}
+
+/**
+ * The study fields typed before export (part, characteristic, line, period,
+ * report number), in a light band under the title. Only filled fields are
+ * printed, two to a row.
+ */
+function drawStudyDetails(ctx: ReportContext) {
+  const d = ctx.details
+  if (!d) return
+  const rows = STUDY_FIELDS.filter(([k]) => (d[k] as string)).map(([k, label]) => [label, d[k] as string] as const)
+  if (rows.length === 0) return
+  const { pdf, margin, pageWidth } = ctx
+  const w = pageWidth - margin * 2
+  const colW = (w - 24) / 2
+  const labelW = 92
+  const lineH = 15
+  const lines = Math.ceil(rows.length / 2)
+  const h = lines * lineH + 12
+  ctx.y -= 4
+  setFill(pdf, REPORT_COLORS.panelTint)
+  pdf.rect(margin, ctx.y, w, h, 'F')
+  rows.forEach(([label, value], i) => {
+    const x = margin + 12 + (i % 2) * (colW + 12)
+    const y = ctx.y + 17 + Math.floor(i / 2) * lineH
+    pdf.setFont(PDF_FONT, 'normal')
+    pdf.setFontSize(8.5)
+    setText(pdf, REPORT_COLORS.muted)
+    drawText(pdf, label, x, y)
+    pdf.setFont(PDF_FONT, 'bold')
+    pdf.setFontSize(9)
+    setText(pdf, REPORT_COLORS.ink)
+    drawText(pdf, fitLine(pdf, value, colW - labelW - 4), x + labelW, y)
+  })
+  ctx.y += h + 16
+}
+
+/** Cuts a one-line value to the width, with an ellipsis. */
+function fitLine(pdf: jsPDF, text: string, width: number): string {
+  const s = sanitizePdfText(text)
+  const wOf = (t: string) => withFontFor(pdf, t, () => pdf.getTextWidth(t))
+  if (wOf(s) <= width) return s
+  let t = s
+  while (t.length > 1 && wOf(t + '…') > width) t = t.slice(0, -1)
+  return t.trimEnd() + '…'
+}
+
+/** True when a line reads right to left (more Arabic letters than Latin). */
+function isRtlLine(line: string): boolean {
+  const ar = (line.match(new RegExp(`[${AR}]`, 'g')) ?? []).length
+  const lat = (line.match(/[A-Za-z]/g) ?? []).length
+  return ar > 0 && ar >= lat
+}
+
+/**
+ * The person's own notes, printed apart from the site's results under a
+ * heading that says who wrote them. Arabic paragraphs are right-aligned.
+ */
+function drawUserNotes(ctx: ReportContext, notes: string) {
+  const { pdf, margin, pageWidth } = ctx
+  const w = pageWidth - margin * 2
+  pdf.setFont(PDF_FONT, 'normal')
+  pdf.setFontSize(9.5)
+  const lines: { t: string; rtl: boolean }[] = []
+  for (const para of notes.split('\n')) {
+    if (!para) { lines.push({ t: '', rtl: false }); continue }
+    const rtl = isRtlLine(para)
+    for (const l of splitText(pdf, para, w - 26)) lines.push({ t: l, rtl })
+  }
+  const lineH = 13.5
+  const h = lines.length * lineH + 16
+  sectionHeading(ctx, 'Notes', Math.min(h, 120) + 26)
+  pdf.setFont(PDF_FONT, 'normal')
+  pdf.setFontSize(8.5)
+  setText(pdf, REPORT_COLORS.muted)
+  drawText(pdf, 'Added by the person who prepared this report. Not part of the calculated results.', margin, ctx.y + 2)
+  ctx.y += 12
+  pdf.setFontSize(9.5)
+  // one box per page: long notes continue on the next page
+  let i = 0
+  while (i < lines.length) {
+    const room = Math.floor((ctx.pageHeight - ctx.margin - 26 - ctx.y - 16) / lineH)
+    if (room < 2) { newPage(ctx); continue }
+    const chunk = lines.slice(i, i + room)
+    const bh = chunk.length * lineH + 14
+    setFill(pdf, REPORT_COLORS.panelTint)
+    pdf.rect(margin, ctx.y, w, bh, 'F')
+    setFill(pdf, REPORT_COLORS.brand2)
+    pdf.rect(margin, ctx.y, 3, bh, 'F')
+    setText(pdf, REPORT_COLORS.ink)
+    chunk.forEach((l, j) => {
+      if (!l.t) return
+      const y = ctx.y + 17 + j * lineH
+      if (l.rtl) withArabicFont(pdf, () => pdf.text(sanitizePdfText(l.t), margin + w - 13, y, { align: 'right' }))
+      else drawText(pdf, l.t, margin + 13, y)
+    })
+    ctx.y += bh
+    i += chunk.length
+    if (i < lines.length) newPage(ctx)
+  }
+  ctx.y += 18
 }
 
 /**
@@ -1137,31 +1246,42 @@ export function finalizeReport(ctx: ReportContext) {
  */
 export function addSignOff(ctx: ReportContext) {
   ctx.signedOff = true
+  const d = ctx.details
+  if (d) {
+    // Details typed for this report: notes, then Prepared / Reviewed / Approved
+    if (d.notes) drawUserNotes(ctx, d.notes)
+    if (d.signOff) {
+      drawSignatureBlock(ctx, [['Prepared by', d.preparedBy], ['Reviewed by', d.reviewedBy], ['Approved by', d.approvedBy]])
+      ctx.y += 22
+    }
+    return
+  }
   const branding = getReportBranding()
   if (branding && (branding.signPrepared || branding.signApproved)) {
-    drawSignatureBlock(ctx, branding.preparedBy.trim(), branding.signPrepared, branding.signApproved)
+    drawSignatureBlock(ctx, [
+      ...(branding.signPrepared ? [['Prepared by', branding.preparedBy.trim()] as [string, string]] : []),
+      ...(branding.signApproved ? [['Approved by', ''] as [string, string]] : []),
+    ])
     // room before the next section heading (the block ends right under its labels)
     ctx.y += 22
   }
 }
 
-/** Sign-off at the end of a branded report: "Prepared by" and/or "Approved by", each optional. */
-function drawSignatureBlock(ctx: ReportContext, preparedBy: string, withPrepared: boolean, withApproved: boolean) {
+/** Sign-off block: one column per [label, name] (two or three), name optional. */
+function drawSignatureBlock(ctx: ReportContext, cols: [string, string][]) {
+  if (cols.length === 0) return
   ensureSpace(ctx, 92)
   const { pdf, margin, pageWidth } = ctx
-  const colW = (pageWidth - margin * 2 - 30) / 2
+  const gap = cols.length > 2 ? 22 : 30
+  const colW = (pageWidth - margin * 2 - gap * (Math.max(2, cols.length) - 1)) / Math.max(2, cols.length)
   let y = ctx.y + 14
   pdf.setFont(PDF_FONT, 'bold')
   pdf.setFontSize(11)
   setText(pdf, REPORT_COLORS.brandDark)
   drawText(pdf, 'Sign-off', margin, y)
   y += 24
-  const cols: [string, string][] = [
-    ...(withPrepared ? [['Prepared by', preparedBy] as [string, string]] : []),
-    ...(withApproved ? [['Approved by', ''] as [string, string]] : []),
-  ]
   cols.forEach(([label, name], i) => {
-    const x = margin + i * (colW + 30)
+    const x = margin + i * (colW + gap)
     pdf.setFont(PDF_FONT, 'bold')
     pdf.setFontSize(8.5)
     setText(pdf, REPORT_COLORS.muted)
@@ -1169,7 +1289,7 @@ function drawSignatureBlock(ctx: ReportContext, preparedBy: string, withPrepared
     pdf.setFont(PDF_FONT, 'normal')
     pdf.setFontSize(10)
     setText(pdf, REPORT_COLORS.ink)
-    if (name) drawText(pdf, name, x, y + 16)
+    if (name) drawText(pdf, fitLine(pdf, name, colW), x, y + 16)
     setDraw(pdf, REPORT_COLORS.faint)
     pdf.setLineWidth(0.6)
     pdf.line(x, y + 40, x + colW * 0.62, y + 40)
