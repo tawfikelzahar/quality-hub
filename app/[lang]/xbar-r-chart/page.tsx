@@ -39,6 +39,9 @@ import {
   criteriaReferenceTable,
   addChartImage,
   finalizeReport,
+  addDataAppendix,
+  appendixColumns,
+  sameDecimals,
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign';
@@ -562,6 +565,12 @@ export default function XbarRChartPage() {
       criteriaReferenceTable(ctx);
     }
 
+    addDataAppendix(ctx, {
+      summary: `${subgroups.length} subgroups of ${subgroups[0].length} readings.`,
+      columns: appendixColumns(ctx, [{ header: 'SUBGROUP', width: 70, align: 'right' }], subgroups[0].map((_, j) => `X${j + 1}`)),
+      rows: (() => { const f = sameDecimals(subgroups.flat()); const k = subgroups[0].length; return subgroups.map((_, i) => [String(i + 1), ...f.slice(i * k, i * k + k)]); })(),
+      valuesPerRow: subgroups[0].length,
+    });
     finalizeReport(ctx);
     ctx.pdf.save('xbar-r-chart.pdf');
   }
@@ -697,6 +706,7 @@ export default function XbarRChartPage() {
                       onPNG={exportPNG}
                       onExcel={exportExcel}
                       onPDF={exportPDF}
+                      dataAppendix
                       save={
                         <SaveAnalysisButton
                           theme={theme}

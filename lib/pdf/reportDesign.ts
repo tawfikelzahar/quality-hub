@@ -1215,6 +1215,87 @@ export function criteriaReferenceTable(
   )
 }
 
+// ── Study data appendix ──────────────────────────────────────────────────
+
+/** Most data values printed in the appendix; the rest stay in the Excel export. */
+export const DATA_APPENDIX_MAX_VALUES = 2000
+
+export interface DataAppendix {
+  /** one line under the heading, e.g. "125 readings in 25 subgroups." */
+  summary: string
+  columns: DataTableColumn[]
+  rows: string[][]
+  /** data values in one row (the cap counts values, not rows) */
+  valuesPerRow: number
+}
+
+/**
+ * The study data as an appendix after the sign-off, only when the person
+ * ticked "Attach the study data" (off by default). Call it right before
+ * finalizeReport(). Values are printed as entered for the analysis.
+ */
+export function addDataAppendix(ctx: ReportContext, a: DataAppendix) {
+  if (!ctx.details?.includeData || a.rows.length === 0) return
+  if (!ctx.signedOff) addSignOff(ctx)
+  newPage(ctx)
+  sectionHeading(ctx, 'Appendix: Study Data')
+  const maxRows = Math.max(1, Math.floor(DATA_APPENDIX_MAX_VALUES / Math.max(1, a.valuesPerRow)))
+  const cut = a.rows.length > maxRows
+  const { pdf, margin } = ctx
+  pdf.setFont(PDF_FONT, 'normal')
+  pdf.setFontSize(8.5)
+  setText(pdf, REPORT_COLORS.muted)
+  drawText(pdf, `${a.summary} Values as entered for this analysis.`, margin, ctx.y + 2)
+  ctx.y += 12
+  if (cut) {
+    drawText(pdf, `First ${maxRows} of ${a.rows.length} rows shown. The full data is in the Excel export.`, margin, ctx.y + 2)
+    ctx.y += 12
+  }
+  ctx.y += 6
+  dataTable(ctx, '', a.columns, cut ? a.rows.slice(0, maxRows) : a.rows, { allowSplit: true })
+}
+
+/**
+ * One series of readings laid out several to a row (# / VALUE pairs), so a
+ * long column of numbers takes a page or two instead of ten.
+ */
+export function seriesAppendix(ctx: ReportContext, values: string[], summary: string, perRow = 5): DataAppendix {
+  const w = (ctx.pageWidth - ctx.margin * 2) / perRow
+  const columns: DataTableColumn[] = []
+  for (let k = 0; k < perRow; k++) {
+    columns.push({ header: '#', width: Math.round(w * 0.36), align: 'right' })
+    columns.push({ header: 'VALUE', width: w - Math.round(w * 0.36), align: 'right' })
+  }
+  const rows: string[][] = []
+  for (let i = 0; i < values.length; i += perRow) {
+    const row: string[] = []
+    for (let k = 0; k < perRow; k++) {
+      const v = values[i + k]
+      row.push(v === undefined ? '' : String(i + k + 1), v ?? '')
+    }
+    rows.push(row)
+  }
+  return { summary, columns, rows, valuesPerRow: perRow }
+}
+
+/**
+ * Numbers for the appendix, all with the same number of decimals as the most
+ * precise one (up to 6): 74 next to 73.993 prints as 74.000. Values unchanged.
+ */
+export function sameDecimals(values: ReadonlyArray<number | null | undefined>): string[] {
+  const dec = (v: number) => { const t = String(v); return /e/i.test(t) ? 6 : (t.split('.')[1] ?? '').length }
+  const d = Math.min(6, Math.max(0, ...values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v)).map(dec)))
+  return values.map(v => (typeof v === 'number' && Number.isFinite(v) ? v.toFixed(d) : ''))
+}
+
+/** Columns that share the page width: the first ones fixed, the rest equal. */
+export function appendixColumns(ctx: ReportContext, fixed: DataTableColumn[], headers: string[]): DataTableColumn[] {
+  const total = ctx.pageWidth - ctx.margin * 2
+  const used = fixed.reduce((a, c) => a + c.width, 0)
+  const each = headers.length ? (total - used) / headers.length : 0
+  return [...fixed, ...headers.map(h => ({ header: h, width: each, align: 'right' as const }))]
+}
+
 // ── Footer / finalize ────────────────────────────────────────────────────
 
 /** Draws the footer (hairline + copyright + page numbers) on every page. Call once, right before pdf.save(). */

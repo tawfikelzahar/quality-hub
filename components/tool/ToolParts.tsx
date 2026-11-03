@@ -187,7 +187,7 @@ export function ResultsHead({ nPoints, ad, isNormal, hasSpec, children }: {
   )
 }
 
-export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel, onPDF, save, pngLabel, pngDisabled }: {
+export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel, onPDF, save, pngLabel, pngDisabled, dataAppendix }: {
   isPro: boolean
   isLoggedIn: boolean
   hasResult: boolean
@@ -200,6 +200,8 @@ export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel,
   pngLabel?: string
   /** no image to export (e.g. no chart on screen) */
   pngDisabled?: boolean
+  /** the PDF can attach the study data as an appendix (lib/pdf/reportDesign.ts → addDataAppendix) */
+  dataAppendix?: boolean
 }) {
   const { t } = useLanguage()
   useCalculateTracking(hasResult)
@@ -222,7 +224,7 @@ export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel,
   }
   return (
     <div id="tl-export" className="tl-exports">
-      {detailsOpen && <ReportDetailsPanel onClose={() => setDetailsOpen(false)} onExport={exportWith} />}
+      {detailsOpen && <ReportDetailsPanel onClose={() => setDetailsOpen(false)} onExport={exportWith} dataAppendix={!!dataAppendix} />}
       {!isLoggedIn && <span style={{ fontSize: 12, color: 'var(--qh-muted)' }}>{t('spc_free_with_account')}</span>}
       <button className="tl-xbtn" onClick={exp('csv', isLoggedIn, onCSV)} disabled={!hasResult}>CSV</button>
       <button className="tl-xbtn" onClick={exp('png', isLoggedIn, onPNG)} disabled={!hasResult || pngDisabled}>{pngLabel ?? t('spc_x_png')}</button>
@@ -238,7 +240,7 @@ export function ExportRow({ isPro, isLoggedIn, hasResult, onCSV, onPNG, onExcel,
  * sign-off names, all optional. Results are never edited here — the PDF
  * prints these as the person's own text (lib/pdf/reportDesign.ts).
  */
-function ReportDetailsPanel({ onClose, onExport }: { onClose: () => void; onExport: (d: ReportDetails | null) => void }) {
+function ReportDetailsPanel({ onClose, onExport, dataAppendix }: { onClose: () => void; onExport: (d: ReportDetails | null) => void; dataAppendix: boolean }) {
   const { t } = useLanguage()
   const [d, setD] = useState<ReportDetails>(() => {
     const saved = loadSavedReportDetails()
@@ -262,7 +264,10 @@ function ReportDetailsPanel({ onClose, onExport }: { onClose: () => void; onExpo
       <input value={d[k] as string} onChange={set(k)} placeholder={ph} maxLength={REPORT_DETAILS_MAX.field} autoFocus={autoFocus} dir="auto" />
     </label>
   )
-  const submit = () => { saveReportDetails(d); onExport(d) }
+  const submit = () => {
+    saveReportDetails(d)
+    onExport(dataAppendix ? d : { ...d, includeData: false })
+  }
   return (
     <div className="tl-help-overlay" onClick={onClose}>
       <aside className="tl-help tl-rd" role="dialog" aria-modal="true" aria-labelledby="tl-rd-title" onClick={e => e.stopPropagation()}>
@@ -300,6 +305,17 @@ function ReportDetailsPanel({ onClose, onExport }: { onClose: () => void; onExpo
         )}
         {!d.signOff && (
           <div className="tl-rd-grid">{field('preparedBy', t('rd_prepared'), t('rd_name_ph'))}</div>
+        )}
+
+        {dataAppendix && (
+          <>
+            <h3>{t('rd_data')}</h3>
+            <label className="tl-rd-check">
+              <input type="checkbox" checked={d.includeData} onChange={e => setD(prev => ({ ...prev, includeData: e.target.checked }))} />
+              {t('rd_data_add')}
+            </label>
+            <p className="tl-rd-hint" style={{ marginTop: -4 }}>{t('rd_data_hint')}</p>
+          </>
         )}
 
         <div className="tl-rd-actions">

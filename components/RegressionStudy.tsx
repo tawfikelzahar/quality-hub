@@ -18,7 +18,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import { createReport as createPdfReport, addChartImage, addChartImageGrid, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addChartImage, addChartImageGrid, addSignOff, calloutBox, dataTable, finalizeReport, addDataAppendix, appendixColumns, sameDecimals, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue, formatPEquals } from '@/lib/stats/format'
 import type { RegressionError } from '@/lib/regression/model'
 import type { RegressionView as RegressionFit } from '@/lib/regression/freeView.server'
@@ -545,6 +545,15 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
       ['Source', SOURCE_LINE.replace('Source: ', '')],
     ])
     addSignOff(ctx)
+    addDataAppendix(ctx, {
+      summary: `${res.n} rows used in the model${skipped > 0 ? ` (${skipped} incomplete rows left out)` : ''}.`,
+      columns: appendixColumns(ctx, [{ header: 'ROW', width: 50, align: 'right' }], [...res.xNames, res.yName].map(h => h.toUpperCase())),
+      rows: (() => {
+        const cols = [...res.xNames.map((_, j) => sameDecimals(res.residuals.map(r => r.x[j]))), sameDecimals(res.residuals.map(r => r.y))]
+        return res.residuals.map((r, i) => [String(r.row), ...cols.map(c => c[i])])
+      })(),
+      valuesPerRow: res.xNames.length + 1,
+    })
     finalizeReport(ctx)
     ctx.pdf.save(`${tool}-report.pdf`)
   }
@@ -784,6 +793,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
                         onPNG={exportPNG}
                         onExcel={exportExcel}
                         onPDF={exportPDF}
+                        dataAppendix
                         pngLabel={t('rg_x_png_fit')}
                         save={
                           <SaveAnalysisButton
