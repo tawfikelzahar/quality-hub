@@ -25,11 +25,13 @@ export interface ReportDetails {
   approvedBy: string
   /** print the sign-off block (Prepared / Reviewed / Approved) */
   signOff: boolean
+  /** add the study data as an appendix (off unless the person ticks it) */
+  includeData: boolean
 }
 
 export const EMPTY_REPORT_DETAILS: ReportDetails = {
   part: '', characteristic: '', location: '', period: '', reportNo: '', notes: '',
-  preparedBy: '', reviewedBy: '', approvedBy: '', signOff: false,
+  preparedBy: '', reviewedBy: '', approvedBy: '', signOff: false, includeData: false,
 }
 
 /** Longest text accepted per field (notes: a paragraph or two). */
@@ -70,12 +72,13 @@ function cleanDetails(d: ReportDetails): ReportDetails {
       .replace(/\n{3,}/g, '\n\n').trim().slice(0, REPORT_DETAILS_MAX.notes),
     preparedBy: f(d.preparedBy), reviewedBy: f(d.reviewedBy), approvedBy: f(d.approvedBy),
     signOff: !!d.signOff,
+    includeData: !!d.includeData,
   }
 }
 
 // ── Remembered between reports (this browser only) ──────────────────────
 // Everything except the notes and the report number, which belong to one
-// study. Storage can be missing (private mode): then nothing is remembered.
+// study, and the data appendix choice, which starts unticked every time. Storage can be missing (private mode): then nothing is remembered.
 const KEY = 'qh-report-details-v1'
 
 export function loadSavedReportDetails(): Partial<ReportDetails> {
@@ -96,8 +99,9 @@ export function loadSavedReportDetails(): Partial<ReportDetails> {
 
 export function saveReportDetails(d: ReportDetails) {
   try {
-    const { notes: _n, reportNo: _r, ...keep } = d
-    void _n; void _r
+    // the data appendix starts unticked on every export (owner's decision)
+    const { notes: _n, reportNo: _r, includeData: _i, ...keep } = d
+    void _n; void _r; void _i
     window.localStorage.setItem(KEY, JSON.stringify(keep))
   } catch {
     /* storage unavailable: nothing remembered */

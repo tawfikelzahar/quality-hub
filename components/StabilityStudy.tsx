@@ -18,7 +18,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import { createReport as createPdfReport, addChartImage, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addChartImage, addSignOff, calloutBox, dataTable, finalizeReport, addDataAppendix, appendixColumns, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPEquals } from '@/lib/stats/format'
 import { STORAGE_CONDITIONS, ACCEL_RESULTS, storageKindOf, type AccelResult } from '@/lib/stability/options'
 import type { StabilityResult, ShelfLifeClaim } from '@/lib/stability/calc'
@@ -486,6 +486,15 @@ export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = 
       { cellColors: res.batches.map(b => [hexRgb(colorOf(b.name)), null, null, null, b.name === res.limiting ? REPORT_COLORS.warn : null]) },
     )
     addSignOff(ctx)
+    {
+      const months = inp.months.map((m, i) => ({ m: m.trim(), i })).filter(o => o.m !== '' && inp.names.some((_, j) => (inp.values[o.i]?.[j] ?? '').trim() !== ''))
+      addDataAppendix(ctx, {
+        summary: `${attr} · ${inp.names.length} batches × ${months.length} time points (months).`,
+        columns: appendixColumns(ctx, [{ header: 'MONTH', width: 60, align: 'right' }], inp.names.map((n, j) => (n.trim() || `Batch ${j + 1}`).toUpperCase())),
+        rows: months.map(o => [o.m, ...inp.names.map((_, j) => (inp.values[o.i]?.[j] ?? '').trim())]),
+        valuesPerRow: inp.names.length,
+      })
+    }
     finalizeReport(ctx)
     ctx.pdf.save('stability-report.pdf')
   }
@@ -701,6 +710,7 @@ export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = 
                         onPNG={exportPNG}
                         onExcel={exportExcel}
                         onPDF={exportPDF}
+                        dataAppendix
                         pngLabel={t('stb_x_png')}
                         save={
                           <SaveAnalysisButton

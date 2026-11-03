@@ -18,7 +18,7 @@ import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import { createReport as createPdfReport, addChartImage, addChartImagePair, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, addChartImage, addChartImagePair, addSignOff, calloutBox, dataTable, finalizeReport, addDataAppendix, appendixColumns, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue } from '@/lib/stats/format'
 import { LETTERS, MAX_FACTORS, MAX_REPLICATES, MIN_FACTORS, buildDesignMatrix, randomizeRunOrder, type DesignRow } from '@/lib/doe/design'
 import type { DoeError } from '@/lib/doe/calculator'
@@ -559,6 +559,14 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
     }
     calloutBox(ctx, `Regression equation in uncoded units: ${eqText(res)}`, 'info')
     addSignOff(ctx)
+    addDataAppendix(ctx, {
+      summary: `${rows.length} runs in run order (${res.factors.length} factors).`,
+      columns: appendixColumns(ctx, [{ header: 'RUN', width: 40, align: 'right' }, { header: 'STD', width: 40, align: 'right' }, { header: 'REP', width: 40, align: 'right' }],
+        [...res.factors.map((f, i) => `${LETTERS[i]} · ${f.name}`.toUpperCase()), yLabel.toUpperCase()]),
+      rows: rows.map(r => [String(r.runOrder), String(r.standardOrder), String(r.replicate),
+        ...r.coded.map((v, i) => (v < 0 ? inp.factors[i].low.trim() : inp.factors[i].high.trim())), (inp.values[keyOf(r)] ?? '').trim()]),
+      valuesPerRow: res.factors.length + 1,
+    })
     finalizeReport(ctx)
     ctx.pdf.save('doe-report.pdf')
   }
@@ -819,6 +827,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
                         onPNG={exportPNG}
                         onExcel={exportExcel}
                         onPDF={exportPDF}
+                        dataAppendix
                         pngLabel={t(locked ? 'dx_x_png_main' : 'dx_x_png')}
                         save={
                           <SaveAnalysisButton

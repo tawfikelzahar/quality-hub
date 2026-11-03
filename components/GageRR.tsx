@@ -33,6 +33,9 @@ import {
   addChartImagePair,
   chartSnapshot,
   finalizeReport,
+  addDataAppendix,
+  appendixColumns,
+  sameDecimals,
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign'
@@ -809,6 +812,39 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
       ['% GRR', 'CLASSIFICATION', 'GENERAL INTERPRETATION']
     )
 
+    {
+      // As on the AIAG data sheet: one row per appraiser and trial, one column per part
+      const all = measurements.flat(2)
+      const txt = sameDecimals(all)
+      const pos = new Map<number, number>()
+      let k = 0
+      for (let a = 0; a < measurements.length; a++) for (let p2 = 0; p2 < measurements[a].length; p2++) for (let tr = 0; tr < measurements[a][p2].length; tr++) pos.set(a * 1e6 + p2 * 1e3 + tr, k++)
+      const cell = (a: number, p2: number, tr: number) => { const i = pos.get(a * 1e6 + p2 * 1e3 + tr); return i === undefined ? '' : txt[i] }
+      const summary = `${numAppraisers} appraisers × ${numParts} parts × ${numTrials} trials.`
+      if (numParts <= 12) {
+        const rows: string[][] = []
+        for (let a = 0; a < numAppraisers; a++) {
+          for (let tr = 0; tr < numTrials; tr++) rows.push([appraiserNames[a], String(tr + 1), ...Array.from({ length: numParts }, (_, p2) => cell(a, p2, tr))])
+        }
+        addDataAppendix(ctx, {
+          summary,
+          columns: appendixColumns(ctx, [{ header: 'APPRAISER', width: 78, align: 'left' }, { header: 'TRIAL', width: 38, align: 'right' }], Array.from({ length: numParts }, (_, p2) => `P${p2 + 1}`)),
+          rows,
+          valuesPerRow: numParts,
+        })
+      } else {
+        const rows: string[][] = []
+        for (let a = 0; a < numAppraisers; a++) {
+          for (let p2 = 0; p2 < numParts; p2++) rows.push([appraiserNames[a], String(p2 + 1), ...Array.from({ length: numTrials }, (_, tr) => cell(a, p2, tr))])
+        }
+        addDataAppendix(ctx, {
+          summary,
+          columns: appendixColumns(ctx, [{ header: 'APPRAISER', width: 110, align: 'left' }, { header: 'PART', width: 50, align: 'right' }], Array.from({ length: numTrials }, (_, tr) => `TRIAL ${tr + 1}`)),
+          rows,
+          valuesPerRow: numTrials,
+        })
+      }
+    }
     finalizeReport(ctx)
     ctx.pdf.save('gage-rr-report.pdf')
   }
@@ -1086,6 +1122,7 @@ export default function GageRR({ guide }: { guide?: React.ReactNode } = {}) {
                             onPNG={() => withEnglishAxes(exportPNG)}
                             onExcel={() => withEnglishAxes(exportExcel)}
                             onPDF={() => withEnglishAxes(exportPDF)}
+                            dataAppendix
                             pngLabel={t('gr_x_png')}
                             save={
                               <SaveAnalysisButton

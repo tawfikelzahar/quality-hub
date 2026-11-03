@@ -39,6 +39,9 @@ import {
   addChartImage,
   addChartImagePair,
   finalizeReport,
+  addDataAppendix,
+  seriesAppendix,
+  appendixColumns,
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign'
@@ -364,6 +367,8 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   const [errorMsg, setErrorMsg] = useState('')
   const [result, setResult] = useState<ApiResult | null>(null)
   const [submittedVals, setSubmittedVals] = useState<number[]>([])
+  /** the rows sent to the last analysis, as typed (PDF data appendix) */
+  const [analyzedRows, setAnalyzedRows] = useState<string[][]>([])
   const [pasteToast, setPasteToast] = useState(false)
   const [loadedProjectName, setLoadedProjectName] = useState('')
 
@@ -518,6 +523,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           return
         }
         setSubmittedVals(data.flat())
+        setAnalyzedRows(varRows.map(r => r.vals.map(v => v.trim())).filter(vals => vals.length === N && vals.every(v => !isNaN(parseFloat(v)))))
         body = {
           data,
           N,
@@ -540,6 +546,9 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           setLoading(false)
           return
         }
+        setAnalyzedRows(attrRows
+          .map(r => (needsN ? [r.n.trim(), r.defects.trim()] : [r.defects.trim()]))
+          .filter(row => row.every(v => !isNaN(parseFloat(v)))))
         body = {
           mode: 'attribute',
           data,
@@ -1254,6 +1263,25 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
       if (cls) criteriaReferenceTable(ctx)
     }
 
+    const nA = analyzedRows[0]?.length ?? 1
+    if (varResult && nA === 1) {
+      addDataAppendix(ctx, seriesAppendix(ctx, analyzedRows.map(r => r[0]), `${analyzedRows.length} individual readings, in the order entered.`))
+    } else if (varResult) {
+      addDataAppendix(ctx, {
+        summary: `${analyzedRows.length} subgroups of ${nA} readings.`,
+        columns: appendixColumns(ctx, [{ header: 'SUBGROUP', width: 70, align: 'right' }], Array.from({ length: nA }, (_, j) => `X${j + 1}`)),
+        rows: analyzedRows.map((r, i) => [String(i + 1), ...r]),
+        valuesPerRow: nA,
+      })
+    } else if (attrResult) {
+      const needsN = analyzedRows[0]?.length === 2
+      addDataAppendix(ctx, {
+        summary: `${analyzedRows.length} subgroups (${attrResult.chartLabel}).`,
+        columns: appendixColumns(ctx, [{ header: 'SUBGROUP', width: 90, align: 'right' }], needsN ? ['SAMPLE SIZE (n)', attrType === 'p' ? 'DEFECTIVES' : 'DEFECTS'] : [attrType === 'np' ? 'DEFECTIVES' : 'DEFECTS']),
+        rows: analyzedRows.map((r, i) => [String(i + 1), ...r]),
+        valuesPerRow: needsN ? 2 : 1,
+      })
+    }
     finalizeReport(ctx)
     ctx.pdf.save('spc-report.pdf')
   }
@@ -1899,6 +1927,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
                 onPNG={exportPNG}
                 onExcel={exportExcel}
                 onPDF={exportPDF}
+                dataAppendix
                 save={
                   <SaveAnalysisButton
                     theme={theme}

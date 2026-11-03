@@ -8,7 +8,7 @@ import { COLORS, usePersistedTheme, getSharedStyles, tint } from '@/lib/theme'
 import { useGridImport } from '@/lib/gridImport'
 import { SheetPicker, PasteToast } from '@/components/GridImportControls'
 import { createReport, nowStamp } from '@/lib/excelReport'
-import { createReport as createPdfReport, dataTable, calloutBox, addChartImage, finalizeReport } from '@/lib/pdf/reportDesign'
+import { createReport as createPdfReport, dataTable, calloutBox, addChartImage, finalizeReport, addDataAppendix, seriesAppendix, sameDecimals } from '@/lib/pdf/reportDesign'
 import Nav from '@/components/Nav'
 import ToolSidebar from '@/components/ToolSidebar'
 import ToolStyles from '@/components/tool/ToolStyles'
@@ -539,9 +539,10 @@ export default function DescriptiveStats({ guide }: { guide?: React.ReactNode } 
     addChartImage(ctx, histogramChartRef.current, 'Histogram with Normal Curve', { width: 760, height: 320 })
     addChartImage(ctx, boxPlotChartRef.current, 'Box Plot', { width: 760, height: 130 })
 
+    addDataAppendix(ctx, seriesAppendix(ctx, sameDecimals(analyzed), `${analyzed.length} values, in the order entered.`))
     finalizeReport(ctx)
     ctx.pdf.save('descriptive-statistics.pdf')
-  }, [isPro, result])
+  }, [isPro, result, analyzed])
 
   const charts = () => [histogramChartRef.current, boxPlotChartRef.current, ciChartRef.current]
   const exportExcel = () => (isPro ? withWatermarksDisabled(charts(), runExportExcel) : runExportExcel())
@@ -667,6 +668,7 @@ export default function DescriptiveStats({ guide }: { guide?: React.ReactNode } 
                       onPNG={exportPNG}
                       onExcel={exportExcel}
                       onPDF={exportPDF}
+                      dataAppendix
                       save={
                         <SaveAnalysisButton
                           theme={theme}
