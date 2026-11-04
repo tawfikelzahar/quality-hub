@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 // Shared Chart.js watermark plugin.
 //
-// Paints a faint diagonal tiled "qualityhub.tools" pattern across the plot
+// Paints a faint diagonal tiled site-domain pattern across the plot
 // area plus a solid brand strip along the very bottom of the canvas. Both
 // are drawn INTO the canvas pixels (not an HTML overlay), so they survive
 // right-click → Save Image, screenshots, and the free PNG export — there is

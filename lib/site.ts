@@ -20,7 +20,7 @@ export const SITE = {
   tagline: 'Quality Engineering Platform',
 
   /** Public website address, without a trailing slash */
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://qualityhub-zeta.vercel.app',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mizanquality.com',
   /** Short domain printed on chart watermarks and report footers */
   domain: 'mizanquality.com',
 

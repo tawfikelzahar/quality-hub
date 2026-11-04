@@ -1306,7 +1306,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           bodyColor: c.muted,
           padding: 10,
         },
-        // Diagonal tiled "qualityhub.tools" + bottom strip, baked directly
+        // Diagonal tiled site-domain + bottom strip, baked directly
         // into the canvas pixels. Covers the live on-screen view and the
         // free PNG export (same canvas, same toBase64Image() call).
         // Disabled on the chart instance (not removed) just before a Pro
