@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mizanquality.app",
+      "sha256_cert_fingerprints": [
+        "FD:50:C8:A4:28:E0:43:9E:FF:B6:B0:B5:DE:91:EC:5A:99:C4:D3:D2:85:EC:3D:16:48:80:72:14:35:9D:F2:8C"
+      ]
+    }
+  }
+]
