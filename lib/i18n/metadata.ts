@@ -16,13 +16,18 @@ export function localizedPageMetadata(lang: string, path: string, en: Copy, ar: 
   return {
     title: copy.title,
     description: copy.description,
-    alternates: {
-      canonical: localizePath(path, lang === 'ar' ? 'ar' : 'en'),
-      languages: {
-        en: path,
-        ar: localizePath(path, 'ar'),
-        'x-default': path,
-      },
+    alternates: localizedAlternates(lang, path),
+  }
+}
+
+/** Only the canonical + hreflang links, for pages that keep the site-wide title and description. */
+export function localizedAlternates(lang: string, path: string): NonNullable<Metadata['alternates']> {
+  return {
+    canonical: localizePath(path, lang === 'ar' ? 'ar' : 'en'),
+    languages: {
+      en: path,
+      ar: localizePath(path, 'ar'),
+      'x-default': path,
     },
   }
 }
