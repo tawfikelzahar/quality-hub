@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { maybeSendWelcome } from '@/lib/email/welcome.server'
+import { localeOfPath } from '@/lib/i18n/routing'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -31,6 +33,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(next, request.url))
     }
     if (user) {
+      // First sign-in of a new account (Google, or an email confirmation
+      // link): send the one-time welcome email. Never blocks the sign-in.
+      await maybeSendWelcome(supabase, user, localeOfPath(new URL(next, request.url).pathname))
       // Tell GA (components/Analytics.tsx) whether this was a new account:
       // created within the last 10 minutes = sign_up, otherwise login.
       const created = user.created_at ? Date.parse(user.created_at) : 0

@@ -104,6 +104,9 @@ export default function LoginPage() {
         email,
         password,
         options: {
+          // the confirmation link signs the visitor in through /auth/callback
+          // (which also sends the welcome email) and returns to this page's target
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(hereLocalized(getNextPath()))}`,
           data: {
             first_name: firstName.trim(),
             last_name: lastName.trim(),
@@ -135,6 +138,8 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
     track('login', { method: 'email' })
+    // new accounts confirmed in another browser get their welcome email here (once)
+    await fetch('/api/welcome', { method: 'POST', keepalive: true }).catch(() => {})
     // A full navigation (not router.push) guarantees the browser sends the
     // freshly-set session cookie on this request, so the proxy/middleware
     // auth check on the destination route sees it immediately instead of
