@@ -375,7 +375,7 @@ export default function AttributeChartsPage() {
   ] : [];
   const checkStatusEn = (st: CheckStatus) => (st === 'ok' ? 'Passed' : st === 'warn' ? 'Check' : 'Not available');
   const exportChecks = (): [string, string][] => (checks ? [
-    ['Number of subgroups', `${checkStatusEn(checks.subgroups.status)}: ${checks.subgroups.have} of ${checks.subgroups.need ?? '—'} needed (95% confidence that test 1 false alarms stay at or below 2%)`],
+    ['Number of subgroups', checks.subgroups.need === null ? 'Not available: no defectives or defects in the data' : `${checkStatusEn(checks.subgroups.status)}: ${checks.subgroups.have} subgroups, ${checks.subgroups.need} needed (so that test 1 false alarms stay at or below 2% with 95% confidence)`],
     ['Subgroup size', checks.size.status === 'warn'
       ? `Check: ${vt === 'c' ? 'average defects per subgroup below 0.5' : `subgroups ${listText(checks.size.small)} below n × ${rateName} = 0.5 (use n ≥ ${checks.size.minSize})`}`
       : `${checkStatusEn(checks.size.status)}: smallest n × ${rateName} = ${niceNum(checks.size.minProduct, 2)} (rule: at least 0.5)`],
@@ -425,7 +425,7 @@ export default function AttributeChartsPage() {
   const cumData = result && cumulative ? {
     labels,
     datasets: [
-      { label: `Cumulative ${clName(vt)}`, data: cumulative, borderColor: c.accent, backgroundColor: c.accent, pointRadius: 2.5, borderWidth: 2, tension: 0 },
+      { label: `Cumulative ${clName(vt)}`, data: cumulative, borderColor: c.data, backgroundColor: c.data, pointRadius: 2.5, borderWidth: 2, tension: 0 },
       { label: `Final ${clName(vt)}`, data: labels.map(() => result.clVal), borderColor: c.muted, borderDash: [4, 3], borderWidth: 1, pointRadius: 0 },
     ],
   } : null;

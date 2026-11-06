@@ -188,6 +188,10 @@ const PDF_SYMBOL_MAP: Array<[RegExp, string]> = [
   [/R\u0304/g, 'R-bar'], // R̄
   [/P\u0304/g, 'P-bar'], // P̄
   [/p\u0304/g, 'p-bar'], // p̄
+  [/\u016B|u\u0304/g, 'u-bar'], // ū (precomposed or combining)
+  [/c\u0304/g, 'c-bar'], // c̄
+  [/n\u0304p/g, 'np-bar'], // n̄p (np chart centre line)
+  [/n\u0304/g, 'n-bar'], // n̄
   [/σ/g, 'sigma'],
   [/Σ/g, 'Sigma'],
   [/≥/g, '>='],
