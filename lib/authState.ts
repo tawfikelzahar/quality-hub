@@ -28,9 +28,11 @@ export interface AuthState {
   loading: boolean
   user: User | null
   status: SubscriptionStatus
+  /** Site owner (supabase/sql/010_admin_dashboard.sql). Only shows the Admin link; /admin checks again on the server. */
+  isAdmin: boolean
 }
 
-const INITIAL: AuthState = { loading: true, user: null, status: 'free' }
+const INITIAL: AuthState = { loading: true, user: null, status: 'free', isAdmin: false }
 
 let state: AuthState = INITIAL
 let started = false
@@ -46,13 +48,16 @@ async function read(): Promise<AuthState> {
   const supabase = createClient()
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { loading: false, user: null, status: 'free' }
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    if (!user) return { loading: false, user: null, status: 'free', isAdmin: false }
+    const [profile, admin] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.rpc('is_admin'),
+    ])
     // No profile row, a failed read or a passed end date → 'free' (locked by default is the safe side)
-    const status = !error && isProRow(data) ? 'pro' : 'free'
-    return { loading: false, user, status }
+    const status = !profile.error && isProRow(profile.data) ? 'pro' : 'free'
+    return { loading: false, user, status, isAdmin: !admin.error && admin.data === true }
   } catch {
-    return { loading: false, user: null, status: 'free' }
+    return { loading: false, user: null, status: 'free', isAdmin: false }
   }
 }
 

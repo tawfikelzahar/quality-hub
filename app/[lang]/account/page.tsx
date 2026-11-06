@@ -16,6 +16,7 @@ import type { TKey } from '@/lib/i18n/translations'
 import { getReportBranding, preparedByLine, type ReportBranding } from '@/lib/reportBranding'
 import { refreshReportBranding } from '@/lib/reportBrandingLoad'
 import { hereLocalized } from '@/lib/i18n/routing'
+import { useAuthState } from '@/lib/authState'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Account page: a header with the person and their plan, a section menu
@@ -51,6 +52,7 @@ export default function AccountPage() {
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
   const { isPro, loading: subLoading } = useSubscription()
+  const { isAdmin } = useAuthState()
 
   const [user, setUser] = useState<AccountUser | null>(null)
   const [section, setSection] = useState<Section>('overview')
@@ -146,6 +148,12 @@ export default function AccountPage() {
                     {s.id === 'saved' && isPro && savedCount !== null && <span className="ac-count">{savedCount}</span>}
                   </a>
                 ))}
+                {isAdmin && (
+                  <Link href="/admin">
+                    {t('bc_admin')}
+                    <span className="ac-pill ac-pill-pro-o">ADMIN</span>
+                  </Link>
+                )}
               </nav>
 
               <div className="ac-main">

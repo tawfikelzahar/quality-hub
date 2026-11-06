@@ -39,7 +39,7 @@ function buildDisplay(user: {
 
 export default function AuthStatus() {
   // Shared with every other component on the page (lib/authState.ts): one read per page load
-  const { user: authUser, loading } = useAuthState()
+  const { user: authUser, loading, isAdmin } = useAuthState()
   const user: AuthDisplay | null = authUser ? buildDisplay(authUser) : null
   const { t } = useLanguage()
   const { isPro, loading: planLoading } = useSubscription()
@@ -64,6 +64,15 @@ export default function AuthStatus() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="qh-hide-mobile"
+          style={{ fontSize: 12, fontWeight: 700, color: 'var(--qh-gold)', textDecoration: 'none', border: '1px solid color-mix(in srgb, var(--qh-gold) 55%, transparent)', borderRadius: 6, padding: '3px 8px', whiteSpace: 'nowrap' }}
+        >
+          {t('bc_admin')}
+        </Link>
+      )}
       {!planLoading && (
         <Link
           href="/account#saved"

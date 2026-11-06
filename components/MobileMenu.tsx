@@ -75,7 +75,7 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
 
   // Who is signed in (the nav shows only the avatar on phones, so the name and
   // Sign Out sit here). Shared state, no extra request (lib/authState.ts).
-  const { user: authUser } = useAuthState()
+  const { user: authUser, isAdmin } = useAuthState()
   const signedIn = useMemo(() => {
     if (!authUser) return null
     const m = (authUser.user_metadata ?? {}) as Record<string, unknown>
@@ -199,6 +199,12 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
               {!query.trim() && (
                 <>
                   <div className="qh-mm-sep" />
+                  {isAdmin && (
+                    <Link href="/admin" className="qh-mm-link" onClick={close} aria-current={pathname.endsWith('/admin') ? 'page' : undefined}>
+                      <span>{t('bc_admin')}</span>
+                      <span className="qh-mm-pro">ADMIN</span>
+                    </Link>
+                  )}
                   {SITE_LINKS.map(l => (
                     <Link key={l.href} href={l.href} className="qh-mm-link" onClick={close} aria-current={l.href === pathname ? 'page' : undefined}>
                       <span>{t(l.key)}</span>
