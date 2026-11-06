@@ -16,6 +16,12 @@ function getNextPath() {
   return new URLSearchParams(window.location.search).get('next') || '/'
 }
 
+/** /login?forgot=1 opens straight on the reset form (used by the expired-link page). */
+function startMode(): 'login' | 'forgot' {
+  if (typeof window === 'undefined') return 'login'
+  return new URLSearchParams(window.location.search).get('forgot') === '1' ? 'forgot' : 'login'
+}
+
 // Keeps the avatar under 5MB and makes sure it's actually an image before
 // we bother uploading it.
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -55,7 +61,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>(startMode)
 
   async function handleAvatarChange(file: File | null) {
     if (!file) { setAvatarFile(null); setAvatarPreview(null); return }
@@ -71,6 +77,21 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     const supabase = createClient()
+
+    if (mode === 'forgot') {
+      if (!email.trim()) { setError('❌ ' + t('login_err_email')); setLoading(false); return }
+      // The link in the email comes back through /auth/callback, which signs
+      // the visitor in and sends them to the page where they pick a new password.
+      const next = hereLocalized('/reset-password')
+      await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      })
+      // Same message whether or not the email has an account, so the form
+      // can't be used to find out who is registered.
+      setError('✅ ' + t('login_forgot_sent'))
+      setLoading(false)
+      return
+    }
 
     if (mode === 'signup') {
       if (!firstName.trim() || !lastName.trim()) {
@@ -166,13 +187,14 @@ export default function LoginPage() {
         </div>
 
         <h1 style={{fontSize:22,fontWeight:800,marginBottom:6,color:textColor}}>
-          {mode === 'login' ? t('login_title_in') : t('login_title_up')}
+          {mode === 'login' ? t('login_title_in') : mode === 'signup' ? t('login_title_up') : t('login_title_forgot')}
         </h1>
         <p style={{fontSize:13,color:mutedColor,marginBottom:28}}>
-          {mode === 'login' ? t('login_sub_in') : t('login_sub_up')}
+          {mode === 'login' ? t('login_sub_in') : mode === 'signup' ? t('login_sub_up') : t('login_sub_forgot')}
         </p>
 
         {/* Google Sign In */}
+        {mode !== 'forgot' && (<>
         <button
           onClick={handleGoogleSignIn}
           disabled={googleLoading}
@@ -186,6 +208,7 @@ export default function LoginPage() {
           <span style={{fontSize:11,color:softMuted}}>{t('login_or')}</span>
           <div style={{flex:1,height:1,background:dividerColor}}/>
         </div>
+        </>)}
 
         {/* Fields */}
         <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
@@ -242,10 +265,12 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => mode === 'forgot' && e.key === 'Enter' && handleSubmit()}
               placeholder="you@company.com"
               style={{width:'100%',padding:'12px 14px',background:inputBg,border:`1px solid ${inputBorder}`,borderRadius:10,color:textColor,fontSize:14,outline:'none',boxSizing:'border-box'}}
             />
           </div>
+          {mode !== 'forgot' && (
           <div>
             <label style={{fontSize:12,fontWeight:600,color:labelColor,display:'block',marginBottom:6}}>{t('login_password')}</label>
             <input
@@ -256,7 +281,14 @@ export default function LoginPage() {
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               style={{width:'100%',padding:'12px 14px',background:inputBg,border:`1px solid ${inputBorder}`,borderRadius:10,color:textColor,fontSize:14,outline:'none',boxSizing:'border-box'}}
             />
+            {mode === 'login' && (
+              <button type="button" onClick={() => { setMode('forgot'); setError('') }}
+                style={{background:'none',border:'none',padding:0,marginTop:8,color:c.accent,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                {t('login_forgot_link')}
+              </button>
+            )}
           </div>
+          )}
         </div>
 
         {error && (
@@ -269,8 +301,15 @@ export default function LoginPage() {
           onClick={handleSubmit}
           disabled={loading}
           style={{width:'100%',padding:'13px',background:BRAND_GRADIENT,color:BRAND_GRADIENT_TEXT_COLOR,fontWeight:700,fontSize:15,borderRadius:11,border:'none',cursor:'pointer',opacity: loading ? .7 : 1}}>
-          {loading ? t('login_wait') : mode === 'login' ? t('login_btn_in') : t('login_btn_up')}
+          {loading ? t('login_wait') : mode === 'login' ? t('login_btn_in') : mode === 'signup' ? t('login_btn_up') : t('login_btn_forgot')}
         </button>
+
+        {mode === 'forgot' && (
+          <button type="button" onClick={() => { setMode('login'); setError('') }}
+            style={{display:'block',margin:'16px auto 0',background:'none',border:'none',color:c.accent,fontSize:13,fontWeight:600,cursor:'pointer'}}>
+            {t('login_back_in')}
+          </button>
+        )}
 
         <p style={{textAlign:'center',fontSize:12,color:softMuted,marginTop:24,lineHeight:1.7}}>
           {t('login_terms_prefix')}{' '}

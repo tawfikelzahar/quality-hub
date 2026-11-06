@@ -25,6 +25,11 @@ export async function GET(request: NextRequest) {
     )
     const { data } = await supabase.auth.exchangeCodeForSession(code)
     const user = data?.user
+    // A password-reset link only signs the visitor in to choose a new
+    // password; it is not counted as a login in GA.
+    if (user && /\/reset-password(\/|$|\?)/.test(next)) {
+      return NextResponse.redirect(new URL(next, request.url))
+    }
     if (user) {
       // Tell GA (components/Analytics.tsx) whether this was a new account:
       // created within the last 10 minutes = sign_up, otherwise login.
