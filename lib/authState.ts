@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
+import { isProRow } from '@/lib/plan'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Who is signed in and on which plan — read ONCE per page load and shared by
@@ -46,9 +47,9 @@ async function read(): Promise<AuthState> {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { loading: false, user: null, status: 'free' }
-    const { data, error } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single()
-    // No profile row or a failed read → 'free' (locked by default is the safe side)
-    const status = !error && data?.subscription_status === 'pro' ? 'pro' : 'free'
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    // No profile row, a failed read or a passed end date → 'free' (locked by default is the safe side)
+    const status = !error && isProRow(data) ? 'pro' : 'free'
     return { loading: false, user, status }
   } catch {
     return { loading: false, user: null, status: 'free' }

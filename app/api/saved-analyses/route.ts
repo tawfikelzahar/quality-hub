@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { isProRow } from '@/lib/plan'
 
 // نفس الأدوات المسموح بيها في CHECK constraint بتاع الجدول —
 // لو ضفنا أداة جديدة، لازم تتضاف هنا وفي الـ SQL مع بعض.
@@ -49,11 +50,11 @@ export async function POST(request: NextRequest) {
   // فحص الاشتراك — نفس الجدول والـ hook اللي بنيناهم في المرحلة 1
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status')
+    .select('*')
     .eq('id', user.id)
     .single()
 
-  if (profile?.subscription_status !== 'pro') {
+  if (!isProRow(profile)) {
     return NextResponse.json(
       { error: 'حفظ المشاريع ميزة متاحة لمشتركي Pro فقط.' },
       { status: 403 }

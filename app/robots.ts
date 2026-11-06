@@ -10,7 +10,7 @@ const SITE_URL = SITE.url
 // both unprefixed (English) and under /ar (Arabic), since each is its own
 // crawlable URL now (see lib/i18n/routing.ts).
 // ─────────────────────────────────────────────────────────────────────────
-const PRIVATE_PATHS = ['/login', '/account', '/dashboard']
+const PRIVATE_PATHS = ['/login', '/account', '/dashboard', '/admin']
 
 export default function robots(): MetadataRoute.Robots {
   return {

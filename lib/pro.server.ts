@@ -1,6 +1,7 @@
 import 'server-only'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { DEV_PRO } from '@/lib/devPro'
+import { isProRow } from '@/lib/plan'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Is the person calling this API route a Pro subscriber? For routes that are
@@ -25,8 +26,8 @@ export async function proAccess(): Promise<'pro' | 'free' | 'login'> {
     const supabase = await createServerSupabase()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return 'login'
-    const { data: profile } = await supabase.from('profiles').select('subscription_status').eq('id', user.id).single()
-    return profile?.subscription_status === 'pro' ? 'pro' : 'free'
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    return isProRow(profile) ? 'pro' : 'free'
   } catch {
     return 'login'
   }

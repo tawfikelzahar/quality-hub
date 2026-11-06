@@ -7,7 +7,7 @@ import { LANG_COOKIE, isUnlocalizedPath, localeOfPath, localizePath, stripLocale
 //   - Save والـ Export (Excel/PDF) بيتطلبوا اشتراك Pro (useSubscription)
 //   - Export (CSV/PNG) بيتطلب تسجيل دخول بس (مش لازم Pro)
 // دي بيانات شخصية فعلاً محتاجة جلسة مسجلة، فضلت زي ما هي.
-const PROTECTED_PATHS = ['/account', '/dashboard']
+const PROTECTED_PATHS = ['/account', '/dashboard', '/admin']
 
 // Language in the URL (lib/i18n/routing.ts):
 //   /ar/…  Arabic, served as is from app/[lang] with lang = "ar"

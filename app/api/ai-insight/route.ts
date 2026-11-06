@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi } from '@/lib/apiGuard'
 import { createServerSupabase } from '@/lib/supabase-server'
+import { isProRow } from '@/lib/plan'
 import {
   AI_DAILY_LIMIT,
   InsightError,
@@ -13,7 +14,7 @@ import {
 //
 // Order of checks (every one runs on the server, never trusted from the UI):
 //   1. Logged in?                       → 401
-//   2. profiles.subscription_status = 'pro'?  → 403
+//   2. Pro now (lib/plan.ts, end date included)?  → 403
 //   3. Valid numeric payload?           → 400
 //   4. Under the daily limit?           → 429
 //   5. Call Claude, then record usage (failed calls are NOT counted).
@@ -34,10 +35,10 @@ export async function POST(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('subscription_status')
+    .select('*')
     .eq('id', user.id)
     .single()
-  if (profile?.subscription_status !== 'pro') {
+  if (!isProRow(profile)) {
     return NextResponse.json({ error: 'AI Insights is a Pro feature.', code: 'pro' }, { status: 403 })
   }
 
