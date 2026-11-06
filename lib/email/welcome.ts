@@ -31,15 +31,25 @@ export function welcomeEmailHtml(name: string, lang: 'ar' | 'en'): string {
 <h1 style="margin:0 0 14px;font-size:20px;line-height:1.5;color:#0B1F3F;">${hello}</h1>
 <p style="margin:0 0 10px;font-size:15px;line-height:1.8;color:#1F2937;">تم تفعيل حسابك في <strong>${SITE.name}</strong>. يسعدنا انضمامك.</p>
 <p dir="ltr" style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#6B7280;text-align:right;font-family:Arial,Helvetica,sans-serif;">Your ${SITE.name} account is active. We're glad to have you.</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px;">
-${li('كل أداة مجانية بنتائجها كاملة على الشاشة', 'Every tool is free, with full results on screen')}
-${li('صدّر نتائجك CSV وPNG بحسابك المجاني', 'Export CSV and PNG with your free account')}
-${li('ومع Pro: تقارير PDF وExcel باسمك وشعار شركتك', 'With Pro: PDF and Excel reports with your name and company logo')}
+<p style="margin:0 0 8px;font-size:13px;font-weight:bold;color:#0B1F3F;">مع حسابك المجاني · <span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;">With your free account</span></p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px;">
+${li('كل الأدوات بنتائجها الأساسية ورسومها على الشاشة', 'Every tool with its main results and charts on screen')}
+${li('تصدير النتائج CSV وPNG', 'Export results as CSV and PNG')}
 </table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;background:#FBF8F1;border:1px solid #EADFC6;border-radius:10px;"><tr><td dir="rtl" style="padding:14px 16px 4px;text-align:right;">
+<p style="margin:0 0 8px;font-size:13px;font-weight:bold;color:#85662F;">ومع Pro · <span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;">With Pro</span></p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0">
+${li('Gage R&amp;R على بياناتك بطريقتي Average &amp; Range وANOVA', 'Gage R&amp;R on your own data (Average &amp; Range and ANOVA)')}
+${li('تقارير PDF وExcel باسمك وشعار شركتك ودون علامة مائية', 'PDF and Excel reports with your name and logo, no watermark')}
+${li('حفظ حتى 50 مشروعًا في لوحة التحكم', 'Save up to 50 projects to your dashboard')}
+${li('قراءات أعمق في الانحدار وDOE والعمر الافتراضي وICMSF وOEE', 'Deeper readings in regression, DOE, shelf life, ICMSF and OEE')}
+</table>
+<p style="margin:0 0 12px;font-size:12px;"><a href="${SITE.url}${lang === 'ar' ? '/ar' : ''}/pricing" style="color:#85662F;">كل مزايا Pro · <span dir="ltr">See everything in Pro</span></a></p>
+</td></tr></table>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right"><tr><td style="border-radius:10px;background:#0B1F3F;"><a href="${start}" style="display:inline-block;padding:13px 26px;font-family:Tahoma,Arial,sans-serif;font-size:15px;font-weight:bold;color:#F1ECE1;text-decoration:none;border-radius:10px;">ابدأ الآن · Get started</a></td></tr></table>
 <div style="clear:both;font-size:0;line-height:0;">&nbsp;</div>
 <p style="margin:22px 0 0;font-size:13px;line-height:1.8;color:#3A475C;">أنا توفيق، مهندس جودة وصاحب المنصة. لو عندك أي سؤال أو اقتراح ردّ على هذه الرسالة وستصلني مباشرة.<br><span dir="ltr" style="color:#6B7280;font-family:Arial,Helvetica,sans-serif;">I'm Tawfik, a quality engineer and the founder. Questions or ideas? Just reply to this email.</span></p>
-<p style="margin:10px 0 22px;font-size:13px;color:#85662F;font-weight:bold;">— ${esc(SITE.owner)}</p>
+<p style="margin:12px 0 22px;font-size:13px;line-height:1.6;color:#0B1F3F;"><strong style="color:#85662F;">${esc(SITE.owner)}</strong><br><span style="color:#6B7280;font-size:12px;">المؤسس · <span dir="ltr">Founder, ${SITE.name}</span></span><br><a href="https://www.linkedin.com/in/${SITE.contact.linkedin}" style="color:#0B1F3F;font-size:12px;text-decoration:underline;">LinkedIn</a></p>
 </td></tr>
 <tr><td dir="rtl" align="right" style="border-top:1px solid #EEE9DD;padding:16px 28px 20px;font-family:Tahoma,Arial,sans-serif;text-align:right;">
 <p style="margin:0;font-size:11px;line-height:1.7;color:#9CA3AF;"><a href="${SITE.url}" style="color:#85662F;text-decoration:none;font-weight:bold;">${SITE.name}</a> · منصة هندسة الجودة · <span dir="ltr">Quality Engineering Platform</span></p>
