@@ -1,9 +1,10 @@
 # Supabase auth email templates (Mizan Quality)
 
-Paste each file into Supabase → Authentication → Emails → Templates. Bilingual (EN + AR) because Supabase sends one template to every user.
+Arabic-first, English underneath, one bilingual button. Paste each into Supabase → Authentication → Emails → Templates.
 
-- `confirm-signup.html` — subject: Confirm your Mizan Quality account | أكّد حسابك في ميزان كواليتي
-- `reset-password.html` — subject: Reset your Mizan Quality password | إعادة تعيين كلمة المرور
-- `change-email.html` — subject: Confirm your new email | أكّد بريدك الجديد — Mizan Quality
+- `confirm-signup.html` — subject: أكّد حسابك في Mizan Quality · Confirm your account
+- `reset-password.html` — subject: إعادة تعيين كلمة المرور · Reset your password — Mizan Quality
+- `change-email.html` — subject: أكّد بريدك الجديد · Confirm your new email — Mizan Quality
 
-Logo image: /public/brand/email-logo-white.png (PNG, because Gmail and Outlook do not show SVG). Sender: no-reply@mizanquality.com via Resend SMTP.
+`{{ .Data.full_name }}` comes from the user's metadata (email sign-up form and Google both set it); the greeting falls back to مرحبًا alone.
+Logo: /public/brand/email-logo-white.png (PNG; Gmail/Outlook don't show SVG). Sender: no-reply@mizanquality.com via Resend SMTP.
