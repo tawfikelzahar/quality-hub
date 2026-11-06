@@ -33,12 +33,12 @@ export const VERIFIED_TOOLS: VerifiedTool[] = [
   {
     suite: 'spc',
     alsoSuites: ['attribute'],
-    hrefs: ['/spc', '/imr-chart', '/xbar-r-chart', '/xbar-s-chart'],
-    name: { en: 'SPC Engine and control charts (I-MR, X̄-R, X̄-S)', ar: 'SPC Engine ومخططات الضبط (I-MR و X̄-R و X̄-S)' },
+    hrefs: ['/spc', '/imr-chart', '/xbar-r-chart', '/xbar-s-chart', '/attribute-charts'],
+    name: { en: 'SPC Engine and control charts (I-MR, X̄-R, X̄-S, p, np, c, u)', ar: 'SPC Engine ومخططات الضبط (I-MR و X̄-R و X̄-S و p و np و c و u)' },
     refs: ['AIAG SPC', 'Montgomery'],
     checked: {
-      en: 'Variable control charts: control limits, tests for special causes, Cp, Cpk, Pp, Ppk, Cpm (including a target off the midpoint), PPM and the normality test, on 12 runs. Attribute charts (p, np, c, u): centre line, control limits (stepped when subgroup sizes differ) and the tests for special causes, on 6 datasets. All compared value by value with specialised statistical software. The SPC Engine and the three chart pages are checked to give identical numbers.',
-      ar: 'مخططات المتغيرات: حدود الضبط واختبارات الأسباب الخاصة و Cp و Cpk و Pp و Ppk و Cpm (ومنها قيمة مستهدفة ليست في منتصف المواصفة) و PPM واختبار التوزيع الطبيعي، على 12 تشغيلًا. ومخططات الصفات (p و np و c و u): الخط المركزي وحدود الضبط (متدرجة عند اختلاف أحجام المجموعات الجزئية) واختبارات الأسباب الخاصة، على 6 مجموعات بيانات. وكلها مقارنة قيمةً بقيمة مع برامج إحصائية متخصصة. ونتحقق من أن SPC Engine وصفحات المخططات الثلاث تعطي الأرقام نفسها.',
+      en: 'Variable control charts: control limits, tests for special causes, Cp, Cpk, Pp, Ppk, Cpm (including a target off the midpoint), PPM and the normality test, on 12 runs. Attribute charts (p, np, c, u): centre line, control limits (stepped when subgroup sizes differ) and the tests for special causes, on 6 datasets; and the data check for the number of subgroups needed reproduces every value of the published reference tables. All compared value by value with specialised statistical software. The SPC Engine and the three chart pages are checked to give identical numbers.',
+      ar: 'مخططات المتغيرات: حدود الضبط واختبارات الأسباب الخاصة و Cp و Cpk و Pp و Ppk و Cpm (ومنها قيمة مستهدفة ليست في منتصف المواصفة) و PPM واختبار التوزيع الطبيعي، على 12 تشغيلًا. ومخططات الصفات (p و np و c و u): الخط المركزي وحدود الضبط (متدرجة عند اختلاف أحجام المجموعات الجزئية) واختبارات الأسباب الخاصة، على 6 مجموعات بيانات، وفحص عدد المجموعات الجزئية اللازمة يطابق كل قيم الجداول المرجعية المنشورة. وكلها مقارنة قيمةً بقيمة مع برامج إحصائية متخصصة. ونتحقق من أن SPC Engine وصفحات المخططات الثلاث تعطي الأرقام نفسها.',
     },
   },
   {

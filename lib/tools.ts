@@ -45,6 +45,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
       { href: '/imr-chart', titleKey: 'imr_title', descKey: 'home_row_imr', keywords: 'imr i-mr individuals moving range control chart', std: 'AIAG SPC' },
       { href: '/xbar-r-chart', titleKey: 'xbar_r_title', descKey: 'home_row_xbar_r', keywords: 'xbar x-bar r range subgroup control chart', std: 'AIAG SPC' },
       { href: '/xbar-s-chart', titleKey: 'xbar_s_title', descKey: 'home_row_xbar_s', keywords: 'xbar x-bar s standard deviation subgroup control chart', std: 'AIAG SPC' },
+      { href: '/attribute-charts', titleKey: 'attr_title', navKey: 'nav_attr', descKey: 'home_row_attr', keywords: 'attribute p chart np chart c chart u chart defectives defects dpu proportion defective control chart', std: 'AIAG SPC' },
     ],
   },
   {

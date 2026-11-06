@@ -1,3 +1,4 @@
+import { runAttributeChecks } from '@/lib/spc/attributeChecks.server'
 import { NextRequest, NextResponse } from 'next/server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { screenReason } from '@/lib/spc/reportText.server'
@@ -127,6 +128,31 @@ function runAnalysis({ data, N, LSL, USL, target, sigmaConvention, lastN, testSe
   }
 }
 
+/**
+ * Attribute data the charts can't use: counts below zero, a sample size of
+ * zero, more defectives than units inspected, or a fixed n that isn't a
+ * whole number. Returns null when the data is fine.
+ */
+function attributeInputError(data: unknown, attrType: unknown, fixedN: unknown): { code: string; message: string } | null {
+  if (attrType !== 'p' && attrType !== 'np' && attrType !== 'c' && attrType !== 'u') return { code: 'invalid', message: 'Unknown chart type.' }
+  if (!Array.isArray(data) || data.length > 5000) return { code: 'invalid', message: 'Invalid data.' }
+  if (data.length < 5) return { code: 'min-rows', message: 'At least 5 rows are required for attribute charts.' }
+  const needsN = attrType === 'p' || attrType === 'u'
+  if (attrType === 'np' && !(typeof fixedN === 'number' && Number.isInteger(fixedN) && fixedN > 0)) {
+    return { code: 'fixed-n', message: 'The fixed sample size must be a whole number above zero.' }
+  }
+  for (const row of data) {
+    if (!Array.isArray(row) || row.length < (needsN ? 2 : 1)) return { code: 'invalid', message: 'Invalid data.' }
+    if (row.some(v => typeof v !== 'number' || !Number.isFinite(v))) return { code: 'invalid', message: 'Invalid data.' }
+    const count = needsN ? row[1] : row[0]
+    if (count < 0) return { code: 'negative', message: 'Counts cannot be negative.' }
+    if (needsN && row[0] <= 0) return { code: 'size', message: 'Every sample size must be above zero.' }
+    if (attrType === 'p' && count > row[0]) return { code: 'exceeds', message: 'A subgroup has more defectives than units inspected.' }
+    if (attrType === 'np' && count > (fixedN as number)) return { code: 'exceeds', message: 'A subgroup has more defectives than the fixed sample size.' }
+  }
+  return null
+}
+
 export async function POST(request: NextRequest) {
   const refused = guardApi(request, { bucket: 'analyze', ...CALC_LIMITS })
   if (refused) return refused
@@ -139,8 +165,13 @@ export async function POST(request: NextRequest) {
     if (body.mode === 'attribute') {
       const { data, attrType, fixedN, sigmaConvention } = body
       const testSet: TestSet = isTestSet(body.testSet) ? body.testSet : DEFAULT_TEST_SET
+      // Input checks only — the calculation itself is unchanged
+      const refusal = attributeInputError(data, attrType || 'p', fixedN || 100)
+      if (refusal) return NextResponse.json({ error: refusal.message, code: refusal.code }, { status: 400 })
       const result = runAttributeAnalysis({ data, attrType: attrType || 'p', fixedN: fixedN || 100, sigmaConvention, testSet })
-      return NextResponse.json({ mode: 'attribute', testSet, ...result })
+      // Report-card data checks (lib/spc/attributeChecks.server.ts): judge the data, change no result
+      const checks = runAttributeChecks(data, attrType || 'p', fixedN || 100, result.clVal)
+      return NextResponse.json({ mode: 'attribute', testSet, ...result, checks })
     }
     const { data, N, LSL, USL, target, sigmaConvention, lastN } = body
     if (!data || !Array.isArray(data) || data.length < 3) {

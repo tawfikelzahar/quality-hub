@@ -199,3 +199,82 @@ export const XBAR_S_GUIDE: ToolGuide = {
     references: REFS,
   },
 }
+
+// Attribute charts: example = "Try an example" p chart data, golden dataset A1
+// (lib/spc/attributeExamples.ts), run through lib/spc/attribute.server.ts
+// with the default tests (1, 2): p̄ 0.0426 · UCL 0.0854 · LCL 0 · test 1 at
+// subgroup 18 · test 2 on runs 5–13 and 14–22 (tests/golden/attribute, 'A1') ·
+// defective PPM 42,600 · Process Z 1.72 (site calculation).
+const ATTR_METHOD_EN = 'Centre lines, control limits and the tests for special causes follow the AIAG SPC manual and Montgomery. When sample sizes differ, each subgroup gets its own limits, as specialised statistical software does. The results are tested against reference data sets for all four charts.'
+const ATTR_METHOD_AR = 'الخطوط المركزية وحدود الضبط واختبارات الأسباب الخاصة وفق دليل AIAG SPC وMontgomery. وعند اختلاف أحجام العينات تأخذ كل مجموعة جزئية حدودها الخاصة كما تفعل البرامج الإحصائية المتخصصة. والنتائج مختبرة مقابل مجموعات بيانات مرجعية للمخططات الأربعة.'
+
+export const ATTRIBUTE_GUIDE: ToolGuide = {
+  en: {
+    title: 'About the attribute charts',
+    sections: [
+      {
+        h: 'When to use them',
+        blocks: [
+          { p: 'Attribute charts are for results you count rather than measure: parts that pass or fail a check, or flaws found on a unit. They show whether the defect rate is stable over time and flag the subgroups where something changed.' },
+          { list: [
+            'p chart: the proportion of defective units, when the sample size can change from one subgroup to the next.',
+            'np chart: the number of defective units, when every sample has the same size.',
+            'c chart: the number of defects, when the same amount is inspected each time (one unit, one roll, one batch).',
+            'u chart: defects per unit, when the amount inspected changes.',
+          ] },
+          { p: 'Enter the subgroups in production order. Twenty to 25 subgroups are a sensible minimum, and each sample should be large enough to find a few defectives or defects on average.' },
+        ],
+      },
+      { h: 'Method', blocks: [{ p: ATTR_METHOD_EN }] },
+      {
+        h: 'Worked example',
+        blocks: [
+          { p: 'The p chart data behind “Try an example”: 25 subgroups of 200 units, 213 defectives in total.' },
+          { table: [
+            ['Result', 'Value'],
+            ['p chart', 'p̄ 0.0426 · UCL 0.0854 · LCL 0'],
+            ['Test 1 (beyond the limits)', 'Subgroup 18'],
+            ['Test 2 (9 in a row on one side)', 'Subgroups 5–13 below the centre line, 14–22 above it'],
+            ['% defective · PPM', '4.26% · 42,600'],
+          ] },
+          { p: 'The rate shifted up around subgroup 14 and subgroup 18 is above the upper limit, so the process is not stable and 4.26% describes the past period only. Find what changed at subgroup 14 and what happened in subgroup 18 before using the rate as a baseline.' },
+        ],
+      },
+    ],
+    references: REFS,
+  },
+  ar: {
+    title: 'عن مخططات الصفات',
+    sections: [
+      {
+        h: 'متى تستخدمها',
+        blocks: [
+          { p: 'مخططات الصفات مخصصة للنتائج التي تعدّها ولا تقيسها: قطع تنجح أو تفشل في الفحص، أو عيوب توجد على الوحدة. وهي توضح هل معدل العيوب مستقر مع الوقت، وتحدد المجموعات الجزئية التي تغير فيها شيء.' },
+          { list: [
+            'مخطط p: نسبة الوحدات المعيبة، عندما يتغير حجم العينة من مجموعة إلى أخرى.',
+            'مخطط np: عدد الوحدات المعيبة، عندما يكون حجم كل عينة ثابتًا.',
+            'مخطط c: عدد العيوب، عندما تُفحص الكمية نفسها في كل مرة (وحدة أو لفة أو دفعة).',
+            'مخطط u: العيوب لكل وحدة، عندما تتغير الكمية المفحوصة.',
+          ] },
+          { p: 'أدخل المجموعات الجزئية بترتيب الإنتاج. من 20 إلى 25 مجموعة حد أدنى معقول، ويجب أن تكون كل عينة كبيرة بما يكفي لتظهر فيها في المتوسط بضع قطع معيبة أو عيوب.' },
+        ],
+      },
+      { h: 'طريقة الحساب', blocks: [{ p: ATTR_METHOD_AR }] },
+      {
+        h: 'مثال محلول',
+        blocks: [
+          { p: 'بيانات مخطط p في زر «جرّب مثالًا»: 25 مجموعة جزئية من 200 وحدة، وإجمالي المعيب 213.' },
+          { table: [
+            ['النتيجة', 'القيمة'],
+            ['مخطط p', 'p̄ 0.0426 · UCL 0.0854 · LCL 0'],
+            ['الاختبار 1 (خارج الحدود)', 'المجموعة الجزئية 18'],
+            ['الاختبار 2 (9 متتالية في جانب واحد)', 'المجموعات 5–13 أسفل الخط المركزي، و14–22 أعلاه'],
+            ['نسبة المعيب · PPM', '4.26% · 42,600'],
+          ] },
+          { p: 'ارتفع المعدل تقريبًا عند المجموعة 14، والمجموعة 18 أعلى من الحد الأعلى، لذا العملية غير مستقرة ونسبة 4.26% تصف الفترة الماضية فقط. ابحث عما تغير عند المجموعة 14 وما حدث في المجموعة 18 قبل اعتماد المعدل خط أساس.' },
+        ],
+      },
+    ],
+    references: REFS,
+  },
+}

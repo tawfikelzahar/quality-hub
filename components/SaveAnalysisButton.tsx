@@ -6,7 +6,7 @@ import Link from '@/components/LocaleLink'
 import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, type ThemeMode } from '@/lib/theme'
 
-export type SavableTool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf' | 'regression' | 'multiregression' | 'imr' | 'xbar_r' | 'xbar_s' | 'doe' | 'descriptive_stats'
+export type SavableTool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf' | 'regression' | 'multiregression' | 'imr' | 'xbar_r' | 'xbar_s' | 'doe' | 'descriptive_stats' | 'attribute'
 
 interface SaveAnalysisButtonProps {
   theme: ThemeMode

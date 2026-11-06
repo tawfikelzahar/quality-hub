@@ -565,7 +565,7 @@ export default function ImrChartPage() {
         <ToolSidebar current="/imr-chart" />
 
         <div className="tl-main">
-          <ToolHeader title={t('imr_title')} intro={t('imr_intro')} route={{ text: t('route_attr_text'), href: '/spc', label: t('route_attr_link') }} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
+          <ToolHeader title={t('imr_title')} intro={t('imr_intro')} route={{ text: t('route_attr_text'), href: '/attribute-charts', label: t('route_attr_link') }} onHelp={() => setHelpOpen(true)} onExample={loadExample} />
           <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} title={t('imr_help_title')} steps={helpSteps} onExample={loadExample} />
           <PhoneTabs tab={mobileTab} onTab={setMobileTab} dataCount={cells.length} />
 

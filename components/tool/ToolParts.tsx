@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLanguage } from '@/lib/i18n/context'
+import type { TKey } from '@/lib/i18n/translations'
 import { tint } from '@/lib/theme'
 import { track } from '@/lib/analytics'
 import Link from '@/components/LocaleLink'
@@ -640,13 +641,16 @@ export function violationPointsText(v: { rule: number; points: number[] }): stri
   return a === b ? String(a) : `${a}–${b}`
 }
 
-export function ViolationsCard({ items, allTests }: { items: ViolationItem[]; allTests: boolean }) {
-  const { t } = useLanguage()
+export function ViolationsCard({ items, allTests, testsLabel }: { items: ViolationItem[]; allTests: boolean; /** overrides the test-set line (charts with their own test list) */ testsLabel?: string }) {
+  const { t, lang } = useLanguage()
+  // Arabic pages show the rule names in Arabic; English keeps the server's own text
+  const ruleText = (v: ViolationItem, part: 'l' | 'd') =>
+    lang === 'ar' && v.rule >= 1 && v.rule <= 8 ? t(`nelson_r${v.rule}_${part}` as TKey) : part === 'l' ? v.label : v.desc
   return (
     <div className="tl-card">
       <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t('spc_nelson_title')}</div>
       <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 10 }}>
-        {t('spc_tests_label')}: {t(allTests ? 'spc_tests_all' : 'spc_tests_assistant')}
+        {t('spc_tests_label')}: {testsLabel ?? t(allTests ? 'spc_tests_all' : 'spc_tests_assistant')}
       </div>
       {items.length === 0 ? (
         <div style={{ color: 'var(--qh-good)', fontSize: 13 }}>{t('spc_no_violations')}</div>
@@ -654,10 +658,10 @@ export function ViolationsCard({ items, allTests }: { items: ViolationItem[]; al
         items.map((v, i) => (
           <div key={i} className="tl-violation">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontWeight: 700, color: 'var(--qh-danger)', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {v.label}</span>
+              <span style={{ fontWeight: 700, color: 'var(--qh-danger)', fontSize: 13 }}>{t('spc_rule_label').replace('{n}', String(v.rule))} {ruleText(v, 'l')}</span>
               <span style={{ fontSize: 11, color: 'var(--qh-muted)' }}>{v.chart}</span>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginTop: 2 }}>{v.desc}</div>
+            <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginTop: 2 }}>{ruleText(v, 'd')}</div>
             <div style={{ fontSize: 12, marginTop: 2 }}>{t('spc_viol_points').replace('{p}', violationPointsText(v))}</div>
           </div>
         ))
@@ -668,14 +672,14 @@ export function ViolationsCard({ items, allTests }: { items: ViolationItem[]; al
 
 // ── Data adequacy (how much confidence the sample size allows) ──────────
 export function AdequacyCard({ adequacy }: { adequacy: { n: number; tier: 'low' | 'moderate' | 'adequate'; label: string } }) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const color = adequacy.tier === 'adequate' ? 'var(--qh-good)' : adequacy.tier === 'moderate' ? 'var(--qh-amber)' : 'var(--qh-danger)'
   const icon = adequacy.tier === 'adequate' ? '🟢' : adequacy.tier === 'moderate' ? '🟡' : '⚠️'
   return (
     <div className="tl-card" style={{ display: 'flex', gap: 12, alignItems: 'center', borderColor: tint(color, 33) }}>
       <div style={{ fontSize: 20 }} aria-hidden="true">{icon}</div>
       <div>
-        <div style={{ fontWeight: 700, fontSize: 13, color }}>{adequacy.label}</div>
+        <div style={{ fontWeight: 700, fontSize: 13, color }}>{lang === 'ar' ? t(`adequacy_${adequacy.tier}` as TKey) : adequacy.label}</div>
         <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginTop: 2 }}>{t('spc_adequacy_note').replace('{n}', String(adequacy.n))}</div>
       </div>
     </div>

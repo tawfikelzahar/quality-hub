@@ -31,6 +31,7 @@ const PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['cha
   { path: '/imr-chart', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/xbar-r-chart', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/xbar-s-chart', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/attribute-charts', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/regression', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/multiregression', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/guide', changeFrequency: 'monthly', priority: 0.7 },
