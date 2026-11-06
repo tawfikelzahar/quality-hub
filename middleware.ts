@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { LANG_COOKIE, isUnlocalizedPath, localeOfPath, localizePath, stripLocale } from '@/lib/i18n/routing'
+import { SITE } from '@/lib/site'
 
 // الأدوات بقت متاحة لأي زائر (حتى غير مسجل) عشان تتفهرس على جوجل وعشان
 // أي حد يقدر يجرب قبل ما يسجل. الحماية اتنقلت لمستوى الفيتشرز نفسها:
@@ -40,7 +41,27 @@ function languageResponse(request: NextRequest): NextResponse | null {
   return NextResponse.rewrite(url, { request })
 }
 
+// The live site has one address (SITE.url, www.mizanquality.com). Pages
+// opened on a *.vercel.app address of the production deployment (the old
+// qualityhub-zeta.vercel.app is still in Google) are sent there with a
+// permanent redirect, so Google keeps one copy of each page. Preview
+// deployments are left alone, and so are /api and /auth (a sign-in that
+// started on the old address must finish there, its cookies live there).
+const CANONICAL_HOST = (() => { try { return new URL(SITE.url).host } catch { return '' } })()
+
+function canonicalRedirect(request: NextRequest): NextResponse | null {
+  if (process.env.VERCEL_ENV !== 'production' || !CANONICAL_HOST) return null
+  if (request.method !== 'GET' && request.method !== 'HEAD') return null
+  const host = (request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? '').toLowerCase()
+  if (!host.endsWith('.vercel.app')) return null
+  if (/^\/(api|auth)(\/|$)/.test(request.nextUrl.pathname)) return null
+  const url = new URL(request.nextUrl.pathname + request.nextUrl.search, `https://${CANONICAL_HOST}`)
+  return NextResponse.redirect(url, 308)
+}
+
 export async function middleware(request: NextRequest) {
+  const moved = canonicalRedirect(request)
+  if (moved) return moved
   const lang = languageResponse(request)
   if (lang && lang.headers.get('location')) return lang // redirects need no session work
   const pass = () => lang ?? NextResponse.next({ request })
