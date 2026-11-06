@@ -14,11 +14,13 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 export const AI_DAILY_LIMIT = 10
+import { describeTestSet, isTestSet, type TestSet } from '@/lib/spc/testSets'
+
 export const AI_DEFAULT_MODEL = 'claude-sonnet-5-5'
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const MAX_OUTPUT_TOKENS = 600
 
-export const AI_TOOLS = ['xbar_r'] as const
+export const AI_TOOLS = ['xbar_r', 'spc'] as const
 export type AITool = (typeof AI_TOOLS)[number]
 export type AILang = 'en' | 'ar'
 
@@ -27,7 +29,13 @@ export interface RuleCount {
   points: number
 }
 
+export type AIChartKind = 'imr' | 'xbar-r' | 'xbar-s'
+
 export interface VariableChartSummary {
+  /** which variable chart produced the numbers; the Xbar-R page omits it */
+  chart?: AIChartKind
+  /** tests for special causes that were applied (lib/spc/testSets.ts) */
+  testSet?: TestSet
   subgroups: number
   subgroupSize: number
   mean: number | null
@@ -96,8 +104,9 @@ export function parseInsightRequest(body: unknown): AIInsightRequest | null {
   const s = b.summary as Record<string, unknown> | undefined
   if (!s || typeof s !== 'object') return null
 
+  const chart: AIChartKind = s.chart === 'imr' || s.chart === 'xbar-s' ? s.chart : 'xbar-r'
   const subgroups = int(s.subgroups, 2, 100000)
-  const subgroupSize = int(s.subgroupSize, 2, 25)
+  const subgroupSize = chart === 'imr' ? int(s.subgroupSize, 1, 1) : int(s.subgroupSize, 2, 100)
   if (subgroups === null || subgroupSize === null) return null
 
   const adequacy = s.dataAdequacy
@@ -105,6 +114,8 @@ export function parseInsightRequest(body: unknown): AIInsightRequest | null {
     tool: b.tool as AITool,
     lang: b.lang,
     summary: {
+      chart,
+      testSet: isTestSet(s.testSet) ? s.testSet : 'assistant',
       subgroups,
       subgroupSize,
       mean: num(s.mean),
@@ -180,17 +191,26 @@ export function buildUserMessage(req: AIInsightRequest): string {
       ? s.sigmaOverall / s.sigmaWithin
       : null
 
+  const chart: AIChartKind = s.chart ?? 'xbar-r'
+  const disp = chart === 'imr' ? 'MR' : chart === 'xbar-s' ? 'S' : 'R'
+  const loc = chart === 'imr' ? 'I' : 'Xbar'
+  const toolName = chart === 'imr' ? 'I-MR control chart (individuals and moving range)' : chart === 'xbar-s' ? 'Xbar-S control chart' : 'Xbar-R control chart'
+  const dataLine = chart === 'imr'
+    ? `Data: ${s.subgroups} individual values (subgroup size 1). Data adequacy for capability: ${s.dataAdequacy}.`
+    : `Data: ${s.subgroups} subgroups of size ${s.subgroupSize} (${s.subgroups * s.subgroupSize} values). Data adequacy for capability: ${s.dataAdequacy}.`
+
   return [
-    `Tool: Xbar-R control chart`,
-    `Data: ${s.subgroups} subgroups of size ${s.subgroupSize} (${s.subgroups * s.subgroupSize} values). Data adequacy for capability: ${s.dataAdequacy}.`,
+    `Tool: ${toolName}`,
+    dataLine,
     `Process mean: ${f(s.mean)}; min ${f(s.min)}; max ${f(s.max)}`,
     `Within sigma: ${f(s.sigmaWithin)}; overall sigma: ${f(s.sigmaOverall)}; overall/within ratio: ${f(withinVsOverall, 3)}`,
     `Spec limits: LSL ${f(s.LSL)}; USL ${f(s.USL)}; target ${f(s.target)}`,
-    `Xbar chart: CL ${f(s.clX)}; UCL ${f(s.uclX)}; LCL ${f(s.lclX)}`,
-    `R chart: CL ${f(s.clR)}; UCL ${f(s.uclR)}`,
-    `Nelson rule violations on Xbar chart: ${ruleLines(s.xRules)}`,
-    `Nelson rule violations on R chart: ${ruleLines(s.rRules)}`,
-    `Tests for special causes applied: Standard default tests (Xbar chart tests 1, 2, 7; R chart test 1)`,
+    `${loc} chart: CL ${f(s.clX)}; UCL ${f(s.uclX)}; LCL ${f(s.lclX)}`,
+    `${disp} chart: CL ${f(s.clR)}; UCL ${f(s.uclR)}`,
+    `Nelson rule violations on ${loc} chart: ${ruleLines(s.xRules)}`,
+    `Nelson rule violations on ${disp} chart: ${ruleLines(s.rRules)}`,
+    `Tests for special causes applied: ${describeTestSet(s.testSet ?? 'assistant', chart === 'imr' ? 'individuals' : 'xbar', disp)}`,
+    ...(chart === 'imr' ? [`Within sigma for I-MR is estimated from the average moving range.`] : []),
     `Stability (computed): ${inControl ? 'NO SIGNALS — no special-cause signals detected' : 'SIGNALS PRESENT — special-cause signals detected; capability is reported with a caution'}`,
     `Cp ${f(s.Cp)}; Cpk ${f(s.Cpk)}; Pp ${f(s.Pp)}; Ppk ${f(s.Ppk)}; Cpm ${f(s.Cpm)}`,
     `Cp minus Cpk (centering gap): ${f(centeringGap, 3)}`,
@@ -211,7 +231,7 @@ Rules:
 - Identify the main issue: centering (large Cp minus Cpk gap, mean far from target), excessive variation (low Cp), instability (rule violations, overall sigma much larger than within sigma), or non-normal data. Name the dominant one first.
 - Give 2 to 3 concrete, practical next actions a quality engineer can take (for example: investigate special causes at the flagged points, adjust process centering toward target, reduce common-cause variation, verify the measurement system with Gage R&R, collect more subgroups when data adequacy is low).
 - Match urgency to the verdict: calm for capable processes, clear warning for not capable ones.
-- Keep technical terms in English in every language: Cp, Cpk, Pp, Ppk, Cpm, PPM, LSL, USL, UCL, LCL, sigma, Nelson Rules, Xbar, R chart, Gage R&R.
+- Keep technical terms in English in every language: Cp, Cpk, Pp, Ppk, Cpm, PPM, LSL, USL, UCL, LCL, sigma, Nelson Rules, Xbar, R chart, S chart, I-MR, MR chart, Gage R&R.
 - Length: 1 to 2 short paragraphs, then the actions as a short list. Plain text only: no markdown headings, no bold, no tables. Use "- " for list items.
 - Do not add a disclaimer; the application shows one.`
 

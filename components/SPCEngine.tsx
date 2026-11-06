@@ -24,6 +24,8 @@ import { DEFAULT_TEST_SET, describeTestSet, type TestSet } from '@/lib/spc/testS
 import { XBAR_S_MIN_N } from '@/lib/spc/chartChoice'
 import type { ChartKind } from '@/lib/spc/useChartAnalysis'
 import { SheetPicker } from '@/components/GridImportControls'
+import AIInsightCard from '@/components/AIInsightCard'
+import type { RuleCount, VariableChartSummary } from '@/lib/ai/insight'
 import {
   createReport as createPdfReport,
   classifyCapability,
@@ -1557,6 +1559,52 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   // Capability verdict prefers Cpk (short-term/within) and falls back to Ppk,
   // matching the legacy tool's `const pkVal = Cpk !== null ? Cpk : Ppk`
   const hasSpecLimits = !!(varResult && (varResult.LSL !== null || varResult.USL !== null))
+
+  // ── AI Insights (Pro): numbers-only summary sent to /api/ai-insight ──
+  // Same shape as the Xbar-R page, plus the chart SPC Engine picked and the
+  // test set, so the AI reads I-MR, X̄-R and X̄-S results correctly.
+  function aiRuleCounts(list: Violation[]): RuleCount[] {
+    return list.map(v => ({
+      rule: v.rule,
+      points: v.points.length === 2 && v.rule !== 1 ? v.points[1] - v.points[0] + 1 : v.points.length,
+    }))
+  }
+  function buildAISummary(): VariableChartSummary | null {
+    if (!varResult) return null
+    const kind = dispersionNames(varResult).kind
+    const tgt = parseFloat(target)
+    return {
+      chart: kind,
+      testSet: varResult.testSet ?? DEFAULT_TEST_SET,
+      subgroups: varResult.xbarVals.length,
+      subgroupSize: kind === 'imr' ? 1 : varResult.N,
+      mean: varResult.mu,
+      sigmaWithin: varResult.sigma,
+      sigmaOverall: varResult.sdOverall,
+      min: varResult.min,
+      max: varResult.max,
+      LSL: varResult.LSL,
+      USL: varResult.USL,
+      target: Number.isFinite(tgt) ? tgt : null,
+      clX: varResult.cl_x,
+      uclX: varResult.ucl_x,
+      lclX: varResult.lcl_x,
+      clR: varResult.cl_r,
+      uclR: varResult.ucl_r,
+      Cp: varResult.Cp,
+      Cpk: varResult.Cpk,
+      Pp: varResult.Pp,
+      Ppk: varResult.Ppk,
+      Cpm: varResult.Cpm,
+      ppmWithin: varResult.ppmD_st ? varResult.ppmD_st.total : null,
+      ppmOverall: varResult.ppmD_lt ? varResult.ppmD_lt.total : null,
+      normalityP: varResult.ad ? varResult.ad.p : null,
+      isNormal: varResult.isNormal,
+      dataAdequacy: varResult.dataAdequacy.tier,
+      xRules: aiRuleCounts(varResult.violations_x),
+      rRules: aiRuleCounts(varResult.violations_r),
+    }
+  }
   const pkVal = varResult ? (varResult.isNormal && varResult.Cpk !== null ? varResult.Cpk : varResult.Ppk) : null
 
   const displaySigLvl = varResult ? varResult.sigLvl_st ?? varResult.sigLvl_lt : null
@@ -1965,6 +2013,16 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           {varResult && (
             <>
               <KpiGrid r={varResult} hasSpec={hasSpecLimits} pkName={screenVerdict?.pkName ?? null} displayMode={displayMode} capColor={capabilityColor} />
+
+              {/* ── AI Insights (Pro) ─────────────────────────────── */}
+              <AIInsightCard
+                theme={theme}
+                tool="spc"
+                isPro={isPro}
+                isLoggedIn={isLoggedIn}
+                getSummary={buildAISummary}
+                resultKey={result}
+              />
 
               <div className="qh-chart-wrap" style={s.chartWrap}>
                 <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
