@@ -31,6 +31,8 @@ export interface GuideSection {
 export interface GuideCopy {
   /** Section heading, e.g. "About SPC Engine" */
   title: string
+  /** Line beside the title; default "How it is calculated · worked example · references" */
+  sub?: string
   sections: GuideSection[]
   /** Sources, one per line */
   references: string[]

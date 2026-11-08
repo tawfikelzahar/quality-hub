@@ -105,7 +105,7 @@ export default function ToolGuide({ guide, lang }: { guide: Guide; lang: string 
       <summary>
         <span className="tg-sum">
           <h2><T text={g.title} rtl={rtl} /></h2>
-          <span>{lang === 'ar' ? 'طريقة الحساب · مثال محلول · المراجع' : 'How it is calculated · worked example · references'}</span>
+          <span>{g.sub ?? (lang === 'ar' ? 'طريقة الحساب · مثال محلول · المراجع' : 'How it is calculated · worked example · references')}</span>
         </span>
       </summary>
       <div className="tg-body">

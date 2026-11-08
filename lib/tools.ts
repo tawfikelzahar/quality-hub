@@ -67,6 +67,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     rows: [
       { href: '/descriptive', titleKey: 'descriptive_title', descKey: 'home_row_descriptive', keywords: 'descriptive mean median standard deviation histogram box plot normality' },
       { href: '/pareto', titleKey: 'pareto_title', descKey: 'home_row_pareto', keywords: 'pareto 80/20 defects causes' },
+      { href: '/five-whys', titleKey: 'fw_title', navKey: 'nav_fw', descKey: 'home_row_fw', keywords: '5 whys five whys root cause analysis rca why why 8d occurrence detection' },
       { href: '/regression', titleKey: 'regression_title', descKey: 'home_row_regression', keywords: 'regression linear correlation anova prediction' },
       { href: '/multiregression', titleKey: 'multiregression_title', descKey: 'home_row_multiregression', keywords: 'multiple regression vif anova prediction' },
       { href: '/doe', titleKey: 'doe_title', navKey: 'nav_doe', descKey: 'home_row_doe', keywords: 'doe design of experiments factorial 2^k effects' },

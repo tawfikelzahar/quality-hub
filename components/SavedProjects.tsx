@@ -11,7 +11,7 @@ import { useLanguage } from '@/lib/i18n/context'
 //     a way to Pro, so the feature is visible without pretending it works
 // ─────────────────────────────────────────────────────────────────────────
 
-export type SavedTool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf' | 'regression' | 'multiregression' | 'imr' | 'xbar_r' | 'xbar_s' | 'doe' | 'descriptive_stats' | 'attribute'
+export type SavedTool = 'spc' | 'pareto' | 'dpmo' | 'oee' | 'gage_rr' | 'stability' | 'aql' | 'icmsf' | 'regression' | 'multiregression' | 'imr' | 'xbar_r' | 'xbar_s' | 'doe' | 'descriptive_stats' | 'attribute' | 'five_whys'
 
 export interface SavedAnalysis {
   id: string
@@ -38,6 +38,7 @@ export const TOOL_LABELS: Record<SavedTool, string> = {
   doe: 'Design of Experiments (Full Factorial)',
   descriptive_stats: 'Descriptive Statistics',
   attribute: 'Attribute Control Chart',
+  five_whys: '5 Whys',
 }
 
 export const TOOL_ROUTES: Record<SavedTool, string> = {
@@ -57,6 +58,7 @@ export const TOOL_ROUTES: Record<SavedTool, string> = {
   doe: '/doe',
   descriptive_stats: '/descriptive',
   attribute: '/attribute-charts',
+  five_whys: '/five-whys',
 }
 
 export const SAVED_LIMIT = 50

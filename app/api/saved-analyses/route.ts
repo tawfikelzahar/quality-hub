@@ -4,7 +4,7 @@ import { isProRow } from '@/lib/plan'
 
 // نفس الأدوات المسموح بيها في CHECK constraint بتاع الجدول —
 // لو ضفنا أداة جديدة، لازم تتضاف هنا وفي الـ SQL مع بعض.
-const VALID_TOOLS = ['spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql', 'icmsf', 'regression', 'multiregression', 'imr', 'xbar_r', 'xbar_s', 'doe', 'descriptive_stats', 'attribute'] as const
+const VALID_TOOLS = ['spc', 'pareto', 'dpmo', 'oee', 'gage_rr', 'stability', 'aql', 'icmsf', 'regression', 'multiregression', 'imr', 'xbar_r', 'xbar_s', 'doe', 'descriptive_stats', 'attribute', 'five_whys'] as const
 type Tool = (typeof VALID_TOOLS)[number]
 
 const MAX_SAVED_ANALYSES = 50

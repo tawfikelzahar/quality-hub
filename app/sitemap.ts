@@ -20,6 +20,7 @@ const PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['cha
   { path: '/tools', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/spc', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/pareto', changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/five-whys', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/dpmo', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/aql', changeFrequency: 'monthly', priority: 0.9 },
   { path: '/icmsf', changeFrequency: 'monthly', priority: 0.9 },
