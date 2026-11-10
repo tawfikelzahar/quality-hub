@@ -39,6 +39,7 @@ import {
   summaryBox,
   criteriaReferenceTable,
   finalizeReport,
+  PDF_FONT,
   REPORT_COLORS,
   type KVRow,
 } from '@/lib/pdf/reportDesign'
@@ -921,4 +922,33 @@ export const SAMPLE_EXCEL_BUILDERS: Record<SampleToolId, () => Promise<void>> = 
   'gage-rr': buildGageRRSampleExcel,
   spc: buildSpcSampleExcel,
   oee: buildOeeSampleExcel,
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Branding preview — one page that shows only what the account's report
+// settings control: the header (company logo or name, "Prepared by") and the
+// sign-off lines, around an empty placeholder where a tool's results go.
+// No sample data from any tool. Used by the "Preview" button in
+// components/ReportBrandingSettings.tsx; not recorded as Pro use.
+// ─────────────────────────────────────────────────────────────────────────
+export function buildBrandingPreviewPdf() {
+  const ctx = createPdfReport('Report Preview', 'Preview (Sample)')
+  const { pdf, margin, pageWidth } = ctx
+  const top = ctx.y + 6
+  const height = 300
+  pdf.setDrawColor(REPORT_COLORS.border[0], REPORT_COLORS.border[1], REPORT_COLORS.border[2])
+  pdf.setLineWidth(1)
+  pdf.setLineDashPattern([5, 4], 0)
+  pdf.roundedRect(margin, top, pageWidth - margin * 2, height, 8, 8, 'S')
+  pdf.setLineDashPattern([], 0)
+  pdf.setFont(PDF_FONT, 'bold')
+  pdf.setFontSize(13)
+  pdf.setTextColor(REPORT_COLORS.muted[0], REPORT_COLORS.muted[1], REPORT_COLORS.muted[2])
+  pdf.text('Your results, charts and tables appear here', pageWidth / 2, top + height / 2 - 8, { align: 'center' })
+  pdf.setFont(PDF_FONT, 'normal')
+  pdf.setFontSize(9.5)
+  pdf.text('This page only previews your logo, your name and the sign-off lines.', pageWidth / 2, top + height / 2 + 12, { align: 'center' })
+  ctx.y = top + height + 26
+  finalizeReport(ctx)
+  ctx.pdf.save(`${SITE_SLUG}-report-preview.pdf`)
 }

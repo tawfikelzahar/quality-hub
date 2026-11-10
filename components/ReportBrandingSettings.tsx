@@ -12,7 +12,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import { useSubscription } from '@/lib/useSubscription'
 import { getReportBranding, imageToDataUrl, setReportBranding, type ReportBranding } from '@/lib/reportBranding'
 import { LOGO_BUCKET, logoPublicUrl, refreshReportBranding, type BrandingRow } from '@/lib/reportBrandingLoad'
-import { buildGageRRSamplePdf } from '@/lib/sampleReports'
+import { buildBrandingPreviewPdf } from '@/lib/sampleReports'
 
 const MAX_LOGO_BYTES = 512 * 1024
 
@@ -74,7 +74,7 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
     setLogoPreview(URL.createObjectURL(f))
   }
 
-  /** Branding object from what is on screen now (used for the sample PDF). */
+  /** Branding object from what is on screen now (used for the preview PDF). */
   const currentBranding = async (): Promise<ReportBranding> => {
     const img = logoFile ? await imageToDataUrl(logoFile) : !removeLogo && logoPreview ? await imageToDataUrl(logoPreview) : null
     return {
@@ -133,7 +133,7 @@ export default function ReportBrandingSettings({ theme, previewPro = false }: { 
   const downloadSample = async () => {
     const saved = getReportBranding()
     setReportBranding(await currentBranding())
-    try { buildGageRRSamplePdf() } finally { setReportBranding(saved) }
+    try { buildBrandingPreviewPdf() } finally { setReportBranding(saved) }
   }
 
   const input = { ...s.input, width: '100%' }
