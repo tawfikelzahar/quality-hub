@@ -112,7 +112,7 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
   const perMonth = plan.months > 1 ? money(Math.round((pay / plan.months) * 100) / 100) : null
   const foundingLine = FOUNDING.endsAt
     ? t('pricing_founding_until').replace('{d}', new Intl.DateTimeFormat(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(FOUNDING.endsAt)))
-    : t('pricing_founding_note').replace('{n}', String(FOUNDING.limit))
+    : t('pricing_founding_note')
 
   const chip = (on: boolean): React.CSSProperties => ({
     minHeight: 36,

@@ -9,8 +9,9 @@
 // x-vercel-ip-country header, see app/[lang]/pricing/page.tsx) and the
 // visitor can switch it.
 //
-// Founding price: shown while FOUNDING.open is true, for the first
-// FOUNDING.limit subscribers. FOUNDING.endsAt stays null until the launch
+// Founding price: shown while FOUNDING.open is true. It is limited by time
+// only, never by a number of subscribers (decided 10 Nov 2026): everyone who
+// pays before FOUNDING.endsAt gets it. endsAt stays null until the launch
 // date is set; when set, the pricing page shows the date.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -22,7 +23,7 @@ export interface PlanPrice {
   months: number
   /** regular price */
   price: number
-  /** founding price (first FOUNDING.limit subscribers) */
+  /** founding price (while FOUNDING.open, until FOUNDING.endsAt) */
   founding: number
 }
 
@@ -51,7 +52,6 @@ export const PRICES: Record<Region, PriceList> = {
 
 export const FOUNDING = {
   open: true,
-  limit: 100,
   /** ISO date the founding price closes, or null while the launch date is not set */
   endsAt: null as string | null,
 }
