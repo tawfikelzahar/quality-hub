@@ -30,9 +30,11 @@ export interface AuthState {
   status: SubscriptionStatus
   /** Site owner (supabase/sql/010_admin_dashboard.sql). Only shows the Admin link; /admin checks again on the server. */
   isAdmin: boolean
+  /** profiles.pro_until as stored: the end of Pro, in the future or already passed; null = no end date or never Pro */
+  proUntil: string | null
 }
 
-const INITIAL: AuthState = { loading: true, user: null, status: 'free', isAdmin: false }
+const INITIAL: AuthState = { loading: true, user: null, status: 'free', isAdmin: false, proUntil: null }
 
 let state: AuthState = INITIAL
 let started = false
@@ -48,16 +50,17 @@ async function read(): Promise<AuthState> {
   const supabase = createClient()
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { loading: false, user: null, status: 'free', isAdmin: false }
+    if (!user) return { loading: false, user: null, status: 'free', isAdmin: false, proUntil: null }
     const [profile, admin] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.rpc('is_admin'),
     ])
     // No profile row, a failed read or a passed end date → 'free' (locked by default is the safe side)
     const status = !profile.error && isProRow(profile.data) ? 'pro' : 'free'
-    return { loading: false, user, status, isAdmin: !admin.error && admin.data === true }
+    const until = !profile.error && typeof profile.data?.pro_until === 'string' ? profile.data.pro_until : null
+    return { loading: false, user, status, isAdmin: !admin.error && admin.data === true, proUntil: until }
   } catch {
-    return { loading: false, user: null, status: 'free', isAdmin: false }
+    return { loading: false, user: null, status: 'free', isAdmin: false, proUntil: null }
   }
 }
 

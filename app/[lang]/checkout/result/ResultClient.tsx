@@ -66,7 +66,7 @@ export default function ResultClient() {
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: c.text, margin: '0 0 10px' }}>{title}</h1>
           <p style={{ fontSize: 14, color: c.muted, lineHeight: 1.8, margin: '0 0 20px' }}>{text}</p>
-          {view === 'paid' && <Link href="/dashboard" style={btn}>{t('res_paid_cta')}</Link>}
+          {view === 'paid' && <Link href="/account#branding" style={btn}>{t('res_paid_cta')}</Link>}
           {view === 'failed' && <Link href="/checkout" style={btn}>{t('res_failed_cta')}</Link>}
           {view === 'waiting' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>

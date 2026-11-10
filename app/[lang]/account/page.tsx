@@ -254,7 +254,12 @@ function BrandingCard({ isPro, branding, onEdit }: { isPro: boolean; branding: R
 }
 
 function PlanCard({ isPro }: { isPro: boolean }) {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
+  // End of Pro (payments and manual Pro set it; empty = no end date)
+  const { proUntil } = useAuthState()
+  const untilDate = proUntil && !Number.isNaN(Date.parse(proUntil))
+    ? new Intl.DateTimeFormat(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(proUntil))
+    : ''
   const items: TKey[] = isPro
     ? ['acc_pro_b1', 'acc_pro_b2', 'acc_pro_b3', 'acc_pro_b5', 'acc_pro_b4']
     : ['acc_pro_b1', 'acc_pro_b2', 'acc_pro_b3', 'acc_pro_b4']
@@ -265,12 +270,17 @@ function PlanCard({ isPro }: { isPro: boolean }) {
         {isPro && <span className="ac-pill ac-pill-pro">PRO</span>}
       </div>
       <div className="ac-plan-name">{t(isPro ? 'acc_plan_pro' : 'acc_plan_free')}</div>
-      <div className="ac-sub">{t(isPro ? 'acc_plan_pro_sub' : 'acc_plan_free_sub')}</div>
+      <div className="ac-sub">
+        {isPro
+          ? (untilDate ? t('acc_plan_until').replace('{d}', untilDate) : t('acc_plan_pro_sub'))
+          : (untilDate ? t('acc_plan_ended').replace('{d}', untilDate) : t('acc_plan_free_sub'))}
+      </div>
       <div className="ac-eyebrow">{t(isPro ? 'acc_pro_includes' : 'acc_pro_adds')}</div>
       <ul className="ac-list" style={{ flex: 1 }}>
         {items.map(k => <li key={k}>{t(k)}</li>)}
       </ul>
-      {!isPro && <Link href="/pricing" className="ac-btn ac-btn-gold" style={{ alignSelf: 'flex-start' }}>{t('acc_see_pro')}</Link>}
+      {!isPro && <Link href="/pricing" className="ac-btn ac-btn-gold" style={{ alignSelf: 'flex-start' }}>{t(untilDate ? 'acc_renew' : 'acc_see_pro')}</Link>}
+      {isPro && untilDate && <Link href="/checkout" className="ac-btn ac-btn-gold" style={{ alignSelf: 'flex-start' }}>{t('acc_renew')}</Link>}
     </section>
   )
 }

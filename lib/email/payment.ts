@@ -76,9 +76,10 @@ export function paymentEmailHtml(name: string, d: PaymentEmailData): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">${table}</table>
 <p style="margin:0 0 6px;font-size:13px;line-height:1.8;color:#3A475C;">هذه دفعة واحدة ولا تتجدد تلقائيًا. إذا جددت قبل انتهاء باقتك تبدأ المدة الجديدة بعد تاريخ الانتهاء الحالي.</p>
 <p dir="ltr" style="margin:0 0 18px;font-size:12.5px;line-height:1.7;color:#6B7280;text-align:right;font-family:Arial,Helvetica,sans-serif;">This is a one-time payment and nothing renews automatically. Renew before your plan ends and the new period starts after your current end date.</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right"><tr><td style="border-radius:10px;background:#0B1F3F;"><a href="${SITE.url}${pre}/dashboard" style="display:inline-block;padding:13px 26px;font-family:Tahoma,Arial,sans-serif;font-size:15px;font-weight:bold;color:#F1ECE1;text-decoration:none;border-radius:10px;">افتح لوحة التحكم · Open your dashboard</a></td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="right"><tr><td style="border-radius:10px;background:#0B1F3F;"><a href="${SITE.url}${pre}/account#branding" style="display:inline-block;padding:13px 26px;font-family:Tahoma,Arial,sans-serif;font-size:15px;font-weight:bold;color:#F1ECE1;text-decoration:none;border-radius:10px;">جهّز تقاريرك · Set up your reports</a></td></tr></table>
 <div style="clear:both;font-size:0;line-height:0;">&nbsp;</div>
-<p style="margin:22px 0 22px;font-size:12.5px;line-height:1.8;color:#6B7280;"><a href="${SITE.url}${pre}/refund-policy" style="color:#85662F;">سياسة الاسترجاع والإلغاء · <span dir="ltr">Refund &amp; Cancellation Policy</span></a><br>لأي سؤال ردّ على هذه الرسالة · <span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;">Questions? Just reply to this email.</span></p>
+<p style="margin:22px 0 6px;font-size:13px;line-height:1.8;color:#3A475C;">أضف اسمك ووظيفتك وشعار شركتك من صفحة حسابك ليظهروا في تقارير PDF وExcel.<br><span dir="ltr" style="color:#6B7280;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;">Add your name, job title and company logo from your account page so they appear on your PDF and Excel reports.</span></p>
+<p style="margin:0 0 22px;font-size:12.5px;line-height:1.8;color:#6B7280;">لأي سؤال ردّ على هذه الرسالة · <span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;">Questions? Just reply to this email.</span></p>
 </td></tr>
 <tr><td dir="rtl" align="right" style="border-top:1px solid #EEE9DD;padding:16px 28px 20px;font-family:Tahoma,Arial,sans-serif;text-align:right;">
 <p style="margin:0;font-size:11px;line-height:1.7;color:#9CA3AF;"><a href="${SITE.url}" style="color:#85662F;text-decoration:none;font-weight:bold;">${SITE.name}</a> · ${SITE.contact.address.ar} · <span dir="ltr">${SITE.contact.address.en}</span></p>
@@ -96,7 +97,7 @@ export function paymentEmailText(name: string, d: PaymentEmailData): string {
     ...rows(d).map((r) => `${r.ar} · ${r.en}: ${r.value}${r.valueEn ? ` · ${r.valueEn}` : ''}`),
     '',
     'هذه دفعة واحدة ولا تتجدد تلقائيًا. · One-time payment, nothing renews automatically.',
-    `${SITE.url}/dashboard`,
+    `${SITE.url}/account#branding`,
   ].join('\n')
 }
 
