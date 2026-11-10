@@ -42,6 +42,7 @@ const PAGES: { path: string; changeFrequency: MetadataRoute.Sitemap[number]['cha
   { path: '/verification', changeFrequency: 'weekly', priority: 0.6 },
   { path: '/privacy', changeFrequency: 'yearly', priority: 0.3 },
   { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
+  { path: '/refund-policy', changeFrequency: 'yearly', priority: 0.3 },
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {

@@ -145,7 +145,7 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
         .qh-mm-seg button[aria-pressed="true"] { background: var(--qh-accent); color: var(--qh-onAccent); }
         .qh-mm-out { flex: none; border: 1px solid var(--qh-border); background: transparent; color: var(--qh-text); font: inherit; font-size: 13px;
           font-weight: 600; border-radius: 8px; padding: 0 14px; min-height: 36px; cursor: pointer; }
-        .qh-mm-legal { display: flex; gap: 14px; font-size: 12px; }
+        .qh-mm-legal { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 12px; }
         .qh-mm-legal a { color: var(--qh-muted); text-decoration: none; }
         .qh-mm-close { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--qh-border); background: transparent; color: var(--qh-text);
           display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
@@ -235,6 +235,7 @@ export default function MobileMenu({ theme, setTheme, variant = 'tool' }: Props)
               <div className="qh-mm-legal">
                 <Link href="/privacy" onClick={close}>{t('footer_privacy')}</Link>
                 <Link href="/terms" onClick={close}>{t('footer_terms')}</Link>
+                <Link href="/refund-policy" onClick={close}>{t('footer_refund')}</Link>
               </div>
             </div>
           </div>

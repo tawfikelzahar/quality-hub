@@ -394,7 +394,73 @@ function ManagePanel({ user, now, active, onChanged }: {
         </div>
       </div>
 
+      <UsageBlock userId={user.id} />
+
       {msg && <div className={msg.ok ? 'ac-msg-ok' : 'ac-msg-err'} role="status">{msg.text}</div>}
+    </div>
+  )
+}
+
+interface UsageRow {
+  feature: 'pdf' | 'excel' | 'save' | 'gage' | 'ai'
+  tool: string
+  uses: number
+  first_at: string
+  last_at: string
+}
+
+const FEATURE_LABEL: Record<UsageRow['feature'], string> = {
+  pdf: 'PDF report',
+  excel: 'Excel report',
+  save: 'Saved project',
+  gage: 'Gage R&R on own data',
+  ai: 'AI Insights',
+}
+
+// Pro features this user has used — for the 7-day refund rule
+// (/refund-policy: full refund only if no Pro feature was used).
+function UsageBlock({ userId }: { userId: string }) {
+  const [rows, setRows] = useState<UsageRow[] | null>(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/admin/usage?userId=${encodeURIComponent(userId)}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!alive) return
+        if (!res.ok) { setErr(json.error || `Could not load usage (${res.status}).`); return }
+        setRows(json.rows ?? [])
+      })
+      .catch(() => { if (alive) setErr('Could not reach the server.') })
+    return () => { alive = false }
+  }, [userId])
+
+  return (
+    <div className="ad-panel-block ad-usage">
+      <div className="ac-label">Pro features used · for refunds</div>
+      {err && <div className="ac-msg-err">{err}</div>}
+      {!err && !rows && <div className="ac-row-sub">Loading…</div>}
+      {rows && rows.length === 0 && <div className="ac-row-sub">No Pro feature used yet.</div>}
+      {rows && rows.length > 0 && (
+        <table className="ad-usage-t">
+          <thead>
+            <tr><th>Feature</th><th>Tool</th><th>Uses</th><th>First</th><th>Last</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={`${r.feature}-${r.tool}`}>
+                <td>{FEATURE_LABEL[r.feature] ?? r.feature}</td>
+                <td className="ad-break">{r.tool}</td>
+                <td>{r.uses}</td>
+                <td>{fmtDate(r.first_at, true)}</td>
+                <td>{fmtDate(r.last_at, true)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <div className="ac-row-sub">Compare the first use with the payment date: a refund within 7 days is due only if nothing was used after paying.</div>
     </div>
   )
 }
@@ -428,6 +494,10 @@ function AdminStyles() {
 .ad-note{max-width:420px}
 .ad-panel .ac-btn[disabled]{opacity:.5;cursor:wait}
 .ad-panel [role=status]{grid-column:1/-1}
+.ad-usage{grid-column:1/-1}
+.ad-usage-t{width:100%;border-collapse:collapse;font-size:13px}
+.ad-usage-t th,.ad-usage-t td{text-align:start;padding:6px 8px;border-bottom:1px solid var(--qh-border);vertical-align:top}
+.ad-usage-t th{color:var(--qh-muted);font-weight:600;font-size:12px}
 @media (max-width: 900px){ .ad-stats{grid-template-columns:repeat(3,minmax(0,1fr))} }
 @media (max-width: 680px){
   .ad-stats{grid-template-columns:repeat(2,minmax(0,1fr))}

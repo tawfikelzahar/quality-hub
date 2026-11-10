@@ -42,7 +42,9 @@ export const SITE = {
   ogImage: '/og-image.png',
 
   contact: {
-    email: 'tawfik.elzahar1@gmail.com',
+    email: 'contact@mizanquality.com',
+    /** Business address shown on the Contact page (city level, as payment providers ask) */
+    address: { en: 'Zagazig, Sharqia, Egypt', ar: 'الزقازيق، الشرقية، مصر' },
     /** WhatsApp number in international format, digits only */
     whatsapp: '201224491539',
     /** How the WhatsApp number is displayed */
@@ -56,6 +58,7 @@ export const SITE = {
 export const SITE_LINKS = {
   email: `mailto:${SITE.contact.email}`,
   whatsapp: `https://wa.me/${SITE.contact.whatsapp}`,
+  phone: `tel:+${SITE.contact.whatsapp}`,
   linkedin: `https://www.linkedin.com/in/${SITE.contact.linkedin}`,
   linkedinDisplay: `in/${SITE.contact.linkedin}`,
 } as const

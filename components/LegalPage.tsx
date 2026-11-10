@@ -7,7 +7,7 @@ import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { LEGAL_UPDATED, type LegalDoc } from '@/lib/legal'
 
-// /privacy and /terms: short summary, clickable contents, numbered sections
+// /privacy, /terms and /refund-policy: short summary, clickable contents, numbered sections
 // with anchors, and a contact block at the end. Same reading width and type
 // as the About page.
 export default function LegalPage({ doc, breadcrumbKey, other }: {
@@ -66,12 +66,12 @@ export default function LegalPage({ doc, breadcrumbKey, other }: {
                 <span style={{ color: c.accent, fontVariantNumeric: 'tabular-nums', minWidth: 22 }}>{num(i)}.</span>
                 <span>{sec.h}<a className="lg-anchor" href={`#${sec.id}`} aria-label={sec.h}>#</a></span>
               </h2>
+              {sec.p?.map((txt, j) => <p key={j} style={{ ...paragraph, paddingInlineStart: 32 }}>{txt}</p>)}
               {sec.list && (
                 <ul style={{ margin: '0 0 10px', paddingInlineStart: 52, listStyle: 'disc' }}>
                   {sec.list.map((li, j) => <li key={j} style={{ ...paragraph, margin: '0 0 6px' }}>{li}</li>)}
                 </ul>
               )}
-              {sec.p?.map((txt, j) => <p key={j} style={{ ...paragraph, paddingInlineStart: 32 }}>{txt}</p>)}
             </section>
           ))}
 

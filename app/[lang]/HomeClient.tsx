@@ -350,10 +350,12 @@ export default function Home() {
               <Link href="/guide" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_guide')}</Link>
               <Link href="/sample-reports" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_sample_reports')}</Link>
               <Link href="/verification" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_verification')}</Link>
+              <Link href="/pricing" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('bc_pricing')}</Link>
               <Link href="/about" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_about')}</Link>
               <Link href="/contact" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_contact')}</Link>
               <Link href="/privacy" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_privacy')}</Link>
               <Link href="/terms" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_terms')}</Link>
+              <Link href="/refund-policy" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_refund')}</Link>
             </nav>
             <div style={{width:'100%'}}>© {SITE.copyrightYear} {SITE.name} · {t('home_footer_built')}</div>
           </div>

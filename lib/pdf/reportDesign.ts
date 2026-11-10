@@ -25,6 +25,7 @@
 // the PDF never disagrees with the web UI.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { logProUsage } from '@/lib/proUsage'
 import jsPDF from 'jspdf'
 import { ARIMO_REGULAR, ARIMO_BOLD } from './fonts/arimo'
 import { NOTO_ARABIC_REGULAR, NOTO_ARABIC_BOLD } from './fonts/notoSansArabic'
@@ -1304,6 +1305,8 @@ export function appendixColumns(ctx: ReportContext, fixed: DataTableColumn[], he
 
 /** Draws the footer (hairline + copyright + page numbers) on every page. Call once, right before pdf.save(). */
 export function finalizeReport(ctx: ReportContext) {
+  // Pro usage log for the 7-day refund rule (lib/proUsage.ts); skips sample reports
+  logProUsage('pdf', /\(sample\)/i.test(ctx.reportTitle) ? `${ctx.toolName} (Sample)` : ctx.toolName)
   const branding = getReportBranding()
   if (!ctx.signedOff) addSignOff(ctx)
   const { pdf, margin, pageWidth, pageHeight } = ctx

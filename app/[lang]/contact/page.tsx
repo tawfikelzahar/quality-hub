@@ -70,7 +70,7 @@ function ChannelIcon({ channelKey }: { channelKey: (typeof CHANNELS)[number]['ke
 
 export default function ContactPage() {
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const dark = theme === 'dark'
@@ -145,6 +145,36 @@ export default function ContactPage() {
             </div>
           ))}
         </div>
+
+        {/* Business details — what payment providers ask to see on the site */}
+        <section
+          aria-labelledby="contact-details-h"
+          style={{ ...s.card, maxWidth: 780, width: '100%', marginTop: 24, padding: '20px 24px' }}
+        >
+          <h2 id="contact-details-h" style={{ fontSize: 16, fontWeight: 700, color: c.text, margin: '0 0 12px' }}>
+            {t('contact_details_title')}
+          </h2>
+          <dl style={{ display: 'grid', gridTemplateColumns: 'max-content minmax(0,1fr)', gap: '8px 18px', margin: 0, fontSize: 14 }}>
+            <dt style={{ color: subColor }}>{t('contact_details_name')}</dt>
+            <dd style={{ margin: 0, color: c.text, fontWeight: 600 }}>{SITE.name}</dd>
+            <dt style={{ color: subColor }}>{t('contact_details_address')}</dt>
+            <dd style={{ margin: 0, color: c.text }}>{SITE.contact.address[lang]}</dd>
+            <dt style={{ color: subColor }}>{t('contact_details_phone')}</dt>
+            <dd style={{ margin: 0 }}>
+              <a href={SITE_LINKS.phone} dir="ltr" style={{ color: c.accent, textDecoration: 'none', fontWeight: 600 }}>{SITE.contact.whatsappDisplay}</a>
+            </dd>
+            <dt style={{ color: subColor }}>{t('contact_details_email')}</dt>
+            <dd style={{ margin: 0, wordBreak: 'break-word' }}>
+              <a href={SITE_LINKS.email} style={{ color: c.accent, textDecoration: 'none', fontWeight: 600 }}>{SITE.contact.email}</a>
+            </dd>
+            <dt style={{ color: subColor }}>{t('contact_details_policies')}</dt>
+            <dd style={{ margin: 0, display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+              <Link href="/privacy" style={{ color: c.accent, textDecoration: 'none' }}>{t('bc_privacy')}</Link>
+              <Link href="/terms" style={{ color: c.accent, textDecoration: 'none' }}>{t('bc_terms')}</Link>
+              <Link href="/refund-policy" style={{ color: c.accent, textDecoration: 'none' }}>{t('bc_refund')}</Link>
+            </dd>
+          </dl>
+        </section>
 
         <div style={{ fontSize: 13, color: subColor, marginTop: 40, marginBottom: 24 }}>
           {t('contact_footer_prefix')}{' '}

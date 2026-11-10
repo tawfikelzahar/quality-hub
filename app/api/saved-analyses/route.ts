@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { recordProUsage } from '@/lib/proUsage.server'
 import { createServerSupabase } from '@/lib/supabase-server'
 import { isProRow } from '@/lib/plan'
 
@@ -110,5 +111,7 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+  // Pro usage log for the 7-day refund rule (supabase/sql/011_pro_usage.sql)
+  await recordProUsage('save', body.tool, supabase, user.id)
   return NextResponse.json({ analysis: data }, { status: 201 })
 }

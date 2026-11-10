@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
+import { recordProUsage } from '@/lib/proUsage.server'
 import { guardApi, CALC_LIMITS } from '@/lib/apiGuard'
 import { proAccess } from '@/lib/pro.server'
 import { buildGageDiagnosis, type GageResultForDiagnosis } from '@/lib/gage/diagnosis.server'
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest) {
     const method = body.method === 'anova' ? 'anova' : 'average-range'
     // Report interpretation, written on the server from the numbers above
     const diagnosis = buildGageDiagnosis({ method, ...result } as GageResultForDiagnosis)
+    // Pro usage log for the 7-day refund rule — own data only, never the open sample
+    if (!sample) after(() => recordProUsage('gage', method === 'anova' ? 'Gage R&R (ANOVA)' : 'Gage R&R (Average & Range)'))
     return NextResponse.json({ method, ...result, diagnosis })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

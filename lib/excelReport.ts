@@ -35,6 +35,7 @@
 // so it's safe to list every chart the tool *could* show.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { logProUsage } from '@/lib/proUsage'
 import ExcelJS from 'exceljs'
 import { SITE } from '@/lib/site'
 import { getReportBranding, preparedByLine, fitBox } from '@/lib/reportBranding'
@@ -415,6 +416,8 @@ class Report {
 
   async download(filename: string) {
     const buf = await this.wb.xlsx.writeBuffer()
+    // Pro usage log for the 7-day refund rule (lib/proUsage.ts); skips sample reports
+    logProUsage('excel', this.toolName)
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
