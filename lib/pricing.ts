@@ -5,9 +5,10 @@
 // commercial register). Two price lists:
 //   eg  Egypt, in Egyptian pounds
 //   me  Gulf and the rest of the Middle East, in US dollars
-// The pricing page picks the list from the visitor's country (Vercel's
-// x-vercel-ip-country header, see app/[lang]/pricing/page.tsx) and the
-// visitor can switch it.
+// The pricing page shows one list only, picked from the visitor's country
+// (Vercel's x-vercel-ip-country header, see app/[lang]/pricing/page.tsx).
+// Visitors cannot switch lists. Checkout must pick the price the same way,
+// on the server, never from a value sent by the browser.
 //
 // Founding price: shown while FOUNDING.open is true. It is limited by time
 // only, never by a number of subscribers (decided 10 Nov 2026): everyone who

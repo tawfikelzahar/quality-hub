@@ -101,7 +101,9 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
 
   const freeCtaHref = loggedIn ? '/dashboard' : '/login?next=/dashboard'
 
-  const [region, setRegion] = useState<Region>(defaultRegion)
+  // One price list per visitor, chosen on the server from their country.
+  // There is no switch on purpose: showing both lists invites picking the cheaper one.
+  const region = defaultRegion
   const [period, setPeriod] = useState<PeriodId>('yearly')
   const list = PRICES[region]
   const plan = list.plans.find((p) => p.id === period) ?? list.plans[list.plans.length - 1]
@@ -170,21 +172,8 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
           </Link>
         </div>
 
-        {/* Price list: Egypt (EGP) or Gulf & Middle East (USD) */}
-        <div role="radiogroup" aria-label={t('pricing_region_label')} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 26 }}>
-          <span style={{ fontSize: 13, color: c.muted }}>{t('pricing_region_label')}</span>
-          {(['eg', 'me'] as Region[]).map((r) => (
-            <button key={r} type="button" role="radio" aria-checked={region === r} style={chip(region === r)} onClick={() => {
-              setRegion(r)
-              if (!PRICES[r].plans.some((p) => p.id === period)) setPeriod('yearly')
-            }}>
-              {t(r === 'eg' ? 'pricing_region_eg' : 'pricing_region_me')}
-            </button>
-          ))}
-        </div>
-
         {/* Plan cards */}
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', maxWidth: 880, width: '100%', marginTop: 22 }}>
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', maxWidth: 880, width: '100%', marginTop: 28 }}>
           <div style={cardBase}>
             <div style={{ fontSize: 15, fontWeight: 700, color: c.text }}>{t('pricing_free_name')}</div>
             <div style={{ fontSize: 30, fontWeight: 800, color: c.text, margin: '8px 0 2px' }}>{money(0)}</div>
