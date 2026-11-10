@@ -42,14 +42,16 @@ const PERIOD: Record<number, { ar: string; en: string }> = {
   12: { ar: 'سنة', en: '1 year' },
 }
 
-function rows(d: PaymentEmailData): { ar: string; en: string; value: string }[] {
+// Each value is one line per language, so Arabic and English never share a
+// line (mixed on one line, mail apps reorder them: "year 1 · سنة").
+function rows(d: PaymentEmailData): { ar: string; en: string; value: string; valueEn?: string }[] {
   const period = PERIOD[d.months] ?? { ar: `${d.months} شهرًا`, en: `${d.months} months` }
-  const list = [
+  const list: { ar: string; en: string; value: string; valueEn?: string }[] = [
     { ar: 'الباقة', en: 'Plan', value: `${SITE.name} Pro` },
-    { ar: 'المدة', en: 'Period', value: `${period.ar} · ${period.en}` },
-    { ar: 'المبلغ المدفوع', en: 'Amount paid', value: `${money(d.amountCents, d.currency, true)}` },
+    { ar: 'المدة', en: 'Period', value: period.ar, valueEn: period.en },
+    { ar: 'المبلغ المدفوع', en: 'Amount paid', value: money(d.amountCents, d.currency, false) },
   ]
-  if (d.proUntil) list.push({ ar: 'Pro فعّالة حتى', en: 'Pro active until', value: `${day(d.proUntil, 'ar-EG')} · ${day(d.proUntil, 'en-GB')}` })
+  if (d.proUntil) list.push({ ar: 'Pro فعّالة حتى', en: 'Pro active until', value: day(d.proUntil, 'ar-EG'), valueEn: day(d.proUntil, 'en-GB') })
   if (d.reference) list.push({ ar: 'رقم العملية', en: 'Payment reference', value: d.reference })
   return list
 }
@@ -58,7 +60,7 @@ export function paymentEmailHtml(name: string, d: PaymentEmailData): string {
   const pre = d.lang === 'ar' ? '/ar' : ''
   const hello = name ? `شكرًا ${esc(name)} 🎉` : 'شكرًا لك 🎉'
   const table = rows(d).map((r) =>
-    `<tr><td style="padding:8px 0;border-bottom:1px solid #EEE9DD;font-size:13px;color:#6B7280;white-space:nowrap;">${r.ar}<br><span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;">${r.en}</span></td><td style="padding:8px 14px 8px 0;border-bottom:1px solid #EEE9DD;font-size:14px;color:#0B1F3F;font-weight:bold;text-align:left;" dir="ltr">${esc(r.value)}</td></tr>`).join('')
+    `<tr><td style="padding:8px 0;border-bottom:1px solid #EEE9DD;font-size:13px;color:#6B7280;white-space:nowrap;">${r.ar}<br><span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;">${r.en}</span></td><td style="padding:8px 14px 8px 0;border-bottom:1px solid #EEE9DD;font-size:14px;color:#0B1F3F;font-weight:bold;text-align:left;"><span dir="${r.valueEn ? 'rtl' : 'ltr'}" style="unicode-bidi:isolate;">${esc(r.value)}</span>${r.valueEn ? `<br><span dir="ltr" style="unicode-bidi:isolate;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:normal;color:#6B7280;">${esc(r.valueEn)}</span>` : ''}</td></tr>`).join('')
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${SITE.name} Pro</title></head>
 <body style="margin:0;padding:0;background:#F1ECE1;">
@@ -91,7 +93,7 @@ export function paymentEmailText(name: string, d: PaymentEmailData): string {
     'استلمنا دفعتك، وتم تفعيل Pro على حسابك.',
     'We received your payment and Pro is active on your account.',
     '',
-    ...rows(d).map((r) => `${r.ar} · ${r.en}: ${r.value}`),
+    ...rows(d).map((r) => `${r.ar} · ${r.en}: ${r.value}${r.valueEn ? ` · ${r.valueEn}` : ''}`),
     '',
     'هذه دفعة واحدة ولا تتجدد تلقائيًا. · One-time payment, nothing renews automatically.',
     `${SITE.url}/dashboard`,
