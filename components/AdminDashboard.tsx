@@ -215,6 +215,8 @@ export default function AdminDashboard() {
           </div>
         </section>
 
+        <PaymentsSection />
+
         <section className="ac-card ad-gap" aria-labelledby="ad-log-h">
           <div className="ac-card-top">
             <h2 id="ad-log-h">Activity log</h2>
@@ -236,6 +238,83 @@ export default function AdminDashboard() {
         </section>
       </main>
     </div>
+  )
+}
+
+interface PaymentRow {
+  id: string
+  created_at: string
+  email: string | null
+  plan: string
+  months: number
+  amount_cents: number
+  currency: string
+  founding: boolean
+  mode: 'test' | 'live'
+  status: 'pending' | 'paid' | 'failed' | 'refunded'
+  fail_reason: string | null
+  country: string | null
+  paymob_transaction_id: number | null
+  paid_at: string | null
+  pro_until: string | null
+}
+
+// Payment attempts through Paymob (supabase/sql/012_payments.sql). A pending
+// row that never turns paid is someone who opened the payment page and left.
+function PaymentsSection() {
+  const [rows, setRows] = useState<PaymentRow[] | null>(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/admin/payments', { cache: 'no-store' })
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!alive) return
+        if (!res.ok) { setErr(json.error || `Could not load payments (${res.status}).`); return }
+        setRows(json.rows ?? [])
+      })
+      .catch(() => { if (alive) setErr('Could not reach the server.') })
+    return () => { alive = false }
+  }, [])
+
+  const paid = (rows ?? []).filter((r) => r.status === 'paid' && r.mode === 'live')
+  const total = paid.reduce((sum, r) => sum + (r.currency === 'EGP' ? r.amount_cents : 0), 0) / 100
+
+  return (
+    <section className="ac-card ad-gap" aria-labelledby="ad-pay-h">
+      <div className="ac-card-top">
+        <h2 id="ad-pay-h">Payments</h2>
+        <span className="ac-muted">{rows ? `${paid.length} live paid · EGP ${total.toLocaleString('en-US')}` : ''}</span>
+      </div>
+      {err && <div className="ac-msg-err">{err}</div>}
+      {!err && !rows && <div className="ac-empty">Loading…</div>}
+      {rows && rows.length === 0 && <div className="ac-empty">No payments yet.</div>}
+      {rows && rows.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="ad-usage-t">
+            <thead>
+              <tr><th>Date</th><th>Email</th><th>Plan</th><th>Amount</th><th>Status</th><th>Paymob ref</th><th>Pro until</th></tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td>{fmtDate(r.created_at, true)}</td>
+                  <td className="ad-break">{r.email ?? '—'}{r.country ? ` · ${r.country}` : ''}</td>
+                  <td>{r.plan}{r.founding ? ' · founding' : ''}</td>
+                  <td>{r.currency} {(r.amount_cents / 100).toLocaleString('en-US')}</td>
+                  <td style={{ color: r.status === 'paid' ? 'var(--qh-gold)' : r.status === 'failed' ? 'var(--qh-danger)' : undefined, fontWeight: 600 }}>
+                    {r.status}{r.mode === 'test' ? ' (test)' : ''}{r.fail_reason ? ` · ${r.fail_reason}` : ''}
+                  </td>
+                  <td>{r.paymob_transaction_id ?? '—'}</td>
+                  <td>{fmtDate(r.pro_until)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   )
 }
 

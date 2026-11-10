@@ -21,8 +21,8 @@ import { FOUNDING, PRICES, formatPrice, savingPercent, type PeriodId, type Regio
 //   • PDF / Excel export, saved projects (MAX_SAVED_ANALYSES = 50 in
 //     app/api/saved-analyses) and AI Insights (AI_DAILY_LIMIT = 10/day in
 //     lib/ai/insight.ts, X̄-R page) are Pro
-// Prices come from lib/pricing.ts. Checkout is not connected yet (Paymob
-// account under review), so the Pro button is shown disabled.
+// Prices come from lib/pricing.ts. The Pro button opens /checkout (order
+// summary); whether paying is open is decided there, on the server.
 // Update this table whenever a gate changes.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ const PER_KEY: Record<PeriodId, TKey> = {
   quarterly: 'pricing_per_quarterly',
   yearly: 'pricing_per_yearly',
 }
-const HOW_KEYS: TKey[] = ['pricing_how_1', 'pricing_how_2', 'pricing_how_3', 'pricing_how_4', 'pricing_how_5']
+const HOW_KEYS: TKey[] = ['pricing_how_1', 'pricing_how_2', 'pricing_how_3', 'pricing_how_4']
 
 export default function PricingClient({ defaultRegion }: { defaultRegion: Region }) {
   const [theme, setTheme] = usePersistedTheme()
@@ -228,9 +228,9 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
                 <li key={k}>{t(k)}</li>
               ))}
             </ul>
-            <div aria-disabled="true" style={{ ...s.exportBtn, width: '100%', opacity: 0.6, cursor: 'default', borderColor: c.gold, color: c.gold }}>
+            <Link href={`/checkout?plan=${plan.id}`} style={{ ...s.exportBtn, width: '100%', textDecoration: 'none', background: c.gold, color: c.onGold, borderColor: c.gold, fontWeight: 700 }}>
               {t('pricing_pro_cta')}
-            </div>
+            </Link>
           </div>
         </div>
 

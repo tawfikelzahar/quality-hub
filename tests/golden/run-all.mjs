@@ -16,6 +16,7 @@ const checks = [
   'tests/golden/pareto/check.mts',
   'tests/golden/regression/check.mts',
   'tests/golden/stability/check.mts',
+  'tests/golden/paymob/check.mts',
 ]
 
 let failed = 0
