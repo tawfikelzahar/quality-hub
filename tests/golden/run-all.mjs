@@ -19,6 +19,7 @@ const checks = [
   'tests/golden/paymob/check.mts',
   'tests/golden/renewal/check.mts',
   'tests/golden/founding/check.mts',
+  'tests/golden/email/check.mts',
 ]
 
 let failed = 0

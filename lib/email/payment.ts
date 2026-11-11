@@ -1,4 +1,6 @@
-import { SITE } from '@/lib/site'
+// relative imports so tests/golden/email can load this file without the @ alias
+import { SITE } from '../site'
+import { GREETINGS, greetingHtml, greetingText } from './greeting'
 
 // ─────────────────────────────────────────────────────────────────────────
 // "Pro is active" email, sent once when Paymob confirms a payment
@@ -58,7 +60,6 @@ function rows(d: PaymentEmailData): { ar: string; en: string; value: string; val
 
 export function paymentEmailHtml(name: string, d: PaymentEmailData): string {
   const pre = d.lang === 'ar' ? '/ar' : ''
-  const hello = name ? `شكرًا ${esc(name)} 🎉` : 'شكرًا لك 🎉'
   const table = rows(d).map((r) =>
     `<tr><td style="padding:8px 0;border-bottom:1px solid #EEE9DD;font-size:13px;color:#6B7280;white-space:nowrap;">${r.ar}<br><span dir="ltr" style="font-family:Arial,Helvetica,sans-serif;font-size:12px;">${r.en}</span></td><td style="padding:8px 14px 8px 0;border-bottom:1px solid #EEE9DD;font-size:14px;color:#0B1F3F;font-weight:bold;text-align:left;"><span dir="${r.valueEn ? 'rtl' : 'ltr'}" style="unicode-bidi:isolate;">${esc(r.value)}</span>${r.valueEn ? `<br><span dir="ltr" style="unicode-bidi:isolate;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:normal;color:#6B7280;">${esc(r.valueEn)}</span>` : ''}</td></tr>`).join('')
   return `<!DOCTYPE html>
@@ -70,7 +71,7 @@ export function paymentEmailHtml(name: string, d: PaymentEmailData): string {
 <tr><td dir="rtl" align="right" style="background:#0A1120;padding:22px 28px;"><a href="${SITE.url}" style="text-decoration:none;"><img src="${SITE.url}/brand/email-logo-white.png" width="91" height="36" alt="${SITE.name}" style="display:inline-block;border:0;height:36px;width:91px;color:#F1ECE1;font-family:Arial,sans-serif;font-size:18px;font-weight:bold;"></a></td></tr>
 <tr><td style="background:#CDAA62;height:3px;line-height:3px;font-size:0;">&nbsp;</td></tr>
 <tr><td dir="rtl" align="right" style="padding:28px 28px 8px;font-family:Tahoma,Arial,sans-serif;text-align:right;">
-<h1 style="margin:0 0 14px;font-size:20px;line-height:1.5;color:#0B1F3F;">${hello}</h1>
+${greetingHtml(GREETINGS.payment, name)}
 <p style="margin:0 0 10px;font-size:15px;line-height:1.8;color:#1F2937;">استلمنا دفعتك، وتم تفعيل <strong>Pro</strong> على حسابك.</p>
 <p dir="ltr" style="margin:0 0 18px;font-size:14px;line-height:1.7;color:#6B7280;text-align:right;font-family:Arial,Helvetica,sans-serif;">We received your payment and Pro is active on your account.</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">${table}</table>
@@ -90,7 +91,7 @@ export function paymentEmailHtml(name: string, d: PaymentEmailData): string {
 
 export function paymentEmailText(name: string, d: PaymentEmailData): string {
   return [
-    name ? `شكرًا ${name}` : 'شكرًا لك',
+    ...greetingText(GREETINGS.payment, name),
     'استلمنا دفعتك، وتم تفعيل Pro على حسابك.',
     'We received your payment and Pro is active on your account.',
     '',
