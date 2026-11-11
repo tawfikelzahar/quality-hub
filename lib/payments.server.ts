@@ -156,3 +156,37 @@ export async function confirmPayment(p: {
   if (error) throw new Error(`payments_confirm failed: ${error.code} ${error.message}`)
   return (data ?? { result: 'not_found' }) as ConfirmResult
 }
+
+// ── Renewal reminders (supabase/sql/013_renewal_reminders.sql) ───────────
+
+export interface DueReminder {
+  id: number
+  email: string | null
+  name: string | null
+  lang: 'ar' | 'en'
+  kind: '7d' | '1d'
+  pro_until: string
+  founding: boolean
+}
+
+/** Can the reminder job reach the database at all? */
+export function remindersReady(): boolean {
+  return dbSecret() !== ''
+}
+
+/**
+ * Subscribers whose Pro ends within 7 days and who have not had this
+ * reminder yet. Each returned row is reserved for this run, so a second run
+ * at the same time gets nothing; report the outcome with finishReminder.
+ */
+export async function claimReminders(max = 40): Promise<DueReminder[]> {
+  const { data, error } = await db().rpc('reminders_claim', { secret: dbSecret(), max_rows: max })
+  if (error) throw new Error(`reminders_claim failed: ${error.code} ${error.message}`)
+  return Array.isArray(data) ? (data as DueReminder[]) : []
+}
+
+/** sent = true keeps the reminder as done; false frees it to be tried on the next run. */
+export async function finishReminder(id: number, sent: boolean): Promise<void> {
+  const { error } = await db().rpc('reminders_finish', { secret: dbSecret(), p_id: id, p_sent: sent })
+  if (error) console.error('[reminders] finish failed', id, error.code, error.message)
+}
