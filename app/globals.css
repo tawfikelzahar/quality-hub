@@ -19,6 +19,16 @@
   }
 }
 
+/* Height of the sticky top bar (components/Nav.tsx, 56px). Sticky sidebars and
+   in-page jumps (#links) start below it. The landing page bar is 64px; the
+   extra space in the offset covers it. */
+:root {
+  --qh-nav-h: 56px;
+}
+html {
+  scroll-padding-top: calc(var(--qh-nav-h) + 16px);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

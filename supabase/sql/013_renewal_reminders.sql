@@ -14,6 +14,8 @@
 -- 3) reminders_finish: بعد محاولة الإرسال. لو الإيميل اتبعت بتسجّل وقت الإرسال،
 --    ولو فشل بتلغي الحجز عشان يتجرب تاني في اليوم اللي بعده.
 --
+-- 4) admin_user_prices: سعر آخر دفعة (تأسيسي / أصلي) لكل مشترك، للأدمن بس.
+--
 -- الدوال بتطلب نفس السر بتاع الدفع (PAYMENTS_DB_SECRET)، فمفيش حاجة جديدة
 -- تتحط في Supabase. آمن تشغيله أكتر من مرة.
 
@@ -97,10 +99,12 @@ begin
     ), 'ar'),
     'kind', c.kind,
     'pro_until', c.pro_until,
-    'founding', exists (
-      select 1 from public.payments y
-      where y.user_id = c.user_id and y.status = 'paid' and y.founding
-    )
+    -- سعر آخر دفعة بس (لو رجع بعد ما باقته خلصت وهو بيدفع الأصلي، مش تأسيسي)
+    'founding', coalesce((
+      select y.founding from public.payments y
+      where y.user_id = c.user_id and y.status = 'paid'
+      order by y.paid_at desc nulls last, y.created_at desc limit 1
+    ), false)
   ) order by c.pro_until), '[]'::jsonb)
   into result
   from claimed c;
@@ -129,12 +133,39 @@ begin
 end;
 $$;
 
+-- سعر آخر دفعة لكل مشترك (للأدمن بس): تأسيسي ولا أصلي. بتظهر في /admin جنب المستخدم.
+create or replace function public.admin_user_prices()
+returns table (
+  user_id uuid,
+  founding boolean,
+  paid_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized' using errcode = '42501';
+  end if;
+  return query
+  select distinct on (y.user_id) y.user_id, y.founding, y.paid_at
+  from public.payments y
+  where y.status = 'paid' and y.user_id is not null
+  order by y.user_id, y.paid_at desc nulls last, y.created_at desc;
+end;
+$$;
+
 -- الصلاحيات: زي دوال الدفع، بتتكلم من السيرفر بمفتاح anon والسر هو الحماية
 revoke all on function public.reminders_claim(text, integer) from public;
 revoke all on function public.reminders_finish(text, bigint, boolean) from public;
 
 grant execute on function public.reminders_claim(text, integer) to anon, authenticated;
 grant execute on function public.reminders_finish(text, bigint, boolean) to anon, authenticated;
+
+revoke all on function public.admin_user_prices() from public, anon;
+grant execute on function public.admin_user_prices() to authenticated;
 
 -- ── للمتابعة ─────────────────────────────────────────────────────────────
 -- تشوف آخر التذكيرات اللي اتبعتت:

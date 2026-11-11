@@ -22,6 +22,8 @@ export interface AdminUser {
   subscription_status: 'free' | 'pro'
   pro_until: string | null
   welcome_sent_at: string | null
+  /** price type of the last paid payment: 'founding' or 'regular'; null = never paid (free, or Pro given by hand) */
+  price?: 'founding' | 'regular' | null
 }
 
 export interface AdminLogRow {

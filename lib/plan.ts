@@ -21,3 +21,17 @@ export function isProRow(row: PlanRow | null | undefined, now: number = Date.now
   const until = Date.parse(row.pro_until)
   return Number.isFinite(until) && until > now
 }
+
+/**
+ * After the founding price has closed: does this subscriber keep it?
+ * Only when their LAST paid payment was a founding one AND their Pro, which
+ * has an end date, has not lapsed. Someone who let Pro lapse and came back at
+ * the regular price is a regular subscriber from then on: an older founding
+ * payment does not count again.
+ *
+ * lastPaidFounding: the `founding` flag of the newest paid payment, or
+ * null / undefined when there is none (Pro given by hand, or never paid).
+ */
+export function keepsFounding(row: PlanRow | null | undefined, lastPaidFounding: boolean | null | undefined, now: number = Date.now()): boolean {
+  return lastPaidFounding === true && !!row?.pro_until && isProRow(row, now)
+}

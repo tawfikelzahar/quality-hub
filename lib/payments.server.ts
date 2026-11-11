@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { FOUNDING, PRICES, regionForCountry, type PeriodId, type PlanPrice, type Region } from '@/lib/pricing'
 import { paymobConfig, type PaymobConfig } from '@/lib/paymob.server'
 import { isAdminSession } from '@/lib/admin.server'
-import { isProRow } from '@/lib/plan'
+import { keepsFounding } from '@/lib/plan'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Paying for Pro — the rules, in one place (server only):
@@ -56,17 +56,20 @@ export function foundingOpen(now: number = Date.now()): boolean {
 
 /**
  * Does this user pay the founding price? Yes while it is open to everyone;
- * after it closes, only someone who paid a founding price before and whose
- * Pro has not lapsed (the promise on the pricing page).
+ * after it closes, only someone whose last paid payment was a founding one
+ * and whose Pro has not lapsed (the promise on the pricing page; the rule
+ * itself is keepsFounding in lib/plan.ts). Someone who lapsed and came back
+ * at the regular price stays on the regular price.
  */
 export async function userGetsFounding(supabase: SupabaseClient, userId: string): Promise<boolean> {
   if (foundingOpen()) return true
   try {
-    const [{ data: profile }, { data: past }] = await Promise.all([
+    const [{ data: profile }, { data: last }] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
-      supabase.from('payments').select('id').eq('user_id', userId).eq('status', 'paid').eq('founding', true).limit(1),
+      supabase.from('payments').select('founding').eq('user_id', userId).eq('status', 'paid')
+        .order('paid_at', { ascending: false }).order('created_at', { ascending: false }).limit(1),
     ])
-    return isProRow(profile) && !!profile?.pro_until && (past?.length ?? 0) > 0
+    return keepsFounding(profile, last?.[0]?.founding)
   } catch {
     return false
   }

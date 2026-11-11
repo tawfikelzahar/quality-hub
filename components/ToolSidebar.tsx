@@ -18,7 +18,7 @@ export default function ToolSidebar({ current }: { current: string }) {
       <style>{`
         .qh-toolnav { width: 232px; flex: none; box-sizing: border-box; padding: 20px 12px 32px;
           border-inline-end: 1px solid var(--qh-border); background: var(--qh-bg);
-          position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+          position: sticky; top: var(--qh-nav-h); align-self: flex-start; height: calc(100vh - var(--qh-nav-h)); overflow-y: auto;
           scrollbar-width: thin; scrollbar-color: transparent transparent; }
         .qh-toolnav:hover { scrollbar-color: var(--qh-border) transparent; }
         .qh-toolnav::-webkit-scrollbar { width: 6px; }

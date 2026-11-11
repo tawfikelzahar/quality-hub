@@ -118,6 +118,10 @@ export function getSharedStyles(theme: ThemeMode): Record<string, CSSProperties>
       backdropFilter: 'blur(24px)',
       borderBottom: `1px solid ${c.border}`,
       flexShrink: 0,
+      // stays at the top while the page scrolls (its height is --qh-nav-h in globals.css)
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
     },
     navLeft: { display: 'flex', alignItems: 'center', gap: 16 },
     navRight: { display: 'flex', alignItems: 'center', gap: 14 },

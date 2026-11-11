@@ -12,7 +12,7 @@ const CSS = `
   .tl-head h1 { margin: 0 0 4px; font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
   .tl-head p { margin: 0; font-size: 14px; line-height: 1.7; color: color-mix(in srgb, var(--qh-text) 76%, var(--qh-bg)); }
   .tl-top { display: flex; gap: 20px; align-items: flex-start; }
-  .tl-setup { width: 300px; flex: none; display: flex; flex-direction: column; gap: 18px; position: sticky; top: 16px; }
+  .tl-setup { width: 300px; flex: none; display: flex; flex-direction: column; gap: 18px; position: sticky; top: calc(var(--qh-nav-h) + 16px); }
   .tl-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
   .tl-data { min-width: 0; }
   .tl-results { display: flex; flex-direction: column; gap: 20px; min-width: 0; }

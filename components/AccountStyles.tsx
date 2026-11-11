@@ -17,7 +17,7 @@ export default function AccountStyles() {
 .ac-pill-free{color:var(--qh-muted);border:1px solid var(--qh-border)}
 .ac-pill-pro-o{color:var(--qh-gold);border:1px solid color-mix(in srgb, var(--qh-gold) 55%, transparent);font-size:10px;padding:1px 6px}
 .ac-grid{display:grid;grid-template-columns:230px minmax(0,1fr);gap:24px;align-items:start}
-.ac-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:16px}
+.ac-nav{display:flex;flex-direction:column;gap:4px;position:sticky;top:calc(var(--qh-nav-h) + 16px)}
 .ac-nav a{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 14px;border-radius:8px;color:var(--qh-muted);font-size:14px;font-weight:500;text-decoration:none}
 .ac-nav a:hover{color:var(--qh-text);background:var(--qh-surface2)}
 .ac-nav a[aria-current="page"]{background:var(--qh-surface2);color:var(--qh-text);font-weight:600;box-shadow:inset 3px 0 0 var(--qh-gold)}

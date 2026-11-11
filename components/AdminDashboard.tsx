@@ -23,6 +23,7 @@ interface User {
   subscription_status: 'free' | 'pro'
   pro_until: string | null
   welcome_sent_at: string | null
+  price?: 'founding' | 'regular' | null
 }
 
 interface LogRow {
@@ -353,6 +354,7 @@ function UserRow({ user, now, open, onToggle, onChanged }: {
         <div className="ad-user-plan">
           <PlanPill user={user} now={now} />
           {until && <div className="ac-row-sub">{until}</div>}
+          {user.price && <div className="ac-row-sub" style={user.price === 'founding' ? { color: 'var(--qh-gold)', fontWeight: 600 } : undefined}>{user.price === 'founding' ? 'Founding price' : 'Regular price'}</div>}
         </div>
         <div className="ad-user-dates ac-row-sub">
           <div>Joined {fmtDate(user.created_at)}</div>
