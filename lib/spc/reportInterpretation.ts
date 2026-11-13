@@ -361,7 +361,7 @@ export function buildStudyConclusion(input: ConclusionInput): StudyConclusion {
       ? `The ${input.attribute.chartLabel} (${input.attribute.metricText})`
       : 'The process'
     const stability = stable
-      ? `${subject} shows no special-cause signals over the study period and appears to be in statistical control.`
+      ? `${subject} shows no special-cause signals over the study period and appears stable.`
       : joinSentences(
           `${subject} shows ${signals.length} special-cause signal(s) — investigate them before treating the process as stable.`,
           describeSignals(signals),
@@ -417,7 +417,7 @@ export function buildExecutiveSummary(input: SummaryInput): { rows: Array<[strin
   rows.push([
     'Stability',
     stable
-      ? 'In statistical control — no Nelson rule signals.'
+      ? 'Process appears stable — no Nelson rule signals.'
       : `Special-cause signals detected (${input.signals.length}) — investigate before relying on capability; see Nelson Rule Violations.`,
   ])
   if (input.capabilityText) rows.push(['Capability', input.capabilityText])

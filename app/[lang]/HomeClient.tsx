@@ -347,7 +347,7 @@ export default function Home() {
             </div>
             <div dir="rtl" lang="ar" className="mz-card" style={{flex:'1 1 400px',minWidth:0,padding:24}}>
               <div style={{fontSize:13,color:'var(--qh-muted)',marginBottom:8}}>الحكم</div>
-              <div style={{fontSize:20,fontWeight:600,marginBottom:8}}>العملية مستقرة إحصائيًا لكنها غير قادرة</div>
+              <div style={{fontSize:20,fontWeight:600,marginBottom:8}}>العملية تبدو مستقرة لكنها غير قادرة</div>
               <p style={{margin:0,fontSize:15,lineHeight:1.85,color:'var(--mz-soft)'}}>
                 قيمة Cpk تساوي {fmt2(exCpk)} وهي أقل من الهدف 1.33. التشتت يستهلك {Math.round((6 * exSigmaWithin) / (EX_USL - EX_LSL) * 100)}% من مدى التفاوت، والمتوسط أعلى من منتصف المواصفة بمقدار {fmt3(exMean - (EX_USL + EX_LSL) / 2)}.
               </p>

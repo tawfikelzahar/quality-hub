@@ -653,7 +653,7 @@ export async function buildSpcSampleExcel() {
       ['R', r.lclR, r.rbar, r.uclR],
     ],
   })
-  overview.note('No points beyond control limits — process is in statistical control.', 'good')
+  overview.note('No points beyond control limits — process appears stable.', 'good')
 
   overview.sectionHeading('Normality Test (Anderson-Darling)')
   overview.table({
