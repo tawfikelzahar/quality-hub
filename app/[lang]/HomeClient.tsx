@@ -237,6 +237,7 @@ export default function Home() {
               <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:'var(--qh-danger)',background:'color-mix(in srgb, var(--qh-danger) 12%, transparent)',borderRadius:6,padding:'6px 10px'}}><IconAlert />{t('home_preview_capable').replace('{v}', fmt2(exCpk))}</span>
             </div>
             <p style={{margin:'0 0 14px',fontSize:13,lineHeight:1.65,color:'var(--mz-soft)'}}>
+              {t('spc_stable_sub').replace('{n}', String(EX.length))}{' '}
               {t('home_preview_reason').replace('{p}', String(Math.round((6 * exSigmaWithin) / (EX_USL - EX_LSL) * 100))).replace('{d}', fmt3(Math.abs(exMean - (EX_USL + EX_LSL) / 2)))}
             </p>
             <ExampleChart label={t('home_preview_chart_aria')} />
