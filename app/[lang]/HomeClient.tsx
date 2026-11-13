@@ -19,10 +19,12 @@ import ToolsDirectory from '@/components/ToolsDirectory'
 // dark both work; layout is mobile-first with the .mz-* classes below.
 // ─────────────────────────────────────────────────────────────────────────
 
-// ── Example in the hero: golden dataset DS01 (15 readings, LSL 23, USL 25).
+// ── Example in the hero: golden dataset DS12 (30 readings, LSL 23, USL 25).
 // Computed here, not typed in, so the numbers on the page are always the
-// real I-MR result (mean 24.167, σ within 0.310, Cpk 0.90, Ppk 1.08).
-const EX = [24.1, 24.3, 23.9, 24.2, 24.6, 24.0, 23.8, 24.4, 24.5, 24.1, 24.0, 24.3, 23.7, 24.2, 24.4]
+// real I-MR result (mean 24.213, σ within 0.290, Cpk 0.90, Ppk 0.85),
+// the same data as "Try an example" in Mizan SPC and checked against Minitab
+// in tests/golden/minitab.test.mts ('DS12').
+const EX = [23.8, 23.9, 24.1, 24.0, 24.0, 24.3, 24.7, 24.1, 24.3, 24.4, 24.8, 23.8, 24.3, 24.2, 24.2, 24.3, 24.2, 24.2, 23.7, 23.9, 24.7, 24.7, 24.1, 24.5, 24.5, 24.3, 23.8, 24.4, 23.7, 24.5]
 const EX_LSL = 23.0
 const EX_USL = 25.0
 const D2_N2 = 1.128

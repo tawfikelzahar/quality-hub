@@ -170,8 +170,9 @@ interface AttrRow {
   defects: string
 }
 
-// Example data for the "Try an example" button: golden dataset DS01
-const EXAMPLE_READINGS = ['24.1', '24.3', '23.9', '24.2', '24.6', '24.0', '23.8', '24.4', '24.5', '24.1', '24.0', '24.3', '23.7', '24.2', '24.4']
+// Example data for the "Try an example" button and the readings the page opens
+// with: golden dataset DS12 (30 readings), checked against Minitab
+const EXAMPLE_READINGS = ['23.8', '23.9', '24.1', '24.0', '24.0', '24.3', '24.7', '24.1', '24.3', '24.4', '24.8', '23.8', '24.3', '24.2', '24.2', '24.3', '24.2', '24.2', '23.7', '23.9', '24.7', '24.7', '24.1', '24.5', '24.5', '24.3', '23.8', '24.4', '23.7', '24.5']
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9)
@@ -343,9 +344,9 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   const [dataType, setDataType] = useState<DataType>('variable')
   const [N, setN] = useState(1)
   const [varRows, setVarRows] = useState<VarRow[]>(() =>
-    [24.1, 24.3, 23.9, 24.2, 24.6, 24.0, 23.8, 24.4, 24.5, 24.1, 24.0, 24.3, 23.7, 24.2, 24.4].map(v => ({
+    EXAMPLE_READINGS.map(v => ({
       id: generateId(),
-      vals: [String(v)],
+      vals: [v],
     }))
   )
 
@@ -1620,7 +1621,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [helpOpen])
-  // "Try an example": golden dataset DS01 (15 readings, LSL 23, USL 25), analysed right away
+  // "Try an example": golden dataset DS12 (30 readings, LSL 23, USL 25), analysed right away
   const exampleQueued = useRef(false)
   const loadExample = () => {
     setDataType('variable')
@@ -1656,11 +1657,20 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     setMobileTab('results')
     if (narrow) window.scrollTo({ top: 0, behavior: 'smooth' })
   }
-  // Runs once after "Try an example" has put the example data in place
+  // Runs once after "Try an example" has put the example data in place.
+  // It waits for a render that really holds the example: when the page is
+  // opened from the home page card, a render started earlier (the page
+  // change itself) can finish first with the old, empty spec limits, and the
+  // analysis then went out without LSL/USL, so the capability result was
+  // missing.
   useEffect(() => {
     if (!exampleQueued.current) return
+    const ready = dataType === 'variable' && N === 1 && LSL === '23' && USL === '25' && target === ''
+      && varRows.length === EXAMPLE_READINGS.length && varRows.every((r, i) => r.vals[0] === EXAMPLE_READINGS[i])
+    if (!ready) return
     exampleQueued.current = false
-    void runAnalyze()
+    // Started from a timer, with this render's values: the analysis sets state
+    window.setTimeout(() => { void runAnalyze() }, 0)
   })
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -2019,6 +2029,8 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           {errorMsg && <div className="tl-error">{errorMsg}</div>}
           {/* ── VERDICTS: stability + capability, first thing on the results ── */}
           {result && <VerdictCards stable={stable} nPoints={nPoints} nSubgroups={varResult && varResult.N > 1 ? varResult.xbarVals.length : undefined} signals={allViolations.length} verdict={screenVerdict} reason={verdictReason} launchFree={!isPro} />}
+          {/* Data adequacy sits right under the verdict, so the reader sees how far to trust it */}
+          {result && adequacy && <AdequacyCard adequacy={adequacy} />}
           {/* ── VARIABLE RESULTS ───────────────────────────────────────── */}
           {varResult && (
             <>
@@ -2268,8 +2280,6 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
               </div>
             </>
           )}
-          {/* ── DATA ADEQUACY ──────────────────────────────────────────── */}
-          {result && adequacy && <AdequacyCard adequacy={adequacy} />}
           {/* ── TESTS FOR SPECIAL CAUSES ───────────────────────────────── */}
           {result && <ViolationsCard items={allViolations} allTests={(result.testSet ?? DEFAULT_TEST_SET) === 'all'} />}
 

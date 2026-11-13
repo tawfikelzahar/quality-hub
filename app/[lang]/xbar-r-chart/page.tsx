@@ -721,6 +721,8 @@ export default function XbarRChartPage() {
                 )}
                 {error && <div className="tl-error">{error}</div>}
                 {result && <VerdictCards stable={signals.length === 0} nPoints={result.n} nSubgroups={result.xbarVals.length} signals={signals.length} verdict={verdict} reason={reason} />}
+                {/* Data adequacy sits right under the verdict, so the reader sees how far to trust it */}
+                {result && <AdequacyCard adequacy={result.dataAdequacy} />}
 
                 {result && (
                   <>
@@ -976,7 +978,6 @@ export default function XbarRChartPage() {
                       resultKey={result}
                     />
 
-                    <AdequacyCard adequacy={result.dataAdequacy} />
                     <ViolationsCard items={signals} allTests={false} />
                   </>
                 )}

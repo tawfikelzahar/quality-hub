@@ -2,8 +2,8 @@ import type { ToolGuide } from './types'
 
 // Examples = each page's "Try an example" data (lib/spc/examples.ts), run
 // through lib/spc/calculator.ts with the page's default tests:
-//   I-MR  DS01 → CL 24.167 · UCL 25.098 · LCL 23.236 · Cp 1.07 · Cpk 0.90 ·
-//         Pp 1.29 · Ppk 1.08 (all in minitab.test.mts 'DS01')
+//   I-MR  DS12 → CL 24.213 · UCL 25.085 · LCL 23.342 · Cp 1.15 · Cpk 0.90 ·
+//         Pp 1.08 · Ppk 0.85 (all in minitab.test.mts 'DS12')
 //   X̄-R   DS04 → X̿ 73.9991 · UCL 74.0115 · LCL 73.9867 · R̄ 0.02152 ·
 //         Cp 1.81 · Cpk 1.77 · Pp 1.83 · Ppk 1.80 (all in 'DS04')
 //   X̄-S   DS06 → X̿ 5.0230 · UCL 5.0673 · LCL 4.9788 · S̄ 0.04538 · Pp 1.59 ·
@@ -34,13 +34,13 @@ export const IMR_GUIDE: ToolGuide = {
       {
         h: 'Worked example',
         blocks: [
-          { p: 'The data behind “Try an example”: 15 readings, specification 23.0 to 25.0.' },
+          { p: 'The data behind “Try an example”: 30 readings, specification 23.0 to 25.0.' },
           { table: [
             ['Result', 'Value'],
-            ['I chart', 'CL 24.167 · UCL 25.098 · LCL 23.236'],
+            ['I chart', 'CL 24.213 · UCL 25.085 · LCL 23.342'],
             ['Tests for special causes', 'No signals: stable'],
-            ['Cp · Cpk', '1.07 · 0.90'],
-            ['Pp · Ppk', '1.29 · 1.08'],
+            ['Cp · Cpk', '1.15 · 0.90'],
+            ['Pp · Ppk', '1.08 · 0.85'],
           ] },
           { p: 'The process is stable, but Cp is already below 1.33, so the spread has to come down before centring alone can make it capable.' },
         ],
@@ -62,13 +62,13 @@ export const IMR_GUIDE: ToolGuide = {
       {
         h: 'مثال محلول',
         blocks: [
-          { p: 'هذه بيانات زر «جرّب مثالًا»: 15 قراءة، والمواصفة من 23.0 إلى 25.0.' },
+          { p: 'هذه بيانات زر «جرّب مثالًا»: 30 قراءة، والمواصفة من 23.0 إلى 25.0.' },
           { table: [
             ['النتيجة', 'القيمة'],
-            ['مخطط I', 'CL 24.167 · UCL 25.098 · LCL 23.236'],
+            ['مخطط I', 'CL 24.213 · UCL 25.085 · LCL 23.342'],
             ['اختبارات الأسباب الخاصة', 'لا توجد إشارات: مستقرة'],
-            ['Cp · Cpk', '1.07 · 0.90'],
-            ['Pp · Ppk', '1.29 · 1.08'],
+            ['Cp · Cpk', '1.15 · 0.90'],
+            ['Pp · Ppk', '1.08 · 0.85'],
           ] },
           { p: 'العملية مستقرة، لكن Cp نفسه أقل من 1.33، لذلك يجب تقليل التشتت أولًا لأن التمركز وحده لن يجعلها قادرة.' },
         ],

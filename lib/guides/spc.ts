@@ -1,10 +1,10 @@
 import type { ToolGuide } from './types'
 
-// Example = the tool's "Try an example" data (15 readings, LSL 23, USL 25),
-// golden dataset DS01. Every number below is asserted by
-// tests/golden/minitab.test.mts (check 'DS01'): CL 24.167 · UCL 25.098 ·
-// LCL 23.236 · Cp 1.07 · Cpk 0.90 · Pp 1.29 · Ppk 1.08 · within PPM 3703.70.
-// Spread used = 6 × 0.310284 / 2 = 93 % (the screen's capability sentence).
+// Example = the tool's "Try an example" data (30 readings, LSL 23, USL 25),
+// golden dataset DS12. Every number below is asserted by
+// tests/golden/minitab.test.mts (check 'DS12'): CL 24.213 · UCL 25.085 ·
+// LCL 23.342 · Cp 1.15 · Cpk 0.90 · Pp 1.08 · Ppk 0.85 · within PPM 3391.23.
+// Spread used = 6 × 0.290413 / 2 = 87 % (the screen's capability sentence).
 // No formulas on the page (see ./types.ts).
 
 export const SPC_GUIDE: ToolGuide = {
@@ -27,17 +27,17 @@ export const SPC_GUIDE: ToolGuide = {
       {
         h: 'Worked example',
         blocks: [
-          { p: 'The data behind “Try an example”: 15 individual readings with a specification of 23.0 to 25.0.' },
+          { p: 'The data behind “Try an example”: 30 individual readings with a specification of 23.0 to 25.0.' },
           { table: [
             ['Result', 'Value'],
             ['Chart', 'I-MR'],
-            ['Centre line and limits', '24.167 · UCL 25.098 · LCL 23.236'],
+            ['Centre line and limits', '24.213 · UCL 25.085 · LCL 23.342'],
             ['Tests for special causes', 'No signals: stable'],
-            ['Cp · Cpk', '1.07 · 0.90'],
-            ['Pp · Ppk', '1.29 · 1.08'],
-            ['Expected outside the limits', 'about 3,704 PPM'],
+            ['Cp · Cpk', '1.15 · 0.90'],
+            ['Pp · Ppk', '1.08 · 0.85'],
+            ['Expected outside the limits', 'about 3,391 PPM'],
           ] },
-          { p: 'The process is stable but not capable against the common 1.33 target. The spread alone uses 93% of the tolerance, so the main job is to reduce variation; the mean also sits a little above the middle of the tolerance.' },
+          { p: 'The process is stable but not capable against the common 1.33 target. The spread alone uses 87% of the tolerance, so the main job is to reduce variation; the mean also sits a little above the middle of the tolerance.' },
         ],
       },
     ],
@@ -66,17 +66,17 @@ export const SPC_GUIDE: ToolGuide = {
       {
         h: 'مثال محلول',
         blocks: [
-          { p: 'هذه بيانات زر «جرّب مثالًا»: 15 قراءة فردية بمواصفة من 23.0 إلى 25.0.' },
+          { p: 'هذه بيانات زر «جرّب مثالًا»: 30 قراءة فردية بمواصفة من 23.0 إلى 25.0.' },
           { table: [
             ['النتيجة', 'القيمة'],
             ['الخريطة', 'I-MR'],
-            ['الخط المركزي والحدود', '24.167 · UCL 25.098 · LCL 23.236'],
+            ['الخط المركزي والحدود', '24.213 · UCL 25.085 · LCL 23.342'],
             ['اختبارات الأسباب الخاصة', 'لا توجد إشارات: مستقرة'],
-            ['Cp · Cpk', '1.07 · 0.90'],
-            ['Pp · Ppk', '1.29 · 1.08'],
-            ['المتوقع خارج الحدود', 'نحو 3,704 PPM'],
+            ['Cp · Cpk', '1.15 · 0.90'],
+            ['Pp · Ppk', '1.08 · 0.85'],
+            ['المتوقع خارج الحدود', 'نحو 3,391 PPM'],
           ] },
-          { p: 'العملية مستقرة لكنها غير قادرة مقارنة بالهدف الشائع 1.33. التشتت وحده يستهلك 93% من التفاوت، لذلك المهمة الأساسية تقليل التشتت، كما أن المتوسط أعلى قليلًا من منتصف التفاوت.' },
+          { p: 'العملية مستقرة لكنها غير قادرة مقارنة بالهدف الشائع 1.33. التشتت وحده يستهلك 87% من التفاوت، لذلك المهمة الأساسية تقليل التشتت، كما أن المتوسط أعلى قليلًا من منتصف التفاوت.' },
         ],
       },
     ],

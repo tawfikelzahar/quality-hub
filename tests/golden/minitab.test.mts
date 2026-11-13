@@ -110,4 +110,14 @@ check('DS06', { cl: '5.02302', ucl: '5.06728', lcl: '4.97876', rcl: '0.04538', r
   check('DS01+T24.5', { Cpm: '0.39', Pp: '1.29', Ppk: '1.08', Cp: '1.07', Cpk: '0.90', oT: '627.53', wT: '3703.70' }, x)
 }
 
+// The site's own example (home page card and "Try an example" in Mizan SPC).
+// Minitab 21, I-MR chart and Capability Analysis (Normal), Tawfik, 13 Nov 2026.
+{
+  const x = run('DS12')
+  check('DS12', { cl: '24.213', ucl: '25.085', lcl: '23.342', rcl: '0.328', rucl: '1.070', rlcl: '0', sdO: '0.309319', sdW: '0.290413',
+    Pp: '1.08', Ppk: '0.85', Cp: '1.15', Cpk: '0.90', oL: '43.80', oU: '5491.76', oT: '5535.56', wL: '14.71', wU: '3376.52', wT: '3391.23' }, x)
+  // Minitab's charts flag no point. Ours agree with all eight tests on (not counted as a Minitab check).
+  assert.deepEqual(fails(x.violations_x), {}); assert.deepEqual(fails(x.violations_r), {})
+}
+
 console.log(`golden: ${checks} checks match Minitab`)

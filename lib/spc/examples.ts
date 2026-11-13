@@ -1,23 +1,38 @@
 // Example data for "Try an example" on the chart pages: golden datasets
 // checked against Minitab (tests/golden/datasets.json). Do not edit by hand.
 
-/** DS01: I-MR basic (15 readings) */
+/** DS12: I-MR site example (30 readings) */
 export const EXAMPLE_IMR = { lsl: '23.0', usl: '25.0', rows: [
+  ['23.8'],
+  ['23.9'],
+  ['24.1'],
+  ['24.0'],
+  ['24.0'],
+  ['24.3'],
+  ['24.7'],
   ['24.1'],
   ['24.3'],
-  ['23.9'],
+  ['24.4'],
+  ['24.8'],
+  ['23.8'],
+  ['24.3'],
   ['24.2'],
-  ['24.6'],
-  ['24.0'],
+  ['24.2'],
+  ['24.3'],
+  ['24.2'],
+  ['24.2'],
+  ['23.7'],
+  ['23.9'],
+  ['24.7'],
+  ['24.7'],
+  ['24.1'],
+  ['24.5'],
+  ['24.5'],
+  ['24.3'],
   ['23.8'],
   ['24.4'],
-  ['24.5'],
-  ['24.1'],
-  ['24.0'],
-  ['24.3'],
   ['23.7'],
-  ['24.2'],
-  ['24.4'],
+  ['24.5'],
 ] as string[][] }
 
 /** DS04: X̄-R n=5, 25 subgroups (stable) */

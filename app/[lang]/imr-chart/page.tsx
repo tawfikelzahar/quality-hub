@@ -156,7 +156,7 @@ export default function ImrChartPage() {
     onGrid: grid => setCells(grid.flat().map(v => v.trim()).filter(v => v !== '')),
   });
 
-  // "Try an example": golden dataset DS01, analysed right away
+  // "Try an example": golden dataset DS12, analysed right away
   const exampleQueued = useRef(false);
   function loadExample() {
     setCells(EXAMPLE_IMR.rows.map(r => r[0]));
@@ -635,6 +635,8 @@ export default function ImrChartPage() {
                 )}
                 {error && <div className="tl-error">{error}</div>}
                 {result && <VerdictCards stable={signals.length === 0} nPoints={result.n} signals={signals.length} verdict={verdict} reason={reason} />}
+                {/* Data adequacy sits right under the verdict, so the reader sees how far to trust it */}
+                {result && <AdequacyCard adequacy={result.dataAdequacy} />}
 
                 {result && (
                   <>
@@ -870,7 +872,6 @@ export default function ImrChartPage() {
                     )}
                     {!hasSpec && <div className="tl-card" style={{ fontSize: 13, color: c.muted }}>{messages.capabilityNeedsLimits}</div>}
 
-                    <AdequacyCard adequacy={result.dataAdequacy} />
                     <ViolationsCard items={signals} allTests={false} />
                   </>
                 )}

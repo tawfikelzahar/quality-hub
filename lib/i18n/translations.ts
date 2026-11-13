@@ -71,7 +71,7 @@ export const translations = {
     home_cta_try: 'Try it with your data',
     home_cta_sample: 'See a sample report',
     home_standards_label: 'Built on the standards you work with',
-    home_preview_meta: 'Example data · 15 readings · LSL 23.0 · USL 25.0',
+    home_preview_meta: 'Example data · 30 readings · LSL 23.0 · USL 25.0',
     home_preview_badge: 'Example',
     home_preview_stable: 'Process appears stable',
     home_preview_capable: 'Not capable · Cpk {v}',
@@ -82,7 +82,7 @@ export const translations = {
     home_sheet_caption: 'Your name and company logo on every Pro report',
     home_preview_mean: 'Mean',
     home_preview_sigma: 'σ within',
-    home_preview_chart_aria: 'Individuals chart of 15 readings, all inside the control limits',
+    home_preview_chart_aria: 'Individuals chart of 30 readings, all inside the control limits',
 
     home_why_title: `Why engineers choose ${SITE.name}`,
     home_why_sub:
@@ -2084,7 +2084,7 @@ export const translations = {
     home_cta_try: 'جرّب ببياناتك الآن',
     home_cta_sample: 'شاهد نموذج تقرير',
     home_standards_label: 'مبنية على المواصفات التي تعمل بها',
-    home_preview_meta: 'بيانات مثال · 15 قراءة · LSL 23.0 · USL 25.0',
+    home_preview_meta: 'بيانات مثال · 30 قراءة · LSL 23.0 · USL 25.0',
     home_preview_badge: 'مثال',
     home_preview_stable: 'العملية تبدو مستقرة',
     home_preview_capable: 'غير قادرة · Cpk {v}',
@@ -2095,7 +2095,7 @@ export const translations = {
     home_sheet_caption: 'اسمك وشعار شركتك على كل تقرير Pro',
     home_preview_mean: 'المتوسط',
     home_preview_sigma: 'σ الداخلي',
-    home_preview_chart_aria: 'مخطط القيم الفردية لـ 15 قراءة، جميعها داخل حدود التحكم',
+    home_preview_chart_aria: 'مخطط القيم الفردية لـ 30 قراءة، جميعها داخل حدود التحكم',
 
     home_why_title: `لماذا ${SITE.name}`,
     home_why_sub:
