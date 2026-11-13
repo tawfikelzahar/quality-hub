@@ -126,6 +126,15 @@ export default function Home() {
         .mz a.mz-textlink { min-height: 44px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: var(--mz-soft); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--qh-text) 40%, transparent); text-underline-offset: 5px; }
         .mz a.mz-textlink:hover, .mz a.mz-textlink:focus-visible { color: var(--qh-gold); text-decoration-color: currentColor; }
         .mz-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+        .mz-preview { position: relative; padding-bottom: 188px; }
+        .mz a.mz-preview-card { display: block; padding: 22px 22px 16px; color: inherit; text-decoration: none; box-shadow: 0 30px 80px rgba(0,0,0,0.18); transition: border-color .15s; }
+        .mz a.mz-preview-card:hover, .mz a.mz-preview-card:focus-visible { border-color: var(--qh-gold); }
+        .mz-preview-open { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 13px; font-weight: 600; color: var(--qh-gold); }
+        .mz-sheet { position: absolute; inset-inline-end: -14px; bottom: 0; width: 250px; pointer-events: none; }
+        .mz-sheet-paper { background: #FFFDF8; border: 1px solid rgba(11,31,63,.14); border-top: 4px solid #0B1F3F; border-radius: 6px; padding: 12px 14px 12px; box-shadow: 0 18px 40px rgba(0,0,0,.28); transform: rotate(-2deg); }
+        .mz-sheet-logo { font-size: 9px; font-weight: 600; color: #6B7280; border: 1px dashed #9CA3AF; border-radius: 4px; padding: 4px 8px; }
+        .mz-sheet-line { height: 4px; border-radius: 2px; background: #E5E7EB; margin-top: 5px; }
+        .mz-sheet-caption { margin-top: 12px; font-size: 12px; line-height: 1.5; color: var(--mz-soft); }
         .mz-kpi { background: var(--qh-bg); border-radius: 8px; padding: 10px 12px; min-width: 0; }
 
         .mz-trust { border-top: 1px solid var(--qh-border); border-bottom: 1px solid var(--qh-border); background: var(--mz-band); }
@@ -153,6 +162,9 @@ export default function Home() {
           .mz-ctas { flex-direction: column; }
           .mz-ctas .mz-btn { width: 100%; }
           .mz-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .mz-preview { padding-bottom: 0; }
+          .mz-sheet { position: static; width: auto; max-width: 280px; margin: 18px auto 0; }
+          .mz-sheet-caption { text-align: center; }
           .mz-why { padding: 18px; }
           .mz-trust-in { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
           .mz-trust-title, .mz-trust a.mz-trust-link { grid-column: 1 / -1; }
@@ -209,19 +221,24 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Live example */}
-          <div className="mz-card" style={{padding:22,boxShadow:'0 30px 80px rgba(0,0,0,0.18)'}}>
+          {/* Live example: the result card opens the tool with this example; the
+              sheet in front of it is what Pro adds (the report with your name). */}
+          <div className="mz-preview">
+          <Link href="/spc?example=1" className="mz-card mz-preview-card" aria-label={t('home_preview_open')}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14,gap:12,flexWrap:'wrap'}}>
               <div style={{minWidth:0}}>
-                <div dir="ltr" style={{fontWeight:600,fontSize:15,textAlign:'start'}}>SPC Engine · I-MR</div>
+                <div dir="ltr" style={{fontWeight:600,fontSize:15,textAlign:'start'}}>Mizan SPC · I-MR</div>
                 <div style={{fontSize:12,color:'var(--qh-muted)'}}>{t('home_preview_meta')}</div>
               </div>
               <span style={{fontSize:12,color:'var(--qh-muted)',border:'1px solid var(--qh-border)',borderRadius:6,padding:'3px 10px'}}>{t('home_preview_badge')}</span>
             </div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:14}}>
+            <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:10}}>
               <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:'var(--qh-good)',background:'color-mix(in srgb, var(--qh-good) 12%, transparent)',borderRadius:6,padding:'6px 10px'}}><IconCheck />{t('home_preview_stable')}</span>
               <span style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,fontWeight:600,color:'var(--qh-danger)',background:'color-mix(in srgb, var(--qh-danger) 12%, transparent)',borderRadius:6,padding:'6px 10px'}}><IconAlert />{t('home_preview_capable').replace('{v}', fmt2(exCpk))}</span>
             </div>
+            <p style={{margin:'0 0 14px',fontSize:13,lineHeight:1.65,color:'var(--mz-soft)'}}>
+              {t('home_preview_reason').replace('{p}', String(Math.round((6 * exSigmaWithin) / (EX_USL - EX_LSL) * 100))).replace('{d}', fmt3(Math.abs(exMean - (EX_USL + EX_LSL) / 2)))}
+            </p>
             <ExampleChart label={t('home_preview_chart_aria')} />
             <div className="mz-kpis">
               <div className="mz-kpi"><div style={{fontSize:11,color:'var(--qh-muted)'}}>{t('home_preview_mean')}</div><div className="mz-num" style={{fontSize:17,fontWeight:600}}>{fmt3(exMean)}</div></div>
@@ -229,6 +246,33 @@ export default function Home() {
               <div className="mz-kpi"><div style={{fontSize:11,color:'var(--qh-muted)'}}>Cpk</div><div className="mz-num" style={{fontSize:17,fontWeight:600,color:'var(--qh-danger)'}}>{fmt2(exCpk)}</div></div>
               <div className="mz-kpi"><div style={{fontSize:11,color:'var(--qh-muted)'}}>Ppk</div><div className="mz-num" style={{fontSize:17,fontWeight:600,color:'var(--qh-amber)'}}>{fmt2(exPpk)}</div></div>
             </div>
+            <div className="mz-preview-open">{t('home_preview_open')} <Arrow /></div>
+          </Link>
+          {/* Report sheet: reports are always in English, so the sheet reads left to right */}
+          <div className="mz-sheet" aria-hidden="true">
+            <div dir="ltr" className="mz-sheet-paper">
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginBottom:10}}>
+                <span className="mz-sheet-logo">{t('home_sheet_logo')}</span>
+                <span style={{fontSize:9,fontWeight:700,letterSpacing:.6,color:'#85662F'}}>PDF · EXCEL</span>
+              </div>
+              <div style={{fontSize:12,fontWeight:700,color:'#0B1F3F',marginBottom:6}}>SPC Analysis Report</div>
+              <div className="mz-sheet-line" style={{width:'92%'}} />
+              <div className="mz-sheet-line" style={{width:'74%'}} />
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:12}}>
+                <div>
+                  <div style={{fontSize:9,color:'#6B7280',marginBottom:2}}>Prepared by</div>
+                  <svg viewBox="0 0 90 22" width="78" height="19" style={{display:'block'}}><path d="M3 15 C 9 2, 14 2, 15 12 S 22 20, 27 9 S 34 4, 37 13 S 46 18, 50 8 S 60 6, 62 13 S 74 16, 87 6" fill="none" stroke="#B8923F" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                  <div style={{borderTop:'1px solid #C9CED6',marginTop:2,paddingTop:3,fontSize:10,fontWeight:600,color:'#0B1F3F'}}>{t('home_sheet_name')}</div>
+                </div>
+                <div>
+                  <div style={{fontSize:9,color:'#6B7280',marginBottom:2}}>Approved by</div>
+                  <div style={{height:19}} />
+                  <div style={{borderTop:'1px solid #C9CED6',marginTop:2,paddingTop:3,fontSize:10,color:'#9CA3AF'}}>&nbsp;</div>
+                </div>
+              </div>
+            </div>
+            <div className="mz-sheet-caption"><span className="mz-pro">PRO</span> {t('home_sheet_caption')}</div>
+          </div>
           </div>
         </section>
 

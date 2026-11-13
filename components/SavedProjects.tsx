@@ -22,7 +22,7 @@ export interface SavedAnalysis {
 }
 
 export const TOOL_LABELS: Record<SavedTool, string> = {
-  spc: 'SPC Engine',
+  spc: 'Mizan SPC',
   pareto: 'Pareto Chart',
   dpmo: 'DPMO & Sigma',
   oee: 'OEE Calculator',

@@ -37,7 +37,7 @@ export const translations = {
     nav_appearance: 'Appearance',
 
     // ── Tool-page breadcrumbs (next to the σ logo in every tool's nav) ──
-    bc_spc: 'SPC Engine',
+    bc_spc: 'Mizan SPC',
     bc_pareto: 'Pareto Chart',
     bc_dpmo: 'DPMO & Sigma',
     bc_aql: 'AQL Sampling Plan Calculator',
@@ -64,7 +64,7 @@ export const translations = {
 
     // ── Landing page (home) ──
     home_eyebrow: 'Free to start · No install needed · Arabic & English',
-    home_title_1: 'Quality statistics you can',
+    home_title_1: 'Quality decisions you can',
     home_title_2: 'sign your name to.',
     home_sub:
       'SPC, capability, Gage R&R, AQL sampling, DOE and regression. Results that match specialized statistical software, in a report that carries your name and your company logo.',
@@ -75,6 +75,11 @@ export const translations = {
     home_preview_badge: 'Example',
     home_preview_stable: 'In statistical control',
     home_preview_capable: 'Not capable · Cpk {v}',
+    home_preview_reason: 'The process uses {p}% of the tolerance, and the mean sits {d} from mid-spec, toward the USL.',
+    home_preview_open: 'Open this example',
+    home_sheet_logo: 'Your logo',
+    home_sheet_name: 'Your name',
+    home_sheet_caption: 'Your name and company logo on every Pro report',
     home_preview_mean: 'Mean',
     home_preview_sigma: 'σ within',
     home_preview_chart_aria: 'Individuals chart of 15 readings, all inside the control limits',
@@ -102,7 +107,7 @@ export const translations = {
 
     home_tools_title: 'Start from your question',
     home_tools_sub: '{n} tools, grouped by the problem you need to solve. Every result is free on screen; tools marked PRO need a Pro plan.',
-    home_stability_hint: 'Not sure which chart? Start with SPC Engine: it picks I-MR, X̄-R or X̄-S from your subgroup size.',
+    home_stability_hint: 'Not sure which chart? Start with Mizan SPC: it picks I-MR, X̄-R or X̄-S from your subgroup size.',
     home_search_label: 'Search tools',
     home_search_placeholder: 'Search tools, e.g. Cpk, AQL',
     home_search_empty: 'No tool matches "{q}".',
@@ -166,7 +171,7 @@ export const translations = {
     theme_light: 'Light',
     theme_dark: 'Dark',
 
-    spc_title: 'SPC Engine',
+    spc_title: 'Mizan SPC',
     spc_desc: 'X̄&R · I-MR · Nelson Rules · Anderson-Darling · Cp · Cpk · Pp · Ppk · Sigma Level · PPM · Attribute Charts',
 
     pareto_title: 'Pareto Chart',
@@ -1229,7 +1234,7 @@ export const translations = {
     spc_paste_rows: 'Paste rows from Excel anywhere on this page with Ctrl+V: one row per subgroup',
     spc_help_btn: 'How to use',
     spc_example_btn: 'Try an example',
-    spc_help_title: 'How to use SPC Engine',
+    spc_help_title: 'How to use Mizan SPC',
     spc_help_close: 'Close',
     spc_help_s1_t: 'Choose the data type',
     spc_help_s1_d: 'Variable for measurements (length, weight, pressure). Attribute for counts: defective parts (p, np) or defects (c, u).',
@@ -1975,7 +1980,7 @@ export const translations = {
     nf_title: 'This page does not exist',
     nf_sub: 'The link may be old or mistyped. Every tool is one click away from the home page.',
     nf_home: 'Go to the home page',
-    nf_spc: 'Open SPC Engine',
+    nf_spc: 'Open Mizan SPC',
     nf_guide: 'See all tools',
     bc_privacy: 'Privacy Policy',
     bc_terms: 'Terms of Use',
@@ -2045,7 +2050,7 @@ export const translations = {
     nav_appearance: 'المظهر',
 
     // ── Tool-page breadcrumbs ──
-    bc_spc: 'SPC Engine',
+    bc_spc: 'Mizan SPC',
     bc_pareto: 'مخطط Pareto',
     bc_dpmo: 'DPMO & Sigma',
     bc_aql: 'حاسبة خطة عينات AQL',
@@ -2072,7 +2077,7 @@ export const translations = {
 
     // ── Landing page (home) ──
     home_eyebrow: 'مجاني للبدء · يعمل من المتصفح · عربي وإنجليزي',
-    home_title_1: 'إحصاءات جودة',
+    home_title_1: 'قرارات جودة',
     home_title_2: 'تضع عليها اسمك بثقة',
     home_sub:
       'SPC ودراسات القدرة وGage R&R وخطط AQL وDOE والانحدار. نتائج مطابقة للبرامج الإحصائية المتخصصة، في تقرير يحمل اسمك وشعار شركتك.',
@@ -2083,6 +2088,11 @@ export const translations = {
     home_preview_badge: 'مثال',
     home_preview_stable: 'مستقرة إحصائيًا',
     home_preview_capable: 'غير قادرة · Cpk {v}',
+    home_preview_reason: 'العملية تستهلك {p}% من مدى التفاوت، والمتوسط يبعد {d} عن منتصف المواصفة باتجاه USL.',
+    home_preview_open: 'افتح هذا المثال',
+    home_sheet_logo: 'شعار شركتك',
+    home_sheet_name: 'اسمك',
+    home_sheet_caption: 'اسمك وشعار شركتك على كل تقرير Pro',
     home_preview_mean: 'المتوسط',
     home_preview_sigma: 'σ الداخلي',
     home_preview_chart_aria: 'مخطط القيم الفردية لـ 15 قراءة، جميعها داخل حدود التحكم',
@@ -2109,7 +2119,7 @@ export const translations = {
 
     home_tools_title: 'ابدأ من سؤالك',
     home_tools_sub: '{n} أداة مرتبة حسب المشكلة التي تريد حلها. كل النتائج مجانية على الشاشة، والأدوات التي عليها PRO تحتاج خطة Pro.',
-    home_stability_hint: 'لست متأكدًا من الخريطة المناسبة؟ ابدأ بـ SPC Engine، فهو يختار I-MR أو X̄-R أو X̄-S حسب حجم المجموعة.',
+    home_stability_hint: 'لست متأكدًا من الخريطة المناسبة؟ ابدأ بـ Mizan SPC، فهو يختار I-MR أو X̄-R أو X̄-S حسب حجم المجموعة.',
     home_search_label: 'ابحث عن أداة',
     home_search_placeholder: 'ابحث عن أداة مثل Cpk أو AQL',
     home_search_empty: 'لا توجد أداة تطابق "{q}".',
@@ -2173,7 +2183,7 @@ export const translations = {
     theme_light: 'فاتح',
     theme_dark: 'داكن',
 
-    spc_title: 'SPC Engine',
+    spc_title: 'Mizan SPC',
     spc_desc: 'X̄&R · I-MR · Nelson Rules · Anderson-Darling · Cp · Cpk · Pp · Ppk · Sigma Level · PPM · Attribute Charts',
 
     pareto_title: 'مخطط Pareto',
@@ -3236,7 +3246,7 @@ export const translations = {
     spc_paste_rows: 'الصق صفوفًا من Excel في أي مكان بالصفحة بـ Ctrl+V: كل صف مجموعة فرعية',
     spc_help_btn: 'كيف أستخدمها',
     spc_example_btn: 'جرّب بمثال',
-    spc_help_title: 'كيف تستخدم SPC Engine',
+    spc_help_title: 'كيف تستخدم Mizan SPC',
     spc_help_close: 'إغلاق',
     spc_help_s1_t: 'اختر نوع البيانات',
     spc_help_s1_d: 'متغيرة للقياسات مثل الطول والوزن والضغط. وصفية للعدّ: عدد القطع المعيبة (p وnp) أو عدد العيوب (c وu).',
@@ -3979,7 +3989,7 @@ export const translations = {
     nf_title: 'هذه الصفحة غير موجودة',
     nf_sub: 'ربما يكون الرابط قديمًا أو به خطأ في الكتابة. كل الأدوات على بُعد نقرة من الصفحة الرئيسية.',
     nf_home: 'الذهاب إلى الصفحة الرئيسية',
-    nf_spc: 'فتح SPC Engine',
+    nf_spc: 'فتح Mizan SPC',
     nf_guide: 'عرض كل الأدوات',
     bc_privacy: 'سياسة الخصوصية',
     bc_terms: 'شروط الاستخدام',

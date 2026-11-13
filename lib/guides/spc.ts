@@ -9,12 +9,12 @@ import type { ToolGuide } from './types'
 
 export const SPC_GUIDE: ToolGuide = {
   en: {
-    title: 'About SPC Engine',
+    title: 'About Mizan SPC',
     sections: [
       {
         h: 'What it does',
         blocks: [
-          { p: 'SPC Engine answers the two questions every process review starts with: is the process stable (in statistical control), and is it capable of meeting the specification? Paste your readings and the tool picks the right control chart for your subgroup size, checks it for special causes, and gives Cp, Cpk, Pp and Ppk with the expected parts per million outside the limits, plus a sentence that says whether to reduce variation or re-centre.' },
+          { p: 'Mizan SPC answers the two questions every process review starts with: is the process stable (in statistical control), and is it capable of meeting the specification? Paste your readings and the tool picks the right control chart for your subgroup size, checks it for special causes, and gives Cp, Cpk, Pp and Ppk with the expected parts per million outside the limits, plus a sentence that says whether to reduce variation or re-centre.' },
           { p: 'Use it for measurements such as length, weight, torque or pressure (I-MR, X̄-R and X̄-S charts), and for counts of defective parts or defects (p, np, c and u charts).' },
         ],
       },
@@ -48,12 +48,12 @@ export const SPC_GUIDE: ToolGuide = {
     ],
   },
   ar: {
-    title: 'عن SPC Engine',
+    title: 'عن Mizan SPC',
     sections: [
       {
         h: 'ماذا تفعل الأداة',
         blocks: [
-          { p: 'تجيب SPC Engine عن السؤالين اللذين تبدأ بهما أي مراجعة لعملية إنتاج: هل العملية مستقرة (تحت السيطرة الإحصائية)، وهل هي قادرة على تحقيق المواصفة؟ الصق قراءاتك فتختار الأداة خريطة التحكم المناسبة لحجم المجموعة، وتفحصها بحثًا عن الأسباب الخاصة، وتعطيك Cp وCpk وPp وPpk مع العدد المتوقع خارج الحدود لكل مليون قطعة، وجملة توضح هل تحتاج إلى تقليل التشتت أم إعادة التمركز.' },
+          { p: 'تجيب Mizan SPC عن السؤالين اللذين تبدأ بهما أي مراجعة لعملية إنتاج: هل العملية مستقرة (تحت السيطرة الإحصائية)، وهل هي قادرة على تحقيق المواصفة؟ الصق قراءاتك فتختار الأداة خريطة التحكم المناسبة لحجم المجموعة، وتفحصها بحثًا عن الأسباب الخاصة، وتعطيك Cp وCpk وPp وPpk مع العدد المتوقع خارج الحدود لكل مليون قطعة، وجملة توضح هل تحتاج إلى تقليل التشتت أم إعادة التمركز.' },
           { p: 'استخدمها للقياسات مثل الطول والوزن والعزم والضغط (خرائط I-MR وX̄-R وX̄-S)، ولعدّ القطع المعيبة أو العيوب (خرائط p وnp وc وu).' },
         ],
       },

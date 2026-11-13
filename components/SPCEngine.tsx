@@ -646,7 +646,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   // ── Export: Data + Stats as a professional Excel workbook ── (Pro only)
   const runExportExcel = async () => {
     if (!isPro) { goToPricing('spc', 'excel'); return }
-    const report = createReport({ toolName: 'SPC Engine' })
+    const report = createReport({ toolName: 'Mizan SPC' })
 
     // ── Sheet 1: Overview — KPI cards + chart limits + capability summary ──
     const overview = report.addSheet('Overview')
@@ -1633,6 +1633,16 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     setErrorMsg('')
     exampleQueued.current = true
   }
+  // /spc?example=1 (the home page preview card) opens with the example loaded
+  const loadExampleRef = useRef(loadExample)
+  useEffect(() => { loadExampleRef.current = loadExample })
+  useEffect(() => {
+    let wanted = false
+    try { wanted = new URLSearchParams(window.location.search).get('example') === '1' } catch { /* no example */ }
+    if (!wanted) return
+    const id = window.setTimeout(() => loadExampleRef.current(), 0)
+    return () => window.clearTimeout(id)
+  }, [])
   const [narrow, setNarrow] = useState(false)
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)')
@@ -1688,7 +1698,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
         <ToolSidebar current="/spc" />
 
         <div className="tl-main">
-          <ToolHeader title="SPC Engine" intro={t('spc_intro')} onHelp={() => setHelpOpen(true)} onExample={loadExample} exampleDisabled={loading} />
+          <ToolHeader title="Mizan SPC" intro={t('spc_intro')} onHelp={() => setHelpOpen(true)} onExample={loadExample} exampleDisabled={loading} />
           <HelpPanel
             open={helpOpen}
             onClose={() => setHelpOpen(false)}
