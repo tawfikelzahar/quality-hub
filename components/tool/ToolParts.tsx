@@ -382,7 +382,7 @@ export function useCompactSave() {
 }
 
 // ── Verdict cards: stability + capability ────────────────────────────────
-export function VerdictCards({ stable, nPoints, nSubgroups, signals, verdict, reason }: {
+export function VerdictCards({ stable, nPoints, nSubgroups, signals, verdict, reason, launchFree }: {
   stable: boolean
   nPoints: number
   /** Subgroup count when n > 1; the stability line then counts subgroups, not readings. */
@@ -390,6 +390,8 @@ export function VerdictCards({ stable, nPoints, nSubgroups, signals, verdict, re
   signals: number
   verdict: CapabilityVerdict | null
   reason: string | null
+  /** SPC Engine: say the interpretation is free for the launch period (it may become Pro later) */
+  launchFree?: boolean
 }) {
   const { t } = useLanguage()
   const sc = stable ? 'var(--qh-good)' : 'var(--qh-amber)'
@@ -413,6 +415,12 @@ export function VerdictCards({ stable, nPoints, nSubgroups, signals, verdict, re
             <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: verdict.color }}>{verdict.text}</div>
             <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{reason ?? verdict.sub}</div>
           </div>
+        </div>
+      )}
+      {launchFree && (
+        <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--qh-muted)', lineHeight: 1.5 }}>
+          <span className="tl-pro">PRO</span>
+          <span>{t('spc_launch_free_note')}</span>
         </div>
       )}
     </div>

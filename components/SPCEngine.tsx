@@ -2008,7 +2008,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
           )}
           {errorMsg && <div className="tl-error">{errorMsg}</div>}
           {/* ── VERDICTS: stability + capability, first thing on the results ── */}
-          {result && <VerdictCards stable={stable} nPoints={nPoints} nSubgroups={varResult && varResult.N > 1 ? varResult.xbarVals.length : undefined} signals={allViolations.length} verdict={screenVerdict} reason={verdictReason} />}
+          {result && <VerdictCards stable={stable} nPoints={nPoints} nSubgroups={varResult && varResult.N > 1 ? varResult.xbarVals.length : undefined} signals={allViolations.length} verdict={screenVerdict} reason={verdictReason} launchFree={!isPro} />}
           {/* ── VARIABLE RESULTS ───────────────────────────────────────── */}
           {varResult && (
             <>
