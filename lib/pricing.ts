@@ -53,8 +53,29 @@ export const PRICES: Record<Region, PriceList> = {
 
 export const FOUNDING = {
   open: true,
-  /** ISO date the founding price closes, or null while the launch date is not set */
+  /**
+   * When the founding price closes, or null while the launch date is not set.
+   * Launch day: set it to launch + 60 days, end of that day in Cairo, written
+   * with the +02:00 offset, e.g. '2027-03-01T23:59:59+02:00'. That one line
+   * turns on the countdown on the pricing page and closes the founding price
+   * everywhere (pricing page, home page badge, checkout) at that moment.
+   */
   endsAt: null as string | null,
+}
+
+/** Closing moment in ms, or null when no end date is set (or it cannot be read). */
+export function foundingEndsAtMs(): number | null {
+  if (!FOUNDING.endsAt) return null
+  const end = Date.parse(FOUNDING.endsAt)
+  return Number.isFinite(end) ? end : null
+}
+
+/** Is the founding price open to everyone right now? */
+export function foundingOpen(now: number = Date.now()): boolean {
+  if (!FOUNDING.open) return false
+  if (!FOUNDING.endsAt) return true
+  const end = foundingEndsAtMs()
+  return end !== null && now < end
 }
 
 /** Egypt, or an unknown country (no header), gets the Egyptian list; everyone else the dollar list. */

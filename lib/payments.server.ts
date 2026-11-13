@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { FOUNDING, PRICES, regionForCountry, type PeriodId, type PlanPrice, type Region } from '@/lib/pricing'
+import { foundingOpen, PRICES, regionForCountry, type PeriodId, type PlanPrice, type Region } from '@/lib/pricing'
 import { paymobConfig, type PaymobConfig } from '@/lib/paymob.server'
 import { isAdminSession } from '@/lib/admin.server'
 import { keepsFounding } from '@/lib/plan'
@@ -47,12 +47,7 @@ export async function checkoutContext(country: string | null, supabase?: Supabas
 }
 
 /** Is the founding price open to everyone right now? */
-export function foundingOpen(now: number = Date.now()): boolean {
-  if (!FOUNDING.open) return false
-  if (!FOUNDING.endsAt) return true
-  const end = Date.parse(FOUNDING.endsAt)
-  return Number.isFinite(end) && now < end
-}
+export { foundingOpen }
 
 /**
  * Does this user pay the founding price? Yes while it is open to everyone;

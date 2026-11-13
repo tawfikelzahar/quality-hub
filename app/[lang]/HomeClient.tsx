@@ -9,6 +9,7 @@ import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
 import { VERIFICATION, VERIFY_COPY, TOOL_COUNT as VERIFIED_TOOL_COUNT, formatRunDate, formatCount } from '@/lib/verification/content'
 import { SITE } from '@/lib/site'
+import { foundingOpen } from '@/lib/pricing'
 import ToolsDirectory from '@/components/ToolsDirectory'
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -329,7 +330,7 @@ export default function Home() {
                 <Link href="/login" className="mz-btn mz-btn-primary" style={{minHeight:46,fontSize:15}}>{t('home_plan_free_cta')}</Link>
               </div>
               <div className="mz-card mz-plan" style={{borderColor:'var(--qh-gold)'}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:600,fontSize:16,marginBottom:4}}>Pro <span className="mz-pro">{t('home_plan_pro_soon')}</span></div>
+                <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:600,fontSize:16,marginBottom:4}}>Pro {foundingOpen() && <span className="mz-pro">{t('home_plan_pro_soon')}</span>}</div>
                 <div style={{fontSize:18,fontWeight:600,marginBottom:16,minHeight:42,display:'flex',alignItems:'center',color:'var(--qh-muted)'}}>{t('home_plan_pro_price')}</div>
                 <ul><li>{t('home_plan_pro_1')}</li><li>{t('home_plan_pro_2')}</li><li>{t('home_plan_pro_3')}</li></ul>
                 <Link href="/pricing" className="mz-btn" style={{minHeight:46,fontSize:15,border:'1px solid var(--qh-gold)',color:'var(--qh-gold)'}}>{t('home_plan_pro_cta')}</Link>

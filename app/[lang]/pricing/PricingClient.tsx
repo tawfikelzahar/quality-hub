@@ -1,13 +1,14 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import Link from '@/components/LocaleLink'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import type { TKey } from '@/lib/i18n/translations'
 import { useAuthState } from '@/lib/authState'
-import { FOUNDING, PRICES, formatPrice, savingPercent, type PeriodId, type Region } from '@/lib/pricing'
+import { PRICES, formatPrice, foundingEndsAtMs, foundingOpen, savingPercent, type PeriodId, type Region } from '@/lib/pricing'
+import FoundingCountdown from '@/components/FoundingCountdown'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Pricing — kept in line with what the code actually gates (Oct 2026):
@@ -107,13 +108,31 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
   const [period, setPeriod] = useState<PeriodId>('yearly')
   const list = PRICES[region]
   const plan = list.plans.find((p) => p.id === period) ?? list.plans[list.plans.length - 1]
-  const founding = FOUNDING.open
+  // Founding price: open until FOUNDING.endsAt (lib/pricing.ts). The countdown
+  // flips the page to the regular price the moment it reaches zero.
+  // ?countdown_preview=1 shows a sample 60-day countdown while no end date is
+  // set, to look at the design before launch; it changes no price.
+  const realEnd = foundingEndsAtMs()
+  const [closed, setClosed] = useState(() => !foundingOpen())
+  const [previewEnd, setPreviewEnd] = useState<number | null>(null)
+  useEffect(() => {
+    if (realEnd !== null) return
+    const id = window.setTimeout(() => {
+      try {
+        if (new URLSearchParams(window.location.search).get('countdown_preview') === '1') setPreviewEnd(Date.now() + 60 * 24 * 3600 * 1000)
+      } catch { /* no preview */ }
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [realEnd])
+  const onFoundingEnd = useCallback(() => setClosed(true), [])
+  const countdownEnd = realEnd ?? previewEnd
+  const founding = !closed
   const pay = founding ? plan.founding : plan.price
   const money = (n: number) => formatPrice(n, list.currency, lang)
   const save = savingPercent(list, plan, founding)
   const perMonth = plan.months > 1 ? money(Math.round((pay / plan.months) * 100) / 100) : null
-  const foundingLine = FOUNDING.endsAt
-    ? t('pricing_founding_until').replace('{d}', new Intl.DateTimeFormat(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(FOUNDING.endsAt)))
+  const foundingLine = countdownEnd !== null
+    ? t('pricing_founding_until').replace('{d}', new Intl.DateTimeFormat(lang === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Cairo' }).format(new Date(countdownEnd)))
     : t('pricing_founding_note')
 
   const chip = (on: boolean): React.CSSProperties => ({
@@ -221,6 +240,9 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
               {save > 0 && <span style={{ color: c.gold, fontWeight: 700 }}>{t('pricing_save').replace('{n}', String(save))}</span>}
             </div>
             {founding && <div style={{ fontSize: 12, color: c.text, margin: '8px 0 0', lineHeight: 1.6 }}>{foundingLine}</div>}
+            {founding && countdownEnd !== null && (
+              <FoundingCountdown endsAt={countdownEnd} onEnd={realEnd !== null ? onFoundingEnd : undefined} gold={c.gold} border={c.border} muted={c.muted} text={c.text} />
+            )}
             <div style={{ fontSize: 12, color: c.muted, margin: '6px 0 16px' }}>{t('pricing_once_note')}</div>
 
             <ul style={bulletList}>
