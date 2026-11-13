@@ -64,7 +64,7 @@ export const translations = {
 
     // ── Landing page (home) ──
     home_eyebrow: 'Free to start · No install needed · Arabic & English',
-    home_title_1: 'Quality decisions you can',
+    home_title_1: 'From your data to a report you can',
     home_title_2: 'sign your name to.',
     home_sub:
       'SPC, capability, Gage R&R, AQL sampling, DOE and regression. Results that match specialized statistical software, in a report that carries your name and your company logo.',
@@ -2077,8 +2077,8 @@ export const translations = {
 
     // ── Landing page (home) ──
     home_eyebrow: 'مجاني للبدء · يعمل من المتصفح · عربي وإنجليزي',
-    home_title_1: 'قرارات جودة',
-    home_title_2: 'تضع عليها اسمك بثقة',
+    home_title_1: 'من بياناتك إلى تقرير',
+    home_title_2: 'تضع اسمك عليه بثقة',
     home_sub:
       'SPC ودراسات القدرة وGage R&R وخطط AQL وDOE والانحدار. نتائج مطابقة للبرامج الإحصائية المتخصصة، في تقرير يحمل اسمك وشعار شركتك.',
     home_cta_try: 'جرّب ببياناتك الآن',
