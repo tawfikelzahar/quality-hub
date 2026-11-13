@@ -36,9 +36,17 @@ export async function GET() {
   if ('refused' in auth) return auth.refused
   const { supabase } = auth
 
-  const { data, error } = await supabase.rpc('admin_list_users')
+  const [{ data, error }, prices] = await Promise.all([
+    supabase.rpc('admin_list_users'),
+    supabase.rpc('admin_user_prices'),
+  ])
   if (error) return rpcError(error)
   const users = (data ?? []) as AdminUser[]
+  // Price type of each subscriber's last paid payment (supabase/sql/013), as in /api/admin/users.
+  const priceOf = new Map<string, boolean>()
+  if (!prices.error) {
+    for (const p of (prices.data ?? []) as { user_id: string; founding: boolean }[]) priceOf.set(p.user_id, p.founding)
+  }
   const now = Date.now()
 
   const wb = new ExcelJS.Workbook()
@@ -49,6 +57,7 @@ export async function GET() {
     { header: 'Email', key: 'email', width: 34 },
     { header: 'Name', key: 'name', width: 24 },
     { header: 'Plan', key: 'plan', width: 20 },
+    { header: 'Last price paid', key: 'price', width: 16 },
     { header: 'Pro until (Cairo)', key: 'until', width: 18, style: { numFmt: 'yyyy-mm-dd hh:mm' } },
     { header: 'Signed up (Cairo)', key: 'created', width: 18, style: { numFmt: 'yyyy-mm-dd hh:mm' } },
     { header: 'Last sign-in (Cairo)', key: 'last', width: 18, style: { numFmt: 'yyyy-mm-dd hh:mm' } },
@@ -62,6 +71,7 @@ export async function GET() {
       email: u.email,
       name: u.full_name ?? '',
       plan: planLabel(u, now),
+      price: priceOf.has(u.id) ? (priceOf.get(u.id) ? 'Founding' : 'Regular') : '',
       until: cairo(u.pro_until),
       created: cairo(u.created_at),
       last: cairo(u.last_sign_in_at),
