@@ -312,3 +312,8 @@ select option, select optgroup { background-color: var(--qh-surface); color: var
   --qh-line: #6A55B8;
   --qh-vital: rgba(47,94,158,0.08);
 }
+
+/* Chart canvases always draw left to right, also on Arabic pages. Canvas text
+   takes its direction from the element, and in RTL a tick of -0.413 was drawn
+   as 0.413-. Arabic titles and legends still shape correctly in LTR. */
+canvas { direction: ltr; }

@@ -11,7 +11,7 @@
 
 import { SITE } from './site'
 
-export const LEGAL_UPDATED = { en: '10 November 2026', ar: '10 نوفمبر 2026' }
+export const LEGAL_UPDATED = { en: '13 November 2026', ar: '13 نوفمبر 2026' }
 
 export interface LegalSection { id: string; h: string; p?: string[]; list?: string[] }
 export interface LegalDoc {
@@ -37,11 +37,11 @@ export const PRIVACY: Record<'en' | 'ar', LegalDoc> = {
     toc: 'Contents',
     sections: [
       { id: 'scope', h: 'Scope', p: [`This policy covers the ${N} website, its tools, accounts and reports. Outside services you reach from the site have their own policies.`] },
-      { id: 'collect', h: 'What we collect', p: ['Your account details (email, name and an optional photo, or the details of your Google account if you sign in with Google), your plan, the projects and report settings you choose to save, and general usage statistics that help us improve the site.'] },
+      { id: 'collect', h: 'What we collect', p: ['Your account details (email, name and an optional photo, or the details of your Google account if you sign in with Google), your plan, the mobile number you enter when you pay, the projects and report settings you choose to save, and general usage statistics that help us improve the site.'] },
       { id: 'analysis', h: 'The data you analyze', p: ['The numbers you enter are sent to our server only to calculate the results and show them to you. They are not stored and not used for anything else unless you save the project yourself.'] },
       { id: 'ai', h: 'AI features', p: ['When you use an AI feature, the numbers of that analysis are sent to our AI provider to write the text. Your name and email are not sent.'] },
       { id: 'use', h: 'How we use data', p: ['To run the tools and your account, keep the service secure, apply plan limits, answer your messages and improve the site. We do not sell personal data.'] },
-      { id: 'providers', h: 'Service providers', p: ['We rely on trusted providers for hosting, accounts and storage, sign-in, analytics, AI features and, when paid plans open, payments. They receive only what the service needs, and some may operate outside Egypt. Card details are handled by the payment provider and never reach us.'] },
+      { id: 'providers', h: 'Service providers', p: ['We rely on trusted providers for hosting, accounts and storage, sign-in, analytics, AI features and payments. They receive only what the service needs, and some may operate outside Egypt. Card details are handled by the payment provider and never reach us. The mobile number you enter at checkout is passed to the payment provider to process the payment, and we keep it to contact you.'] },
       { id: 'cookies', h: 'Cookies and browser storage', p: ['We use a cookie to keep you signed in, browser storage for your theme and language, and analytics cookies. You can block analytics cookies in your browser and the tools keep working.'] },
       { id: 'retention', h: 'How long we keep data', p: ['Account data is kept while your account exists. Saved projects and logos are kept until you delete them or your account is deleted.'] },
       { id: 'rights', h: 'Security and your rights', p: ['Connections are encrypted and each account can reach only its own data.', `You can delete saved projects and your logo from your account page at any time, and ask for a copy, a correction or the deletion of your account at ${MAIL}. We reply within 30 days.`] },
@@ -59,11 +59,11 @@ export const PRIVACY: Record<'en' | 'ar', LegalDoc> = {
     toc: 'المحتويات',
     sections: [
       { id: 'scope', h: 'النطاق', p: [`تشمل هذه السياسة موقع ${N} وأدواته والحسابات والتقارير. أما الخدمات الخارجية التي تصل إليها من الموقع فلها سياساتها الخاصة.`] },
-      { id: 'collect', h: 'ما الذي نجمعه', p: ['بيانات حسابك (البريد الإلكتروني والاسم وصورة اختيارية، أو بيانات حساب Google إذا سجّلت الدخول به)، وخطتك، والمشاريع وإعدادات التقارير التي تختار حفظها، وإحصاءات استخدام عامة تساعدنا على تحسين الموقع.'] },
+      { id: 'collect', h: 'ما الذي نجمعه', p: ['بيانات حسابك (البريد الإلكتروني والاسم وصورة اختيارية، أو بيانات حساب Google إذا سجّلت الدخول به)، وخطتك، ورقم الجوال الذي تدخله عند الدفع، والمشاريع وإعدادات التقارير التي تختار حفظها، وإحصاءات استخدام عامة تساعدنا على تحسين الموقع.'] },
       { id: 'analysis', h: 'البيانات التي تحللها', p: ['تُرسل الأرقام التي تُدخلها إلى خادمنا لحساب النتائج وعرضها عليك فقط، ولا تُحفظ ولا تُستخدم في أي غرض آخر إلا إذا حفظت المشروع بنفسك.'] },
       { id: 'ai', h: 'مزايا الذكاء الاصطناعي', p: ['عند استخدام إحدى مزايا الذكاء الاصطناعي تُرسل أرقام ذلك التحليل إلى مزوّد الذكاء الاصطناعي لكتابة النص، ولا يُرسل اسمك ولا بريدك.'] },
       { id: 'use', h: 'كيف نستخدم البيانات', p: ['لتشغيل الأدوات وحسابك، والحفاظ على أمان الخدمة، وتطبيق حدود الخطط، والرد على رسائلك، وتحسين الموقع. ولا نبيع البيانات الشخصية.'] },
-      { id: 'providers', h: 'مزودو الخدمة', p: ['نعتمد على مزودين موثوقين للاستضافة والحسابات والتخزين وتسجيل الدخول والإحصاءات ومزايا الذكاء الاصطناعي، والدفع عند إطلاق الخطط المدفوعة. لا يتلقون إلا ما تحتاجه الخدمة، وقد يعمل بعضهم خارج مصر. ويتولى مزوّد الدفع بيانات البطاقة ولا تصل إلينا أبدًا.'] },
+      { id: 'providers', h: 'مزودو الخدمة', p: ['نعتمد على مزودين موثوقين للاستضافة والحسابات والتخزين وتسجيل الدخول والإحصاءات ومزايا الذكاء الاصطناعي والدفع. لا يتلقون إلا ما تحتاجه الخدمة، وقد يعمل بعضهم خارج مصر. ويتولى مزوّد الدفع بيانات البطاقة ولا تصل إلينا أبدًا. ورقم الجوال الذي تدخله عند الدفع يُرسل إلى مزوّد الدفع لإتمام العملية، ونحتفظ به للتواصل معك.'] },
       { id: 'cookies', h: 'ملفات تعريف الارتباط وتخزين المتصفح', p: ['نستخدم ملف تعريف ارتباط لإبقائك مسجّلًا للدخول، وتخزين المتصفح لاختيارك للمظهر واللغة، وملفات تعريف ارتباط للإحصاءات. يمكنك حظر ملفات الإحصاءات من متصفحك وتظل الأدوات تعمل.'] },
       { id: 'retention', h: 'مدة الاحتفاظ بالبيانات', p: ['نحتفظ ببيانات الحساب ما دام الحساب موجودًا، وبالمشاريع المحفوظة والشعارات حتى تحذفها أو يُحذف حسابك.'] },
       { id: 'rights', h: 'الأمان وحقوقك', p: ['الاتصالات مشفّرة، ولا يصل أي حساب إلا إلى بياناته.', `يمكنك حذف المشاريع المحفوظة وشعارك من صفحة حسابك في أي وقت، وطلب نسخة من بياناتك أو تصحيحها أو حذف حسابك عبر ${MAIL}، ونرد خلال 30 يومًا.`] },

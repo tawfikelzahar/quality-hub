@@ -106,7 +106,7 @@ export const translations = {
     home_step_3_body: 'A clean PDF or Excel report in English with your name and logo, ready to send.',
 
     home_tools_title: 'Start from your question',
-    home_tools_sub: '{n} tools, grouped by the problem you need to solve. Every result is free on screen; tools marked PRO need a Pro plan.',
+    home_tools_sub: '{n} tools, grouped by the problem you need to solve. Main results are free on screen; tools marked PRO need a Pro plan.',
     home_stability_hint: 'Not sure which chart? Start with Mizan SPC: it picks I-MR, X̄-R or X̄-S from your subgroup size.',
     home_search_label: 'Search tools',
     home_search_placeholder: 'Search tools, e.g. Cpk, AQL',
@@ -147,11 +147,11 @@ export const translations = {
     home_ar_body:
       'The whole interface works in Arabic, right to left. Terms like Cp, Cpk and AQL stay in English, exactly as they are used on the shop floor and in customer reports.',
 
-    home_price_title: 'Every analysis is free',
-    home_price_sub: 'Run any tool and read every result at no cost. Pro is for the reports you hand to others.',
+    home_price_title: 'Every tool is free to use',
+    home_price_sub: 'Run any tool and read its main results and accuracy warnings at no cost. Pro adds the deeper readings and the reports you hand to others.',
     home_plan_anon: 'Without an account',
-    home_plan_anon_1: 'Every tool except Gage R&R',
-    home_plan_anon_2: 'Full results and charts on screen',
+    home_plan_anon_1: 'Every tool, with Gage R&R on a sample study',
+    home_plan_anon_2: 'Main results, charts and accuracy warnings on screen',
     home_plan_free: 'Free account',
     home_plan_free_price: 'Free',
     home_plan_free_1: 'Everything without an account',
@@ -2118,7 +2118,7 @@ export const translations = {
     home_step_3_body: 'تقرير PDF أو Excel بالإنجليزية باسمك وشعارك، جاهز للإرسال.',
 
     home_tools_title: 'ابدأ من سؤالك',
-    home_tools_sub: '{n} أداة مرتبة حسب المشكلة التي تريد حلها. كل النتائج مجانية على الشاشة، والأدوات التي عليها PRO تحتاج خطة Pro.',
+    home_tools_sub: '{n} أداة مرتبة حسب المشكلة التي تريد حلها. النتائج الأساسية مجانية على الشاشة، والأدوات التي عليها PRO تحتاج خطة Pro.',
     home_stability_hint: 'لست متأكدًا من الخريطة المناسبة؟ ابدأ بـ Mizan SPC، فهو يختار I-MR أو X̄-R أو X̄-S حسب حجم المجموعة.',
     home_search_label: 'ابحث عن أداة',
     home_search_placeholder: 'ابحث عن أداة مثل Cpk أو AQL',
@@ -2159,11 +2159,11 @@ export const translations = {
     home_ar_body:
       'الواجهة كلها تعمل بالعربية من اليمين إلى اليسار، والمصطلحات مثل Cp وCpk وAQL تبقى بالإنجليزية كما تُستخدم في المصنع وتقارير العملاء.',
 
-    home_price_title: 'كل التحليلات مجانية',
-    home_price_sub: 'شغّل أي أداة واقرأ كل النتائج مجانًا. اشتراك Pro للتقارير التي تسلّمها للآخرين.',
+    home_price_title: 'كل الأدوات مجانية الاستخدام',
+    home_price_sub: 'شغّل أي أداة واقرأ نتائجها الأساسية وتحذيرات الدقة مجانًا. ويضيف Pro القراءات الأعمق والتقارير التي تسلّمها للآخرين.',
     home_plan_anon: 'بدون حساب',
-    home_plan_anon_1: 'كل الأدوات ما عدا Gage R&R',
-    home_plan_anon_2: 'النتائج والرسوم كاملة على الشاشة',
+    home_plan_anon_1: 'كل الأدوات، وGage R&R على دراسة نموذجية',
+    home_plan_anon_2: 'النتائج الأساسية والرسوم وتحذيرات الدقة على الشاشة',
     home_plan_free: 'حساب مجاني',
     home_plan_free_price: 'مجانًا',
     home_plan_free_1: 'كل ما هو متاح بدون حساب',

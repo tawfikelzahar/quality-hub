@@ -20,6 +20,14 @@ import { COLORS } from '@/lib/theme'
 
 ChartJSCore.register(watermarkPlugin)
 
+// Numbers on every chart are printed with Latin digits and a dot, whatever
+// the language of the visitor's device. Without this Chart.js follows the
+// browser, so an Arabic phone printed ٢٥٫٢ on the axes next to 25.2 in the
+// tables, and the same digits went into the English PDF and PNG exports.
+// (Canvas text direction is fixed to LTR in app/globals.css for the same
+// reason: in an RTL page a tick of -0.413 was drawn as 0.413-.)
+ChartJSCore.defaults.locale = 'en-US'
+
 /** Value for `options.plugins.watermark`. */
 export function watermarkOptions(density: WatermarkDensity = 'normal') {
   return { density, enabled: true }

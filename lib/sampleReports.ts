@@ -400,6 +400,7 @@ const SPC_RESULT = {
   ad: { A2: 0.317, A2adj: 0.319, p: 0.534 },
   isNormal: true,
   dataAdequacy: { n: 100, tier: 'adequate' as const, label: 'Adequate' },
+  ppmWithin: 0.12, // estimated within defect PPM (normal model, within sigma 0.1663)
   ppmTotal: 0.18, // estimated overall defect PPM (normal model, overall sigma)
 }
 
@@ -547,15 +548,15 @@ export function buildSpcSamplePdf() {
       { header: 'VALUE', width: ctx.pageWidth - ctx.margin * 2 - 260 },
     ],
     [
-      ['Within - Total PPM', r.ppmTotal.toFixed(1)],
-      ['Overall - Total PPM', r.ppmTotal.toFixed(1)],
+      ['Within - Total PPM', r.ppmWithin.toFixed(2)],
+      ['Overall - Total PPM', r.ppmTotal.toFixed(2)],
       ['Estimated Yield (Overall)', formatYieldPct(r.ppmTotal)],
     ]
   )
 
   calloutBox(
     ctx,
-    'Within PPM is based on within-process variation estimated from moving ranges, while Overall PPM is based on the total variation observed in the study data. The two estimates use different sigma values and may differ — this is expected and is not a check on each other.',
+    'Within PPM is based on within-process variation estimated from the pooled standard deviation of the subgroups, while Overall PPM is based on the total variation observed in the study data. The two estimates use different sigma values and may differ — this is expected and is not a check on each other.',
     'info'
   )
 
@@ -612,7 +613,7 @@ export function buildSpcSamplePdf() {
   const basisSentence = usingCpk
     ? `The process is classified as ${cls.label} based on Cpk, the primary capability index for this analysis, since the normality assumption was not rejected. Cpk is ${fmt(r.cpk)} and Ppk is ${fmt(r.ppk)}.`
     : `The process is classified as ${cls.label} based on Ppk, the primary performance indicator for this analysis. Because the normality assumption was rejected, Cpk is shown for reference only. Ppk is ${fmt(r.ppk)}.`
-  const conclusion = `${basisSentence} The estimated overall nonconformance rate is ${r.ppmTotal.toFixed(1)} PPM, corresponding to an estimated yield of ${yieldStr}. Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
+  const conclusion = `${basisSentence} The estimated overall nonconformance rate is ${r.ppmTotal.toFixed(2)} PPM, corresponding to an estimated yield of ${yieldStr}. Final capability decisions should consider process stability, distribution fit, subgrouping strategy, specification validity, customer requirements, and risk associated with the product or process characteristic.`
   interpretationBox(ctx, 'Study Conclusion', conclusion, tone)
   criteriaReferenceTable(ctx)
 

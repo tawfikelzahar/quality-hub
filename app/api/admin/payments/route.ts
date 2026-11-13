@@ -3,7 +3,8 @@ import { requireAdmin, rpcError, NO_STORE } from '@/lib/admin.server'
 
 // GET /api/admin/payments — the latest payment attempts (paid, failed and
 // pending), newest first. Admins only (checked in the database:
-// supabase/sql/012_payments.sql).
+// supabase/sql/012_payments.sql). Each row also carries the mobile number
+// typed at checkout, once supabase/sql/014_payment_phone.sql has been run.
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
@@ -17,5 +18,13 @@ export async function GET() {
     }
     return rpcError(error)
   }
-  return NextResponse.json({ rows: data ?? [] }, { headers: NO_STORE })
+  // Mobile numbers come from their own function, so this list keeps working
+  // before 014 is run (the numbers are then simply missing).
+  const phones = await auth.supabase.rpc('admin_payment_phones')
+  const phoneOf = new Map<string, string>()
+  if (!phones.error) {
+    for (const p of (phones.data ?? []) as { payment_id: string; phone: string }[]) phoneOf.set(p.payment_id, p.phone)
+  }
+  const rows = ((data ?? []) as { id: string }[]).map((r) => ({ ...r, phone: phoneOf.get(r.id) ?? null }))
+  return NextResponse.json({ rows }, { headers: NO_STORE })
 }

@@ -119,6 +119,17 @@ export async function createPayment(p: {
   return data
 }
 
+/**
+ * Keeps the mobile number typed at checkout with the payment, so the
+ * subscriber can be contacted (supabase/sql/014_payment_phone.sql; the
+ * privacy policy says so). A failure never stops the payment: until that
+ * file has been run in Supabase the number is simply not kept.
+ */
+export async function savePaymentPhone(id: string, phone: string): Promise<void> {
+  const { error } = await db().rpc('payments_set_phone', { secret: dbSecret(), p_id: id, p_phone: phone })
+  if (error) console.error('[payments] phone not saved', error.code, error.message)
+}
+
 export async function attachIntention(id: string, intentionId: string | null, orderId: number | null): Promise<void> {
   const { error } = await db().rpc('payments_attach', { secret: dbSecret(), p_id: id, p_intention: intentionId, p_order: orderId })
   if (error) console.error('[payments] attach failed', error.code, error.message)

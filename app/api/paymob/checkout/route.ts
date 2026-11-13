@@ -4,7 +4,7 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { SITE } from '@/lib/site'
 import type { PeriodId } from '@/lib/pricing'
 import { createIntention, checkoutUrl } from '@/lib/paymob.server'
-import { attachIntention, checkoutContext, createPayment, quote, userGetsFounding } from '@/lib/payments.server'
+import { attachIntention, checkoutContext, createPayment, quote, savePaymentPhone, userGetsFounding } from '@/lib/payments.server'
 
 // POST /api/paymob/checkout — starts a Pro payment for the signed-in user
 // and returns the address of Paymob's payment page. The amount comes from
@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const paymentId = await createPayment({ userId: user.id, lang, region: ctx.region, country, quote: q, mode: ctx.cfg.mode })
+    await savePaymentPhone(paymentId, phone)
     const intention = await createIntention(ctx.cfg, {
       amountCents: q.amountCents,
       currency: q.currency,

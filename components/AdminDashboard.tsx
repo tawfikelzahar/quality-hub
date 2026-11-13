@@ -255,6 +255,7 @@ interface PaymentRow {
   status: 'pending' | 'paid' | 'failed' | 'refunded'
   fail_reason: string | null
   country: string | null
+  phone?: string | null
   paymob_transaction_id: number | null
   paid_at: string | null
   pro_until: string | null
@@ -295,13 +296,14 @@ function PaymentsSection() {
         <div style={{ overflowX: 'auto' }}>
           <table className="ad-usage-t">
             <thead>
-              <tr><th>Date</th><th>Email</th><th>Plan</th><th>Amount</th><th>Status</th><th>Paymob ref</th><th>Pro until</th></tr>
+              <tr><th>Date</th><th>Email</th><th>Mobile</th><th>Plan</th><th>Amount</th><th>Status</th><th>Paymob ref</th><th>Pro until</th></tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td>{fmtDate(r.created_at, true)}</td>
                   <td className="ad-break">{r.email ?? '—'}{r.country ? ` · ${r.country}` : ''}</td>
+                  <td dir="ltr">{r.phone ?? '—'}</td>
                   <td>{r.plan}{r.founding ? ' · founding' : ''}</td>
                   <td>{r.currency} {(r.amount_cents / 100).toLocaleString('en-US')}</td>
                   <td style={{ color: r.status === 'paid' ? 'var(--qh-gold)' : r.status === 'failed' ? 'var(--qh-danger)' : undefined, fontWeight: 600 }}>
