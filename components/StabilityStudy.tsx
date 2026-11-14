@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -128,32 +129,41 @@ export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = 
 
   // ── Load a saved project (?id=…) — old saves carry direction + both limits ──
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const d = analysis.input_data as Record<string, unknown>
+      const str = (v: unknown) => (v === null || v === undefined ? '' : String(v))
+      const months = Array.isArray(d.timePoints) ? (d.timePoints as unknown[]).map(str) : []
+      const names = Array.isArray(d.batchNames) ? (d.batchNames as unknown[]).map(str) : []
+      const values = Array.isArray(d.values) ? (d.values as unknown[][]).map(row => names.map((_, j) => str(Array.isArray(row) ? row[j] : ''))) : []
+      let lower = str(d.specLower)
+      let upper = str(d.specUpper)
+      // the old page used only the limit that matched its trend direction
+      if (d.direction === 'decreasing') upper = ''
+      if (d.direction === 'increasing') lower = ''
+      const conf = [90, 95, 99].includes(Number(d.confidence)) ? (Number(d.confidence) as 90 | 95 | 99) : 95
+      setInp({
+        attribute: str(d.attribute ?? d.attributeName) || 'Assay',
+        unit: d.unit === undefined ? '%' : str(d.unit),
+        storage: STORAGE_CONDITIONS.some(x => x.key === d.storageCondition) ? String(d.storageCondition) : 'long-term',
+        accel: ACCEL_RESULTS.includes(d.accel as AccelResult) ? (d.accel as AccelResult) : 'unknown',
+        confidence: conf, lower, upper,
+        months, names, values: months.map((_, i) => values[i] ?? names.map(() => '')),
+      })
+      setLoadedProjectName(analysis.name as string)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('stability')
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const d = analysis.input_data as Record<string, unknown>
-        const str = (v: unknown) => (v === null || v === undefined ? '' : String(v))
-        const months = Array.isArray(d.timePoints) ? (d.timePoints as unknown[]).map(str) : []
-        const names = Array.isArray(d.batchNames) ? (d.batchNames as unknown[]).map(str) : []
-        const values = Array.isArray(d.values) ? (d.values as unknown[][]).map(row => names.map((_, j) => str(Array.isArray(row) ? row[j] : ''))) : []
-        let lower = str(d.specLower)
-        let upper = str(d.specUpper)
-        // the old page used only the limit that matched its trend direction
-        if (d.direction === 'decreasing') upper = ''
-        if (d.direction === 'increasing') lower = ''
-        const conf = [90, 95, 99].includes(Number(d.confidence)) ? (Number(d.confidence) as 90 | 95 | 99) : 95
-        setInp({
-          attribute: str(d.attribute ?? d.attributeName) || 'Assay',
-          unit: d.unit === undefined ? '%' : str(d.unit),
-          storage: STORAGE_CONDITIONS.some(x => x.key === d.storageCondition) ? String(d.storageCondition) : 'long-term',
-          accel: ACCEL_RESULTS.includes(d.accel as AccelResult) ? (d.accel as AccelResult) : 'unknown',
-          confidence: conf, lower, upper,
-          months, names, values: months.map((_, i) => values[i] ?? names.map(() => '')),
-        })
-        setLoadedProjectName(analysis.name as string)
-      })
+      .then(apply)
       .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

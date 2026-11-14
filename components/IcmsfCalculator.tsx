@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -126,27 +127,36 @@ export default function IcmsfCalculator({ guide }: { guide?: React.ReactNode } =
   const set = (p: Partial<Inputs>) => setInp(prev => ({ ...prev, ...p }))
 
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const d = analysis.input_data as Record<string, unknown>
+      const str = (v: unknown, dflt = '') => (v === null || v === undefined ? dflt : String(v))
+      const hazard = HAZARD_LEVEL_ORDER.includes(d.hazard as HazardLevel) ? (d.hazard as HazardLevel) : HAZARD_LEVEL_ORDER.includes(d.hazardLevel as HazardLevel) ? (d.hazardLevel as HazardLevel) : 'low'
+      const condition = CONDITION_EFFECT_ORDER.includes(d.condition as ConditionEffect) ? (d.condition as ConditionEffect) : CONDITION_EFFECT_ORDER.includes(d.conditionEffect as ConditionEffect) ? (d.conditionEffect as ConditionEffect) : 'none'
+      const limits = (d.limits ?? {}) as { m?: number | null; M?: number | null }
+      setInp({
+        hazard, condition,
+        mode: d.mode === 'presence' ? 'presence' : d.testType === 'qualitative' ? 'presence' : 'count',
+        unit: UNITS.includes(d.unit as Unit) ? (d.unit as Unit) : 'CFU/g',
+        weight: str(d.weight, '25 g'),
+        m: str(d.m ?? limits.m), M: str(d.M ?? limits.M), positives: str(d.positives),
+        results: Array.isArray(d.results) ? (d.results as unknown[]).map(v => str(v)) : [],
+        riskP: str(d.riskP, '10'), sd: str(d.sd, '0.8'), point: str(d.point, ''),
+      })
+      setLoadedProjectName(analysis.name as string)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('icmsf')
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const d = analysis.input_data as Record<string, unknown>
-        const str = (v: unknown, dflt = '') => (v === null || v === undefined ? dflt : String(v))
-        const hazard = HAZARD_LEVEL_ORDER.includes(d.hazard as HazardLevel) ? (d.hazard as HazardLevel) : HAZARD_LEVEL_ORDER.includes(d.hazardLevel as HazardLevel) ? (d.hazardLevel as HazardLevel) : 'low'
-        const condition = CONDITION_EFFECT_ORDER.includes(d.condition as ConditionEffect) ? (d.condition as ConditionEffect) : CONDITION_EFFECT_ORDER.includes(d.conditionEffect as ConditionEffect) ? (d.conditionEffect as ConditionEffect) : 'none'
-        const limits = (d.limits ?? {}) as { m?: number | null; M?: number | null }
-        setInp({
-          hazard, condition,
-          mode: d.mode === 'presence' ? 'presence' : d.testType === 'qualitative' ? 'presence' : 'count',
-          unit: UNITS.includes(d.unit as Unit) ? (d.unit as Unit) : 'CFU/g',
-          weight: str(d.weight, '25 g'),
-          m: str(d.m ?? limits.m), M: str(d.M ?? limits.M), positives: str(d.positives),
-          results: Array.isArray(d.results) ? (d.results as unknown[]).map(v => str(v)) : [],
-          riskP: str(d.riskP, '10'), sd: str(d.sd, '0.8'), point: str(d.point, ''),
-        })
-        setLoadedProjectName(analysis.name as string)
-      })
+      .then(apply)
       .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

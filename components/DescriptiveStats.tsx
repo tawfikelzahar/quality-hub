@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -107,16 +108,25 @@ export default function DescriptiveStats({ guide }: { guide?: React.ReactNode } 
   // Only the raw input is restored; the stats are recomputed, never read
   // from a saved results blob.
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const loaded = (analysis.input_data as { values: number[] }).values
+      setCells(loaded.map(String))
+      setLoadedProjectName(analysis.name as string)
+      if (loaded.length >= 2) runAnalysis(loaded)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('descriptive_stats')
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const loaded = (analysis.input_data as { values: number[] }).values
-        setCells(loaded.map(String))
-        setLoadedProjectName(analysis.name as string)
-        if (loaded.length >= 2) runAnalysis(loaded)
-      })
+      .then(apply)
       .catch(() => setLoadError(t('ds_load_error')))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

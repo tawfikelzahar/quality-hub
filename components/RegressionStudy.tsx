@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -129,27 +130,36 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
 
   // ── Load a saved project (?id=…) — old saves: points/xCol/yCol (simple), rows/predictorNames/yCol (multiple) ──
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const d = analysis.input_data as Record<string, unknown>
+      const str = (v: unknown) => (v === null || v === undefined ? '' : String(v))
+      let next: Inputs | null = null
+      if (Array.isArray(d.names) && Array.isArray(d.rows) && typeof d.y === 'string') {
+        next = { names: (d.names as unknown[]).map(str), rows: (d.rows as unknown[][]).map(r => r.map(str)), y: d.y, xs: Array.isArray(d.xs) ? (d.xs as unknown[]).map(str) : [], predict: (d.predict as Record<string, string>) ?? {} }
+      } else if (Array.isArray(d.points)) {
+        const xCol = str(d.xCol) || 'X', yCol = str(d.yCol) || 'Y'
+        next = { names: [xCol, yCol], rows: (d.points as { x: number; y: number }[]).map(p => [str(p.x), str(p.y)]), y: yCol, xs: [xCol], predict: {} }
+      } else if (Array.isArray(d.rows) && Array.isArray(d.predictorNames)) {
+        const xs = (d.predictorNames as unknown[]).map(str), yCol = str(d.yCol) || 'Y'
+        next = { names: [...xs, yCol], rows: (d.rows as { y: number; x: number[] }[]).map(r => [...r.x.map(str), str(r.y)]), y: yCol, xs, predict: {} }
+      }
+      if (!next) throw new Error()
+      setInp(next)
+      setLoadedProjectName(analysis.name as string)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft(tool)
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const d = analysis.input_data as Record<string, unknown>
-        const str = (v: unknown) => (v === null || v === undefined ? '' : String(v))
-        let next: Inputs | null = null
-        if (Array.isArray(d.names) && Array.isArray(d.rows) && typeof d.y === 'string') {
-          next = { names: (d.names as unknown[]).map(str), rows: (d.rows as unknown[][]).map(r => r.map(str)), y: d.y, xs: Array.isArray(d.xs) ? (d.xs as unknown[]).map(str) : [], predict: (d.predict as Record<string, string>) ?? {} }
-        } else if (Array.isArray(d.points)) {
-          const xCol = str(d.xCol) || 'X', yCol = str(d.yCol) || 'Y'
-          next = { names: [xCol, yCol], rows: (d.points as { x: number; y: number }[]).map(p => [str(p.x), str(p.y)]), y: yCol, xs: [xCol], predict: {} }
-        } else if (Array.isArray(d.rows) && Array.isArray(d.predictorNames)) {
-          const xs = (d.predictorNames as unknown[]).map(str), yCol = str(d.yCol) || 'Y'
-          next = { names: [...xs, yCol], rows: (d.rows as { y: number; x: number[] }[]).map(r => [...r.x.map(str), str(r.y)]), y: yCol, xs, predict: {} }
-        }
-        if (!next) throw new Error()
-        setInp(next)
-        setLoadedProjectName(analysis.name as string)
-      })
+      .then(apply)
       .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

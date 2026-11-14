@@ -13,6 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import ToolGuide from '@/components/tool/ToolGuide';
+import { takeDraft } from '@/lib/draft';
 import { ATTRIBUTE_GUIDE } from '@/lib/guides/charts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import 'chart.js/auto';
@@ -295,19 +296,28 @@ export default function AttributeChartsPage() {
 
   // A saved project (?id=…) opens with its data and analyses again
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const inp = analysis.input_data as Analyzed;
+      setType(inp.type);
+      setTestSet(inp.testSet);
+      if (inp.type === 'np') setFixedN(String(inp.fixedN));
+      setRows(inp.data.map(r => (needsN(inp.type) ? { n: String(r[0]), d: String(r[1]) } : { n: '', d: String(r[0]) })));
+      setLoadedProjectName(analysis.name as string);
+      void runAnalysis(inp);
+    };
     const id = new URLSearchParams(window.location.search).get('id');
-    if (!id) return;
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('attribute');
+      if (draft) { try { apply({ analysis: draft }); } catch { /* a draft from an older version: ignore it */ } }
+      return;
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const inp = analysis.input_data as Analyzed;
-        setType(inp.type);
-        setTestSet(inp.testSet);
-        if (inp.type === 'np') setFixedN(String(inp.fixedN));
-        setRows(inp.data.map(r => (needsN(inp.type) ? { n: String(r[0]), d: String(r[1]) } : { n: '', d: String(r[0]) })));
-        setLoadedProjectName(analysis.name as string);
-        void runAnalysis(inp);
-      })
+      .then(apply)
       .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

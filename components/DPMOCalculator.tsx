@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -88,15 +89,24 @@ export default function DPMOCalculator({ guide }: { guide?: React.ReactNode } = 
 
   // ── Saved project (?id=...): input_data is the process list ──
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const list = analysis.input_data as { name: string; units: number; opportunities: number; defects: number }[]
+      setRows(toRows(list.map(r => [r.name, r.units, r.opportunities, r.defects])))
+      setLoadedProjectName(analysis.name as string)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('dpmo')
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const list = analysis.input_data as { name: string; units: number; opportunities: number; defects: number }[]
-        setRows(toRows(list.map(r => [r.name, r.units, r.opportunities, r.defects])))
-        setLoadedProjectName(analysis.name as string)
-      })
+      .then(apply)
       .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

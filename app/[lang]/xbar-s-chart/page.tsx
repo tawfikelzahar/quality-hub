@@ -1,6 +1,7 @@
 'use client';
 
 import ToolGuide from '@/components/tool/ToolGuide';
+import { takeDraft } from '@/lib/draft';
 import { XBAR_S_GUIDE } from '@/lib/guides/charts';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import 'chart.js/auto';
@@ -141,21 +142,30 @@ export default function XbarSChartPage() {
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const data = analysis.input_data as { subgroups: number[][]; lsl: number | null; usl: number | null; target: number | null };
+      setSubgroups(data.subgroups);
+      setGrid(data.subgroups.map((r) => r.map(String)));
+      if (data.subgroups[0]) setSgSize(data.subgroups[0].length);
+      setAppliedLimits({ lsl: data.lsl, usl: data.usl, target: data.target });
+      setLsl(data.lsl !== null ? String(data.lsl) : '');
+      setUsl(data.usl !== null ? String(data.usl) : '');
+      setTarget(data.target !== null ? String(data.target) : '');
+      setLoadedProjectName(analysis.name as string);
+    };
     const id = new URLSearchParams(window.location.search).get('id');
-    if (!id) return;
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('xbar_s');
+      if (draft) { try { apply({ analysis: draft }); } catch { /* a draft from an older version: ignore it */ } }
+      return;
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const data = analysis.input_data as { subgroups: number[][]; lsl: number | null; usl: number | null; target: number | null };
-        setSubgroups(data.subgroups);
-        setGrid(data.subgroups.map((r) => r.map(String)));
-        if (data.subgroups[0]) setSgSize(data.subgroups[0].length);
-        setAppliedLimits({ lsl: data.lsl, usl: data.usl, target: data.target });
-        setLsl(data.lsl !== null ? String(data.lsl) : '');
-        setUsl(data.usl !== null ? String(data.usl) : '');
-        setTarget(data.target !== null ? String(data.target) : '');
-        setLoadedProjectName(analysis.name as string);
-      })
+      .then(apply)
       .catch(() =>
         setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
       );

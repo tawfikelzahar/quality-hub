@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import type { Chart as ChartJSInstance } from 'chart.js'
 import { Chart } from 'react-chartjs-2'
@@ -463,46 +464,55 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
 
   // ── Load a saved project from the dashboard (?id=...) ──────────────────
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const input = analysis.input_data as {
+        dataType: DataType
+        varRows: VarRow[]
+        attrRows: AttrRow[]
+        attrType: AttrType
+        fixedN: string
+        LSL: string
+        USL: string
+        target: string
+        sigmaConvention: SigmaConvention
+        testSet?: TestSet
+      }
+      setDataType(input.dataType)
+      setVarRows(input.varRows)
+      setAttrRows(input.attrRows)
+      setAttrType(input.attrType)
+      setFixedN(input.fixedN)
+      setLSL(input.LSL)
+      setUSL(input.USL)
+      setTarget(input.target)
+      setSigmaConvention(input.sigmaConvention)
+      setTestSet(input.testSet ?? DEFAULT_TEST_SET)
+      if (input.dataType === 'variable' && input.varRows.length > 0) {
+        setN(input.varRows[0].vals.length)
+        setSubmittedVals(
+          input.varRows
+            .map(r => r.vals.map(v => parseFloat(v)))
+            .filter(row => row.every(v => !isNaN(v)))
+            .flat()
+        )
+      }
+      setResult(analysis.results as ApiResult)
+      setDataEntryOpen(false)
+      setLoadedProjectName(analysis.name as string)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('spc')
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const input = analysis.input_data as {
-          dataType: DataType
-          varRows: VarRow[]
-          attrRows: AttrRow[]
-          attrType: AttrType
-          fixedN: string
-          LSL: string
-          USL: string
-          target: string
-          sigmaConvention: SigmaConvention
-          testSet?: TestSet
-        }
-        setDataType(input.dataType)
-        setVarRows(input.varRows)
-        setAttrRows(input.attrRows)
-        setAttrType(input.attrType)
-        setFixedN(input.fixedN)
-        setLSL(input.LSL)
-        setUSL(input.USL)
-        setTarget(input.target)
-        setSigmaConvention(input.sigmaConvention)
-        setTestSet(input.testSet ?? DEFAULT_TEST_SET)
-        if (input.dataType === 'variable' && input.varRows.length > 0) {
-          setN(input.varRows[0].vals.length)
-          setSubmittedVals(
-            input.varRows
-              .map(r => r.vals.map(v => parseFloat(v)))
-              .filter(row => row.every(v => !isNaN(v)))
-              .flat()
-          )
-        }
-        setResult(analysis.results as ApiResult)
-        setDataEntryOpen(false)
-        setLoadedProjectName(analysis.name as string)
-      })
+      .then(apply)
       .catch(() =>
         setErrorMsg(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.')
       )

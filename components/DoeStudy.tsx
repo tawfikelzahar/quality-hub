@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import { Chart } from 'react-chartjs-2'
 import type { Chart as ChartJSInstance, Plugin } from 'chart.js'
@@ -125,26 +126,35 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
 
   // ── Load a saved project (?id=…): old saves have factors, replicates, responseMap ──
   useEffect(() => {
+    // Puts a saved project, or the draft kept by lib/draft.ts, back on screen
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apply = ({ analysis }: { analysis: any }) => {
+      const d = analysis.input_data as Record<string, unknown>
+      const fs = Array.isArray(d.factors) ? (d.factors as { name?: unknown; low?: unknown; high?: unknown }[]) : []
+      if (fs.length < MIN_FACTORS || fs.length > MAX_FACTORS) throw new Error()
+      const reps = Math.min(MAX_REPLICATES, Math.max(1, Math.round(Number(d.replicates) || 1)))
+      const map = (d.responseMap ?? d.values ?? {}) as Record<string, unknown>
+      setInp({
+        response: typeof d.response === 'string' ? d.response : 'Response',
+        unit: typeof d.unit === 'string' ? d.unit : '',
+        factors: fs.map((f, i) => ({ name: String(f.name ?? LETTERS[i]), low: String(f.low ?? ''), high: String(f.high ?? '') })),
+        replicates: reps, randomized: Array.isArray(d.order) && d.order.length > 0,
+        order: Array.isArray(d.order) ? (d.order as unknown[]).map(String) : [],
+        values: Object.fromEntries(Object.entries(map).map(([key, v]) => [key, v === null || v === undefined ? '' : String(v)])),
+      })
+      setLoadedProjectName(analysis.name as string)
+    }
     const id = new URLSearchParams(window.location.search).get('id')
-    if (!id) return
+    if (!id) {
+      // No saved project in the address: bring back this visitor's analysis
+      // from before they signed in or opened the Pro page, if there is one
+      const draft = takeDraft('doe')
+      if (draft) { try { apply({ analysis: draft }) } catch { /* a draft from an older version: ignore it */ } }
+      return
+    }
     fetch(`/api/saved-analyses/${id}`)
       .then(res => (res.ok ? res.json() : Promise.reject()))
-      .then(({ analysis }) => {
-        const d = analysis.input_data as Record<string, unknown>
-        const fs = Array.isArray(d.factors) ? (d.factors as { name?: unknown; low?: unknown; high?: unknown }[]) : []
-        if (fs.length < MIN_FACTORS || fs.length > MAX_FACTORS) throw new Error()
-        const reps = Math.min(MAX_REPLICATES, Math.max(1, Math.round(Number(d.replicates) || 1)))
-        const map = (d.responseMap ?? d.values ?? {}) as Record<string, unknown>
-        setInp({
-          response: typeof d.response === 'string' ? d.response : 'Response',
-          unit: typeof d.unit === 'string' ? d.unit : '',
-          factors: fs.map((f, i) => ({ name: String(f.name ?? LETTERS[i]), low: String(f.low ?? ''), high: String(f.high ?? '') })),
-          replicates: reps, randomized: Array.isArray(d.order) && d.order.length > 0,
-          order: Array.isArray(d.order) ? (d.order as unknown[]).map(String) : [],
-          values: Object.fromEntries(Object.entries(map).map(([key, v]) => [key, v === null || v === undefined ? '' : String(v)])),
-        })
-        setLoadedProjectName(analysis.name as string)
-      })
+      .then(apply)
       .catch(() => setLoadError(lang === 'ar' ? 'تعذر تحميل المشروع المحفوظ.' : 'Could not load the saved project.'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -12,6 +12,7 @@
 
 import { track } from '@/lib/analytics'
 import { hereLocalized } from '@/lib/i18n/routing'
+import { stashDraft } from '@/lib/draft'
 
 type GateFeature = 'csv' | 'png' | 'excel' | 'pdf' | 'ai' | 'insight' | 'tool' | 'diagnostics'
 
@@ -22,6 +23,7 @@ function trackGateEvent(eventName: 'signup_wall_hit' | 'pro_wall_hit', tool: str
 export function goToLogin(tool: string, feature: GateFeature) {
   if (typeof window === 'undefined') return
   trackGateEvent('signup_wall_hit', tool, feature)
+  stashDraft() // the visitor finds their analysis again after signing in (lib/draft.ts)
   const next = encodeURIComponent(window.location.pathname)
   window.location.href = hereLocalized(`/login?next=${next}`)
 }
@@ -29,5 +31,6 @@ export function goToLogin(tool: string, feature: GateFeature) {
 export function goToPricing(tool: string, feature: GateFeature) {
   if (typeof window === 'undefined') return
   trackGateEvent('pro_wall_hit', tool, feature)
+  stashDraft()
   window.location.href = hereLocalized('/pricing')
 }

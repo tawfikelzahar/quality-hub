@@ -1,7 +1,8 @@
 'use client'
 
 import { track } from '@/lib/analytics'
-import { useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { registerDraftSource } from '@/lib/draft'
 import Link from '@/components/LocaleLink'
 import { useSubscription } from '@/lib/useSubscription'
 import { COLORS, type ThemeMode } from '@/lib/theme'
@@ -28,6 +29,12 @@ export default function SaveAnalysisButton({ theme, tool, defaultName, getPayloa
   const { isPro, loading } = useSubscription()
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+
+  // This tool's current data, kept if the visitor leaves to sign in or see
+  // Pro and put back when they return (lib/draft.ts). Always the latest getPayload.
+  const payloadRef = useRef(getPayload)
+  useEffect(() => { payloadRef.current = getPayload })
+  useEffect(() => registerDraftSource(tool, () => payloadRef.current()), [tool])
 
   const btnStyle: CSSProperties = {
     background: c.surface2,
