@@ -13,6 +13,8 @@
 // the standard Mizan header.
 // ─────────────────────────────────────────────────────────────────────────
 
+import { DEV_PRO } from '@/lib/devPro'
+
 export interface ReportBranding {
   preparedBy: string
   jobTitle: string
@@ -73,4 +75,11 @@ export async function imageToDataUrl(src: string | Blob): Promise<{ dataUrl: str
 export function fitBox(w: number, h: number, maxW: number, maxH: number) {
   const s = Math.min(maxW / w, maxH / h)
   return { w: w * s, h: h * s }
+}
+
+// Local development only (NEXT_PUBLIC_QH_DEV_PRO=1 under `next dev`): lets
+// scripts/sample-reports/generate.mjs put placeholder branding on the sample
+// reports. DEV_PRO is always false on Vercel, so nothing is exposed there.
+if (DEV_PRO && typeof window !== 'undefined') {
+  (window as unknown as { __qhSetBranding?: typeof setReportBranding }).__qhSetBranding = setReportBranding
 }

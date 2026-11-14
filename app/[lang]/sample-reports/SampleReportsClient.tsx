@@ -1,20 +1,18 @@
 'use client'
 
-import { useState } from 'react'
 import Link from '@/components/LocaleLink'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS } from '@/lib/tools'
-import { SAMPLE_REPORTS, SAMPLE_PDF_BUILDERS, SAMPLE_EXCEL_BUILDERS, type SampleToolId } from '@/lib/sampleReports'
+import { SAMPLE_REPORTS } from '@/lib/sampleReports'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Public, no-login-required page: lets a visitor download a REAL PDF and
-// REAL Excel report — built with the exact same lib/pdf/reportDesign.ts
-// and lib/excelReport.ts systems every tool's own Export button uses —
-// so they can judge report quality before creating an account or
-// subscribing. Data is realistic and internally consistent (see
-// lib/sampleReports.ts) but illustrative, not a live analysis.
+// REAL Excel report so they can judge report quality before creating an
+// account or subscribing. Each file is the tool's own Pro export of its
+// built-in example, with placeholder branding (files in public/samples/,
+// made by scripts/sample-reports/generate.mjs; see lib/sampleReports.ts).
 // ─────────────────────────────────────────────────────────────────────────
 
 export default function SampleReportsPage() {
@@ -23,9 +21,6 @@ export default function SampleReportsPage() {
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
   const dark = theme === 'dark'
-
-  const [pdfLoading, setPdfLoading] = useState<SampleToolId | null>(null)
-  const [excelLoading, setExcelLoading] = useState<SampleToolId | null>(null)
 
   const allTools = TOOL_GROUPS.flatMap(g => g.rows)
   const toolTitle = (href: string) => {
@@ -36,28 +31,6 @@ export default function SampleReportsPage() {
   const otherTools = allTools.filter(r => !sampleHrefs.has(r.href))
 
   const bodyColor = dark ? 'rgba(226,232,240,0.82)' : 'rgba(30,41,59,0.82)'
-
-  const handlePdf = (id: SampleToolId) => {
-    setPdfLoading(id)
-    // Give the button's own state update a frame to paint before the
-    // (synchronous, CPU-bound) jsPDF generation blocks the main thread.
-    setTimeout(() => {
-      try {
-        SAMPLE_PDF_BUILDERS[id]()
-      } finally {
-        setPdfLoading(null)
-      }
-    }, 30)
-  }
-
-  const handleExcel = async (id: SampleToolId) => {
-    setExcelLoading(id)
-    try {
-      await SAMPLE_EXCEL_BUILDERS[id]()
-    } finally {
-      setExcelLoading(null)
-    }
-  }
 
   const cardStyle: React.CSSProperties = {
     ...s.card,
@@ -145,20 +118,12 @@ export default function SampleReportsPage() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
-                  <button
-                    style={{ ...btnPrimary, opacity: pdfLoading === report.id ? 0.7 : 1 }}
-                    onClick={() => handlePdf(report.id)}
-                    disabled={pdfLoading === report.id}
-                  >
-                    {pdfLoading === report.id ? '...' : t('sample_download_pdf')}
-                  </button>
-                  <button
-                    style={{ ...btnSecondary, opacity: excelLoading === report.id ? 0.7 : 1 }}
-                    onClick={() => handleExcel(report.id)}
-                    disabled={excelLoading === report.id}
-                  >
-                    {excelLoading === report.id ? '...' : t('sample_download_excel')}
-                  </button>
+                  <a href={report.pdf} download style={{ ...btnPrimary, textDecoration: 'none' }}>
+                    {t('sample_download_pdf')}
+                  </a>
+                  <a href={report.excel} download style={{ ...btnSecondary, textDecoration: 'none' }}>
+                    {t('sample_download_excel')}
+                  </a>
                 </div>
 
                 <Link
