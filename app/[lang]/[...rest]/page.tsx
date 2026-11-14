@@ -6,6 +6,8 @@ import { notFound } from 'next/navigation'
 // branded 404 in their language with the site's menu, instead of the plain
 // white built-in one. The answer is still a real 404 and is not indexed.
 export const dynamicParams = true
+// Metadata from a page that calls notFound() must be static to be used.
+// The Arabic tab title is set by app/[lang]/not-found.tsx itself.
 export const metadata: Metadata = { title: 'Page not found', robots: { index: false, follow: false } }
 
 export default function CatchAll() {

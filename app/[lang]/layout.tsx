@@ -8,7 +8,7 @@ import Analytics from "@/components/Analytics";
 import JsonLd from "@/components/JsonLd";
 import { siteSchema } from "@/lib/seo/schema";
 import { notFound } from 'next/navigation'
-import { SITE, SITE_TITLE } from '@/lib/site'
+import { SITE, SITE_TITLE, SITE_DESCRIPTION } from '@/lib/site'
 import { LOCALES, isLocale } from '@/lib/i18n/routing'
 
 const geistSans = Geist({
@@ -23,10 +23,7 @@ const geistMono = Geist_Mono({
 
 const SITE_URL = SITE.url;
 const SITE_NAME = SITE.name;
-const DESCRIPTION = {
-  en: "Quality engineering platform online — SPC control charts and capability (Cp, Cpk), Gage R&R (AIAG MSA), AQL sampling plans (ISO 2859-1), DOE and regression, with reports that carry your name. Arabic and English, nothing to install.",
-  ar: "منصة هندسة الجودة عبر الإنترنت بالعربية: خرائط ضبط SPC ودراسات القدرة Cp وCpk، وGage R&R وفق AIAG MSA، وخطط عينات AQL وفق ISO 2859-1، وتصميم التجارب والانحدار، مع تقارير تحمل اسمك. دون تثبيت أي برنامج.",
-} as const
+const DESCRIPTION = SITE_DESCRIPTION
 const DEFAULT_DESCRIPTION = DESCRIPTION.en
 
 // Both languages are built ahead of time; any other first segment is a 404.

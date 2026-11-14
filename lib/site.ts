@@ -63,6 +63,12 @@ export const SITE_LINKS = {
   linkedinDisplay: `in/${SITE.contact.linkedin}`,
 } as const
 
+/** The site's own description (home page, link previews, structured data) */
+export const SITE_DESCRIPTION = {
+  en: "Quality engineering platform online — SPC control charts and capability (Cp, Cpk), Gage R&R (AIAG MSA), AQL sampling plans (ISO 2859-1), DOE and regression, with reports that carry your name. Arabic and English, nothing to install.",
+  ar: "منصة هندسة الجودة عبر الإنترنت بالعربية: خرائط ضبط SPC ودراسات القدرة Cp وCpk، وGage R&R وفق AIAG MSA، وخطط عينات AQL وفق ISO 2859-1، وتصميم التجارب والانحدار، مع تقارير تحمل اسمك. دون تثبيت أي برنامج.",
+} as const
+
 /** "Mizan Quality — Quality Engineering Platform" */
 export const SITE_TITLE = `${SITE.name} — ${SITE.tagline}`
 

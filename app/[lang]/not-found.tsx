@@ -4,12 +4,18 @@ import Link from '@/components/LocaleLink'
 import { getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
+import { useEffect } from 'react'
+import { SITE } from '@/lib/site'
 
 // Branded 404: same nav, colours and type as the rest of the site, with a
 // way back to the home page, SPC Engine and the tool list.
 export default function NotFound() {
   const [theme, setTheme] = usePersistedTheme()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
+  // The browser tab title in the page language (the server one is English)
+  useEffect(() => {
+    if (lang === 'ar') document.title = `${t('bc_notfound')} | ${SITE.name}`
+  }, [lang, t])
   const s = getSharedStyles(theme)
   const btn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, padding: '0 18px', borderRadius: 10, fontSize: 14, fontWeight: 600, textDecoration: 'none' }
   return (
