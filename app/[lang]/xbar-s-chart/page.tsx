@@ -10,6 +10,9 @@ import type { Chart as ChartJSInstance } from 'chart.js';
 import { useChartAnalysis } from '@/lib/spc/useChartAnalysis';
 import { messages as messagesEn } from '@/lib/spc/xbar-s-messages';
 import { xbarSMessagesAr } from '@/lib/spc/xbar-s-messages.ar';
+import { isolateLatinDeep } from '@/lib/i18n/bidi';
+// Arabic notes with their English stretches marked left to right (lib/i18n/bidi.ts)
+const xbarSMessagesArUi = isolateLatinDeep(xbarSMessagesAr);
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
@@ -120,7 +123,7 @@ function buildCapabilityHistogram(
 export default function XbarSChartPage() {
   const [theme, setTheme] = usePersistedTheme();
   const { lang } = useLanguage();
-  const messages = lang === 'ar' ? xbarSMessagesAr : messagesEn;
+  const messages = lang === 'ar' ? xbarSMessagesArUi : messagesEn;
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
   const { isPro, isLoggedIn } = useSubscription();

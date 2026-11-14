@@ -18,6 +18,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
+import { uiDict } from '@/lib/i18n/ui'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addChartImageGrid, addSignOff, calloutBox, dataTable, finalizeReport, addDataAppendix, appendixColumns, sameDecimals, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue, formatPEquals } from '@/lib/stats/format'
@@ -581,7 +582,7 @@ export default function RegressionStudy({ mode, guide }: { mode: RegressionMode;
   const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([mainRef.current], () => withEnglishAxes(runPNG)) : runPNG())
 
   const helpSteps = [1, 2, 3, 4].map(n => ({ t: t(`rg_help_s${n}_t` as TKey), d: t(`rg_help_s${n}_d` as TKey) }))
-  const D = translations[lang]
+  const D = uiDict(lang)
   const iso = lang === 'ar'
   const small = (title: string, el: React.ReactNode) => (
     <div className="rg-mini"><div className="rg-mini-t">{title}</div><div className="tl-chart-inner" style={{ height: 200 }}>{el}</div></div>

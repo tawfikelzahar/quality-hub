@@ -18,6 +18,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
+import { uiDict } from '@/lib/i18n/ui'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addChartImagePair, addSignOff, calloutBox, dataTable, finalizeReport, addDataAppendix, appendixColumns, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPValue } from '@/lib/stats/format'
@@ -286,7 +287,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
       tooltip: { callbacks: { title: (items: { label: string }[]) => termName(items[0]?.label ?? ''), label: (item: { parsed: { x: number | null } }) => ` ${g4(item.parsed.x ?? 0)}` } },
     },
     scales: {
-      x: { beginAtZero: true, suggestedMax: res ? res.paretoLine * 1.1 : undefined, grid: { color: c.grid }, border: { color: c.border }, ticks: { color: c.muted, font: { size: 10 } }, title: { display: true, text: paretoAxis(translations[lang]), color: c.muted, font: { size: 11 } } },
+      x: { beginAtZero: true, suggestedMax: res ? res.paretoLine * 1.1 : undefined, grid: { color: c.grid }, border: { color: c.border }, ticks: { color: c.muted, font: { size: 10 } }, title: { display: true, text: paretoAxis(uiDict(lang)), color: c.muted, font: { size: 11 } } },
       // every term labelled (no auto-skip); a main effect also shows its factor name
       y: { grid: { display: false }, border: { color: c.border }, ticks: { color: c.text, autoSkip: false, font: { size: 11 }, callback: (_v: string | number, i: number) => { const term = pareto[i]?.term ?? ''; return term.length === 1 ? `${term}  ${fName(LETTERS.indexOf(term as typeof LETTERS[number]))}` : term } } },
     },
@@ -597,7 +598,7 @@ export default function DoeStudy({ guide }: { guide?: React.ReactNode } = {}) {
   const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([pngChart()], () => withEnglishAxes(runPNG)) : runPNG())
 
   const helpSteps = [1, 2, 3, 4].map(n => ({ t: t(`dx_help_s${n}_t` as TKey), d: t(`dx_help_s${n}_d` as TKey) }))
-  const D = translations[lang]
+  const D = uiDict(lang)
   const errText = err === 'no-variation' ? t('dx_err_no_variation') : err === 'zero-error' ? t('dx_err_zero_error') : err ? t('dx_failed') : ''
 
   return (

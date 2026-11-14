@@ -5,7 +5,17 @@ import { getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
 import { TOOL_GROUPS } from '@/lib/tools'
-import { VERIFICATION, VERIFIED_TOOLS, VERIFY_COPY, TOOL_COUNT, formatRunDate, formatCount, cardChecks } from '@/lib/verification/content'
+import { VERIFICATION, VERIFIED_TOOLS as TOOLS_RAW, VERIFY_COPY as COPY_RAW, TOOL_COUNT, formatRunDate, formatCount, cardChecks } from '@/lib/verification/content'
+import { isolateLatinDeep } from '@/lib/i18n/bidi'
+
+// Arabic text with its English stretches marked left to right (lib/i18n/bidi.ts)
+const VERIFY_COPY = { ...COPY_RAW, ar: isolateLatinDeep(COPY_RAW.ar) }
+const VERIFIED_TOOLS: typeof TOOLS_RAW = TOOLS_RAW.map(x => ({
+  ...x,
+  name: { ...x.name, ar: isolateLatinDeep(x.name.ar) },
+  checked: { ...x.checked, ar: isolateLatinDeep(x.checked.ar) },
+  ...(x.example ? { example: { ...x.example, label: { ...x.example.label, ar: isolateLatinDeep(x.example.label.ar) } } } : {}),
+}))
 
 // ─────────────────────────────────────────────────────────────────────────
 // /verification — how every result is checked. Copy: lib/verification/

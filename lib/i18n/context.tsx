@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, type ReactNode } fro
 import { translations, type Lang, type Dict, type TKey } from './translations'
 import { setLanguageProperty } from '@/lib/analytics'
 import { LANG_COOKIE, localizePath } from './routing'
+import { uiDict } from './ui'
 
 // ─────────────────────────────────────────────────────────────────────────
 // Site language. The language comes from the URL (/ar/… = Arabic, anything
@@ -67,7 +68,8 @@ export function LanguageProvider({ lang, children }: { lang: Lang; children: Rea
   }, [lang])
   const toggleLang = useCallback(() => setLang(lang === 'ar' ? 'en' : 'ar'), [lang, setLang])
 
-  const dict = translations[lang]
+  // Arabic: English stretches inside sentences are marked left to right (lib/i18n/bidi.ts)
+  const dict = uiDict(lang)
   const t = (key: TKey): string => dict[key] ?? translations.en[key] ?? key
 
   return (

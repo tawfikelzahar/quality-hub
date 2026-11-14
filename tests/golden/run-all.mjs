@@ -20,6 +20,7 @@ const checks = [
   'tests/golden/renewal/check.mts',
   'tests/golden/founding/check.mts',
   'tests/golden/email/check.mts',
+  'tests/golden/bidi/check.mts',
 ]
 
 let failed = 0

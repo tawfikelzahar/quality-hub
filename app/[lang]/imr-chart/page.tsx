@@ -10,6 +10,9 @@ import type { Chart as ChartJSInstance } from 'chart.js';
 import { useChartAnalysis } from '@/lib/spc/useChartAnalysis';
 import { messages as messagesEn } from '@/lib/spc/imr-messages';
 import { imrMessagesAr } from '@/lib/spc/imr-messages.ar';
+import { isolateLatinDeep } from '@/lib/i18n/bidi';
+// Arabic notes with their English stretches marked left to right (lib/i18n/bidi.ts)
+const imrMessagesArUi = isolateLatinDeep(imrMessagesAr);
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
@@ -110,7 +113,7 @@ function buildCapabilityHistogram(
 export default function ImrChartPage() {
   const [theme, setTheme] = usePersistedTheme();
   const { lang } = useLanguage();
-  const messages = lang === 'ar' ? imrMessagesAr : messagesEn;
+  const messages = lang === 'ar' ? imrMessagesArUi : messagesEn;
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
   const { isPro, isLoggedIn } = useSubscription();

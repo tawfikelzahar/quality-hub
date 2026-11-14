@@ -11,6 +11,9 @@ import { useChartAnalysis } from '@/lib/spc/useChartAnalysis';
 import type { VariableChartResult } from '@/lib/spc/calculator';
 import { messages as messagesEn } from '@/lib/spc/xbar-r-messages';
 import { xbarRMessagesAr } from '@/lib/spc/xbar-r-messages.ar';
+import { isolateLatinDeep } from '@/lib/i18n/bidi';
+// Arabic notes with their English stretches marked left to right (lib/i18n/bidi.ts)
+const xbarRMessagesArUi = isolateLatinDeep(xbarRMessagesAr);
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
@@ -123,7 +126,7 @@ function buildCapabilityHistogram(
 export default function XbarRChartPage() {
   const [theme, setTheme] = usePersistedTheme();
   const { lang } = useLanguage();
-  const messages = lang === 'ar' ? xbarRMessagesAr : messagesEn;
+  const messages = lang === 'ar' ? xbarRMessagesArUi : messagesEn;
   const c = COLORS[theme];
   const s = getSharedStyles(theme);
   const { isPro, isLoggedIn } = useSubscription();

@@ -16,6 +16,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
+import { uiDict } from '@/lib/i18n/ui'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed } from '@/lib/stats/format'
@@ -189,7 +190,7 @@ export default function IcmsfCalculator({ guide }: { guide?: React.ReactNode } =
   const loadExample = () => { setInp(EXAMPLE); setMobileTab('results') }
 
   // ── Words ──
-  const clsLabel = (u: UnitClass, d: Dict = translations[lang]) =>
+  const clsLabel = (u: UnitClass, d: Dict = uiDict(lang)) =>
     u === 'acceptable' ? say(d, 'icmsf_cls_acceptable') : u === 'marginal' ? say(d, 'icmsf_cls_marginal') : say(d, three ? 'icmsf_cls_defective' : 'icmsf_cls_defective2')
   const clsColor = (u: UnitClass | null) => (u === 'acceptable' ? 'var(--qh-good)' : u === 'marginal' ? 'var(--qh-amber)' : u === 'defective' ? 'var(--qh-danger)' : 'var(--qh-muted)')
   const decisionColor = r?.decision === 'accept' ? 'var(--qh-good)' : r?.decision === 'reject' ? 'var(--qh-danger)' : 'var(--qh-muted)'
@@ -493,7 +494,7 @@ export default function IcmsfCalculator({ guide }: { guide?: React.ReactNode } =
                     <div><small>{t('icmsf_plan_class')}</small><b>{ltr(t(r.planClass === 3 ? 'icmsf_class_3' : 'icmsf_class_2'))}</b></div>
                     <div><small>n · c</small><b>{ltr(`${r.n} · ${r.c}`)}</b></div>
                   </div>
-                  <div className="ic-why">{why(translations[lang])}</div>
+                  <div className="ic-why">{why(uiDict(lang))}</div>
                 </>
               )}
               <div className="tl-hint">{t('icmsf_sensitive')}</div>
@@ -559,9 +560,9 @@ export default function IcmsfCalculator({ guide }: { guide?: React.ReactNode } =
                   <div className="tl-verdict" style={{ background: tint(decisionColor, 8), border: `1px solid ${tint(decisionColor, 35)}` }}>
                     <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(decisionColor, 16), color: decisionColor }}>{r.decision === 'accept' ? '✓' : r.decision === 'reject' ? '✕' : '…'}</span>
                     <div>
-                      <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{ltr(`Case ${r.caseNumber} · ${r.planClass}-class · n ${r.n} · c ${r.c}`)} · {mode === 'presence' ? limitsText(translations[lang]) : ltr(limitsText(EN))}</div>
-                      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: decisionColor }}>{headline(translations[lang])}</div>
-                      <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{sub(translations[lang])}</div>
+                      <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>{ltr(`Case ${r.caseNumber} · ${r.planClass}-class · n ${r.n} · c ${r.c}`)} · {mode === 'presence' ? limitsText(uiDict(lang)) : ltr(limitsText(EN))}</div>
+                      <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: decisionColor }}>{headline(uiDict(lang))}</div>
+                      <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{sub(uiDict(lang))}</div>
                     </div>
                   </div>
                 </div>
@@ -638,7 +639,7 @@ export default function IcmsfCalculator({ guide }: { guide?: React.ReactNode } =
                           <Chart ref={riskRef} type="line" data={riskData} options={chartOptions(t('icmsf_risk_x').replace('{unit}', inp.unit), riskMin, riskMax, v => fixed(v, 1), 1)} />
                         </div>
                       )}
-                      {riskLines(translations[lang]).map((l, i) => <p key={i} style={{ margin: '10px 0 0', fontSize: 14, lineHeight: 1.7 }}>{l}</p>)}
+                      {riskLines(uiDict(lang)).map((l, i) => <p key={i} style={{ margin: '10px 0 0', fontSize: 14, lineHeight: 1.7 }}>{l}</p>)}
                     </>
                   )}
                 </div>

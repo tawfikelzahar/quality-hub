@@ -213,6 +213,8 @@ export function sanitizePdfText(input: string): string {
   // though their code points are above U+00FF. Only the specific symbols
   // above (Greek letters, math comparison operators) lack a glyph.
   s = s.normalize('NFC').replace(/[\u0300-\u036f]/g, '')
+  // invisible direction marks (lib/i18n/bidi.ts) have no glyph in the PDF font
+  s = s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '')
   return s
 }
 

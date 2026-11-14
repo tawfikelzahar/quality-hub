@@ -12,6 +12,7 @@ import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
+import { uiDict } from '@/lib/i18n/ui'
 import { createReport, nowStamp, type Tone } from '@/lib/excelReport'
 import { createReport as createPdfReport, addSignOff, calloutBox, dataTable, finalizeReport, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import {
@@ -473,7 +474,7 @@ export default function AQLCalculator({ guide }: { guide?: ReactNode } = {}) {
                 <div key={st.id} className="tl-card">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
                     <label className="aq-name-wrap" title={t('aql_stage_rename')}>
-                      <input className="aq-name" value={st.name} placeholder={nameOf('', si, translations[lang])} size={Math.max(8, (st.name || nameOf('', si, translations[lang])).length + 1)} aria-label={t('aql_stage_name')} onChange={e => patchStage(st.id, { name: e.target.value })} />
+                      <input className="aq-name" value={st.name} placeholder={nameOf('', si, uiDict(lang))} size={Math.max(8, (st.name || nameOf('', si, uiDict(lang))).length + 1)} aria-label={t('aql_stage_name')} onChange={e => patchStage(st.id, { name: e.target.value })} />
                       <span className="aq-pen" aria-hidden="true">✎</span>
                     </label>
                     {stages.length > 1 && <button type="button" className="tl-xbtn tl-xbtn-sm" onClick={() => removeStage(st.id)}>{t('aql_remove_stage')}</button>}
@@ -575,19 +576,19 @@ export default function AQLCalculator({ guide }: { guide?: ReactNode } = {}) {
                   {view.map((v, i) => {
                     if (v.r.error || v.r.classes.length === 0) return null
                     const col = decisionColor(v.r.lot)
-                    const notes = stageNotes(translations[lang], v)
-                    const next = nextLot(translations[lang], v)
+                    const notes = stageNotes(uiDict(lang), v)
+                    const next = nextLot(uiDict(lang), v)
                     return (
                       <div key={v.st.id} className="tl-verdict" style={{ background: tint(col, 8), border: `1px solid ${tint(col, 35)}` }}>
                         <span className="tl-verdict-icon" aria-hidden="true" style={{ background: tint(col, 16), color: col }}>{v.r.lot === 'accept' ? '✓' : v.r.lot === 'reject' ? '✕' : '…'}</span>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 12, color: 'var(--qh-muted)', marginBottom: 2 }}>
-                            {t('aql_lot_head').replace('{stage}', nameOf(v.st.name, i, translations[lang])).replace('{lot}', ltr(int(v.req.lotSize)))} · {ltr(`${levelName(v.st.level)} · ${v.r.codeLetter}`)} · {t(`aql_type_${v.st.type}` as TKey)}
+                            {t('aql_lot_head').replace('{stage}', nameOf(v.st.name, i, uiDict(lang))).replace('{lot}', ltr(int(v.req.lotSize)))} · {ltr(`${levelName(v.st.level)} · ${v.r.codeLetter}`)} · {t(`aql_type_${v.st.type}` as TKey)}
                           </div>
                           <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4, color: col }}>
                             {v.r.lot === 'accept' ? t('aql_lot_accept') : v.r.lot === 'reject' ? t('aql_lot_reject') : t('aql_lot_pending')}
                           </div>
-                          <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{lotSub(translations[lang], v)}</div>
+                          <div style={{ fontSize: 13, color: 'var(--qh-muted)', lineHeight: 1.6 }}>{lotSub(uiDict(lang), v)}</div>
                           {next && <div className="aq-next">{next}</div>}
                           {notes.length > 0 && <div className="aq-stage-notes">{notes.map((n, k) => <div key={k}>{n}</div>)}</div>}
                         </div>
@@ -648,7 +649,7 @@ export default function AQLCalculator({ guide }: { guide?: ReactNode } = {}) {
                         {view.flatMap((v, i) =>
                           v.r.error ? [] : v.r.classes.map((cr, j) => (
                             <tr key={`${v.st.id}-${j}`}>
-                              <td>{j === 0 ? nameOf(v.st.name, i, translations[lang]) : ''}</td>
+                              <td>{j === 0 ? nameOf(v.st.name, i, uiDict(lang)) : ''}</td>
                               <td style={{ whiteSpace: 'normal' }}>{v.st.classes[j]?.name}</td>
                               <td className="num">{aqlText(v.req.classes[j].aql)}</td>
                               <td style={{ textAlign: 'center', fontWeight: 600 }}>{cr.letter}</td>

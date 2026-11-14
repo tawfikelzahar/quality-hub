@@ -18,6 +18,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers'
 import { useLanguage } from '@/lib/i18n/context'
 import { translations, type TKey } from '@/lib/i18n/translations'
+import { uiDict } from '@/lib/i18n/ui'
 import { createReport, nowStamp } from '@/lib/excelReport'
 import { createReport as createPdfReport, addChartImage, addSignOff, calloutBox, dataTable, finalizeReport, addDataAppendix, appendixColumns, REPORT_COLORS } from '@/lib/pdf/reportDesign'
 import { fixed, formatPEquals } from '@/lib/stats/format'
@@ -522,7 +523,7 @@ export default function StabilityStudy({ guide }: { guide?: React.ReactNode } = 
   const exportPNG = () => (isLoggedIn ? withWatermarksDisabled([chartRef.current], () => withEnglishAxes(runPNG)) : runPNG())
 
   const helpSteps = [1, 2, 3, 4].map(k => ({ t: t(`stb_help_s${k}_t` as TKey), d: t(`stb_help_s${k}_d` as TKey) }))
-  const D = translations[lang]
+  const D = uiDict(lang)
 
   return (
     <div style={s.page}>
