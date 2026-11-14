@@ -7,11 +7,11 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   return localizedPageMetadata(lang, '/guide',
     {
       title: `How to Use ${SITE.name} — Guide & Tool Directory`,
-      description: `A quick guide to using ${SITE.name}: how the platform works, plus a full directory of every statistical quality engineering tool (SPC, Gage R&R, AQL, DOE, OEE, and more).`,
+      description: `A quick guide to using ${SITE.name}: how the platform works, plus a full directory of every quality engineering tool (SPC, Gage R&R, AQL, DOE, OEE, and more).`,
     },
     {
       title: `كيفية استخدام ${SITE.name} — دليل الاستخدام ودليل الأدوات`,
-      description: `دليل سريع لاستخدام ${SITE.name}: كيف تعمل المنصة، بالإضافة إلى دليل كامل لكل أداة هندسة جودة إحصائية (SPC وGage R&R وAQL وDOE وOEE والمزيد).`,
+      description: `دليل سريع لاستخدام ${SITE.name}: كيف تعمل المنصة، بالإضافة إلى دليل كامل لكل أداة من أدوات هندسة الجودة (SPC وGage R&R وAQL وDOE وOEE والمزيد).`,
     })
 }
 

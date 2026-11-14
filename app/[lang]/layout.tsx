@@ -24,8 +24,8 @@ const geistMono = Geist_Mono({
 const SITE_URL = SITE.url;
 const SITE_NAME = SITE.name;
 const DESCRIPTION = {
-  en: "Statistical quality engineering tools online — SPC control charts, Pareto analysis, DPMO & Six Sigma calculations, AQL sampling plans (ISO 2859-1), Gage R&R (AIAG MSA), and capability studies. No software to install, no learning curve.",
-  ar: "أدوات هندسة الجودة الإحصائية عبر الإنترنت بالعربية: خرائط ضبط SPC ودراسات القدرة Cp وCpk، وGage R&R وفق AIAG MSA، وخطط عينات AQL وفق ISO 2859-1، وتصميم التجارب والانحدار. دون تثبيت أي برنامج.",
+  en: "Quality engineering platform online — SPC control charts and capability (Cp, Cpk), Gage R&R (AIAG MSA), AQL sampling plans (ISO 2859-1), DOE and regression, with reports that carry your name. Arabic and English, nothing to install.",
+  ar: "منصة هندسة الجودة عبر الإنترنت بالعربية: خرائط ضبط SPC ودراسات القدرة Cp وCpk، وGage R&R وفق AIAG MSA، وخطط عينات AQL وفق ISO 2859-1، وتصميم التجارب والانحدار، مع تقارير تحمل اسمك. دون تثبيت أي برنامج.",
 } as const
 const DEFAULT_DESCRIPTION = DESCRIPTION.en
 
