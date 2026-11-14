@@ -317,3 +317,10 @@ select option, select optgroup { background-color: var(--qh-surface); color: var
    takes its direction from the element, and in RTL a tick of -0.413 was drawn
    as 0.413-. Arabic titles and legends still shape correctly in LTR. */
 canvas { direction: ltr; }
+
+/* Pricing page: when the two plan cards stack on a phone, Pro is shown first.
+   The gap above it leaves room for the founding-price badge that sits on its
+   top border. On wider screens the order stays Free, then Pro. */
+@media (max-width: 608px) {
+  .pr-plan-pro { order: -1; }
+}

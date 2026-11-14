@@ -193,7 +193,7 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
 
         {/* Plan cards */}
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', maxWidth: 880, width: '100%', marginTop: 28 }}>
-          <div style={cardBase}>
+          <div className="pr-plan-free" style={cardBase}>
             <div style={{ fontSize: 15, fontWeight: 700, color: c.text }}>{t('pricing_free_name')}</div>
             <div style={{ fontSize: 30, fontWeight: 800, color: c.text, margin: '8px 0 2px' }}>{money(0)}</div>
             <div style={{ fontSize: 12, color: c.muted, marginBottom: 18 }}>{t('pricing_free_tagline')}</div>
@@ -211,7 +211,8 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
             )}
           </div>
 
-          <div style={{ ...cardBase, border: `2px solid ${c.gold}` }}>
+          {/* On phones, where the cards stack, Pro comes first (order in app/globals.css) */}
+          <div className="pr-plan-pro" style={{ ...cardBase, border: `2px solid ${c.gold}` }}>
             {founding && (
               <span style={{ position: 'absolute', top: -12, insetInlineStart: 20, background: c.gold, color: c.onGold, fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>
                 {t('pricing_founding_badge')}
