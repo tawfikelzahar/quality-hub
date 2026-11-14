@@ -1,12 +1,13 @@
 import type { MetadataRoute } from "next";
-import { SITE } from '@/lib/site'
+import { SITE, SITE_TITLE } from '@/lib/site'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${SITE.name} — Statistical Quality Engineering Tools`,
+    // Same name as the site title, so the app is not boxed into statistics only
+    name: SITE_TITLE,
     short_name: SITE.shortName,
     description:
-      "SPC control charts, Pareto analysis, DPMO, AQL sampling, Gage R&R, and more — statistical quality engineering tools online.",
+      "Quality engineering platform: SPC and capability, Gage R&R, AQL sampling, DOE, regression and more, with reports that carry your name. Arabic and English.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

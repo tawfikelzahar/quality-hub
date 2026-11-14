@@ -63,7 +63,7 @@ export const SITE_LINKS = {
   linkedinDisplay: `in/${SITE.contact.linkedin}`,
 } as const
 
-/** "Quality Hub — Statistical Quality Engineering Tools Online" */
+/** "Mizan Quality — Quality Engineering Platform" */
 export const SITE_TITLE = `${SITE.name} — ${SITE.tagline}`
 
 /** Logo text split for the two-colour logo: first words + last word */
