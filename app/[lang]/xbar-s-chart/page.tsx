@@ -17,7 +17,7 @@ import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
 import ToolStyles from '@/components/tool/ToolStyles';
-import { ToolHeader, HintLink, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
+import { ToolHeader, HintLink, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, SubgroupTable, SpecLimits, DataCardHead, ImportNotice, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
 import { XBAR_S_MIN_N } from '@/lib/spc/chartChoice';
 import { capabilityVerdict } from '@/lib/spc/verdict';
 import { EXAMPLE_XBAR_S } from '@/lib/spc/examples';
@@ -27,6 +27,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
 import { useGridImport } from '@/lib/gridImport';
+import { readGridLayout, layoutRows, type GridLayout } from '@/lib/gridLayout';
 import { SheetPicker, PasteToast } from '@/components/GridImportControls';
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers';
 import {
@@ -175,22 +176,30 @@ export default function XbarSChartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // What a paste or upload was read as (lib/gridLayout.ts): header rows and
+  // a sample-number column are left out, and the subgroup size comes from
+  // the widest row. Kept so "Count it as readings" can re-read the block.
+  const [importInfo, setImportInfo] = useState<{ layout: GridLayout; kept: boolean } | null>(null);
+  function applyImport(layout: GridLayout, kept: boolean) {
+    const rows = layoutRows(layout, kept).filter((r) => r.length > 0);
+    if (rows.length === 0) return;
+    setGrid(rows);
+    setSgSize(Math.max(...rows.map((r) => r.length)));
+    setImportInfo({ layout, kept });
+  }
+
   // Paste (anywhere on the page) and file upload (.csv/.xlsx/.xls) both just
   // fill csvText, exactly like typing or pasting into the textarea by hand —
   // Calculate still has to be pressed, same as before, so spec limits typed
   // above aren't silently skipped.
   const gridImport = useGridImport({
-    onGrid: (rows) => {
-      const clean = rows.map((r) => r.map((v) => v.trim()).filter((v) => v !== '')).filter((r) => r.length > 0);
-      if (clean.length === 0) return;
-      setGrid(clean);
-      setSgSize(Math.max(...clean.map((r) => r.length)));
-    },
+    onGrid: (rows) => { applyImport(readGridLayout(rows), false); },
   });
 
   // "Try an example": a golden dataset checked against Minitab, analysed right away
   const exampleQueued = useRef(false);
   function loadExample() {
+    setImportInfo(null);
     setGrid(EXAMPLE_XBAR_S.rows.map((r) => [...r]));
     setSgSize(EXAMPLE_XBAR_S.rows[0].length);
     setLsl(EXAMPLE_XBAR_S.lsl);
@@ -200,6 +209,7 @@ export default function XbarSChartPage() {
   }
 
   function clearData() {
+    setImportInfo(null);
     setGrid([]);
     setLsl('');
     setUsl('');
@@ -644,6 +654,23 @@ export default function XbarSChartPage() {
                   onClear={clearData}
                   extra={<gridImport.FileInput />}
                 />
+                {importInfo && (() => {
+                  const rows = layoutRows(importInfo.layout, importInfo.kept).filter((r) => r.length > 0);
+                  const n = Math.max(...rows.map((r) => r.length));
+                  const short = rows.flatMap((r, i) => (r.length < n ? [i + 1] : []));
+                  return (
+                    <ImportNotice
+                      note={{
+                        summary: t('imp_detected_groups').replace('{k}', String(rows.length)).replace('{n}', String(n)),
+                        warnings: short.length > 0 ? [t('imp_incomplete').replace('{rows}', short.join(lang === 'ar' ? '، ' : ', '))] : [],
+                        idColumn: importInfo.layout.idColumn
+                          ? { kept: importInfo.kept, onToggle: () => applyImport(importInfo.layout, !importInfo.kept) }
+                          : undefined,
+                      }}
+                      onDismiss={() => setImportInfo(null)}
+                    />
+                  );
+                })()}
                 {gridImport.fileError && <div className="tl-error" style={{ marginBottom: 10 }}>{gridImport.fileError}</div>}
                 <SheetPicker
                   sheetNames={gridImport.sheetNames}
