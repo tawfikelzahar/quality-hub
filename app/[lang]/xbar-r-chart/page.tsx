@@ -182,6 +182,9 @@ export default function XbarRChartPage() {
   // What a paste or upload was read as (lib/gridLayout.ts): header rows and
   // a sample-number column are left out, and the subgroup size comes from
   // the widest row. Kept so "Count it as readings" can re-read the block.
+  // Data entry folds into its heading after an analysis so the charts sit
+  // at the top; Edit Data, a paste/upload or Clear opens it again.
+  const [dataOpen, setDataOpen] = useState(true);
   const [importInfo, setImportInfo] = useState<{ layout: GridLayout; kept: boolean } | null>(null);
   function applyImport(layout: GridLayout, kept: boolean) {
     const rows = layoutRows(layout, kept).filter((r) => r.length > 0);
@@ -189,6 +192,7 @@ export default function XbarRChartPage() {
     setGrid(rows);
     setSgSize(Math.max(...rows.map((r) => r.length)));
     setImportInfo({ layout, kept });
+    setDataOpen(true);
   }
 
   // Paste (anywhere on the page) and file upload (.csv/.xlsx/.xls) both just
@@ -213,6 +217,7 @@ export default function XbarRChartPage() {
 
   function clearData() {
     setImportInfo(null);
+    setDataOpen(true);
     setGrid([]);
     setLsl('');
     setUsl('');
@@ -618,7 +623,10 @@ export default function XbarRChartPage() {
   const capColor = (v: number | null) => (v === null ? 'var(--qh-text)' : v >= 1.33 ? 'var(--qh-good)' : v >= 1.0 ? 'var(--qh-amber)' : 'var(--qh-danger)');
 
   function analyze() {
-    if (runAnalysis()) setMobileTab('results');
+    if (runAnalysis()) {
+      setMobileTab('results');
+      setDataOpen(false);
+    }
   }
   // Runs once after "Try an example" has put the example data in place
   useEffect(() => {
@@ -696,7 +704,14 @@ export default function XbarRChartPage() {
                   countLabel={t('spc_subgroups_count').replace('{n}', String(grid.length))}
                   onUpload={gridImport.openFilePicker}
                   onClear={clearData}
-                  extra={<gridImport.FileInput />}
+                  extra={
+                    <>
+                      <gridImport.FileInput />
+                      <button type="button" className="tl-xbtn tl-xbtn-sm" onClick={() => setDataOpen((o) => !o)}>
+                        {dataOpen ? t('spc_collapse') : t('spc_edit_data')}
+                      </button>
+                    </>
+                  }
                 />
                 {importInfo && (() => {
                   const rows = layoutRows(importInfo.layout, importInfo.kept).filter((r) => r.length > 0);
@@ -725,13 +740,15 @@ export default function XbarRChartPage() {
                   mutedColor={c.muted}
                   borderColor={c.border}
                 />
-                <SubgroupTable
-                  rows={grid}
-                  n={sgSize}
-                  onChange={(r, col, v) => setGrid((prev) => prev.map((row, i) => (i === r ? Array.from({ length: sgSize }, (_, k) => (k === col ? v : row[k] ?? '')) : row)))}
-                  onRemove={(r) => setGrid((prev) => prev.filter((_, i) => i !== r))}
-                  onAdd={() => setGrid((prev) => [...prev, Array(sgSize).fill('')])}
-                />
+                {dataOpen && (
+                  <SubgroupTable
+                    rows={grid}
+                    n={sgSize}
+                    onChange={(r, col, v) => setGrid((prev) => prev.map((row, i) => (i === r ? Array.from({ length: sgSize }, (_, k) => (k === col ? v : row[k] ?? '')) : row)))}
+                    onRemove={(r) => setGrid((prev) => prev.filter((_, i) => i !== r))}
+                    onAdd={() => setGrid((prev) => [...prev, Array(sgSize).fill('')])}
+                  />
+                )}
               </section>
 
               {/* ── RESULTS ──────────────────────────────────────────────── */}
@@ -1031,7 +1048,7 @@ export default function XbarRChartPage() {
         </div>
       </div>
 
-      <PhoneBar showResultActions={mobileTab === 'results' && !!result} onAnalyze={analyze} onEdit={() => setMobileTab('data')} />
+      <PhoneBar showResultActions={mobileTab === 'results' && !!result} onAnalyze={analyze} onEdit={() => { setMobileTab('data'); setDataOpen(true); }} />
       <PasteToast show={gridImport.pasteToast} label={t('spc_toast')} />
     </div>
   );

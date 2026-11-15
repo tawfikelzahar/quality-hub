@@ -166,12 +166,16 @@ export default function ImrChartPage() {
   // What a paste or upload was read as (lib/gridLayout.ts): header rows and
   // a sample-number column are left out; several columns are still read row
   // by row as one series, but the notice now says so.
+  // Data entry folds into its heading after an analysis so the charts sit
+  // at the top; Edit Data, a paste/upload or Clear opens it again.
+  const [dataOpen, setDataOpen] = useState(true);
   const [importInfo, setImportInfo] = useState<{ layout: GridLayout; kept: boolean } | null>(null);
   function applyImport(layout: GridLayout, kept: boolean) {
     const values = layoutRows(layout, kept).flat();
     if (values.length === 0) return;
     setCells(values);
     setImportInfo({ layout, kept });
+    setDataOpen(true);
   }
 
   // I-MR is single-column, so every cell across a paste/upload grid is
@@ -194,6 +198,7 @@ export default function ImrChartPage() {
 
   function clearData() {
     setImportInfo(null);
+    setDataOpen(true);
     setCells([]);
     setLsl('');
     setUsl('');
@@ -548,7 +553,10 @@ export default function ImrChartPage() {
   const capColor = (v: number | null) => (v === null ? 'var(--qh-text)' : v >= 1.33 ? 'var(--qh-good)' : v >= 1.0 ? 'var(--qh-amber)' : 'var(--qh-danger)');
 
   function analyze() {
-    if (runAnalysis()) setMobileTab('results');
+    if (runAnalysis()) {
+      setMobileTab('results');
+      setDataOpen(false);
+    }
   }
   // Runs once after "Try an example" has put the example data in place
   useEffect(() => {
@@ -616,7 +624,14 @@ export default function ImrChartPage() {
                   countLabel={t('spc_readings_count').replace('{n}', String(cells.length))}
                   onUpload={gridImport.openFilePicker}
                   onClear={clearData}
-                  extra={<gridImport.FileInput />}
+                  extra={
+                    <>
+                      <gridImport.FileInput />
+                      <button type="button" className="tl-xbtn tl-xbtn-sm" onClick={() => setDataOpen((o) => !o)}>
+                        {dataOpen ? t('spc_collapse') : t('spc_edit_data')}
+                      </button>
+                    </>
+                  }
                 />
                 {importInfo && (() => {
                   const rows = layoutRows(importInfo.layout, importInfo.kept).filter((r) => r.length > 0);
@@ -644,12 +659,14 @@ export default function ImrChartPage() {
                   mutedColor={c.muted}
                   borderColor={c.border}
                 />
-                <ReadingsGrid
-                  values={cells}
-                  onChange={(i, v) => setCells((prev) => prev.map((x, k) => (k === i ? v : x)))}
-                  onRemove={(i) => setCells((prev) => prev.filter((_, k) => k !== i))}
-                  onAdd={() => setCells((prev) => [...prev, ''])}
-                />
+                {dataOpen && (
+                  <ReadingsGrid
+                    values={cells}
+                    onChange={(i, v) => setCells((prev) => prev.map((x, k) => (k === i ? v : x)))}
+                    onRemove={(i) => setCells((prev) => prev.filter((_, k) => k !== i))}
+                    onAdd={() => setCells((prev) => [...prev, ''])}
+                  />
+                )}
               </section>
 
               {/* ── RESULTS ──────────────────────────────────────────────── */}
@@ -928,7 +945,7 @@ export default function ImrChartPage() {
         </div>
       </div>
 
-      <PhoneBar showResultActions={mobileTab === 'results' && !!result} onAnalyze={analyze} onEdit={() => setMobileTab('data')} />
+      <PhoneBar showResultActions={mobileTab === 'results' && !!result} onAnalyze={analyze} onEdit={() => { setMobileTab('data'); setDataOpen(true); }} />
       <PasteToast show={gridImport.pasteToast} label={t('spc_toast')} />
     </div>
   );

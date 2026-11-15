@@ -434,6 +434,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     importLayout.current = layout
     setN(plan.n)
     setVarRows(plan.rows)
+    setDataEntryOpen(true)
     const k = plan.rows.length
     const warnings: string[] = []
     if (plan.flattened) warnings.push(t('imp_flattened'))
@@ -1724,8 +1725,9 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   const compactSave = useCompactSave()
 
   const gridMode = dataType === 'variable' && N === 1
-  // Single readings (n = 1) show as an always-open numbered grid; subgroups keep the table
-  const showData = gridMode || dataEntryOpen
+  // Readings (n = 1, numbered grid) and subgroups (table) both fold away
+  // after an analysis, the same as I-MR / X̄-R / X̄-S
+  const showData = dataEntryOpen
   const fieldLabel = { fontSize: 13, fontWeight: 600, color: c.text, marginBottom: 8 } as const
   const nPoints = varResult ? varResult.n : attrResult ? attrResult.pts.length : 0
   const stable = allViolations.length === 0
@@ -1915,11 +1917,9 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
               extra={
                 <>
                   <gridImport.FileInput />
-                  {!gridMode && (
-                    <button type="button" className="tl-xbtn tl-xbtn-sm" onClick={() => setDataEntryOpen(o => !o)}>
-                      {dataEntryOpen ? t('spc_collapse') : t('spc_edit_data')}
-                    </button>
-                  )}
+                  <button type="button" className="tl-xbtn tl-xbtn-sm" onClick={() => setDataEntryOpen(o => !o)}>
+                    {dataEntryOpen ? t('spc_collapse') : t('spc_edit_data')}
+                  </button>
                 </>
               }
             />
@@ -1951,7 +1951,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
               />
             )}
 
-            {gridMode && (
+            {gridMode && dataEntryOpen && (
               <ReadingsGrid
                 values={varRows.map(r => r.vals[0] ?? '')}
                 onChange={(i, v) => updateVarCell(varRows[i].id, 0, v)}
@@ -2347,7 +2347,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
       </div>
 
       {/* Phone action bar */}
-      <PhoneBar showResultActions={mobileTab === 'results' && !!result} loading={loading} onAnalyze={runAnalyze} onEdit={() => setMobileTab('data')} />
+      <PhoneBar showResultActions={mobileTab === 'results' && !!result} loading={loading} onAnalyze={runAnalyze} onEdit={() => { setMobileTab('data'); setDataEntryOpen(true) }} />
 
       {pasteToast && <div style={s.toast}>{t('spc_toast')}</div>}
     </div>
