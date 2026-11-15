@@ -17,7 +17,7 @@ import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme';
 import Nav from '@/components/Nav';
 import ToolSidebar from '@/components/ToolSidebar';
 import ToolStyles from '@/components/tool/ToolStyles';
-import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, ReadingsGrid, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, ReadingsGrid, SpecLimits, DataCardHead, ImportNotice, ViolationsCard, AdequacyCard, useCompactSave, violationPointsText, type MobileTab, type ViolationItem } from '@/components/tool/ToolParts';
 import { capabilityVerdict } from '@/lib/spc/verdict';
 import { EXAMPLE_IMR } from '@/lib/spc/examples';
 import SaveAnalysisButton from '@/components/SaveAnalysisButton';
@@ -26,6 +26,7 @@ import { goToLogin, goToPricing } from '@/lib/exportGate';
 import { useLanguage } from '@/lib/i18n/context';
 import { createReport, nowStamp } from '@/lib/excelReport';
 import { useGridImport } from '@/lib/gridImport';
+import { readGridLayout, layoutRows, type GridLayout } from '@/lib/gridLayout';
 import { SheetPicker, PasteToast } from '@/components/GridImportControls';
 import { watermarkOptions, watermarkLayout, withWatermarksDisabled } from '@/lib/watermarkHelpers';
 import {
@@ -162,16 +163,28 @@ export default function ImrChartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // What a paste or upload was read as (lib/gridLayout.ts): header rows and
+  // a sample-number column are left out; several columns are still read row
+  // by row as one series, but the notice now says so.
+  const [importInfo, setImportInfo] = useState<{ layout: GridLayout; kept: boolean } | null>(null);
+  function applyImport(layout: GridLayout, kept: boolean) {
+    const values = layoutRows(layout, kept).flat();
+    if (values.length === 0) return;
+    setCells(values);
+    setImportInfo({ layout, kept });
+  }
+
   // I-MR is single-column, so every cell across a paste/upload grid is
   // flattened into one value per line — same staging behavior as before
   // (csvText), Calculate still has to be pressed.
   const gridImport = useGridImport({
-    onGrid: grid => setCells(grid.flat().map(v => v.trim()).filter(v => v !== '')),
+    onGrid: grid => applyImport(readGridLayout(grid), false),
   });
 
   // "Try an example": golden dataset DS12, analysed right away
   const exampleQueued = useRef(false);
   function loadExample() {
+    setImportInfo(null);
     setCells(EXAMPLE_IMR.rows.map(r => r[0]));
     setLsl(EXAMPLE_IMR.lsl);
     setUsl(EXAMPLE_IMR.usl);
@@ -180,6 +193,7 @@ export default function ImrChartPage() {
   }
 
   function clearData() {
+    setImportInfo(null);
     setCells([]);
     setLsl('');
     setUsl('');
@@ -604,6 +618,22 @@ export default function ImrChartPage() {
                   onClear={clearData}
                   extra={<gridImport.FileInput />}
                 />
+                {importInfo && (() => {
+                  const rows = layoutRows(importInfo.layout, importInfo.kept).filter((r) => r.length > 0);
+                  const widest = Math.max(...rows.map((r) => r.length));
+                  return (
+                    <ImportNotice
+                      note={{
+                        summary: t('imp_detected_single').replace('{k}', String(rows.flat().length)),
+                        warnings: widest > 1 ? [t('imp_columns_merged').replace('{n}', String(widest))] : [],
+                        idColumn: importInfo.layout.idColumn
+                          ? { kept: importInfo.kept, onToggle: () => applyImport(importInfo.layout, !importInfo.kept) }
+                          : undefined,
+                      }}
+                      onDismiss={() => setImportInfo(null)}
+                    />
+                  );
+                })()}
                 {gridImport.fileError && <div className="tl-error" style={{ marginBottom: 10 }}>{gridImport.fileError}</div>}
                 <SheetPicker
                   sheetNames={gridImport.sheetNames}

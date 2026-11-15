@@ -693,3 +693,57 @@ export function AdequacyCard({ adequacy }: { adequacy: { n: number; tier: 'low' 
     </div>
   )
 }
+
+// ── What was read from a paste or upload (lib/gridLayout.ts) ─────────────
+// Says how the data was read (subgroups × size), and flags anything the
+// visitor should know: a sample-number column left out (with a button to
+// count it after all), incomplete subgroups, data re-read as single values.
+export interface ImportNote {
+  /** Main line: what was read */
+  summary: string
+  /** Extra lines that need attention (amber) */
+  warnings: string[]
+  /** The first column was left out as sample numbers; true = it is now kept */
+  idColumn?: { kept: boolean; onToggle: () => void }
+}
+
+export function ImportNotice({ note, onDismiss }: { note: ImportNote; onDismiss: () => void }) {
+  const { t } = useLanguage()
+  const attention = note.warnings.length > 0 || (note.idColumn && !note.idColumn.kept)
+  const edge = attention ? 'var(--qh-amber)' : 'var(--qh-border)'
+  return (
+    <div
+      role="status"
+      style={{
+        border: `1px solid ${edge}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12,
+        background: attention ? tint('var(--qh-amber)', 7) : 'var(--qh-surface2)', fontSize: 12.5, lineHeight: 1.6,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ fontWeight: 600, color: 'var(--qh-text)' }}>✓ {note.summary}</div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label={t('imp_dismiss')}
+          style={{ background: 'transparent', border: 'none', color: 'var(--qh-muted)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 }}
+        >✕</button>
+      </div>
+      {note.idColumn && (
+        <div style={{ marginTop: 6, color: 'var(--qh-text)' }}>
+          {t(note.idColumn.kept ? 'imp_id_kept' : 'imp_id_dropped')}{' '}
+          <button
+            type="button"
+            className="tl-xbtn tl-xbtn-sm"
+            onClick={note.idColumn.onToggle}
+            style={{ marginTop: 4 }}
+          >
+            {t(note.idColumn.kept ? 'imp_id_drop' : 'imp_id_keep')}
+          </button>
+        </div>
+      )}
+      {note.warnings.map((w, i) => (
+        <div key={i} style={{ marginTop: 6, color: 'var(--qh-amber)' }}>⚠ {w}</div>
+      ))}
+    </div>
+  )
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, type ReactNode } from 'react'
 import { takeDraft } from '@/lib/draft'
 import 'chart.js/auto'
 import type { Chart as ChartJSInstance } from 'chart.js'
@@ -13,14 +13,15 @@ import { COLORS, getSharedStyles, usePersistedTheme, tint } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import ToolSidebar from '@/components/ToolSidebar'
 import ToolStyles from '@/components/tool/ToolStyles'
-import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, ReadingsGrid, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave } from '@/components/tool/ToolParts'
+import { ToolHeader, HelpPanel, PhoneTabs, PhoneBar, VerdictCards, ResultsHead, ExportRow, KpiGrid, ReadingsGrid, SpecLimits, DataCardHead, ViolationsCard, AdequacyCard, useCompactSave, ImportNotice, type ImportNote } from '@/components/tool/ToolParts'
 import { capabilityVerdict } from '@/lib/spc/verdict'
 import SaveAnalysisButton from '@/components/SaveAnalysisButton'
 import { useSubscription } from '@/lib/useSubscription'
 import { goToLogin, goToPricing } from '@/lib/exportGate'
 import { useLanguage } from '@/lib/i18n/context'
 import { createReport, nowStamp, type TableColumn } from '@/lib/excelReport'
-import { useGridImport } from '@/lib/gridImport'
+import { useGridImport, parseDelimitedText } from '@/lib/gridImport'
+import { readGridLayout, layoutRows, type GridLayout } from '@/lib/gridLayout'
 import { DEFAULT_TEST_SET, describeTestSet, type TestSet } from '@/lib/spc/testSets'
 import { XBAR_S_MIN_N } from '@/lib/spc/chartChoice'
 import type { ChartKind } from '@/lib/spc/useChartAnalysis'
@@ -284,14 +285,25 @@ function splitLine(line: string): string[] {
   return line.split(delimiter).map(p => p.trim())
 }
 
-function parseVariablePaste(text: string, n: number): VarRow[] {
-  const lines = text.trim().split('\n').filter(Boolean)
-  const rows: VarRow[] = []
-  for (const line of lines) {
-    const parts = splitLine(line).filter(p => p !== '' && !isNaN(parseFloat(p)))
-    if (parts.length > 0) rows.push({ id: generateId(), vals: resizeVals(parts, n) })
+// A pasted or uploaded block, already read by readGridLayout (header rows
+// and a sample-number column taken out), turned into subgroup rows. The
+// subgroup size comes from the data itself, never from the size box, so no
+// reading is cut off: rows shorter than the rest are flagged as incomplete.
+// One long row, or more than 25 columns, is read as individual readings.
+interface VariableImport { rows: VarRow[]; n: number; flattened: boolean; incomplete: number[] }
+function planVariableImport(rows: string[][]): VariableImport | null {
+  const filled = rows.filter(r => r.length > 0)
+  if (filled.length === 0) return null
+  const widest = Math.max(...filled.map(r => r.length))
+  if ((filled.length === 1 && widest > 1) || widest > 25) {
+    return { rows: filled.flat().map(v => ({ id: generateId(), vals: [v] })), n: 1, flattened: true, incomplete: [] }
   }
-  return rows
+  return {
+    rows: filled.map(r => ({ id: generateId(), vals: resizeVals(r, widest) })),
+    n: widest,
+    flattened: false,
+    incomplete: filled.flatMap((r, i) => (r.length < widest ? [i + 1] : [])),
+  }
 }
 
 function parseAttributePaste(text: string, attrType: AttrType): AttrRow[] {
@@ -312,15 +324,6 @@ function parseAttributePaste(text: string, attrType: AttrType): AttrRow[] {
 // Same row-building rules as the paste parsers above, applied to a grid
 // that came from an uploaded .csv/.xlsx/.xls file instead of the clipboard —
 // keeps file-upload and Ctrl+V behaving identically.
-function variableRowsFromGrid(grid: string[][], n: number): VarRow[] {
-  const rows: VarRow[] = []
-  for (const cells of grid) {
-    const parts = cells.filter(p => p !== '' && !isNaN(parseFloat(p)))
-    if (parts.length > 0) rows.push({ id: generateId(), vals: resizeVals(parts, n) })
-  }
-  return rows
-}
-
 function attributeRowsFromGrid(grid: string[][], attrType: AttrType): AttrRow[] {
   const rows: AttrRow[] = []
   const needsN = attrType === 'p' || attrType === 'u'
@@ -414,9 +417,37 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     setResult(null)
     setErrorMsg('')
     setDataEntryOpen(true)
+    setImportNote(null)
     if (dataType === 'variable') setVarRows([])
     else setAttrRows([])
   }
+
+  // ── Reading a paste or upload (variable data) ───────────────────────────
+  // The subgroup size is taken from the data (planVariableImport), and the
+  // notice under the Data heading says what was read. The layout is kept so
+  // "Count it as readings" can re-read the same block with the first column.
+  const [importNote, setImportNote] = useState<(Omit<ImportNote, 'idColumn'> & { idColumn: boolean; kept: boolean }) | null>(null)
+  const importLayout = useRef<GridLayout | null>(null)
+  const applyVariableImport = useCallback((layout: GridLayout, keepFirstColumn: boolean): boolean => {
+    const plan = planVariableImport(layoutRows(layout, keepFirstColumn))
+    if (!plan) return false
+    importLayout.current = layout
+    setN(plan.n)
+    setVarRows(plan.rows)
+    const k = plan.rows.length
+    const warnings: string[] = []
+    if (plan.flattened) warnings.push(t('imp_flattened'))
+    if (plan.incomplete.length > 0) warnings.push(t('imp_incomplete').replace('{rows}', plan.incomplete.join(lang === 'ar' ? '، ' : ', ')))
+    setImportNote({
+      summary: plan.n === 1
+        ? t('imp_detected_single').replace('{k}', String(k))
+        : t('imp_detected_groups').replace('{k}', String(k)).replace('{n}', String(plan.n)),
+      warnings,
+      idColumn: layout.idColumn,
+      kept: keepFirstColumn,
+    })
+    return true
+  }, [t, lang])
 
   // ── Ctrl+V paste support ─────────────────────────────────────────────────
   useEffect(() => {
@@ -426,10 +457,8 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
       const text = e.clipboardData?.getData('text')
       if (!text) return
       if (dataType === 'variable') {
-        const parsed = parseVariablePaste(text, N)
-        if (parsed.length > 0) {
+        if (applyVariableImport(readGridLayout(parseDelimitedText(text)), false)) {
           e.preventDefault()
-          setVarRows(parsed)
           setPasteToast(true)
           setTimeout(() => setPasteToast(false), 2000)
         }
@@ -445,7 +474,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     }
     window.addEventListener('paste', handlePaste)
     return () => window.removeEventListener('paste', handlePaste)
-  }, [dataType, N, attrType])
+  }, [dataType, attrType, applyVariableImport])
 
   // ── File upload (.csv / .xlsx / .xls) — paste above already handles Ctrl+V,
   // so this hook is used for the upload button only.
@@ -453,8 +482,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
     enablePasteListener: false,
     onGrid: grid => {
       if (dataType === 'variable') {
-        const parsed = variableRowsFromGrid(grid, N)
-        if (parsed.length > 0) setVarRows(parsed)
+        applyVariableImport(readGridLayout(grid), false)
       } else {
         const parsed = attributeRowsFromGrid(grid, attrType)
         if (parsed.length > 0) setAttrRows(parsed)
@@ -1634,6 +1662,7 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
   // "Try an example": golden dataset DS12 (30 readings, LSL 23, USL 25), analysed right away
   const exampleQueued = useRef(false)
   const loadExample = () => {
+    setImportNote(null)
     setDataType('variable')
     setN(1)
     setVarRows(EXAMPLE_READINGS.map(v => ({ id: generateId(), vals: [v] })))
@@ -1895,6 +1924,18 @@ export default function SPCEngine({ guide }: { guide?: ReactNode } = {}) {
               }
             />
 
+            {dataType === 'variable' && importNote && (
+              <ImportNotice
+                note={{
+                  summary: importNote.summary,
+                  warnings: importNote.warnings,
+                  idColumn: importNote.idColumn
+                    ? { kept: importNote.kept, onToggle: () => { if (importLayout.current) applyVariableImport(importLayout.current, !importNote.kept) } }
+                    : undefined,
+                }}
+                onDismiss={() => setImportNote(null)}
+              />
+            )}
             {showData && gridImport.fileError && (
               <div style={{ color: 'var(--qh-danger)', fontSize: 11, marginBottom: 8 }}>{gridImport.fileError}</div>
             )}
