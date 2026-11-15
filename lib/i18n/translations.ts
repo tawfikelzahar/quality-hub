@@ -2033,7 +2033,7 @@ export const translations = {
     cw_billing_title: 'Subscription & payment',
     cw_billing_sub: 'Payment, renewal or Pro activation',
     cw_billing_msg: `Hello, I have a question about my ${SITE.name} subscription or payment:`,
-    cw_question_title: 'General question',
+    cw_question_title: 'Ask a question',
     cw_question_sub: 'Ask us anything',
     cw_question_msg: `Hello, I have a question about ${SITE.name}:`,
     cw_suggest_title: 'Suggest a tool',

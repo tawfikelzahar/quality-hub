@@ -13,19 +13,17 @@ import { track } from '@/lib/analytics'
 // Floating "Contact us" button (bottom corner). Every number, address and
 // link comes from lib/site.ts, so changing them there updates this too.
 //
-// Shown only on the pages listed in SHOW_ON. Tool pages are left out on
-// purpose: the button would sit over tables, charts and export buttons.
-// The Contact page is left out because it already lists every channel.
+// Shown on every page except those in HIDE_ON. So it never covers the end
+// of a page (a table row, an export button), the page gets room for it at
+// the bottom, and on phones it sits above a tool's Analyze / Export bar.
 //
 // GA4: each choice sends contact_click with channel = billing | question |
 // suggest | email. Subscription & payment is highlighted in gold as the main topic, and opening the panel sends contact_open.
 // ─────────────────────────────────────────────────────────────────────────
 
-const SHOW_ON = new Set([
-  '/', '/pricing', '/about', '/account', '/checkout', '/tools', '/guide',
-  '/verification', '/sample-reports', '/download',
-  '/terms', '/privacy', '/refund-policy',
-])
+// Pages where the button stays hidden: Contact already lists every channel,
+// and /admin is for the site owner only.
+const HIDE_ON = ['/contact', '/admin']
 
 type Topic = { key: 'billing' | 'question' | 'suggest'; icon: string; title: TKey; sub: TKey; msg: TKey }
 
@@ -62,7 +60,8 @@ export default function ContactWidget() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  if (!SHOW_ON.has(stripLocale(pathname))) return null
+  const path = stripLocale(pathname)
+  if (HIDE_ON.some(p => path === p || path.startsWith(p + '/'))) return null
 
   const toggle = () => {
     if (!open) track('contact_open')
@@ -156,7 +155,13 @@ export default function ContactWidget() {
           .qh-cw { bottom: 14px; inset-inline-end: 14px; }
           .qh-cw-fab { width: 50px; height: 50px; }
         }
-        @media print { .qh-cw { display: none; } }
+        body:has(.qh-cw) { padding-bottom: 88px; background: var(--qh-bg); }
+        .qh-cw-panel { max-height: calc(100vh - 120px); overflow-y: auto; }
+        @media (max-width: 768px) {
+          body:has(.tl-bar) .qh-cw { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+          body:has(.tl-bar) .qh-cw-panel { max-height: calc(100vh - 200px); }
+        }
+        @media print { .qh-cw { display: none; } body:has(.qh-cw) { padding-bottom: 0; } }
       `}</style>
     </div>
   )
