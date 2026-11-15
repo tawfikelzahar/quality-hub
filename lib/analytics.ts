@@ -21,7 +21,7 @@
 //   search           a tool search was used (search_term)
 //   signup_wall_hit / pro_wall_hit   (lib/exportGate.ts) a locked feature was pressed
 //   contact_open     the floating contact button was opened (components/ContactWidget.tsx)
-//   contact_click    a contact choice was pressed (channel: billing | problem | suggest | email | linkedin)
+//   contact_click    a contact choice was pressed (channel: billing | question | suggest | email)
 //
 // In development, or with localStorage "qh-ga-debug" = "1", events are also
 // printed to the browser console as [ga] … so they can be checked by hand.

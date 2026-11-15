@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useLanguage } from '@/lib/i18n/context'
 import { stripLocale } from '@/lib/i18n/routing'
 import type { TKey } from '@/lib/i18n/translations'
-import { COLORS, usePersistedTheme } from '@/lib/theme'
+import { COLORS, tint, usePersistedTheme } from '@/lib/theme'
 import { SITE, SITE_LINKS, whatsappLink } from '@/lib/site'
 import { track } from '@/lib/analytics'
 
@@ -17,8 +17,8 @@ import { track } from '@/lib/analytics'
 // purpose: the button would sit over tables, charts and export buttons.
 // The Contact page is left out because it already lists every channel.
 //
-// GA4: each choice sends contact_click with channel = billing | problem |
-// suggest | email | linkedin, and opening the panel sends contact_open.
+// GA4: each choice sends contact_click with channel = billing | question |
+// suggest | email. Subscription & payment is highlighted in gold as the main topic, and opening the panel sends contact_open.
 // ─────────────────────────────────────────────────────────────────────────
 
 const SHOW_ON = new Set([
@@ -27,11 +27,11 @@ const SHOW_ON = new Set([
   '/terms', '/privacy', '/refund-policy',
 ])
 
-type Topic = { key: 'billing' | 'problem' | 'suggest'; icon: string; title: TKey; sub: TKey; msg: TKey }
+type Topic = { key: 'billing' | 'question' | 'suggest'; icon: string; title: TKey; sub: TKey; msg: TKey }
 
 const TOPICS: Topic[] = [
   { key: 'billing', icon: '💳', title: 'cw_billing_title', sub: 'cw_billing_sub', msg: 'cw_billing_msg' },
-  { key: 'problem', icon: '🛠️', title: 'cw_problem_title', sub: 'cw_problem_sub', msg: 'cw_problem_msg' },
+  { key: 'question', icon: '💬', title: 'cw_question_title', sub: 'cw_question_sub', msg: 'cw_question_msg' },
   { key: 'suggest', icon: '💡', title: 'cw_suggest_title', sub: 'cw_suggest_sub', msg: 'cw_suggest_msg' },
 ]
 
@@ -99,7 +99,9 @@ export default function ContactWidget() {
                 rel="noopener noreferrer"
                 onClick={() => track('contact_click', { channel: tp.key })}
                 className="qh-cw-row"
-                style={rowStyle}
+                style={tp.key === 'billing'
+                  ? { ...rowStyle, borderColor: tint(c.gold, 55), background: tint(c.gold, 10) }
+                  : rowStyle}
               >
                 <span style={{ fontSize: 20, width: 28, textAlign: 'center' }} aria-hidden="true">{tp.icon}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
@@ -110,28 +112,15 @@ export default function ContactWidget() {
               </a>
             ))}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <a
-                href={SITE_LINKS.email}
-                onClick={() => track('contact_click', { channel: 'email' })}
-                className="qh-cw-row"
-                style={{ ...rowStyle, flex: 1, justifyContent: 'center', padding: '10px 8px', fontSize: 12.5, background: c.surface2 }}
-              >
-                <span aria-hidden="true">✉️</span>
-                <span dir="ltr">{SITE.contact.email}</span>
-              </a>
-              <a
-                href={SITE_LINKS.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => track('contact_click', { channel: 'linkedin' })}
-                className="qh-cw-row"
-                style={{ ...rowStyle, justifyContent: 'center', padding: '10px 12px', fontSize: 12.5, background: c.surface2, fontWeight: 700 }}
-                aria-label="LinkedIn"
-              >
-                in
-              </a>
-            </div>
+            <a
+              href={SITE_LINKS.email}
+              onClick={() => track('contact_click', { channel: 'email' })}
+              className="qh-cw-row"
+              style={{ ...rowStyle, justifyContent: 'center', padding: '10px 8px', fontSize: 12.5, background: c.surface2, marginTop: 2 }}
+            >
+              <span aria-hidden="true">✉️</span>
+              <span dir="ltr">{SITE.contact.email}</span>
+            </a>
           </div>
         </div>
       )}
