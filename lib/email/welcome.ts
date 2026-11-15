@@ -10,7 +10,7 @@ import { GREETINGS, greetingHtml, greetingText } from './greeting'
 // ─────────────────────────────────────────────────────────────────────────
 
 const FROM = `${SITE.name} <contact@${SITE.domain}>`
-const REPLY_TO = `contact@${SITE.domain}`
+const REPLY_TO = SITE.contact.email
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!))

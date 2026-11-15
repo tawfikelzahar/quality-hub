@@ -9,8 +9,8 @@
 //   tool_name  the page path without the slash ("spc", "gage-rr", "home")
 //   ui_lang    "ar" or "en", the language the visitor is reading
 //
-// Events (register tool_name, ui_lang, feature, file_format, method and
-// search_term as event-scoped custom dimensions in GA Admin):
+// Events (register tool_name, ui_lang, feature, file_format, method,
+// channel and search_term as event-scoped custom dimensions in GA Admin):
 //   tool_calculate   first result after the visitor typed, pasted or uploaded data (once per page view)
 //   example_loaded   "Try an example" pressed
 //   file_export      an allowed export was started (file_format: csv | png | excel | pdf)
@@ -20,6 +20,8 @@
 //   menu_open        the phone menu was opened
 //   search           a tool search was used (search_term)
 //   signup_wall_hit / pro_wall_hit   (lib/exportGate.ts) a locked feature was pressed
+//   contact_open     the floating contact button was opened (components/ContactWidget.tsx)
+//   contact_click    a contact choice was pressed (channel: billing | problem | suggest | email | linkedin)
 //
 // In development, or with localStorage "qh-ga-debug" = "1", events are also
 // printed to the browser console as [ga] … so they can be checked by hand.
@@ -60,6 +62,7 @@ export type GaEvent =
   | 'tool_calculate' | 'example_loaded' | 'file_export' | 'save_project'
   | 'sign_up' | 'login' | 'get_pro_click' | 'menu_open' | 'search'
   | 'signup_wall_hit' | 'pro_wall_hit'
+  | 'contact_open' | 'contact_click'
 
 export function track(event: GaEvent, params: Record<string, string | number | boolean | undefined> = {}) {
   if (typeof window === 'undefined') return

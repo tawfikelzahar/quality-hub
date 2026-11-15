@@ -11,7 +11,7 @@ import { GREETINGS, greetingHtml, greetingText } from './greeting'
 // ─────────────────────────────────────────────────────────────────────────
 
 const FROM = `${SITE.name} <contact@${SITE.domain}>`
-const REPLY_TO = `contact@${SITE.domain}`
+const REPLY_TO = SITE.contact.email
 
 export interface RenewalEmailData {
   lang: 'ar' | 'en'

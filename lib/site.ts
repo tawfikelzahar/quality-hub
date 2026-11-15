@@ -63,6 +63,13 @@ export const SITE_LINKS = {
   linkedinDisplay: `in/${SITE.contact.linkedin}`,
 } as const
 
+/** WhatsApp link that opens the chat with a message already typed */
+export function whatsappLink(message: string): string {
+  // drop the invisible left-to-right marks the Arabic screen text carries (lib/i18n/bidi.ts)
+  const clean = message.replace(/[\u2066-\u2069]/g, '')
+  return `${SITE_LINKS.whatsapp}?text=${encodeURIComponent(clean)}`
+}
+
 /** The site's own description (home page, link previews, structured data) */
 export const SITE_DESCRIPTION = {
   en: "Quality engineering platform online — SPC control charts and capability (Cp, Cpk), Gage R&R (AIAG MSA), AQL sampling plans (ISO 2859-1), DOE and regression, with reports that carry your name. Arabic and English, nothing to install.",

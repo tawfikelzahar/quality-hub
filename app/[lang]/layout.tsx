@@ -6,6 +6,7 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import ReportBrandingLoader from "@/components/ReportBrandingLoader";
 import Analytics from "@/components/Analytics";
 import JsonLd from "@/components/JsonLd";
+import ContactWidget from "@/components/ContactWidget";
 import { siteSchema } from "@/lib/seo/schema";
 import { notFound } from 'next/navigation'
 import { SITE, SITE_TITLE, SITE_DESCRIPTION } from '@/lib/site'
@@ -124,7 +125,11 @@ export default async function RootLayout({
         <JsonLd data={siteSchema(lang, lang === 'ar' ? DESCRIPTION.ar : DESCRIPTION.en)} />
         <ServiceWorkerRegister />
         <ReportBrandingLoader />
-        <LanguageProvider lang={lang}>{children}</LanguageProvider>
+        <LanguageProvider lang={lang}>
+          {children}
+          {/* Floating contact button (selected pages only, see the component) */}
+          <ContactWidget />
+        </LanguageProvider>
       </body>
     </html>
   );
