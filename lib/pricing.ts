@@ -2,9 +2,16 @@
 // Pro prices — the one place to change them (agreed 10 Nov 2026).
 //
 // Pro is paid once for a period; it never renews by itself (Paymob without a
-// commercial register). Two price lists:
-//   eg  Egypt, in Egyptian pounds
-//   me  Gulf and the rest of the Middle East, in US dollars
+// commercial register). Three price lists:
+//   eg    Egypt, in Egyptian pounds
+//   me    the six Gulf countries, also in Egyptian pounds (16 Nov 2026):
+//         Paymob takes Gulf cards on this account in EGP only, so Gulf
+//         prices are about the old dollar prices converted at ~53.8 EGP/USD
+//         ($12.99 → 699, $9.99 → 549, $99 → 5,390, $79 → 4,290). Review them
+//         if the dollar moves a lot.
+//   intl  everyone else, in US dollars, shown only: checkout stays closed
+//         until payments from other countries are possible (commercial
+//         register needed, per Paymob)
 // The pricing page shows one list only, picked from the visitor's country
 // (Vercel's x-vercel-ip-country header, see app/[lang]/pricing/page.tsx).
 // Visitors cannot switch lists. Checkout must pick the price the same way,
@@ -16,7 +23,7 @@
 // date is set; when set, the pricing page shows the date.
 // ─────────────────────────────────────────────────────────────────────────
 
-export type Region = 'eg' | 'me'
+export type Region = 'eg' | 'me' | 'intl'
 export type PeriodId = 'monthly' | 'quarterly' | 'yearly'
 
 export interface PlanPrice {
@@ -43,6 +50,13 @@ export const PRICES: Record<Region, PriceList> = {
     ],
   },
   me: {
+    currency: 'EGP',
+    plans: [
+      { id: 'monthly', months: 1, price: 699, founding: 549 },
+      { id: 'yearly', months: 12, price: 5390, founding: 4290 },
+    ],
+  },
+  intl: {
     currency: 'USD',
     plans: [
       { id: 'monthly', months: 1, price: 12.99, founding: 9.99 },
@@ -78,10 +92,22 @@ export function foundingOpen(now: number = Date.now()): boolean {
   return end !== null && now < end
 }
 
-/** Egypt, or an unknown country (no header), gets the Egyptian list; everyone else the dollar list. */
+/** The six Gulf countries (ISO codes, as in Vercel's x-vercel-ip-country). */
+export const GULF_COUNTRIES = ['SA', 'AE', 'KW', 'QA', 'BH', 'OM'] as const
+
+/**
+ * Egypt, or an unknown country (no header), gets the Egyptian list; the Gulf
+ * the Gulf list (EGP); everyone else the dollar list (checkout closed).
+ */
 export function regionForCountry(country: string | null | undefined): Region {
   const cc = (country ?? '').trim().toUpperCase()
-  return cc === '' || cc === 'EG' ? 'eg' : 'me'
+  if (cc === '' || cc === 'EG') return 'eg'
+  return (GULF_COUNTRIES as readonly string[]).includes(cc) ? 'me' : 'intl'
+}
+
+/** Regions whose customers can pay now (Paymob, card in EGP). */
+export function regionCanPay(region: Region): boolean {
+  return region === 'eg' || region === 'me'
 }
 
 /** "EGP 2,490" / "2,490 ج.م" / "$9.99" */

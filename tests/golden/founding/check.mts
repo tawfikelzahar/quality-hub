@@ -3,7 +3,7 @@
 // has not lapsed. An older founding payment never counts again once the
 // subscriber came back at the regular price.
 import { keepsFounding } from '../../../lib/plan.ts'
-import { FOUNDING, foundingEndsAtMs, foundingOpen } from '../../../lib/pricing.ts'
+import { FOUNDING, PRICES, foundingEndsAtMs, foundingOpen, regionCanPay, regionForCountry } from '../../../lib/pricing.ts'
 
 let pass = 0
 let fail = 0
@@ -40,6 +40,17 @@ FOUNDING.endsAt = null
 FOUNDING.open = false
 check('switched off → closed even with no end date', !foundingOpen(now))
 Object.assign(FOUNDING, saved)
+
+// Price list by country (16 Nov 2026): Egypt and the six Gulf countries pay
+// in EGP (Paymob takes Gulf cards on this account in EGP only); everyone
+// else sees dollar prices with checkout closed.
+check('Egypt and unknown country → Egyptian list', regionForCountry('EG') === 'eg' && regionForCountry(null) === 'eg' && regionForCountry('') === 'eg')
+check('the six Gulf countries → Gulf list', ['SA', 'AE', 'KW', 'QA', 'BH', 'OM', 'sa'].every(c => regionForCountry(c) === 'me'))
+check('rest of the world → dollar list', ['JO', 'IQ', 'MA', 'US', 'GB', 'TR'].every(c => regionForCountry(c) === 'intl'))
+check('Egypt and Gulf can pay, the rest cannot', regionCanPay('eg') && regionCanPay('me') && !regionCanPay('intl'))
+check('Gulf list is in EGP, the rest in USD', PRICES.me.currency === 'EGP' && PRICES.eg.currency === 'EGP' && PRICES.intl.currency === 'USD')
+const gulf = Object.fromEntries(PRICES.me.plans.map(p => [p.id, [p.price, p.founding]]))
+check('Gulf prices as agreed (699/549 monthly, 5,390/4,290 yearly)', JSON.stringify(gulf) === JSON.stringify({ monthly: [699, 549], yearly: [5390, 4290] }))
 
 if (fail) { console.log(`founding: ${fail} failed, ${pass} passed`); process.exit(1) }
 console.log(`founding price rule: ${pass} checks pass`)

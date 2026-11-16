@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { foundingOpen, PRICES, regionForCountry, type PeriodId, type PlanPrice, type Region } from '@/lib/pricing'
+import { foundingOpen, PRICES, regionCanPay, regionForCountry, type PeriodId, type PlanPrice, type Region } from '@/lib/pricing'
 import { paymobConfig, type PaymobConfig } from '@/lib/paymob.server'
 import { isAdminSession } from '@/lib/admin.server'
 import { keepsFounding } from '@/lib/plan'
@@ -12,8 +12,9 @@ import { keepsFounding } from '@/lib/plan'
 //     visitor's country (x-vercel-ip-country). Nothing the browser sends
 //     can change the amount.
 //   • Checkout is OPEN only when: the Paymob keys and PAYMENTS_DB_SECRET are
-//     set, the visitor is on the Egyptian price list (the card integration
-//     is in EGP), and either the keys are live or the visitor is the admin.
+//     set, the visitor is in Egypt or the Gulf (both lists are in EGP, the
+//     card integration's currency), and either the keys are live or the
+//     visitor is the admin.
 //     With test keys the public sees "opens soon", so nobody can get Pro
 //     with a Paymob test card.
 //   • Payment rows are written only through the payments_* database
@@ -35,13 +36,24 @@ function dbSecret(): string {
   return (process.env.PAYMENTS_DB_SECRET ?? '').trim()
 }
 
+/**
+ * The visitor's country for prices and checkout: Vercel's header, or, for the
+ * admin only, a two-letter country from ?as= (e.g. ?as=SA) to see and test
+ * another country's prices and checkout from Egypt. Ignored for everyone else.
+ */
+export async function visitorCountry(header: string | null, as: unknown, supabase?: SupabaseClient): Promise<string | null> {
+  const want = typeof as === 'string' ? as.trim().toUpperCase() : ''
+  if (/^[A-Z]{2}$/.test(want) && (await isAdminSession(supabase))) return want
+  return header
+}
+
 /** Is checkout open for this request? `supabase` is the signed-in user's client (for the admin check). */
 export async function checkoutContext(country: string | null, supabase?: SupabaseClient): Promise<CheckoutContext> {
   const region = regionForCountry(country)
   const cfg = paymobConfig()
   const base = { region, country, cfg, mode: cfg ? cfg.mode : 'off' as const }
   if (!cfg || !dbSecret()) return { ...base, state: 'soon' }
-  if (region !== 'eg') return { ...base, state: 'region' }
+  if (!regionCanPay(region)) return { ...base, state: 'region' }
   if (cfg.mode === 'test' && !(await isAdminSession(supabase))) return { ...base, state: 'soon' }
   return { ...base, state: 'open' }
 }

@@ -4,7 +4,7 @@ import { createServerSupabase } from '@/lib/supabase-server'
 import { SITE } from '@/lib/site'
 import type { PeriodId } from '@/lib/pricing'
 import { createIntention, checkoutUrl } from '@/lib/paymob.server'
-import { attachIntention, checkoutContext, createPayment, quote, savePaymentPhone, userGetsFounding } from '@/lib/payments.server'
+import { attachIntention, checkoutContext, createPayment, quote, savePaymentPhone, userGetsFounding, visitorCountry } from '@/lib/payments.server'
 
 // POST /api/paymob/checkout — starts a Pro payment for the signed-in user
 // and returns the address of Paymob's payment page. The amount comes from
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const refused = guardApi(request, { bucket: 'paymob-checkout', maxBytes: 2048, perMinute: 6, perHour: 30 })
   if (refused) return refused
 
-  let body: { plan?: unknown; phone?: unknown; lang?: unknown }
+  let body: { plan?: unknown; phone?: unknown; lang?: unknown; as?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user || !user.email) return NextResponse.json({ error: 'Please sign in.', code: 'login' }, { status: 401 })
 
-  const country = request.headers.get('x-vercel-ip-country')
+  // ?as= country preview, honoured for the admin only
+  const country = await visitorCountry(request.headers.get('x-vercel-ip-country'), body.as, supabase)
   const ctx = await checkoutContext(country, supabase)
   if (ctx.state !== 'open' || !ctx.cfg) {
     return NextResponse.json({ error: 'Checkout is not open yet.', code: ctx.state }, { status: 403 })

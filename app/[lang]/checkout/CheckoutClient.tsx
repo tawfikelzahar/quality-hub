@@ -26,13 +26,15 @@ const PER_KEY: Record<PeriodId, TKey> = {
   yearly: 'pricing_per_yearly',
 }
 
-export default function CheckoutClient({ region, state, testMode, founding, initialPlan }: {
+export default function CheckoutClient({ region, state, testMode, founding, initialPlan, asCountry = '' }: {
   region: Region
   state: 'open' | 'soon' | 'region'
   testMode: boolean
   founding: boolean
   /** ?plan= from the address, read on the server so both renders agree */
   initialPlan: string
+  /** admin preview of another country (?as=), sent on to the payment API */
+  asCountry?: string
 }) {
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
@@ -59,7 +61,7 @@ export default function CheckoutClient({ region, state, testMode, founding, init
       const res = await fetch('/api/paymob/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: plan.id, phone: clean, lang }),
+        body: JSON.stringify({ plan: plan.id, phone: clean, lang, ...(asCountry ? { as: asCountry } : {}) }),
       })
       const json = await res.json().catch(() => ({}))
       if (res.ok && typeof json.url === 'string') { window.location.assign(json.url); return }
@@ -124,6 +126,7 @@ export default function CheckoutClient({ region, state, testMode, founding, init
 
             <ul style={{ margin: '8px 0 0', paddingInlineStart: 18, fontSize: 12.5, color: c.muted, lineHeight: 1.8 }}>
               <li>{t('co_once')}</li>
+              {region === 'me' && <li>{t('pricing_egp_note')}</li>}
               <li>{t('co_dates_note')}</li>
               <li>{t('co_secure')}</li>
             </ul>

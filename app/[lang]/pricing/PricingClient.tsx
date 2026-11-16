@@ -90,7 +90,7 @@ const PER_KEY: Record<PeriodId, TKey> = {
 }
 const HOW_KEYS: TKey[] = ['pricing_how_1', 'pricing_how_2', 'pricing_how_3', 'pricing_how_4']
 
-export default function PricingClient({ defaultRegion }: { defaultRegion: Region }) {
+export default function PricingClient({ defaultRegion, asCountry = '' }: { defaultRegion: Region; asCountry?: string }) {
   const [theme, setTheme] = usePersistedTheme()
   const { t, lang } = useLanguage()
   const c = COLORS[theme]
@@ -244,14 +244,15 @@ export default function PricingClient({ defaultRegion }: { defaultRegion: Region
             {founding && countdownEnd !== null && (
               <FoundingCountdown endsAt={countdownEnd} onEnd={realEnd !== null ? onFoundingEnd : undefined} gold={c.gold} border={c.border} muted={c.muted} text={c.text} />
             )}
-            <div style={{ fontSize: 12, color: c.muted, margin: '6px 0 16px' }}>{t('pricing_once_note')}</div>
+            <div style={{ fontSize: 12, color: c.muted, margin: region === 'me' ? '6px 0 4px' : '6px 0 16px' }}>{t('pricing_once_note')}</div>
+            {region === 'me' && <div style={{ fontSize: 12, color: c.muted, margin: '0 0 16px', lineHeight: 1.6 }}>{t('pricing_egp_note')}</div>}
 
             <ul style={bulletList}>
               {(['pricing_pro_bullet_1', 'pricing_pro_bullet_2', 'pricing_pro_bullet_3', 'pricing_pro_bullet_4', 'pricing_pro_bullet_5'] as TKey[]).map((k) => (
                 <li key={k}>{t(k)}</li>
               ))}
             </ul>
-            <Link href={`/checkout?plan=${plan.id}`} style={{ ...s.exportBtn, width: '100%', textDecoration: 'none', background: c.gold, color: c.onGold, borderColor: c.gold, fontWeight: 700 }}>
+            <Link href={`/checkout?plan=${plan.id}${asCountry ? `&as=${asCountry}` : ''}`} style={{ ...s.exportBtn, width: '100%', textDecoration: 'none', background: c.gold, color: c.onGold, borderColor: c.gold, fontWeight: 700 }}>
               {t('pricing_pro_cta')}
             </Link>
           </div>
