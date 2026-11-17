@@ -20,6 +20,9 @@
 //   menu_open        the phone menu was opened
 //   search           a tool search was used (search_term)
 //   signup_wall_hit / pro_wall_hit   (lib/exportGate.ts) a locked feature was pressed
+//   purchase         Pro payment confirmed by Paymob's signed callback (checkout/result page):
+//                    transaction_id, value, currency (EGP | USD), plan, months, founding, items.
+//                    Sent once per payment; test-mode payments are only logged, never sent.
 //   contact_open     the floating contact button was opened (components/ContactWidget.tsx)
 //   contact_click    a contact choice was pressed (channel: billing | question | suggest | email)
 //
@@ -28,6 +31,7 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { SITE } from '@/lib/site'
+import { stripLocale } from '@/lib/i18n/routing'
 
 export const GA_MEASUREMENT_ID = 'G-9RKQ89NGD0'
 
@@ -49,7 +53,8 @@ function debugOn(): boolean {
 
 /** "spc", "gage-rr", "home" … from the current path */
 export function toolNameFromPath(path?: string): string {
-  const p = (path ?? (typeof window !== 'undefined' ? window.location.pathname : '/')).replace(/^\/+|\/+$/g, '')
+  // /ar/spc and /spc are the same tool: drop the language prefix first
+  const p = stripLocale(path ?? (typeof window !== 'undefined' ? window.location.pathname : '/')).replace(/^\/+|\/+$/g, '')
   return p.split('/')[0] || 'home'
 }
 
@@ -62,9 +67,11 @@ export type GaEvent =
   | 'tool_calculate' | 'example_loaded' | 'file_export' | 'save_project'
   | 'sign_up' | 'login' | 'get_pro_click' | 'menu_open' | 'search'
   | 'signup_wall_hit' | 'pro_wall_hit'
-  | 'contact_open' | 'contact_click'
+  | 'contact_open' | 'contact_click' | 'purchase'
 
-export function track(event: GaEvent, params: Record<string, string | number | boolean | undefined> = {}) {
+export type GaParam = string | number | boolean | undefined | Record<string, string | number>[]
+
+export function track(event: GaEvent, params: Record<string, GaParam> = {}) {
   if (typeof window === 'undefined') return
   const payload = { tool_name: toolNameFromPath(), ui_lang: uiLang(), ...params }
   if (debugOn()) console.info('[ga]', event, payload)

@@ -6,6 +6,33 @@ import Nav from '@/components/Nav'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import { useLanguage } from '@/lib/i18n/context'
 import { refreshAuthState } from '@/lib/authState'
+import { track } from '@/lib/analytics'
+import { SITE } from '@/lib/site'
+
+// GA4 purchase, once per payment. The figures come from /api/paymob/status,
+// i.e. the payment Paymob's signed callback confirmed, never from the address
+// bar. A payment made with Paymob's test keys is logged to the console only,
+// so test runs never count as revenue.
+interface PaidPayment { id?: string; plan?: string; months?: number; amount?: number; currency?: string; founding?: boolean; mode?: string }
+function sendPurchase(p: PaidPayment) {
+  if (!p.id || typeof p.amount !== 'number' || !p.currency) return
+  const key = `qh-ga-purchase-${p.id}`
+  try { if (localStorage.getItem(key)) return } catch { /* storage blocked: GA still de-duplicates on transaction_id */ }
+  if (p.mode !== 'live') {
+    console.info('[ga] purchase (test payment, not sent)', p)
+    return
+  }
+  track('purchase', {
+    transaction_id: p.id,
+    value: p.amount,
+    currency: p.currency,
+    plan: p.plan,
+    months: p.months,
+    founding: !!p.founding,
+    items: [{ item_id: `pro_${p.plan}`, item_name: `${SITE.name} Pro (${p.plan})`, price: p.amount, quantity: 1 }],
+  })
+  try { localStorage.setItem(key, '1') } catch { /* see above */ }
+}
 
 type View = 'checking' | 'paid' | 'failed' | 'waiting'
 
@@ -31,6 +58,7 @@ export default function ResultClient() {
           if (cancelled) return
           if (res.status === 401) break // signed out: nothing to look up
           if (json.status === 'paid') {
+            sendPurchase(json)
             setUntil(typeof json.proUntil === 'string' ? json.proUntil : null)
             setView('paid')
             void refreshAuthState()
