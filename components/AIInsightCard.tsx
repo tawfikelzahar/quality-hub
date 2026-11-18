@@ -29,7 +29,18 @@ interface AIInsightCardProps {
 
 type ErrorCode = 'login' | 'pro' | 'limit' | 'not_configured' | 'generic'
 
-export default function AIInsightCard({ theme, tool, isPro, isLoggedIn, getSummary, resultKey, showLockedTeaser = true }: AIInsightCardProps) {
+// AI Insights is hidden from everyone until AI credits are bought and the
+// feature is tested (owner's decision, 18 Nov 2026). To show it again set
+// this to true: the card comes back on every tool that uses it (SPC tools
+// and X̄-R). The API route /api/ai-insight is left as it is.
+export const AI_INSIGHTS_ENABLED = false
+
+export default function AIInsightCard(props: AIInsightCardProps) {
+  if (!AI_INSIGHTS_ENABLED) return null
+  return <AIInsightCardInner {...props} />
+}
+
+function AIInsightCardInner({ theme, tool, isPro, isLoggedIn, getSummary, resultKey, showLockedTeaser = true }: AIInsightCardProps) {
   const { lang, t } = useLanguage()
   const c = COLORS[theme]
   const s = getSharedStyles(theme)
