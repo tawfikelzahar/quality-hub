@@ -7,6 +7,7 @@ import GetProLink from '@/components/GetProLink'
 import LanguageToggle from '@/components/LanguageToggle'
 import MobileMenu from '@/components/MobileMenu'
 import { useLanguage } from '@/lib/i18n/context'
+import PaymentLogos from '@/components/PaymentLogos'
 import { VERIFICATION, VERIFY_COPY, TOOL_COUNT as VERIFIED_TOOL_COUNT, formatRunDate, formatCount } from '@/lib/verification/content'
 import { SITE } from '@/lib/site'
 import { foundingOpen } from '@/lib/pricing'
@@ -405,6 +406,7 @@ export default function Home() {
               <Link href="/terms" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_terms')}</Link>
               <Link href="/refund-policy" style={{color:'var(--qh-muted)',minHeight:32,display:'flex',alignItems:'center'}}>{t('footer_refund')}</Link>
             </nav>
+            <div style={{width:'100%'}}><PaymentLogos /></div>
             <div style={{width:'100%'}}>© {SITE.copyrightYear} {SITE.name} · {t('home_footer_built')}</div>
           </div>
         </footer>

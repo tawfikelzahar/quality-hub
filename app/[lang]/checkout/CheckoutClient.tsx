@@ -5,6 +5,7 @@ import Link from '@/components/LocaleLink'
 import Nav from '@/components/Nav'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import { useLanguage } from '@/lib/i18n/context'
+import PaymentLogos from '@/components/PaymentLogos'
 import type { TKey } from '@/lib/i18n/translations'
 import { useAuthState } from '@/lib/authState'
 import { localizePath } from '@/lib/i18n/routing'
@@ -176,6 +177,7 @@ export default function CheckoutClient({ region, state, testMode, founding, init
                 </button>
               </>
             )}
+            <div style={{ marginTop: 14 }}><PaymentLogos align="center" /></div>
             <p style={{ fontSize: 12, color: c.muted, lineHeight: 1.8, margin: '14px 0 0' }}>
               {t('co_agree_prefix')}{' '}
               <Link href="/terms" style={{ color: c.accent, textDecoration: 'none' }}>{t('bc_terms')}</Link>{' '}

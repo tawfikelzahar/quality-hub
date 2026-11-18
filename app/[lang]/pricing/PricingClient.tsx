@@ -5,6 +5,7 @@ import Link from '@/components/LocaleLink'
 import { COLORS, getSharedStyles, usePersistedTheme } from '@/lib/theme'
 import Nav from '@/components/Nav'
 import { useLanguage } from '@/lib/i18n/context'
+import PaymentLogos from '@/components/PaymentLogos'
 import type { TKey } from '@/lib/i18n/translations'
 import { useAuthState } from '@/lib/authState'
 import { PRICES, formatPrice, foundingEndsAtMs, foundingOpen, savingPercent, type PeriodId, type Region } from '@/lib/pricing'
@@ -331,6 +332,7 @@ export default function PricingClient({ defaultRegion, asCountry = '' }: { defau
           </Link>{' '}
           {t('pricing_footer_suffix')}
         </div>
+        <div style={{ marginBottom: 28 }}><PaymentLogos /></div>
       </main>
     </div>
   )
