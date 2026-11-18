@@ -9,7 +9,7 @@ import JsonLd from "@/components/JsonLd";
 import ContactWidget from "@/components/ContactWidget";
 import { siteSchema } from "@/lib/seo/schema";
 import { notFound } from 'next/navigation'
-import { SITE, SITE_TITLE, SITE_DESCRIPTION } from '@/lib/site'
+import { SITE, SITE_TITLE, SITE_DESCRIPTION, siteTitle } from '@/lib/site'
 import { LOCALES, isLocale } from '@/lib/i18n/routing'
 
 const geistSans = Geist({
@@ -37,11 +37,13 @@ export async function generateMetadata({ params }: { params: Promise<{ lang: str
   const { lang } = await params
   const ar = lang === 'ar'
   const description = ar ? DESCRIPTION.ar : DESCRIPTION.en
+  const title = siteTitle(lang)
   return {
     ...BASE_METADATA,
+    title: { default: title, template: `%s | ${SITE.name}` },
     description,
-    openGraph: { ...BASE_METADATA.openGraph, description, locale: ar ? 'ar_EG' : 'en_US', alternateLocale: ar ? ['en_US'] : ['ar_EG'] },
-    twitter: { ...BASE_METADATA.twitter, description },
+    openGraph: { ...BASE_METADATA.openGraph, title, description, locale: ar ? 'ar_EG' : 'en_US', alternateLocale: ar ? ['en_US'] : ['ar_EG'], images: [{ url: SITE.ogImage, width: 1200, height: 630, alt: title }] },
+    twitter: { ...BASE_METADATA.twitter, title, description },
   }
 }
 

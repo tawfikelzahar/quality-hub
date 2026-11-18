@@ -18,6 +18,8 @@ export const SITE = {
   shortName: 'Mizan Quality',
   /** One-line description after the name in browser titles and link previews */
   tagline: 'Quality Engineering Platform',
+  /** The same in Arabic, for the Arabic pages' titles */
+  taglineAr: 'منصة هندسة الجودة',
 
   /** Public website address, without a trailing slash */
   url: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mizanquality.com',
@@ -78,6 +80,11 @@ export const SITE_DESCRIPTION = {
 
 /** "Mizan Quality — Quality Engineering Platform" */
 export const SITE_TITLE = `${SITE.name} — ${SITE.tagline}`
+
+/** The site title in the page's language: "Mizan Quality — منصة هندسة الجودة" on Arabic pages */
+export function siteTitle(lang: string): string {
+  return lang === 'ar' ? `${SITE.name} — ${SITE.taglineAr}` : SITE_TITLE
+}
 
 /** Logo text split for the two-colour logo: first words + last word */
 export function siteNameParts(): [string, string] {

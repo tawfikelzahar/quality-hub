@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { localizePath } from './routing'
-import { SITE, SITE_TITLE } from '@/lib/site'
+import { SITE, siteTitle } from '@/lib/site'
 
 // ─────────────────────────────────────────────────────────────────────────
 // One call builds a page's full bilingual <head>: title, description,
@@ -31,7 +31,7 @@ export function localizedPageMetadata(lang: string, path: string, en: Copy, ar: 
  */
 export function shareMetadata(lang: string, path: string, title: string | null, description: string): Pick<Metadata, 'openGraph' | 'twitter'> {
   const ar = lang === 'ar'
-  const full = title ? `${title} | ${SITE.name}` : SITE_TITLE
+  const full = title ? `${title} | ${SITE.name}` : siteTitle(lang)
   return {
     openGraph: {
       type: 'website',
