@@ -2,13 +2,14 @@
 
 // Card network acceptance marks, required on the site by the Paymob
 // contract (annex clause 3.2.2). Visa and Mastercard files come from the
-// payment-icons package (MPL-2.0). Meeza: drop the official file Paymob or
-// the bank gives you into public/payment/ and add it to LOGOS below.
+// payment-icons package (MPL-2.0). Meeza is the official mark, placed on a
+// white card of the same shape.
 import { useLanguage } from '@/lib/i18n/context'
 
 const LOGOS = [
   { src: '/payment/visa.svg', alt: 'Visa' },
   { src: '/payment/mastercard.svg', alt: 'Mastercard' },
+  { src: '/payment/meeza.png', alt: 'Meeza' },
 ]
 
 export default function PaymentLogos({ align = 'start' }: { align?: 'start' | 'center' }) {
