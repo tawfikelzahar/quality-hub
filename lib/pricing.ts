@@ -19,8 +19,17 @@
 //
 // Founding price: shown while FOUNDING.open is true. It is limited by time
 // only, never by a number of subscribers (decided 10 Nov 2026): everyone who
-// pays before FOUNDING.endsAt gets it. endsAt stays null until the launch
-// date is set; when set, the pricing page shows the date.
+// pays before it closes gets it.
+//
+// LAUNCH DAY — the only thing to do (no code, no push):
+//   Vercel → Settings → Environment Variables → Production → add
+//     NEXT_PUBLIC_LAUNCH_DATE = 2026-12-01      (the launch day, YYYY-MM-DD)
+//   then Deployments → latest → ⋯ → Redeploy.
+// The founding price then closes at the end of launch day + FOUNDING.days
+// (60) in Cairo time, summer time included. That turns on the countdown and
+// the closing date on the pricing page, and closes the founding price
+// everywhere (pricing page, home page badge, checkout) at that moment.
+// Until the variable is set the founding price is open with no countdown.
 // ─────────────────────────────────────────────────────────────────────────
 
 export type Region = 'eg' | 'me' | 'intl'
@@ -67,27 +76,64 @@ export const PRICES: Record<Region, PriceList> = {
 
 export const FOUNDING = {
   open: true,
-  /**
-   * When the founding price closes, or null while the launch date is not set.
-   * Launch day: set it to launch + 60 days, end of that day in Cairo, written
-   * with the +02:00 offset, e.g. '2027-03-01T23:59:59+02:00'. That one line
-   * turns on the countdown on the pricing page and closes the founding price
-   * everywhere (pricing page, home page badge, checkout) at that moment.
-   */
-  endsAt: null as string | null,
+  /** How long the founding price stays open after launch day (decided: 60 days). */
+  days: 60,
+  /** Launch day in Cairo, 'YYYY-MM-DD', from NEXT_PUBLIC_LAUNCH_DATE in Vercel; null until it is set. */
+  launchDate: ((process.env.NEXT_PUBLIC_LAUNCH_DATE ?? '').trim() || null) as string | null,
 }
 
-/** Closing moment in ms, or null when no end date is set (or it cannot be read). */
+const CAIRO = 'Africa/Cairo'
+
+/** Cairo's offset from UTC, in minutes, at an instant (+120 in winter, +180 in summer). */
+function cairoOffsetMin(utcMs: number): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: CAIRO, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).formatToParts(new Date(utcMs)).map((x) => [x.type, x.value]),
+  )
+  const asIfUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+  return Math.round((asIfUtc - utcMs) / 60000)
+}
+
+/** 23:59:59 of a calendar day in Cairo, as a UTC instant in ms. */
+export function cairoEndOfDay(year: number, month: number, day: number): number {
+  const wall = Date.UTC(year, month - 1, day, 23, 59, 59)
+  let utc = wall - cairoOffsetMin(wall) * 60000
+  utc = wall - cairoOffsetMin(utc) * 60000 // second pass settles a summer-time change
+  return utc
+}
+
+/** Launch day as [year, month, day], or null when it is not a real YYYY-MM-DD date. */
+function readLaunchDate(s: string): [number, number, number] | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
+  if (!m) return null
+  const [y, mo, d] = [+m[1], +m[2], +m[3]]
+  const check = new Date(Date.UTC(y, mo - 1, d))
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) return null
+  return [y, mo, d]
+}
+
+/**
+ * Closing moment in ms: end of (launch day + FOUNDING.days) in Cairo. Null
+ * when no launch date is set, or when it cannot be read.
+ */
 export function foundingEndsAtMs(): number | null {
-  if (!FOUNDING.endsAt) return null
-  const end = Date.parse(FOUNDING.endsAt)
-  return Number.isFinite(end) ? end : null
+  if (!FOUNDING.launchDate) return null
+  const ymd = readLaunchDate(FOUNDING.launchDate)
+  if (!ymd) return null
+  const last = new Date(Date.UTC(ymd[0], ymd[1] - 1, ymd[2] + FOUNDING.days))
+  return cairoEndOfDay(last.getUTCFullYear(), last.getUTCMonth() + 1, last.getUTCDate())
 }
 
-/** Is the founding price open to everyone right now? */
+/**
+ * Is the founding price open to everyone right now? Open while no launch
+ * date is set; a launch date that cannot be read closes it rather than
+ * leaving it open forever (the pricing page shows it at once).
+ */
 export function foundingOpen(now: number = Date.now()): boolean {
   if (!FOUNDING.open) return false
-  if (!FOUNDING.endsAt) return true
+  if (!FOUNDING.launchDate) return true
   const end = foundingEndsAtMs()
   return end !== null && now < end
 }

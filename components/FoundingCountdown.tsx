@@ -4,7 +4,7 @@
 // Founding price countdown (pricing page).
 //
 // Shows days · hours · minutes · seconds until `endsAt` (lib/pricing.ts
-// FOUNDING.endsAt) and calls onEnd once when it reaches zero, so the page
+// foundingEndsAtMs: launch day + 60 days) and calls onEnd once when it reaches zero, so the page
 // can switch to the regular price without a reload. Nothing is rendered
 // before the component mounts: the server and the browser clocks differ, and
 // a server-rendered number would flash a wrong value.

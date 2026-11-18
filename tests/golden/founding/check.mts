@@ -26,19 +26,29 @@ check('exactly at the end date counts as lapsed', !keepsFounding({ subscription_
 check('one second before the end still keeps it', keepsFounding({ subscription_status: 'pro', pro_until: '2027-03-01T10:00:01Z' }, true, now))
 
 // When the founding price is open to everyone (lib/pricing.ts foundingOpen):
-// the countdown closes it at FOUNDING.endsAt, written with the Cairo offset.
+// it closes at the end of launch day + 60 days in Cairo. Expected moments
+// worked out separately with Python's zoneinfo (Africa/Cairo), 18 Nov 2026.
 const saved = { ...FOUNDING }
-check('no end date yet → open', (FOUNDING.endsAt = null, foundingOpen(now)))
-FOUNDING.endsAt = '2027-03-01T23:59:59+02:00'
-check('end date is read with the Cairo offset', foundingEndsAtMs() === Date.parse('2027-03-01T21:59:59Z'))
+check('no launch date yet → open, no end', (FOUNDING.launchDate = null, foundingOpen(now) && foundingEndsAtMs() === null))
+FOUNDING.launchDate = '2026-12-31'
+check('31 Dec 2026 + 60 days → end of 1 Mar 2027, Cairo winter time', foundingEndsAtMs() === Date.parse('2027-03-01T21:59:59Z'))
 check('before the end → open', foundingOpen(Date.parse('2027-03-01T21:59:58Z')))
 check('exactly at the end → closed', !foundingOpen(Date.parse('2027-03-01T21:59:59Z')))
 check('after the end → closed', !foundingOpen(Date.parse('2027-03-02T08:00:00Z')))
-FOUNDING.endsAt = 'not a date'
-check('an unreadable end date closes it rather than leaving it open forever', !foundingOpen(now) && foundingEndsAtMs() === null)
-FOUNDING.endsAt = null
+FOUNDING.launchDate = '2026-12-01'
+check('1 Dec 2026 + 60 days → end of 30 Jan 2027 (+02:00)', foundingEndsAtMs() === Date.parse('2027-01-30T21:59:59Z'))
+check('open on launch day itself', foundingOpen(Date.parse('2026-12-01T08:00:00Z')))
+FOUNDING.launchDate = '2027-03-15'
+check('ending in Cairo summer time → end of 14 May 2027 (+03:00)', foundingEndsAtMs() === Date.parse('2027-05-14T20:59:59Z'))
+FOUNDING.launchDate = '2027-08-31'
+check('ending the day after summer time ends → end of 30 Oct 2027 (+02:00)', foundingEndsAtMs() === Date.parse('2027-10-30T21:59:59Z'))
+for (const bad of ['01-12-2026', '2026-12-1', '2026-02-30', 'not a date']) {
+  FOUNDING.launchDate = bad
+  check(`an unreadable launch date "${bad}" closes it rather than leaving it open forever`, !foundingOpen(now) && foundingEndsAtMs() === null)
+}
+FOUNDING.launchDate = null
 FOUNDING.open = false
-check('switched off → closed even with no end date', !foundingOpen(now))
+check('switched off → closed even with no launch date', !foundingOpen(now))
 Object.assign(FOUNDING, saved)
 
 // Price list by country (16 Nov 2026): Egypt and the six Gulf countries pay

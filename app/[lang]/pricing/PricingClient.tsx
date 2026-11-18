@@ -108,7 +108,8 @@ export default function PricingClient({ defaultRegion, asCountry = '' }: { defau
   const [period, setPeriod] = useState<PeriodId>('yearly')
   const list = PRICES[region]
   const plan = list.plans.find((p) => p.id === period) ?? list.plans[list.plans.length - 1]
-  // Founding price: open until FOUNDING.endsAt (lib/pricing.ts). The countdown
+  // Founding price: open until launch day + 60 days (lib/pricing.ts, set by
+  // NEXT_PUBLIC_LAUNCH_DATE in Vercel). The countdown
   // flips the page to the regular price the moment it reaches zero.
   // ?countdown_preview=1 shows a sample 60-day countdown while no end date is
   // set, to look at the design before launch; it changes no price.
