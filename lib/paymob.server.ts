@@ -68,7 +68,7 @@ export async function createIntention(cfg: PaymobConfig, input: IntentionInput):
     amount: input.amountCents,
     currency: input.currency,
     payment_methods: methods,
-    items: [{ name: input.itemName, amount: input.amountCents, description: input.itemDescription, quantity: 1 }],
+    items: [{ name: input.itemName, amount: input.amountCents, description: input.itemDescription, quantity: 1, image: 'https://www.mizanquality.com/paymob-logo.png' }],
     billing_data: {
       first_name: c.firstName, last_name: c.lastName, email: c.email, phone_number: c.phone,
       apartment: 'NA', floor: 'NA', street: 'NA', building: 'NA', shipping_method: 'NA',
